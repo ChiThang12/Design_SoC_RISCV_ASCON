@@ -6,7 +6,7 @@
 //   - Chỉ hỗ trợ READ (instruction memory là read-only)
 //   - Write request sẽ trả về SLVERR
 // ============================================================================
-
+`include "memory/inst_mem.v"
 module inst_mem_axi_slave (
     input wire clk,
     input wire rst_n,

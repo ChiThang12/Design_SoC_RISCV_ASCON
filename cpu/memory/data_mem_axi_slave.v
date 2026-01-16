@@ -6,7 +6,7 @@
 //   - Hỗ trợ cả READ và WRITE
 //   - Xử lý byte strobes để ghi byte/halfword/word
 // ============================================================================
-
+`include "memory/data_mem.v"
 module data_mem_axi_slave (
     input wire clk,
     input wire rst_n,

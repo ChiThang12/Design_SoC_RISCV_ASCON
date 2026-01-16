@@ -87,6 +87,7 @@ module axi4_lite_master_if (
     reg [31:0] wdata_reg;
     reg [3:0]  wstrb_reg;
     reg        wr_reg;
+    reg        req_pending;     // Cờ báo có request đang chờ
     
     // ========================================================================
     // Fixed AXI Signals
@@ -113,8 +114,8 @@ module axi4_lite_master_if (
         
         case (state)
             IDLE: begin
-                if (cpu_req) begin
-                    if (cpu_wr)
+                if (req_pending) begin
+                    if (wr_reg)
                         next_state = WRITE_ADDR;
                     else
                         next_state = READ_ADDR;
@@ -125,8 +126,11 @@ module axi4_lite_master_if (
             // WRITE TRANSACTION
             // ================================================================
             WRITE_ADDR: begin
-                if (M_AXI_AWREADY)
+                if (M_AXI_AWREADY && M_AXI_WREADY)
+                    next_state = WRITE_RESP;
+                else if (M_AXI_AWREADY)
                     next_state = WRITE_DATA;
+                // Giữ nguyên state nếu chưa ready
             end
             
             WRITE_DATA: begin
@@ -157,19 +161,29 @@ module axi4_lite_master_if (
     end
     
     // ========================================================================
-    // Latch CPU Request khi vào transaction
+    // Latch CPU Request
     // ========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            addr_reg  <= 32'h0;
-            wdata_reg <= 32'h0;
-            wstrb_reg <= 4'h0;
-            wr_reg    <= 1'b0;
-        end else if (state == IDLE && cpu_req) begin
-            addr_reg  <= cpu_addr;
-            wdata_reg <= cpu_wdata;
-            wstrb_reg <= cpu_wstrb;
-            wr_reg    <= cpu_wr;
+            addr_reg    <= 32'h0;
+            wdata_reg   <= 32'h0;
+            wstrb_reg   <= 4'h0;
+            wr_reg      <= 1'b0;
+            req_pending <= 1'b0;
+        end else begin
+            // Reset req_pending khi transaction hoàn thành
+            if ((state == WRITE_RESP && M_AXI_BVALID) || 
+                (state == READ_DATA && M_AXI_RVALID)) begin
+                req_pending <= 1'b0;
+            end
+            // Latch request mới nếu đang IDLE và có request
+            else if (state == IDLE && cpu_req && !req_pending) begin
+                addr_reg    <= cpu_addr;
+                wdata_reg   <= cpu_wdata;
+                wstrb_reg   <= cpu_wstrb;
+                wr_reg      <= cpu_wr;
+                req_pending <= 1'b1;
+            end
         end
     end
     
@@ -183,13 +197,15 @@ module axi4_lite_master_if (
         end else begin
             case (state)
                 IDLE: begin
-                    if (cpu_req && cpu_wr) begin
-                        M_AXI_AWADDR  <= cpu_addr;
+                    if (req_pending && wr_reg) begin
+                        M_AXI_AWADDR  <= addr_reg;
                         M_AXI_AWVALID <= 1'b1;
+                    end else begin
+                        M_AXI_AWVALID <= 1'b0;
                     end
                 end
                 
-                WRITE_ADDR: begin
+                WRITE_ADDR, WRITE_DATA: begin
                     if (M_AXI_AWREADY) begin
                         M_AXI_AWVALID <= 1'b0;
                     end
@@ -213,14 +229,16 @@ module axi4_lite_master_if (
         end else begin
             case (state)
                 IDLE: begin
-                    if (cpu_req && cpu_wr) begin
-                        M_AXI_WDATA  <= cpu_wdata;
-                        M_AXI_WSTRB  <= cpu_wstrb;
+                    if (req_pending && wr_reg) begin
+                        M_AXI_WDATA  <= wdata_reg;
+                        M_AXI_WSTRB  <= wstrb_reg;
                         M_AXI_WVALID <= 1'b1;
+                    end else begin
+                        M_AXI_WVALID <= 1'b0;
                     end
                 end
                 
-                WRITE_DATA: begin
+                WRITE_ADDR, WRITE_DATA: begin
                     if (M_AXI_WREADY) begin
                         M_AXI_WVALID <= 1'b0;
                     end
@@ -261,9 +279,11 @@ module axi4_lite_master_if (
         end else begin
             case (state)
                 IDLE: begin
-                    if (cpu_req && !cpu_wr) begin
-                        M_AXI_ARADDR  <= cpu_addr;
+                    if (req_pending && !wr_reg) begin
+                        M_AXI_ARADDR  <= addr_reg;
                         M_AXI_ARVALID <= 1'b1;
+                    end else begin
+                        M_AXI_ARVALID <= 1'b0;
                     end
                 end
                 

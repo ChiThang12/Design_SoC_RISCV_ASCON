@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-`include "datapath.v"
+//`include "datapath.v"
 
 module testbench;
     reg clock;
@@ -168,9 +168,9 @@ module testbench;
         #15;
         reset = 0;
         
-        $display("\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
+        $display("\nâ•”â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•—");
         $display("â•‘   RISC-V Pipeline Processor Test     â•‘");
-        $display("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n");
+        $display("â•šâ•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?\n");
         
         // Wait for program to finish (max 2000 cycles - reduced timeout)
         #20000;
@@ -193,12 +193,12 @@ module testbench;
         begin
             return_value = dut.register_file.registers[10];  // a0 register
             
-            $display("\nâ•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—");
+            $display("\nâ•”â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•—");
             $display("â•‘      Execution Results                â•‘");
-            $display("â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n");
+            $display("â•šâ•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?\n");
             
             // Main result
-            $display("â”Œâ”€â”€â”€ PROGRAM OUTPUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”");
+            $display("â”Œâ”€â”€â”€ PROGRAM OUTPUT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”?");
             $display("â”‚ Return Value (x10/a0):               â”‚");
             $display("â”‚   Decimal: %-26d â”‚", return_value);
             $display("â”‚   Hex:     0x%-24h â”‚", return_value);
@@ -212,7 +212,7 @@ module testbench;
                 cpi = 0.0;
             end
             
-            $display("â”Œâ”€â”€â”€ PERFORMANCE METRICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”");
+            $display("â”Œâ”€â”€â”€ PERFORMANCE METRICS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”?");
             $display("â”‚ Total Clock Cycles:  %-15d â”‚", cycle_count);
             $display("â”‚ Instructions Executed: %-13d â”‚", instr_count);
             $display("â”‚ CPI (Cycles/Instr):  %-15.2f â”‚", cpi);
@@ -230,7 +230,7 @@ module testbench;
             // Pipeline efficiency analysis
             print_pipeline_stats();
             
-            $display("â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•\n");
+            $display("â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?â•?\n");
         end
     endtask
     
@@ -238,7 +238,7 @@ module testbench;
     task print_pipeline_stats;
         real efficiency;
         begin
-            $display("â”Œâ”€â”€â”€ PIPELINE ANALYSIS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”");
+            $display("â”Œâ”€â”€â”€ PIPELINE ANALYSIS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”?");
             
             if (cycle_count > 0) begin
                 efficiency = (instr_count * 100.0) / cycle_count;
