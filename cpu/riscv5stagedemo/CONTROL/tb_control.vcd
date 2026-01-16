@@ -1,0 +1,637 @@
+$date
+	Sun Nov 02 14:05:30 2025
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module tb_control $end
+$var wire 1 ! regwrite $end
+$var wire 1 " memwrite $end
+$var wire 1 # memtoreg $end
+$var wire 1 $ memread $end
+$var wire 1 % jump $end
+$var wire 2 & byte_size [1:0] $end
+$var wire 1 ' branch $end
+$var wire 1 ( alusrc $end
+$var wire 2 ) aluop [1:0] $end
+$var wire 4 * alu_control [3:0] $end
+$var parameter 4 + ALU_ADD $end
+$var parameter 4 , ALU_AND $end
+$var parameter 4 - ALU_DIV $end
+$var parameter 4 . ALU_DIVU $end
+$var parameter 4 / ALU_MUL $end
+$var parameter 4 0 ALU_MULH $end
+$var parameter 4 1 ALU_OR $end
+$var parameter 4 2 ALU_REM $end
+$var parameter 4 3 ALU_REMU $end
+$var parameter 4 4 ALU_SLL $end
+$var parameter 4 5 ALU_SLT $end
+$var parameter 4 6 ALU_SLTU $end
+$var parameter 4 7 ALU_SRA $end
+$var parameter 4 8 ALU_SRL $end
+$var parameter 4 9 ALU_SUB $end
+$var parameter 4 : ALU_XOR $end
+$var parameter 7 ; OP_AUIPC $end
+$var parameter 7 < OP_BRANCH $end
+$var parameter 7 = OP_I_TYPE $end
+$var parameter 7 > OP_JAL $end
+$var parameter 7 ? OP_JALR $end
+$var parameter 7 @ OP_LOAD $end
+$var parameter 7 A OP_LUI $end
+$var parameter 7 B OP_R_TYPE $end
+$var parameter 7 C OP_STORE $end
+$var reg 3 D funct3 [2:0] $end
+$var reg 7 E funct7 [6:0] $end
+$var reg 7 F opcode [6:0] $end
+$var integer 32 G failed [31:0] $end
+$var integer 32 H passed [31:0] $end
+$scope module uut $end
+$var wire 3 I funct3 [2:0] $end
+$var wire 7 J funct7 [6:0] $end
+$var wire 7 K opcode [6:0] $end
+$var parameter 4 L ALU_ADD $end
+$var parameter 4 M ALU_AND $end
+$var parameter 4 N ALU_DIV $end
+$var parameter 4 O ALU_DIVU $end
+$var parameter 4 P ALU_MUL $end
+$var parameter 4 Q ALU_MULH $end
+$var parameter 4 R ALU_OR $end
+$var parameter 4 S ALU_REM $end
+$var parameter 4 T ALU_REMU $end
+$var parameter 4 U ALU_SLL $end
+$var parameter 4 V ALU_SLT $end
+$var parameter 4 W ALU_SLTU $end
+$var parameter 4 X ALU_SRA $end
+$var parameter 4 Y ALU_SRL $end
+$var parameter 4 Z ALU_SUB $end
+$var parameter 4 [ ALU_XOR $end
+$var parameter 3 \ F3_ADD_SUB $end
+$var parameter 3 ] F3_AND $end
+$var parameter 3 ^ F3_BEQ $end
+$var parameter 3 _ F3_BGE $end
+$var parameter 3 ` F3_BGEU $end
+$var parameter 3 a F3_BLT $end
+$var parameter 3 b F3_BLTU $end
+$var parameter 3 c F3_BNE $end
+$var parameter 3 d F3_BYTE $end
+$var parameter 3 e F3_BYTE_U $end
+$var parameter 3 f F3_DIV $end
+$var parameter 3 g F3_DIVU $end
+$var parameter 3 h F3_HALF $end
+$var parameter 3 i F3_HALF_U $end
+$var parameter 3 j F3_MUL $end
+$var parameter 3 k F3_MULH $end
+$var parameter 3 l F3_OR $end
+$var parameter 3 m F3_REM $end
+$var parameter 3 n F3_REMU $end
+$var parameter 3 o F3_SLL $end
+$var parameter 3 p F3_SLT $end
+$var parameter 3 q F3_SLTU $end
+$var parameter 3 r F3_SRL_SRA $end
+$var parameter 3 s F3_WORD $end
+$var parameter 3 t F3_XOR $end
+$var parameter 7 u F7_DEFAULT $end
+$var parameter 7 v F7_MULDIV $end
+$var parameter 7 w F7_SUB_SRA $end
+$var parameter 7 x OP_AUIPC $end
+$var parameter 7 y OP_BRANCH $end
+$var parameter 7 z OP_I_TYPE $end
+$var parameter 7 { OP_JAL $end
+$var parameter 7 | OP_JALR $end
+$var parameter 7 } OP_LOAD $end
+$var parameter 7 ~ OP_LUI $end
+$var parameter 7 !" OP_R_TYPE $end
+$var parameter 7 "" OP_STORE $end
+$var reg 4 #" alu_control [3:0] $end
+$var reg 2 $" aluop [1:0] $end
+$var reg 1 ( alusrc $end
+$var reg 1 ' branch $end
+$var reg 2 %" byte_size [1:0] $end
+$var reg 1 % jump $end
+$var reg 1 $ memread $end
+$var reg 1 # memtoreg $end
+$var reg 1 " memwrite $end
+$var reg 1 ! regwrite $end
+$upscope $end
+$scope task check_signals $end
+$var reg 4 &" exp_alu_control [3:0] $end
+$var reg 1 '" exp_alusrc $end
+$var reg 1 (" exp_branch $end
+$var reg 1 )" exp_jump $end
+$var reg 1 *" exp_memread $end
+$var reg 1 +" exp_memtoreg $end
+$var reg 1 ," exp_memwrite $end
+$var reg 1 -" exp_regwrite $end
+$var reg 1600 ." instr_name [1600:1] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+$comment Show the parameter values. $end
+$dumpall
+b100011 ""
+b110011 !"
+b110111 ~
+b11 }
+b1100111 |
+b1101111 {
+b10011 z
+b1100011 y
+b10111 x
+b100000 w
+b1 v
+b0 u
+b100 t
+b10 s
+b101 r
+b11 q
+b10 p
+b1 o
+b111 n
+b110 m
+b110 l
+b1 k
+b0 j
+b101 i
+b1 h
+b101 g
+b100 f
+b100 e
+b0 d
+b1 c
+b110 b
+b100 a
+b111 `
+b101 _
+b0 ^
+b111 ]
+b0 \
+b100 [
+b1 Z
+b110 Y
+b111 X
+b1001 W
+b1000 V
+b101 U
+b1111 T
+b1110 S
+b11 R
+b1011 Q
+b1010 P
+b1101 O
+b1100 N
+b10 M
+b0 L
+b100011 C
+b110011 B
+b110111 A
+b11 @
+b1100111 ?
+b1101111 >
+b10011 =
+b1100011 <
+b10111 ;
+b100 :
+b1 9
+b110 8
+b111 7
+b1001 6
+b1000 5
+b101 4
+b1111 3
+b1110 2
+b11 1
+b1011 0
+b1010 /
+b1101 .
+b1100 -
+b10 ,
+b0 +
+$end
+#0
+$dumpvars
+b10000010100010001000100 ."
+1-"
+0,"
+0+"
+0*"
+0)"
+0("
+0'"
+b0 &"
+b10 %"
+b10 $"
+b0 #"
+b110011 K
+b0 J
+b0 I
+b0 H
+b0 G
+b110011 F
+b0 E
+b0 D
+b0 *
+b10 )
+0(
+0'
+b10 &
+0%
+0$
+0#
+0"
+1!
+$end
+#1000
+b1 *
+b1 #"
+b10 )
+b10 $"
+1!
+b1 &"
+b10100110101010101000010 ."
+b100000 E
+b100000 J
+b1 H
+#2000
+b10 *
+b10 #"
+b10 )
+b10 $"
+1!
+b10 &"
+b10000010100111001000100 ."
+b0 E
+b0 J
+b111 D
+b111 I
+b10 H
+#3000
+b11 *
+b11 #"
+b10 )
+b10 $"
+1!
+b11 &"
+b100111101010010 ."
+b110 D
+b110 I
+b11 H
+#4000
+b100 *
+b100 #"
+b10 )
+b10 $"
+1!
+b100 &"
+b10110000100111101010010 ."
+b100 D
+b100 I
+b100 H
+#5000
+b101 *
+b101 #"
+b10 )
+b10 $"
+1!
+b101 &"
+b10100110100110001001100 ."
+b1 D
+b1 I
+b101 H
+#6000
+b110 *
+b110 #"
+b10 )
+b10 $"
+1!
+b110 &"
+b10100110101001001001100 ."
+b101 D
+b101 I
+b110 H
+#7000
+b111 *
+b111 #"
+b10 )
+b10 $"
+1!
+b111 &"
+b10100110101001001000001 ."
+b100000 E
+b100000 J
+b111 H
+#8000
+b1000 *
+b1000 #"
+b10 )
+b10 $"
+1!
+b1000 &"
+b10100110100110001010100 ."
+b0 E
+b0 J
+b10 D
+b10 I
+b1000 H
+#9000
+b1001 *
+b1001 #"
+b10 )
+b10 $"
+1!
+b1001 &"
+b1010011010011000101010001010101 ."
+b11 D
+b11 I
+b1001 H
+#10000
+b1010 *
+b1010 #"
+b10 )
+b10 $"
+1!
+b1010 &"
+b10011010101010101001100 ."
+b1 E
+b1 J
+b0 D
+b0 I
+b1010 H
+#11000
+b1011 *
+b1011 #"
+b10 )
+b10 $"
+1!
+b1011 &"
+b1001101010101010100110001001000 ."
+b1 D
+b1 I
+b1011 H
+#12000
+b1100 *
+b1100 #"
+b10 )
+b10 $"
+1!
+b1100 &"
+b10001000100100101010110 ."
+b100 D
+b100 I
+b1100 H
+#13000
+b1101 *
+b1101 #"
+b10 )
+b10 $"
+1!
+b1101 &"
+b1000100010010010101011001010101 ."
+b101 D
+b101 I
+b1101 H
+#14000
+b1110 *
+b1110 #"
+b10 )
+b10 $"
+1!
+b1110 &"
+b10100100100010101001101 ."
+b110 D
+b110 I
+b1110 H
+#15000
+b1111 *
+b1111 #"
+b10 )
+b10 $"
+1!
+b1111 &"
+b1010010010001010100110101010101 ."
+b111 D
+b111 I
+b1111 H
+#16000
+1(
+b0 *
+b0 #"
+b10 )
+b10 $"
+1!
+b0 &"
+1'"
+b1000001010001000100010001001001 ."
+b0 E
+b0 J
+b0 D
+b0 I
+b10011 F
+b10011 K
+b10000 H
+#17000
+b10 *
+b10 #"
+b10 )
+b10 $"
+1(
+1!
+b10 &"
+b1000001010011100100010001001001 ."
+b111 D
+b111 I
+b10001 H
+#18000
+b11 *
+b11 #"
+b10 )
+b10 $"
+1(
+1!
+b11 &"
+b10011110101001001001001 ."
+b110 D
+b110 I
+b10010 H
+#19000
+b100 *
+b100 #"
+b10 )
+b10 $"
+1(
+1!
+b100 &"
+b1011000010011110101001001001001 ."
+b100 D
+b100 I
+b10011 H
+#20000
+b101 *
+b101 #"
+b10 )
+b10 $"
+1(
+1!
+b101 &"
+b1010011010011000100110001001001 ."
+b1 D
+b1 I
+b10100 H
+#21000
+b110 *
+b110 #"
+b10 )
+b10 $"
+1(
+1!
+b110 &"
+b1010011010100100100110001001001 ."
+b101 D
+b101 I
+b10101 H
+#22000
+b111 *
+b111 #"
+b10 )
+b10 $"
+1(
+1!
+b111 &"
+b1010011010100100100000101001001 ."
+b100000 E
+b100000 J
+b10110 H
+#23000
+b1000 *
+b1000 #"
+b10 )
+b10 $"
+1(
+1!
+b1000 &"
+b1010011010011000101010001001001 ."
+b0 E
+b0 J
+b10 D
+b10 I
+b10111 H
+#24000
+b1001 *
+b1001 #"
+b10 )
+b10 $"
+1(
+1!
+b1001 &"
+b101001101001100010101000100100101010101 ."
+b11 D
+b11 I
+b11000 H
+#25000
+1#
+1$
+b0 *
+b0 #"
+b0 )
+b0 $"
+1(
+1!
+b10 D
+b10 I
+b11 F
+b11 K
+b11001 H
+#26000
+b1 &
+b1 %"
+1#
+1$
+1(
+1!
+b1 D
+b1 I
+b11010 H
+#27000
+b0 &
+b0 %"
+1#
+1$
+1(
+1!
+b0 D
+b0 I
+b11011 H
+#28000
+1"
+b10 &
+b10 %"
+0#
+0$
+1(
+0!
+b10 D
+b10 I
+b100011 F
+b100011 K
+b11100 H
+#29000
+b1 &
+b1 %"
+1"
+1(
+b1 D
+b1 I
+b11101 H
+#30000
+b0 &
+b0 %"
+1"
+1(
+b0 D
+b0 I
+b11110 H
+#31000
+b1 *
+b1 #"
+1'
+b10 &
+b10 %"
+0"
+0(
+b1100011 F
+b1100011 K
+b11111 H
+#32000
+1%
+1!
+b0 *
+b0 #"
+0'
+b1101111 F
+b1101111 K
+b100000 H
+#33000
+1(
+1%
+1!
+b1100111 F
+b1100111 K
+b100001 H
+#34000
+0%
+1(
+1!
+b110111 F
+b110111 K
+b100010 H
+#35000
+1(
+1!
+b10111 F
+b10111 K
+b100011 H
+#36000
+b100100 H
+#46000

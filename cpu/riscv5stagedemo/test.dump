@@ -1,0 +1,50 @@
+
+test.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	00001137          	lui	sp,0x1
+   4:	40010113          	addi	sp,sp,1024 # 1400 <__stack_top>
+   8:	00001537          	lui	a0,0x1
+   c:	000015b7          	lui	a1,0x1
+  10:	40058593          	addi	a1,a1,1024 # 1400 <__stack_top>
+
+00000014 <clear_bss>:
+  14:	00b55863          	bge	a0,a1,24 <bss_done>
+  18:	00052023          	sw	zero,0(a0) # 1000 <__bss_end>
+  1c:	00450513          	addi	a0,a0,4
+  20:	ff5ff06f          	j	14 <clear_bss>
+
+00000024 <bss_done>:
+  24:	00c000ef          	jal	30 <main>
+
+00000028 <_halt>:
+  28:	0000006f          	j	28 <_halt>
+
+0000002c <_exit>:
+  2c:	ffdff06f          	j	28 <_halt>
+
+00000030 <main>:
+  30:	fe010113          	addi	sp,sp,-32
+  34:	00812e23          	sw	s0,28(sp)
+  38:	02010413          	addi	s0,sp,32
+  3c:	fe042623          	sw	zero,-20(s0)
+  40:	fe042423          	sw	zero,-24(s0)
+  44:	0200006f          	j	64 <main+0x34>
+  48:	fec42703          	lw	a4,-20(s0)
+  4c:	fe842783          	lw	a5,-24(s0)
+  50:	00f707b3          	add	a5,a4,a5
+  54:	fef42623          	sw	a5,-20(s0)
+  58:	fe842783          	lw	a5,-24(s0)
+  5c:	00178793          	addi	a5,a5,1
+  60:	fef42423          	sw	a5,-24(s0)
+  64:	fe842703          	lw	a4,-24(s0)
+  68:	00900793          	li	a5,9
+  6c:	fce7dee3          	bge	a5,a4,48 <main+0x18>
+  70:	fec42783          	lw	a5,-20(s0)
+  74:	00078513          	mv	a0,a5
+  78:	01c12403          	lw	s0,28(sp)
+  7c:	02010113          	addi	sp,sp,32
+  80:	00008067          	ret
