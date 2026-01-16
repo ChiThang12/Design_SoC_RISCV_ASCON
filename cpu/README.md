@@ -1,12 +1,20 @@
-🧠 Tổng quan kiến trúc CPU trong SoC
+OK 👍 mình mô tả lại **cấu trúc thư mục + vai trò từng thành phần**, với **`riscv_core_axi.v` là top module**, đúng theo hình bạn gửi.
 
-Thư mục cpu/ chứa toàn bộ IP RISC-V CPU, được thiết kế để kết nối với SoC thông qua bus AXI.
+---
+
+## 🧠 Tổng quan kiến trúc CPU trong SoC
+
+Thư mục `cpu/` chứa **toàn bộ IP RISC-V CPU**, được thiết kế để **kết nối với SoC thông qua bus AXI**.
 Module trung tâm (top) là:
 
-👉 riscv_core_axi.v
-→ đây là điểm vào duy nhất của CPU khi tích hợp vào SoC.
+👉 **`riscv_core_axi.v`**
+→ đây là **điểm vào duy nhất** của CPU khi tích hợp vào SoC.
 
-🧩 Phân tích cấu trúc thư mục
+---
+
+## 🧩 Phân tích cấu trúc thư mục
+
+```
 cpu/
 ├── core/
 ├── interface/
@@ -21,148 +29,173 @@ cpu/
 ├── example.c / example.s
 ├── build.sh / run.sh
 └── README.md
+```
 
-⭐ riscv_core_axi.v — TOP MODULE (QUAN TRỌNG NHẤT)
-Vai trò
+---
 
-Là wrapper top-level của CPU
+## ⭐ `riscv_core_axi.v` — TOP MODULE (QUAN TRỌNG NHẤT)
 
-Kết nối:
+### Vai trò
 
-Core RISC-V nội bộ
+* Là **wrapper top-level** của CPU
+* Kết nối:
 
-AXI interface
+  * **Core RISC-V nội bộ**
+  * **AXI interface**
+  * **Instruction / Data memory**
+* Là module mà:
 
-Instruction / Data memory
-
-Là module mà:
-
-SoC top
-
-AXI interconnect
-
-hoặc testbench
-sẽ instantiate trực tiếp
+  * SoC top
+  * AXI interconnect
+  * hoặc testbench
+    sẽ **instantiate trực tiếp**
 
 👉 Trong SoC:
 
+```verilog
 riscv_core_axi u_cpu (
     .aclk       (...),
     .aresetn    (...),
     .m_axi_*    (...)
 );
+```
 
-📂 core/ — RISC-V CORE LOGIC
+---
 
-Chứa phần “não” của CPU:
+## 📂 `core/` — RISC-V CORE LOGIC
 
-FSM điều khiển pipeline
+Chứa **phần “não” của CPU**:
 
-Instruction Decode
-
-Register File
-
-ALU / Branch / Control logic
-
-Các stage pipeline (5-stage)
+* FSM điều khiển pipeline
+* Instruction Decode
+* Register File
+* ALU / Branch / Control logic
+* Các stage pipeline (5-stage)
 
 👉 Không biết AXI là gì
 👉 Không giao tiếp trực tiếp với SoC
 
-📌 Core = thuần CPU
+📌 **Core = thuần CPU**
 
-📂 datapath.v
+---
 
-Mô tả datapath tổng thể:
+## 📂 `datapath.v`
 
-PC
+* Mô tả **datapath tổng thể**:
 
-ALU input/output
+  * PC
+  * ALU input/output
+  * mux chọn nguồn
+* Kết nối giữa:
 
-mux chọn nguồn
+  * register file
+  * ALU
+  * control
 
-Kết nối giữa:
+👉 Có thể xem như **xương sống của core**
 
-register file
+---
 
-ALU
-
-control
-
-👉 Có thể xem như xương sống của core
-
-📂 interface/ — AXI / BUS INTERFACE
+## 📂 `interface/` — AXI / BUS INTERFACE
 
 Chứa logic:
 
-AXI Master interface
+* AXI Master interface
+* Chuyển đổi:
 
-Chuyển đổi:
-
-Load / Store instruction
-
-↔ AXI Read / Write transaction
+  * Load / Store instruction
+  * ↔ AXI Read / Write transaction
 
 👉 Đây là cầu nối:
 
+```
 CORE  <---->  AXI BUS (SoC)
-
+```
 
 📌 Rất quan trọng khi tích hợp ASCON / UART / SRAM sau này
 
-📂 memory/
+---
 
-Instruction Memory
+## 📂 `memory/`
 
-Data Memory
-
-ROM / RAM model cho simulation
-
-Load file .hex
+* Instruction Memory
+* Data Memory
+* ROM / RAM model cho simulation
+* Load file `.hex`
 
 👉 Dùng cho:
 
-Simulation
+* Simulation
+* FPGA demo
+* Chưa phải SRAM/DRAM thật của SoC
 
-FPGA demo
+---
 
-Chưa phải SRAM/DRAM thật của SoC
+## 📂 `riscv5stagedemo/`
 
-📂 riscv5stagedemo/
+* Demo chương trình
+* Test pipeline 5-stage
+* Ví dụ:
 
-Demo chương trình
+  * hazard
+  * branch
+  * load/store
 
-Test pipeline 5-stage
+📌 Dùng để **verify CPU hoạt động đúng**
 
-Ví dụ:
+---
 
-hazard
+## 🧪 Testbench
 
-branch
+### `tb_riscv_core_axi.v`
 
-load/store
+* Testbench chính
+* Instantiate:
 
-📌 Dùng để verify CPU hoạt động đúng
+  * `riscv_core_axi`
+* Clock / reset
+* Monitor AXI transaction
 
-🧪 Testbench
-tb_riscv_core_axi.v
+### `tb_riscv_core_axi_hex.v`
 
-Testbench chính
+* Testbench chạy chương trình từ `program.hex`
+* Phù hợp để:
 
-Instantiate:
+  * So sánh với ISS
+  * Debug instruction
 
-riscv_core_axi
+---
 
-Clock / reset
+## 📄 File phần mềm / toolchain
 
-Monitor AXI transaction
+| File                  | Vai trò                    |
+| --------------------- | -------------------------- |
+| `example.c`           | Chương trình C test        |
+| `example.s`           | Assembly sau compile       |
+| `example.dump`        | Disassembly                |
+| `program.hex`         | Nạp vào instruction memory |
+| `compile_c_to_hex.sh` | C → HEX                    |
+| `run.sh`, `build.sh`  | Script automate            |
 
-tb_riscv_core_axi_hex.v
+👉 Đây là **flow phần mềm → phần cứng** chuẩn của CPU
 
-Testbench chạy chương trình từ program.hex
+---
 
-Phù hợp để:
+## 🧠 Nhìn dưới góc độ SoC
 
-So sánh với ISS
+Trong kiến trúc SoC của bạn:
 
-Debug instruction
+```
+SoC TOP
+ ├── AXI Interconnect
+ │    ├── riscv_core_axi   ⭐
+ │    ├── ASCON
+ │    ├── UART
+ │    └── SRAM
+```
+
+👉 `riscv_core_axi.v` là **AXI Master**
+👉 ASCON / UART / SRAM là **AXI Slave**
+
+---
+
