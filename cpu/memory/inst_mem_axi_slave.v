@@ -6,7 +6,11 @@
 //   - Chỉ hỗ trợ READ (instruction memory là read-only)
 //   - Write request sẽ trả về SLVERR
 // ============================================================================
+<<<<<<< HEAD
 `include "memory/inst_mem.v"
+=======
+`include "inst_mem.v"
+>>>>>>> 5c36a3d (add CPU in SoC)
 module inst_mem_axi_slave (
     input wire clk,
     input wire rst_n,
