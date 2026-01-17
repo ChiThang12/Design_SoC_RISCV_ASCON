@@ -21,7 +21,7 @@ cpu/
 ├── memory/
 ├── riscv5stagedemo/
 ├── riscv_core_axi.v        ⭐ TOP MODULE
-├── datapath.v
+├── datapath.v              ⭐ TOP CPU
 ├── tb_riscv_core_axi.v
 ├── tb_riscv_core_axi_hex.v
 ├── *.vcd / *.log
