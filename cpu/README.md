@@ -64,7 +64,7 @@ riscv_core_axi u_cpu (
 
 ## 📂 `core/` — RISC-V CORE LOGIC
 
-Chứa **phần “não” của CPU**:
+Chứa **phần “não” của CPU** gồm các module con ở bên trong:
 
 * FSM điều khiển pipeline
 * Instruction Decode
@@ -81,7 +81,7 @@ Chứa **phần “não” của CPU**:
 
 ## 📂 `datapath.v`
 
-* Mô tả **datapath tổng thể**:
+* Mô tả **datapath tổng thể** đây là top module của CPU (chưa kể interface AXI4-lite): 
 
   * PC
   * ALU input/output
