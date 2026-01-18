@@ -1,4 +1,3 @@
-`include "src/inst_mem.v"
 module IFU (
     input wire clock,
     input wire reset,

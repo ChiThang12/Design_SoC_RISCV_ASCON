@@ -19,25 +19,25 @@ module data_mem (
 );
 
     // ========================================================================
-    // Memory Array: 64KB (65536 bytes)
+    // Memory Array: 1KB (reduced from 64KB for simulation speed)
     // Organized as byte array for easy LB/LH/LW/SB/SH/SW handling
     // ========================================================================
-    reg [7:0] memory [0:65535];
+    reg [7:0] memory [0:1023];
     
     // ========================================================================
     // Address Mapping
     // Full address: 0x1000_xxxx (SoC DMEM range)
-    // We only use lower 16 bits: [15:0] for 64KB addressing
+    // We only use lower 10 bits: [9:0] for 1KB addressing
     // ========================================================================
-    wire [15:0] byte_addr;
-    assign byte_addr = address[15:0];  // Extract bits [15:0] for 0-65535 range
+    wire [9:0] byte_addr;
+    assign byte_addr = address[9:0];  // Extract bits [9:0] for 0-1023 range
     
     // ========================================================================
     // Initialize memory to 0 for simulation
     // ========================================================================
     integer i;
     initial begin
-        for (i = 0; i < 65536; i = i + 1) begin
+        for (i = 0; i < 1024; i = i + 1) begin
             memory[i] = 8'h00;
         end
     end

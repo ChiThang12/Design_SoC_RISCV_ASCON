@@ -17,6 +17,8 @@ module inst_mem (
     wire [9:0] word_addr;              // Địa chỉ từ 10-bit (0 đến 1023)
     assign word_addr = PC[11:2];       // Lấy bit [11:2] làm địa chỉ từ
     
+    integer i;  // For initialization loop
+    
     // ========================================================================
     // Đọc lệnh từ bộ nhớ
     // Truy cập đồng bộ theo địa chỉ word_addr
@@ -28,7 +30,16 @@ module inst_mem (
     // File program.hex chứa các lệnh dạng hex, mỗi dòng 1 lệnh 32-bit
     // ========================================================================
     initial begin
+        // Initialize to NOPs
+        for (i = 0; i < 1024; i = i + 1) begin
+            memory[i] = 32'h00000013;  // NOP
+        end
+        
+        // Load program from hex file
         $readmemh("memory/program.hex", memory);
+        $display("[IMEM] Loaded program.hex");
+        $display("[IMEM] First instruction: 0x%08h", memory[0]);
+        $display("[IMEM] Instruction @ 0x30 (main): 0x%08h", memory[12]);
     end
 
 endmodule
