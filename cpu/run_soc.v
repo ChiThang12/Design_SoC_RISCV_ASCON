@@ -1,4 +1,7 @@
 `timescale 1ns/1ps
+
+// Only include top-level modules to avoid circular dependencies
+// All sub-modules will be included by these top-level files
 `include "riscv_soc_top.v"
 
 module testbench;
@@ -39,13 +42,20 @@ module testbench;
     always #5 clk = ~clk;
     
     // ========================================================================
-    // Cycle counter
+    // Cycle counter & Watchdog timer
     // ========================================================================
     always @(posedge clk) begin
         if (rst_n) begin
             cycle_count = cycle_count + 1;
             if (debug_instr != 32'h00000013 && debug_instr != 32'h00000000 && !debug_stall) begin
                 instr_count = instr_count + 1;
+            end
+            // Watchdog: stop if cycles exceed reasonable limit
+            if (cycle_count > 100000 && !program_finished) begin
+                $display("⚠ Watchdog triggered after %0d cycles", cycle_count);
+                program_finished = 1;
+                print_results();
+                $finish;
             end
         end
     end
@@ -96,7 +106,7 @@ module testbench;
         $display("║   RISC-V SoC Simulation               ║");
         $display("╚═══════════════════════════════════════╝\n");
         
-        #200000;
+        #10000;  // Reduced timeout for faster feedback
         
         if (!program_finished) begin
             $display("\n⚠ Timeout after %0d cycles", cycle_count);
