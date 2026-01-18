@@ -5,27 +5,27 @@ example.elf:     file format elf32-littleriscv
 Disassembly of section .text:
 
 00000000 <_start>:
-   0:	00001117          	auipc	x2,0x1
-   4:	00010113          	addi	x2,x2,0 # 1000 <__stack_top>
-   8:	00001297          	auipc	x5,0x1
-   c:	ffc28293          	addi	x5,x5,-4 # 1004 <__bss_start>
-  10:	00001317          	auipc	x6,0x1
-  14:	03430313          	addi	x6,x6,52 # 1044 <__bss_end>
+   0:	10010137          	lui	x2,0x10010
+   4:	10000297          	auipc	x5,0x10000
+   8:	ffc28293          	addi	x5,x5,-4 # 10000000 <__bss_start>
+   c:	10000317          	auipc	x6,0x10000
+  10:	0f430313          	addi	x6,x6,244 # 10000100 <__bss_end>
 
-00000018 <_clear_bss>:
-  18:	0062d863          	bge	x5,x6,28 <_bss_done>
-  1c:	0002a023          	sw	x0,0(x5)
-  20:	00428293          	addi	x5,x5,4
-  24:	ff5ff06f          	jal	x0,18 <_clear_bss>
+00000014 <_clear_bss>:
+  14:	0062d863          	bge	x5,x6,24 <_bss_done>
+  18:	0002a023          	sw	x0,0(x5)
+  1c:	00428293          	addi	x5,x5,4
+  20:	ff5ff06f          	jal	x0,14 <_clear_bss>
 
-00000028 <_bss_done>:
-  28:	008000ef          	jal	x1,30 <main>
+00000024 <_bss_done>:
+  24:	00c000ef          	jal	x1,30 <main>
 
-0000002c <_halt>:
-  2c:	0000006f          	jal	x0,2c <_halt>
+00000028 <_halt>:
+  28:	00050513          	addi	x10,x10,0
+  2c:	ffdff06f          	jal	x0,28 <_halt>
 
 00000030 <main>:
-  30:	fe010113          	addi	x2,x2,-32
+  30:	fe010113          	addi	x2,x2,-32 # 1000ffe0 <__bss_end+0xfee0>
   34:	00812e23          	sw	x8,28(x2)
   38:	02010413          	addi	x8,x2,32
   3c:	00a00793          	addi	x15,x0,10
