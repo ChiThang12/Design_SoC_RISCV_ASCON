@@ -1,39 +1,50 @@
+// ============================================================================
+// data_mem.v - Data Memory Module (64KB)
+// ============================================================================
+// Description:
+//   - 64KB RAM for SoC data storage
+//   - Supports byte/halfword/word access
+//   - Address range: 0x10000000 - 0x1000FFFF (maps to 0x0000 - 0xFFFF)
+// ============================================================================
+
 module data_mem (
-    input             clock,          // Xung clock
-    input      [31:0] address,        // Địa chỉ truy cập (byte address)
-    input      [31:0] write_data,     // Dữ liệu ghi vào
-    input             memwrite,       // Cho phép ghi (1: ghi, 0: không ghi)
-    input             memread,        // Cho phép đọc (1: đọc, 0: không đọc)
+    input             clock,          // Clock signal
+    input      [31:0] address,        // Byte address (full 32-bit)
+    input      [31:0] write_data,     // Data to write
+    input             memwrite,       // Write enable (1: write, 0: no write)
+    input             memread,        // Read enable (1: read, 0: no read)
     input      [1:0]  byte_size,      // 00: byte, 01: halfword, 10: word
     input             sign_ext,       // 1: sign extend, 0: zero extend (LBU/LHU)
-    output reg [31:0] read_data       // Dữ liệu đọc ra (đã extend)
+    output reg [31:0] read_data       // Data read out (extended)
 );
 
     // ========================================================================
-    // Khai báo bộ nhớ: 1024 byte
-    // Tổ chức theo byte để dễ dàng xử lý LB/LH/LW/SB/SH/SW
+    // Memory Array: 64KB (65536 bytes)
+    // Organized as byte array for easy LB/LH/LW/SB/SH/SW handling
     // ========================================================================
-    reg [7:0] memory [0:1023];
+    reg [7:0] memory [0:65535];
     
     // ========================================================================
-    // Địa chỉ word-aligned (bỏ 2 bit thấp)
+    // Address Mapping
+    // Full address: 0x1000_xxxx (SoC DMEM range)
+    // We only use lower 16 bits: [15:0] for 64KB addressing
     // ========================================================================
-    wire [9:0] byte_addr;
-    assign byte_addr = address[9:0];  // Chỉ lấy 10 bit thấp (0-1023)
+    wire [15:0] byte_addr;
+    assign byte_addr = address[15:0];  // Extract bits [15:0] for 0-65535 range
     
     // ========================================================================
-    // Khởi tạo bộ nhớ = 0 khi simulation
+    // Initialize memory to 0 for simulation
     // ========================================================================
     integer i;
     initial begin
-        for (i = 0; i < 1024; i = i + 1) begin
+        for (i = 0; i < 65536; i = i + 1) begin
             memory[i] = 8'h00;
         end
     end
     
     // ========================================================================
-    // WRITE OPERATION - Ghi dữ liệu vào RAM
-    // Thực hiện đồng bộ theo clock
+    // WRITE OPERATION - Write data to RAM
+    // Synchronous operation on clock edge
     // ========================================================================
     always @(posedge clock) begin
         if (memwrite) begin
@@ -55,22 +66,22 @@ module data_mem (
                 end
                 
                 default: begin
-                    // Không làm gì
+                    // Do nothing for invalid byte_size
                 end
             endcase
         end
     end
     
     // ========================================================================
-    // READ OPERATION - Đọc dữ liệu từ RAM
-    // Thực hiện tổ hợp (combinational) với sign/zero extension
+    // READ OPERATION - Read data from RAM
+    // Combinational logic with sign/zero extension
     // ========================================================================
     always @(*) begin
         if (memread) begin
             case (byte_size)
                 2'b00: begin  // LB/LBU - Load Byte (8-bit)
                     if (sign_ext) begin
-                        // LB: Sign extend từ bit 7
+                        // LB: Sign extend from bit 7
                         read_data = {{24{memory[byte_addr][7]}}, memory[byte_addr]};
                     end else begin
                         // LBU: Zero extend
@@ -80,7 +91,7 @@ module data_mem (
                 
                 2'b01: begin  // LH/LHU - Load Halfword (16-bit)
                     if (sign_ext) begin
-                        // LH: Sign extend từ bit 15
+                        // LH: Sign extend from bit 15
                         read_data = {{16{memory[byte_addr + 1][7]}}, 
                                      memory[byte_addr + 1], 
                                      memory[byte_addr]};
@@ -93,7 +104,7 @@ module data_mem (
                 end
                 
                 2'b10: begin  // LW - Load Word (32-bit)
-                    // Word luôn không cần extend
+                    // Word doesn't need extension
                     read_data = {memory[byte_addr + 3],
                                  memory[byte_addr + 2],
                                  memory[byte_addr + 1],
@@ -105,9 +116,24 @@ module data_mem (
                 end
             endcase
         end else begin
-            // Giữ nguyên giá trị cũ khi không đọc
-            read_data = read_data;
+            // Return 0 when not reading
+            read_data = 32'h00000000;
         end
     end
+
+    // ========================================================================
+    // Debug: Monitor memory accesses (simulation only)
+    // ========================================================================
+    // synthesis translate_off
+    always @(posedge clock) begin
+        if (memwrite) begin
+            case (byte_size)
+                2'b00: $display("[DMEM] SB: addr=0x%08h <= 0x%02h", address, write_data[7:0]);
+                2'b01: $display("[DMEM] SH: addr=0x%08h <= 0x%04h", address, write_data[15:0]);
+                2'b10: $display("[DMEM] SW: addr=0x%08h <= 0x%08h", address, write_data);
+            endcase
+        end
+    end
+    // synthesis translate_on
 
 endmodule
