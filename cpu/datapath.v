@@ -92,8 +92,8 @@ module datapath (
     
     // Stall conditions - FIXED
     assign mem_stall = !imem_ready;  // Only stall when imem not ready
-    assign stall = hazard_stall || mem_stall;
-    
+    // assign stall = hazard_stall || mem_stall;
+    assign stall = hazard_stall;
     // ========================================================================
     // IF/ID Pipeline Register
     // ========================================================================
@@ -246,7 +246,7 @@ module datapath (
             alu_control_ex_reg <= 4'b0000;
             byte_size_ex_reg <= 2'b10;
             opcode_ex_reg <= 7'b0000000;
-        end else begin
+        end else if (!stall) begin  // ⬅️ THÊM ĐIỀU KIỆN
             alu_control_ex_reg <= alu_control_id;
             byte_size_ex_reg <= byte_size_id;
             opcode_ex_reg <= opcode_id;
@@ -390,7 +390,7 @@ module datapath (
             funct3_mem <= 3'b000;
             jump_mem <= 1'b0;
             pc_plus_4_mem <= 32'h0;
-        end else begin
+        end else if(!stall) begin
             regwrite_mem_reg <= regwrite_ex;
             memwrite_mem <= memwrite_ex;
             memread_mem <= memread_ex;
@@ -516,7 +516,7 @@ module datapath (
             rd_wb_reg <= 5'b0;
             byte_size_wb_reg <= 2'b10;
             funct3_wb_reg <= 3'b010;
-        end else begin
+        end else if(!mem_stall) begin
             regwrite_wb_reg <= regwrite_mem;
             memtoreg_wb_reg <= memtoreg_mem;
             jump_wb_reg <= jump_mem;
@@ -583,8 +583,8 @@ module datapath (
     // ========================================================================
     assign pc_current = pc_if;
     assign instruction_current = instruction_if;
-    assign alu_result_debug = alu_result_ex;
-    assign mem_out_debug = dmem_rdata;
+    assign alu_result_debug = alu_result_mem;      // ⬅️ ĐỔI TỪ _ex SANG _mem
+    assign mem_out_debug = mem_data_wb;            // ⬅️ ĐỔI TỪ dmem_rdata SANG _wb
     assign branch_taken_debug = branch_taken_reg;
     assign branch_target_debug = branch_target_reg;
     assign stall_debug = stall;
