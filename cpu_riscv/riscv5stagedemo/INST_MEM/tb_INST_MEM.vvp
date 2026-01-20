@@ -1,0 +1,69 @@
+#! /c/Source/iverilog-install/bin/vvp
+:ivl_version "12.0 (devel)" "(s20150603-1539-g2693dd32b)";
+:ivl_delay_selection "TYPICAL";
+:vpi_time_precision - 12;
+:vpi_module "C:\iverilog\lib\ivl\system.vpi";
+:vpi_module "C:\iverilog\lib\ivl\vhdl_sys.vpi";
+:vpi_module "C:\iverilog\lib\ivl\vhdl_textio.vpi";
+:vpi_module "C:\iverilog\lib\ivl\v2005_math.vpi";
+:vpi_module "C:\iverilog\lib\ivl\va_math.vpi";
+S_00000197ac5aa6e0 .scope module, "tb_inst_mem" "tb_inst_mem" 2 4;
+ .timescale -12 -12;
+v00000197ac5aaa00_0 .var "PC", 31 0;
+v00000197ac5aaaa0_0 .net "inst", 31 0, L_00000197ac4d68d0;  1 drivers
+v00000197ac5aab40_0 .var "reset", 0 0;
+S_00000197ac5a92d0 .scope module, "uut" "INST_MEM" 2 9, 3 7 0, S_00000197ac5aa6e0;
+ .timescale -12 -12;
+    .port_info 0 /INPUT 32 "PC";
+    .port_info 1 /INPUT 1 "reset";
+    .port_info 2 /OUTPUT 32 "Instruction_Code";
+L_00000197ac4d68d0 .functor BUFZ 32, L_00000197ac4d36e0, C4<00000000000000000000000000000000>, C4<00000000000000000000000000000000>, C4<00000000000000000000000000000000>;
+v00000197ac5a72e0_0 .net "Instruction_Code", 31 0, L_00000197ac4d68d0;  alias, 1 drivers
+v00000197ac5a7500_0 .net "PC", 31 0, v00000197ac5aaa00_0;  1 drivers
+v00000197ac5a6ef0_0 .net *"_ivl_2", 31 0, L_00000197ac4d36e0;  1 drivers
+v00000197ac5a9460_0 .net *"_ivl_4", 11 0, L_00000197ac4d3780;  1 drivers
+L_00000197ac51dff8 .functor BUFT 1, C4<00>, C4<0>, C4<0>, C4<0>;
+v00000197ac5abd50_0 .net *"_ivl_7", 1 0, L_00000197ac51dff8;  1 drivers
+v00000197ac5abdf0 .array "memory", 1023 0, 31 0;
+v00000197ac5abe90_0 .net "reset", 0 0, v00000197ac5aab40_0;  1 drivers
+v00000197ac5abf30_0 .net "word_addr", 9 0, L_00000197ac5aabe0;  1 drivers
+L_00000197ac5aabe0 .part v00000197ac5aaa00_0, 2, 10;
+L_00000197ac4d36e0 .array/port v00000197ac5abdf0, L_00000197ac4d3780;
+L_00000197ac4d3780 .concat [ 10 2 0 0], L_00000197ac5aabe0, L_00000197ac51dff8;
+    .scope S_00000197ac5a92d0;
+T_0 ;
+    %vpi_call 3 37 "$readmemh", "program.hex", v00000197ac5abdf0 {0 0 0};
+    %end;
+    .thread T_0;
+    .scope S_00000197ac5aa6e0;
+T_1 ;
+    %vpi_call 2 16 "$dumpfile", "inst_mem.vcd" {0 0 0};
+    %vpi_call 2 17 "$dumpvars", 32'sb00000000000000000000000000000000, S_00000197ac5aa6e0 {0 0 0};
+    %pushi/vec4 1, 0, 1;
+    %store/vec4 v00000197ac5aab40_0, 0, 1;
+    %pushi/vec4 0, 0, 32;
+    %store/vec4 v00000197ac5aaa00_0, 0, 32;
+    %delay 10, 0;
+    %pushi/vec4 0, 0, 1;
+    %store/vec4 v00000197ac5aab40_0, 0, 1;
+    %pushi/vec4 0, 0, 32;
+    %store/vec4 v00000197ac5aaa00_0, 0, 32;
+    %delay 10, 0;
+    %vpi_call 2 25 "$display", "PC=0x%08h, Inst=0x%08h", v00000197ac5aaa00_0, v00000197ac5aaaa0_0 {0 0 0};
+    %pushi/vec4 4, 0, 32;
+    %store/vec4 v00000197ac5aaa00_0, 0, 32;
+    %delay 10, 0;
+    %vpi_call 2 28 "$display", "PC=0x%08h, Inst=0x%08h", v00000197ac5aaa00_0, v00000197ac5aaaa0_0 {0 0 0};
+    %pushi/vec4 8, 0, 32;
+    %store/vec4 v00000197ac5aaa00_0, 0, 32;
+    %delay 10, 0;
+    %vpi_call 2 31 "$display", "PC=0x%08h, Inst=0x%08h", v00000197ac5aaa00_0, v00000197ac5aaaa0_0 {0 0 0};
+    %vpi_call 2 33 "$finish" {0 0 0};
+    %end;
+    .thread T_1;
+# The file index is used to find the file name in the following table.
+:file_names 4;
+    "N/A";
+    "<interactive>";
+    ".\tb_INST_MEM.v";
+    "./INST_MEM.v";

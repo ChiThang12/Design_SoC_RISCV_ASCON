@@ -1,98 +1,59 @@
-// ============================================================================
-// datapath.v - RISC-V 5-Stage Pipelined CPU Core (Standalone)
-// ============================================================================
-
-`include "core/reg_file.v"
-`include "core/imm_gen.v"
-`include "core/control.v"
-`include "core/alu.v"
-`include "core/branch_logic.v"
-`include "core/forwarding_unit.v"
-`include "core/hazard_detection.v"
-`include "core/PIPELINE_REG_IF_ID.v"
-`include "core/PIPELINE_REG_ID_EX.v"
-`include "core/PIPELINE_REG_EX_WB.v"
+//`include "src/IFU.v"
+//`include "src/reg_file.v"
+//`include "src/imm_gen.v"
+//`include "src/control.v"
+//`include "src/alu.v"
+//`include "src/data_mem.v"
+//`include "src/branch_logic.v"
+//`include "src/forwarding_unit.v"
+//`include "src/hazard_detection.v"
+//`include "src/PIPELINE_REG_IF_ID.v"
+//`include "src/PIPELINE_REG_ID_EX.v"
+//`include "src/PIPELINE_REG_EX_WB.v"
 
 module datapath (
-    input wire clk,
-    input wire reset,           // Active high reset
+    input wire clock,
+    input wire reset,
     
-    // ========================================================================
-    // Instruction Memory Interface (Simple)
-    // ========================================================================
-    output wire [31:0] imem_addr,
-    output wire        imem_req,
-    input wire [31:0]  imem_data,
-    input wire         imem_ready,
-    
-    // ========================================================================
-    // Data Memory Interface (Simple)
-    // ========================================================================
-    output wire [31:0] dmem_addr,
-    output wire [31:0] dmem_wdata,
-    output wire [3:0]  dmem_wstrb,
-    output wire        dmem_req,
-    output wire        dmem_wr,
-    input wire [31:0]  dmem_rdata,
-    input wire         dmem_ready,
-    
-    // ========================================================================
-    // Debug Outputs
-    // ========================================================================
+    // Debug outputs
     output wire [31:0] pc_current,
     output wire [31:0] instruction_current,
     output wire [31:0] alu_result_debug,
     output wire [31:0] mem_out_debug,
-    output wire        branch_taken_debug,
+    output wire branch_taken_debug,
     output wire [31:0] branch_target_debug,
-    output wire        stall_debug,
-    output wire [1:0]  forward_a_debug,
-    output wire [1:0]  forward_b_debug
+    output wire stall_debug,
+    output wire [1:0] forward_a_debug,
+    output wire [1:0] forward_b_debug
 );
 
     // ========================================================================
-    // Internal Signals
+    // CRITICAL: Branch/Jump control signals
+    // Changed from reg to wire - apply branch immediately without delay
     // ========================================================================
     wire branch_taken_reg;
     wire [31:0] branch_target_reg;
+    
     wire branch_taken_detected;
     wire [31:0] branch_target_calc;
-    
-    wire stall;
-    wire hazard_stall;
-    wire mem_stall;
-    wire flush_if_id;
-    wire flush_id_ex;
 
     // ========================================================================
     // IF STAGE - Instruction Fetch
     // ========================================================================
     wire [31:0] pc_if;
     wire [31:0] instruction_if;
+    wire stall;
+    wire flush_if_id;
     
-    // PC Register - SIMPLIFIED VERSION
-    reg [31:0] pc_reg;
-    
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            pc_reg <= 32'h00000000;
-        end else if (!stall) begin
-            if (branch_taken_reg) begin
-                pc_reg <= branch_target_reg;
-            end else begin
-                pc_reg <= pc_reg + 32'd4;
-            end
-        end
-    end
-    
-    assign pc_if = pc_reg;
-    assign instruction_if = imem_data;  // Direct connection, no NOP substitution
-    assign imem_addr = pc_reg;
-    assign imem_req = 1'b1;  // Always request
-    
-    // Stall conditions - FIXED
-    assign mem_stall = !imem_ready;  // Only stall when imem not ready
-    assign stall = hazard_stall || mem_stall;
+    IFU ifu (
+        .clock(clock),
+        .reset(reset),
+        .pc_src(branch_taken_reg),
+        .stall(stall),
+        .target_pc(branch_target_reg),
+        .PC_out(pc_if),
+        .Instruction_Code(instruction_if)
+    );
     
     // ========================================================================
     // IF/ID Pipeline Register
@@ -101,7 +62,7 @@ module datapath (
     wire [31:0] pc_id;
     
     PIPELINE_REG_IF_ID if_id_reg (
-        .clock(clk),
+        .clock(clock),
         .reset(reset),
         .flush(flush_if_id),
         .stall(stall),
@@ -153,7 +114,7 @@ module datapath (
     wire [31:0] write_data_wb;
     
     reg_file register_file (
-        .clock(clk),
+        .clock(clock),
         .reset(reset),
         .read_reg_num1(rs1_id),
         .read_reg_num2(rs2_id),
@@ -175,6 +136,7 @@ module datapath (
     // Hazard Detection Unit
     wire memread_ex;
     wire [4:0] rd_ex;
+    wire flush_id_ex;
     
     hazard_detection hazard_unit (
         .memread_id_ex(memread_ex),
@@ -182,7 +144,7 @@ module datapath (
         .rs1_id(rs1_id),
         .rs2_id(rs2_id),
         .branch_taken(branch_taken_reg),
-        .stall(hazard_stall),
+        .stall(stall),
         .flush_if_id(flush_if_id),
         .flush_id_ex(flush_id_ex)
     );
@@ -196,9 +158,12 @@ module datapath (
     wire [4:0] rs1_ex, rs2_ex;
     wire [2:0] funct3_ex;
     wire [6:0] funct7_ex;
+    wire [3:0] alu_control_ex;
+    wire [1:0] byte_size_ex;
+    wire [6:0] opcode_ex;
     
     PIPELINE_REG_ID_EX id_ex_reg (
-        .clock(clk),
+        .clock(clock),
         .reset(reset),
         .flush(flush_id_ex),
         .stall(1'b0),
@@ -236,13 +201,13 @@ module datapath (
         .funct7_out(funct7_ex)
     );
     
-    // Store control signals
+    // Store additional signals separately
     reg [3:0] alu_control_ex_reg;
     reg [1:0] byte_size_ex_reg;
     reg [6:0] opcode_ex_reg;
     
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
+    always @(posedge clock or posedge reset) begin
+        if (reset || flush_id_ex) begin
             alu_control_ex_reg <= 4'b0000;
             byte_size_ex_reg <= 2'b10;
             opcode_ex_reg <= 7'b0000000;
@@ -253,9 +218,9 @@ module datapath (
         end
     end
     
-    wire [3:0] alu_control_ex = alu_control_ex_reg;
-    wire [1:0] byte_size_ex = byte_size_ex_reg;
-    wire [6:0] opcode_ex = opcode_ex_reg;
+    assign alu_control_ex = alu_control_ex_reg;
+    assign byte_size_ex = byte_size_ex_reg;
+    assign opcode_ex = opcode_ex_reg;
     
     // ========================================================================
     // EX STAGE - Execute
@@ -300,18 +265,23 @@ module datapath (
         endcase
     end
     
-    // ALU input selection
+    // ALU input selection based on instruction type
     wire [31:0] alu_in1, alu_in2;
     wire is_auipc = (opcode_ex == 7'b0010111);
     wire is_lui = (opcode_ex == 7'b0110111);
     wire is_jalr = (opcode_ex == 7'b1100111);
     wire is_branch = (opcode_ex == 7'b1100011);
     
+    // ALU Input 1: PC for AUIPC, 0 for LUI, forwarded register for others
     assign alu_in1 = is_auipc ? pc_ex :
                      is_lui ? 32'h00000000 :
                      alu_in1_forwarded;
     
-    assign alu_in2 = alusrc_ex ? imm_ex : forwarded_data2;
+    // ALU Input 2: 
+    // - For BRANCH: MUST use forwarded_data2 (not immediate!)
+    // - For I-type/Load/Store/AUIPC/LUI: use immediate
+    // - For R-type: use forwarded_data2
+    assign alu_in2 = (alusrc_ex && !is_branch) ? imm_ex : forwarded_data2;
     
     // ALU
     wire [31:0] alu_result_ex;
@@ -345,24 +315,13 @@ module datapath (
     wire [31:0] branch_target_pc_based = pc_ex + imm_ex;
     
     assign branch_target_calc = is_jalr ? jalr_target : branch_target_pc_based;
-    assign branch_taken_detected = (branch_ex && branch_decision) || jump_ex;
+    assign branch_taken_detected = branch_decision | jump_ex;
     
-    // Branch Register
-    reg branch_taken_reg_reg;
-    reg [31:0] branch_target_reg_reg;
-    
-    always @(posedge clk or posedge reset) begin
-        if (reset) begin
-            branch_taken_reg_reg <= 1'b0;
-            branch_target_reg_reg <= 32'h0;
-        end else begin
-            branch_taken_reg_reg <= branch_taken_detected;
-            branch_target_reg_reg <= branch_target_calc;
-        end
-    end
-    
-    assign branch_taken_reg = branch_taken_reg_reg;
-    assign branch_target_reg = branch_target_reg_reg;
+    // CRITICAL FIX: Apply branch immediately, don't register
+    // When branch is detected in EX stage, update PC in the SAME cycle
+    // to avoid losing PC_EX and IMM_EX information
+    assign branch_taken_reg = branch_taken_detected;
+    assign branch_target_reg = branch_target_calc;
     
     // Calculate PC+4 for JAL/JALR writeback
     wire [31:0] pc_plus_4_ex = pc_ex + 32'd4;
@@ -377,7 +336,7 @@ module datapath (
     reg [2:0] funct3_mem;
     reg jump_mem;
     
-    always @(posedge clk or posedge reset) begin
+    always @(posedge clock or posedge reset) begin
         if (reset) begin
             regwrite_mem_reg <= 1'b0;
             memwrite_mem <= 1'b0;
@@ -412,100 +371,31 @@ module datapath (
     // ========================================================================
     // MEM STAGE - Memory Access
     // ========================================================================
+    wire [31:0] mem_read_data;
+    wire sign_ext = (funct3_mem != 3'b100 && funct3_mem != 3'b101);
     
-    // Align write data based on byte_size and address
-    reg [31:0] aligned_write_data;
-    always @(*) begin
-        case (byte_size_mem)
-            2'b00: begin  // Byte
-                case (alu_result_mem[1:0])
-                    2'b00: aligned_write_data = {24'b0, write_data_mem[7:0]};
-                    2'b01: aligned_write_data = {16'b0, write_data_mem[7:0], 8'b0};
-                    2'b10: aligned_write_data = {8'b0, write_data_mem[7:0], 16'b0};
-                    2'b11: aligned_write_data = {write_data_mem[7:0], 24'b0};
-                endcase
-            end
-            2'b01: begin  // Halfword
-                aligned_write_data = alu_result_mem[1] ? 
-                                    {write_data_mem[15:0], 16'b0} : 
-                                    {16'b0, write_data_mem[15:0]};
-            end
-            2'b10: aligned_write_data = write_data_mem;  // Word
-            default: aligned_write_data = write_data_mem;
-        endcase
-    end
-    
-    // Generate byte strobes - USE funct3 to correctly determine size
-    reg [3:0] byte_strobe;
-    reg [1:0] byte_size_actual;  // Decoded from funct3
-    
-    always @(*) begin
-        // Decode actual byte size from funct3 (for LOAD/STORE operations)
-        if (funct3_mem[2:0] == 3'b000)      // BYTE (LB, SB, LBU)
-            byte_size_actual = 2'b00;
-        else if (funct3_mem[2:0] == 3'b001) // HALF (LH, SH, LHU)
-            byte_size_actual = 2'b01;
-        else                                 // WORD (LW, SW) or others
-            byte_size_actual = 2'b10;
-    end
-    
-    always @(*) begin
-        if (memwrite_mem) begin
-            case (byte_size_actual)  // Use decoded size from funct3
-                2'b00: begin  // Byte Write
-                    case (alu_result_mem[1:0])
-                        2'b00: byte_strobe = 4'b0001;
-                        2'b01: byte_strobe = 4'b0010;
-                        2'b10: byte_strobe = 4'b0100;
-                        2'b11: byte_strobe = 4'b1000;
-                    endcase
-                end
-                2'b01: begin  // Halfword Write - FIXED
-                    case (alu_result_mem[1:0])
-                        2'b00: byte_strobe = 4'b0011;   // addr[1:0]=00 → bytes [1:0]
-                        2'b01: byte_strobe = 4'b0011;   // addr[1:0]=01 → bytes [1:0] (misaligned)
-                        2'b10: byte_strobe = 4'b1100;   // addr[1:0]=10 → bytes [3:2]
-                        2'b11: byte_strobe = 4'b1100;   // addr[1:0]=11 → bytes [3:2] (misaligned)
-                    endcase
-                end
-                2'b10: byte_strobe = 4'b1111;  // Word Write
-                default: byte_strobe = 4'b1111;
-            endcase
-        end else begin
-            byte_strobe = 4'b0000;  // No strobes for read operations (FIXED)
-        end
-    end
-    
-    // Memory Interface Outputs
-    assign dmem_addr  = alu_result_mem;
-    assign dmem_wdata = aligned_write_data;
-    assign dmem_wstrb = byte_strobe;
-    assign dmem_req   = memread_mem | memwrite_mem;
-    assign dmem_wr    = memwrite_mem;
-    
-    // Debug
-    always @(posedge clk) begin
-        if (memwrite_mem) begin
-            $display("[DATAPATH] Write: addr=%h, wdata=%h, wstrb=%b, byte_size=%b, alu_result[1:0]=%b, funct3_mem=%b, time=%0t",
-                     alu_result_mem, aligned_write_data, byte_strobe, byte_size_mem, alu_result_mem[1:0], funct3_mem, $time);
-        end
-    end
+    data_mem data_memory (
+        .clock(clock),
+        .address(alu_result_mem),
+        .write_data(write_data_mem),
+        .memwrite(memwrite_mem),
+        .memread(memread_mem),
+        .byte_size(byte_size_mem),
+        .sign_ext(sign_ext),
+        .read_data(mem_read_data)
+    );
     
     // ========================================================================
     // MEM/WB Pipeline Register
     // ========================================================================
     wire memtoreg_wb, jump_wb;
     wire [31:0] alu_result_wb, mem_data_wb, pc_plus_4_wb;
-    wire [1:0] byte_size_wb;
-    wire [2:0] funct3_wb;
     
     reg regwrite_wb_reg, memtoreg_wb_reg, jump_wb_reg;
     reg [31:0] alu_result_wb_reg, mem_data_wb_reg, pc_plus_4_wb_reg;
     reg [4:0] rd_wb_reg;
-    reg [1:0] byte_size_wb_reg;
-    reg [2:0] funct3_wb_reg;
     
-    always @(posedge clk or posedge reset) begin
+    always @(posedge clock or posedge reset) begin
         if (reset) begin
             regwrite_wb_reg <= 1'b0;
             memtoreg_wb_reg <= 1'b0;
@@ -514,18 +404,14 @@ module datapath (
             mem_data_wb_reg <= 32'h0;
             pc_plus_4_wb_reg <= 32'h0;
             rd_wb_reg <= 5'b0;
-            byte_size_wb_reg <= 2'b10;
-            funct3_wb_reg <= 3'b010;
         end else begin
             regwrite_wb_reg <= regwrite_mem;
             memtoreg_wb_reg <= memtoreg_mem;
             jump_wb_reg <= jump_mem;
             alu_result_wb_reg <= alu_result_mem;
-            mem_data_wb_reg <= dmem_rdata;
+            mem_data_wb_reg <= mem_read_data;
             pc_plus_4_wb_reg <= pc_plus_4_mem;
             rd_wb_reg <= rd_mem;
-            byte_size_wb_reg <= byte_size_mem;
-            funct3_wb_reg <= funct3_mem;
         end
     end
     
@@ -536,46 +422,11 @@ module datapath (
     assign mem_data_wb = mem_data_wb_reg;
     assign pc_plus_4_wb = pc_plus_4_wb_reg;
     assign rd_wb = rd_wb_reg;
-    assign byte_size_wb = byte_size_wb_reg;
-    assign funct3_wb = funct3_wb_reg;
     
     // ========================================================================
     // WB STAGE - Write Back
     // ========================================================================
-    
-    // Sign/Zero extend loaded data
-    reg [31:0] extended_mem_data;
-    always @(*) begin
-        case (byte_size_wb)
-            2'b00: begin  // Byte
-                case (alu_result_wb[1:0])
-                    2'b00: extended_mem_data = funct3_wb[2] ? 
-                           {24'b0, mem_data_wb[7:0]} :              // LBU
-                           {{24{mem_data_wb[7]}}, mem_data_wb[7:0]};  // LB
-                    2'b01: extended_mem_data = funct3_wb[2] ? 
-                           {24'b0, mem_data_wb[15:8]} : 
-                           {{24{mem_data_wb[15]}}, mem_data_wb[15:8]};
-                    2'b10: extended_mem_data = funct3_wb[2] ? 
-                           {24'b0, mem_data_wb[23:16]} : 
-                           {{24{mem_data_wb[23]}}, mem_data_wb[23:16]};
-                    2'b11: extended_mem_data = funct3_wb[2] ? 
-                           {24'b0, mem_data_wb[31:24]} : 
-                           {{24{mem_data_wb[31]}}, mem_data_wb[31:24]};
-                endcase
-            end
-            2'b01: begin  // Halfword
-                extended_mem_data = alu_result_wb[1] ? 
-                    (funct3_wb[2] ? {16'b0, mem_data_wb[31:16]} :       // LHU
-                                    {{16{mem_data_wb[31]}}, mem_data_wb[31:16]}) :  // LH
-                    (funct3_wb[2] ? {16'b0, mem_data_wb[15:0]} : 
-                                    {{16{mem_data_wb[15]}}, mem_data_wb[15:0]});
-            end
-            2'b10: extended_mem_data = mem_data_wb;  // Word (LW)
-            default: extended_mem_data = mem_data_wb;
-        endcase
-    end
-    
-    wire [31:0] wb_data_temp = memtoreg_wb ? extended_mem_data : alu_result_wb;
+    wire [31:0] wb_data_temp = memtoreg_wb ? mem_data_wb : alu_result_wb;
     assign write_data_wb = jump_wb ? pc_plus_4_wb : wb_data_temp;
     
     // ========================================================================
@@ -584,7 +435,7 @@ module datapath (
     assign pc_current = pc_if;
     assign instruction_current = instruction_if;
     assign alu_result_debug = alu_result_ex;
-    assign mem_out_debug = dmem_rdata;
+    assign mem_out_debug = mem_read_data;
     assign branch_taken_debug = branch_taken_reg;
     assign branch_target_debug = branch_target_reg;
     assign stall_debug = stall;
