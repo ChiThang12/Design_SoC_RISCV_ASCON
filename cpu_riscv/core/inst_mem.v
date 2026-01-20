@@ -28,7 +28,7 @@ module inst_mem (
     // File program.hex chứa các lệnh dạng hex, mỗi dòng 1 lệnh 32-bit
     // ========================================================================
     initial begin
-        $readmemh("memory/program.hex", memory);
+        $readmemh("program.hex", memory);
     end
 
 endmodule

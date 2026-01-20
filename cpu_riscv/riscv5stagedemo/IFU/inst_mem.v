@@ -1,6 +1,12 @@
+// ============================================================================
+// Module: INST_MEM - Bộ nhớ lệnh (ROM)
+// Mô tả: Bộ nhớ chỉ đọc lưu trữ chương trình RISC-V 32IM
+// Tương thích: Icarus Verilog simulation & OpenLane synthesis
+// ============================================================================
+
 module inst_mem (
     input  [31:0] PC,                  // Program Counter - địa chỉ byte hiện tại
-    input         reset,               // Tín hiệu reset (không sử dụng cho ROM)
+
     output [31:0] Instruction_Code     // Lệnh 32-bit đọc ra
 );
 
@@ -28,7 +34,7 @@ module inst_mem (
     // File program.hex chứa các lệnh dạng hex, mỗi dòng 1 lệnh 32-bit
     // ========================================================================
     initial begin
-        $readmemh("memory/program.hex", memory);
+        $readmemh("program.hex", memory);
     end
 
 endmodule

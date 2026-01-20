@@ -1,0 +1,24 @@
+
+// Địa chỉ 0x00: addi x1, x0, 0      - Khởi tạo x1 = 0 (biến tổng)
+00000093
+
+// Địa chỉ 0x04: addi x2, x0, 1      - Khởi tạo x2 = 1 (biến đếm)
+00100113
+
+// Địa chỉ 0x08: addi x3, x0, 10     - Khởi tạo x3 = 10 (giới hạn)
+00a00193
+
+// Địa chỉ 0x0C: add x1, x1, x2      - x1 = x1 + x2 (cộng dồn)
+002080b3
+
+// Địa chỉ 0x10: addi x2, x2, 1      - x2 = x2 + 1 (tăng biến đếm)
+00110113
+
+// Địa chỉ 0x14: blt x2, x3, -12     - Nếu x2 < x3, nhảy về địa chỉ 0x0C
+fe314ae3
+
+// Địa chỉ 0x18: addi x10, x1, 0     - Lưu kết quả vào x10 (a0)
+00008513
+
+// Địa chỉ 0x1C: addi x0, x0, 0      - NOP (kết thúc)
+00000013
