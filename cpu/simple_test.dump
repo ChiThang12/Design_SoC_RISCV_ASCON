@@ -1,0 +1,23 @@
+
+simple_test.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	10010137          	lui	x2,0x10010
+   4:	00c000ef          	jal	x1,10 <main>
+
+00000008 <_halt>:
+   8:	00050513          	addi	x10,x10,0
+   c:	ffdff06f          	jal	x0,8 <_halt>
+
+00000010 <main>:
+  10:	ff010113          	addi	x2,x2,-16 # 1000fff0 <__bss_end+0xfef0>
+  14:	00812623          	sw	x8,12(x2)
+  18:	01010413          	addi	x8,x2,16
+  1c:	02a00793          	addi	x15,x0,42
+  20:	00078513          	addi	x10,x15,0
+  24:	00c12403          	lw	x8,12(x2)
+  28:	01010113          	addi	x2,x2,16
+  2c:	00008067          	jalr	x0,0(x1)
