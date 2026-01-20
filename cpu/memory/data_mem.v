@@ -1,3 +1,10 @@
+// ============================================================================
+// data_mem.v - Data Memory Module (FIXED)
+// ============================================================================
+// Sửa lỗi:
+//   - Byte order khi ghi halfword/word (phải little-endian)
+//   - Logic đọc/ghi phải nhất quán
+// ============================================================================
 module data_mem (
     input             clock,          // Xung clock
     input      [31:0] address,        // Địa chỉ truy cập (byte address)
@@ -5,24 +12,32 @@ module data_mem (
     input             memwrite,       // Cho phép ghi (1: ghi, 0: không ghi)
     input             memread,        // Cho phép đọc (1: đọc, 0: không đọc)
     input      [1:0]  byte_size,      // 00: byte, 01: halfword, 10: word
-    input             sign_ext,       // 1: sign extend, 0: zero extend (LBU/LHU)
+    input             sign_ext,       // 1: sign extend, 0: zero extend
     output reg [31:0] read_data       // Dữ liệu đọc ra (đã extend)
 );
 
     // ========================================================================
     // Khai báo bộ nhớ: 1024 byte
-    // Tổ chức theo byte để dễ dàng xử lý LB/LH/LW/SB/SH/SW
     // ========================================================================
     reg [7:0] memory [0:1023];
     
     // ========================================================================
-    // Địa chỉ word-aligned (bỏ 2 bit thấp)
+    // Địa chỉ và offset
     // ========================================================================
     wire [9:0] byte_addr;
-    assign byte_addr = address[9:0];  // Chỉ lấy 10 bit thấp (0-1023)
+    wire [1:0] byte_offset;
+    
+    assign byte_addr = address[9:0];
+    assign byte_offset = address[1:0];
     
     // ========================================================================
-    // Khởi tạo bộ nhớ = 0 khi simulation
+    // Địa chỉ aligned
+    // ========================================================================
+    wire [9:0] aligned_addr;
+    assign aligned_addr = {byte_addr[9:2], 2'b00};
+    
+    // ========================================================================
+    // Khởi tạo bộ nhớ
     // ========================================================================
     integer i;
     initial begin
@@ -32,26 +47,38 @@ module data_mem (
     end
     
     // ========================================================================
-    // WRITE OPERATION - Ghi dữ liệu vào RAM
-    // Thực hiện đồng bộ theo clock
+    // WRITE OPERATION
     // ========================================================================
     always @(posedge clock) begin
         if (memwrite) begin
             case (byte_size)
-                2'b00: begin  // SB - Store Byte (8-bit)
-                    memory[byte_addr] <= write_data[7:0];
+                2'b00: begin  // SB - Store Byte
+                    case (byte_offset)
+                        2'b00: memory[aligned_addr + 0] <= write_data[7:0];
+                        2'b01: memory[aligned_addr + 1] <= write_data[7:0];
+                        2'b10: memory[aligned_addr + 2] <= write_data[7:0];
+                        2'b11: memory[aligned_addr + 3] <= write_data[7:0];
+                    endcase
                 end
                 
-                2'b01: begin  // SH - Store Halfword (16-bit)
-                    memory[byte_addr]     <= write_data[7:0];
-                    memory[byte_addr + 1] <= write_data[15:8];
+                2'b01: begin  // SH - Store Halfword (LITTLE ENDIAN!)
+                    case (byte_offset[1])
+                        1'b0: begin  // Offset 0: ghi vào byte 0-1
+                            memory[aligned_addr + 0] <= write_data[7:0];   // LSB
+                            memory[aligned_addr + 1] <= write_data[15:8];  // MSB
+                        end
+                        1'b1: begin  // Offset 2: ghi vào byte 2-3
+                            memory[aligned_addr + 2] <= write_data[7:0];   // LSB
+                            memory[aligned_addr + 3] <= write_data[15:8];  // MSB
+                        end
+                    endcase
                 end
                 
-                2'b10: begin  // SW - Store Word (32-bit)
-                    memory[byte_addr]     <= write_data[7:0];
-                    memory[byte_addr + 1] <= write_data[15:8];
-                    memory[byte_addr + 2] <= write_data[23:16];
-                    memory[byte_addr + 3] <= write_data[31:24];
+                2'b10: begin  // SW - Store Word (LITTLE ENDIAN!)
+                    memory[aligned_addr + 0] <= write_data[7:0];    // Byte 0 (LSB)
+                    memory[aligned_addr + 1] <= write_data[15:8];   // Byte 1
+                    memory[aligned_addr + 2] <= write_data[23:16];  // Byte 2
+                    memory[aligned_addr + 3] <= write_data[31:24];  // Byte 3 (MSB)
                 end
                 
                 default: begin
@@ -62,42 +89,70 @@ module data_mem (
     end
     
     // ========================================================================
-    // READ OPERATION - Đọc dữ liệu từ RAM
-    // Thực hiện tổ hợp (combinational) với sign/zero extension
+    // READ OPERATION
     // ========================================================================
     always @(*) begin
         if (memread) begin
             case (byte_size)
-                2'b00: begin  // LB/LBU - Load Byte (8-bit)
-                    if (sign_ext) begin
-                        // LB: Sign extend từ bit 7
-                        read_data = {{24{memory[byte_addr][7]}}, memory[byte_addr]};
-                    end else begin
-                        // LBU: Zero extend
-                        read_data = {24'h000000, memory[byte_addr]};
-                    end
+                2'b00: begin  // LB/LBU - Load Byte
+                    case (byte_offset)
+                        2'b00: begin
+                            if (sign_ext)
+                                read_data = {{24{memory[aligned_addr + 0][7]}}, memory[aligned_addr + 0]};
+                            else
+                                read_data = {24'h000000, memory[aligned_addr + 0]};
+                        end
+                        2'b01: begin
+                            if (sign_ext)
+                                read_data = {{24{memory[aligned_addr + 1][7]}}, memory[aligned_addr + 1]};
+                            else
+                                read_data = {24'h000000, memory[aligned_addr + 1]};
+                        end
+                        2'b10: begin
+                            if (sign_ext)
+                                read_data = {{24{memory[aligned_addr + 2][7]}}, memory[aligned_addr + 2]};
+                            else
+                                read_data = {24'h000000, memory[aligned_addr + 2]};
+                        end
+                        2'b11: begin
+                            if (sign_ext)
+                                read_data = {{24{memory[aligned_addr + 3][7]}}, memory[aligned_addr + 3]};
+                            else
+                                read_data = {24'h000000, memory[aligned_addr + 3]};
+                        end
+                    endcase
                 end
                 
-                2'b01: begin  // LH/LHU - Load Halfword (16-bit)
-                    if (sign_ext) begin
-                        // LH: Sign extend từ bit 15
-                        read_data = {{16{memory[byte_addr + 1][7]}}, 
-                                     memory[byte_addr + 1], 
-                                     memory[byte_addr]};
-                    end else begin
-                        // LHU: Zero extend
-                        read_data = {16'h0000, 
-                                     memory[byte_addr + 1], 
-                                     memory[byte_addr]};
-                    end
+                2'b01: begin  // LH/LHU - Load Halfword (LITTLE ENDIAN!)
+                    case (byte_offset[1])
+                        1'b0: begin  // Offset 0: đọc từ byte 0-1
+                            if (sign_ext)
+                                read_data = {{16{memory[aligned_addr + 1][7]}}, 
+                                           memory[aligned_addr + 1],    // MSB
+                                           memory[aligned_addr + 0]};   // LSB
+                            else
+                                read_data = {16'h0000, 
+                                           memory[aligned_addr + 1],    // MSB
+                                           memory[aligned_addr + 0]};   // LSB
+                        end
+                        1'b1: begin  // Offset 2: đọc từ byte 2-3
+                            if (sign_ext)
+                                read_data = {{16{memory[aligned_addr + 3][7]}}, 
+                                           memory[aligned_addr + 3],    // MSB
+                                           memory[aligned_addr + 2]};   // LSB
+                            else
+                                read_data = {16'h0000, 
+                                           memory[aligned_addr + 3],    // MSB
+                                           memory[aligned_addr + 2]};   // LSB
+                        end
+                    endcase
                 end
                 
-                2'b10: begin  // LW - Load Word (32-bit)
-                    // Word luôn không cần extend
-                    read_data = {memory[byte_addr + 3],
-                                 memory[byte_addr + 2],
-                                 memory[byte_addr + 1],
-                                 memory[byte_addr]};
+                2'b10: begin  // LW - Load Word (LITTLE ENDIAN!)
+                    read_data = {memory[aligned_addr + 3],    // Byte 3 (MSB)
+                               memory[aligned_addr + 2],      // Byte 2
+                               memory[aligned_addr + 1],      // Byte 1
+                               memory[aligned_addr + 0]};     // Byte 0 (LSB)
                 end
                 
                 default: begin
@@ -105,8 +160,7 @@ module data_mem (
                 end
             endcase
         end else begin
-            // Giữ nguyên giá trị cũ khi không đọc
-            read_data = read_data;
+            read_data = 32'h00000000;
         end
     end
 

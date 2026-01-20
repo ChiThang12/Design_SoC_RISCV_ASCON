@@ -1,12 +1,5 @@
-// ============================================================================
-// data_mem_axi_slave.v - Data Memory AXI4-Lite Slave Wrapper
-// ============================================================================
-// Mô tả:
-//   - Wrapper cho data_mem module với AXI4-Lite slave interface
-//   - Hỗ trợ cả READ và WRITE
-//   - Xử lý byte strobes để ghi byte/halfword/word
-// ============================================================================
 `include "memory/data_mem.v"
+
 module data_mem_axi_slave (
     input wire clk,
     input wire rst_n,
@@ -79,47 +72,65 @@ module data_mem_axi_slave (
     reg [3:0]  wr_strb_latched;
     
     reg [31:0] rd_addr_latched;
+    reg [2:0]  rd_prot_latched;
     
     reg mem_write_enable;
     wire [31:0] mem_read_data;
     
     // ========================================================================
-    // Decode byte_size from write strobes
+    // Decode byte_size and sign extension
     // ========================================================================
-    reg [1:0] byte_size;
+    reg [1:0] byte_size_wr;
+    reg [1:0] byte_size_rd;
     reg sign_ext;
     
+    // Write: Decode from WSTRB
     always @(*) begin
         case (wr_strb_latched)
-            4'b0001, 4'b0010, 4'b0100, 4'b1000: begin
-                byte_size = 2'b00;  // Byte
-                sign_ext = 1'b1;
-            end
-            4'b0011, 4'b1100: begin
-                byte_size = 2'b01;  // Halfword
-                sign_ext = 1'b1;
-            end
-            4'b1111: begin
-                byte_size = 2'b10;  // Word
-                sign_ext = 1'b0;
-            end
-            default: begin
-                byte_size = 2'b10;
-                sign_ext = 1'b0;
-            end
+            // Byte operations (1 byte active)
+            4'b0001: byte_size_wr = 2'b00;
+            4'b0010: byte_size_wr = 2'b00;
+            4'b0100: byte_size_wr = 2'b00;
+            4'b1000: byte_size_wr = 2'b00;
+            
+            // Halfword operations (2 consecutive bytes)
+            4'b0011: byte_size_wr = 2'b01;
+            4'b1100: byte_size_wr = 2'b01;
+            
+            // Word operation (4 bytes)
+            4'b1111: byte_size_wr = 2'b10;
+            
+            default: byte_size_wr = 2'b10;
         endcase
     end
+    
+    // Read: Decode from ARPROT[2:1]
+    // ARPROT[2:1]: 00=byte, 01=halfword, 10=word
+    // ARPROT[0]: 0=unsigned, 1=signed
+    always @(*) begin
+        byte_size_rd = rd_prot_latched[2:1];
+        sign_ext = rd_prot_latched[0];
+    end
+    
+    // ========================================================================
+    // Memory address and control signals
+    // ========================================================================
+    wire [31:0] mem_addr;
+    assign mem_addr = mem_write_enable ? wr_addr_latched : rd_addr_latched;
+    
+    wire [1:0] byte_size_mem;
+    assign byte_size_mem = mem_write_enable ? byte_size_wr : byte_size_rd;
     
     // ========================================================================
     // Data Memory Instance
     // ========================================================================
     data_mem dmem (
         .clock(clk),
-        .address(mem_write_enable ? wr_addr_latched : rd_addr_latched),
+        .address(mem_addr),
         .write_data(wr_data_latched),
         .memwrite(mem_write_enable),
-        .memread(!mem_write_enable),  // Read khi không write
-        .byte_size(byte_size),
+        .memread(!mem_write_enable && (rd_state == RD_WAIT)),
+        .byte_size(byte_size_mem),
         .sign_ext(sign_ext),
         .read_data(mem_read_data)
     );
@@ -149,7 +160,6 @@ module data_mem_axi_slave (
             end
             
             RD_WAIT: begin
-                // 1 cycle delay để đọc từ memory
                 rd_next = RD_RESP;
             end
             
@@ -170,12 +180,14 @@ module data_mem_axi_slave (
         if (!rst_n) begin
             S_AXI_ARREADY <= 1'b0;
             rd_addr_latched <= 32'h0;
+            rd_prot_latched <= 3'h0;
         end else begin
             case (rd_state)
                 RD_IDLE: begin
                     if (S_AXI_ARVALID) begin
                         S_AXI_ARREADY <= 1'b1;
                         rd_addr_latched <= S_AXI_ARADDR;
+                        rd_prot_latched <= S_AXI_ARPROT;
                     end else begin
                         S_AXI_ARREADY <= 1'b0;
                     end
@@ -199,7 +211,6 @@ module data_mem_axi_slave (
         end else begin
             case (rd_state)
                 RD_WAIT: begin
-                    // Latch data từ memory
                     S_AXI_RDATA  <= mem_read_data;
                     S_AXI_RRESP  <= RESP_OKAY;
                     S_AXI_RVALID <= 1'b1;
@@ -325,8 +336,11 @@ module data_mem_axi_slave (
         if (!rst_n) begin
             mem_write_enable <= 1'b0;
         end else begin
-            // Pulse write enable khi ở WR_DATA và nhận được WVALID
-            mem_write_enable <= (wr_state == WR_DATA && S_AXI_WVALID);
+            if (wr_state == WR_DATA && S_AXI_WVALID && !mem_write_enable) begin
+                mem_write_enable <= 1'b1;
+            end else begin
+                mem_write_enable <= 1'b0;
+            end
         end
     end
     
@@ -365,12 +379,12 @@ module data_mem_axi_slave (
     // synthesis translate_off
     always @(posedge clk) begin
         if (mem_write_enable) begin
-            $display("[DMEM WRITE] addr=0x%08h, data=0x%08h, strb=%b, time=%0t",
-                     wr_addr_latched, wr_data_latched, wr_strb_latched, $time);
+            $display("[DMEM WRITE] addr=0x%08h, data=0x%08h, strb=%b, size=%0d, time=%0t",
+                     wr_addr_latched, wr_data_latched, wr_strb_latched, byte_size_wr, $time);
         end
         if (rd_state == RD_WAIT) begin
-            $display("[DMEM READ]  addr=0x%08h, data=0x%08h, time=%0t",
-                     rd_addr_latched, mem_read_data, $time);
+            $display("[DMEM READ]  addr=0x%08h, data=0x%08h, size=%0d, sign_ext=%b, time=%0t",
+                     rd_addr_latched, mem_read_data, byte_size_rd, sign_ext, $time);
         end
     end
     // synthesis translate_on

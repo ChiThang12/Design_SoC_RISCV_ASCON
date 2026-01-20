@@ -435,12 +435,24 @@ module datapath (
         endcase
     end
     
-    // Generate byte strobes
+    // Generate byte strobes - USE funct3 to correctly determine size
     reg [3:0] byte_strobe;
+    reg [1:0] byte_size_actual;  // Decoded from funct3
+    
+    always @(*) begin
+        // Decode actual byte size from funct3 (for LOAD/STORE operations)
+        if (funct3_mem[2:0] == 3'b000)      // BYTE (LB, SB, LBU)
+            byte_size_actual = 2'b00;
+        else if (funct3_mem[2:0] == 3'b001) // HALF (LH, SH, LHU)
+            byte_size_actual = 2'b01;
+        else                                 // WORD (LW, SW) or others
+            byte_size_actual = 2'b10;
+    end
+    
     always @(*) begin
         if (memwrite_mem) begin
-            case (byte_size_mem)
-                2'b00: begin  // Byte
+            case (byte_size_actual)  // Use decoded size from funct3
+                2'b00: begin  // Byte Write
                     case (alu_result_mem[1:0])
                         2'b00: byte_strobe = 4'b0001;
                         2'b01: byte_strobe = 4'b0010;
@@ -448,18 +460,19 @@ module datapath (
                         2'b11: byte_strobe = 4'b1000;
                     endcase
                 end
-                2'b01: begin  // Halfword
+                2'b01: begin  // Halfword Write - FIXED
                     case (alu_result_mem[1:0])
-                        2'b00: byte_strobe = 4'b0011;
-                        2'b10: byte_strobe = 4'b1100;
-                        default: byte_strobe = 4'b0011;
+                        2'b00: byte_strobe = 4'b0011;   // addr[1:0]=00 → bytes [1:0]
+                        2'b01: byte_strobe = 4'b0011;   // addr[1:0]=01 → bytes [1:0] (misaligned)
+                        2'b10: byte_strobe = 4'b1100;   // addr[1:0]=10 → bytes [3:2]
+                        2'b11: byte_strobe = 4'b1100;   // addr[1:0]=11 → bytes [3:2] (misaligned)
                     endcase
                 end
-                2'b10: byte_strobe = 4'b1111;
+                2'b10: byte_strobe = 4'b1111;  // Word Write
                 default: byte_strobe = 4'b1111;
             endcase
         end else begin
-            byte_strobe = 4'b1111;
+            byte_strobe = 4'b0000;  // No strobes for read operations (FIXED)
         end
     end
     
@@ -469,6 +482,14 @@ module datapath (
     assign dmem_wstrb = byte_strobe;
     assign dmem_req   = memread_mem | memwrite_mem;
     assign dmem_wr    = memwrite_mem;
+    
+    // Debug
+    always @(posedge clk) begin
+        if (memwrite_mem) begin
+            $display("[DATAPATH] Write: addr=%h, wdata=%h, wstrb=%b, byte_size=%b, alu_result[1:0]=%b, funct3_mem=%b, time=%0t",
+                     alu_result_mem, aligned_write_data, byte_strobe, byte_size_mem, alu_result_mem[1:0], funct3_mem, $time);
+        end
+    end
     
     // ========================================================================
     // MEM/WB Pipeline Register

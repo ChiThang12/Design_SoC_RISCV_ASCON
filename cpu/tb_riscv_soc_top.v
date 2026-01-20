@@ -1,16 +1,23 @@
 // ============================================================================
-// tb_riscv_soc_top.v - Testbench cho RISC-V SoC
+// riscv_soc_top_tb.v - Complete Testbench cho RISC-V SoC
+// ============================================================================
+// Comprehensive test suite for RISC-V SoC with AXI4-Lite
 // ============================================================================
 
 `timescale 1ns/1ps
 `include "riscv_soc_top.v"
-module tb_riscv_soc_top;
+module riscv_soc_top_tb;
 
     // ========================================================================
-    // Tín hiệu Clock và Reset
+    // Clock và Reset
     // ========================================================================
     reg clk;
     reg rst_n;
+    
+    initial begin
+        clk = 0;
+        forever #5 clk = ~clk;
+    end
     
     // ========================================================================
     // Debug Signals
@@ -26,7 +33,7 @@ module tb_riscv_soc_top;
     wire [1:0]  debug_forward_b;
     
     // ========================================================================
-    // Khởi tạo DUT (Device Under Test)
+    // DUT Instantiation
     // ========================================================================
     riscv_soc_top dut (
         .clk(clk),
@@ -43,151 +50,293 @@ module tb_riscv_soc_top;
     );
     
     // ========================================================================
-    // Clock Generation - 50MHz (20ns period)
+    // Test Variables
     // ========================================================================
-    initial begin
-        clk = 0;
-        forever #10 clk = ~clk;
-    end
+    integer cycle_count;
+    integer i;
+    integer test_num;
+    integer total_tests;
+    integer passed_tests;
+    reg [31:0] prev_pc;
     
     // ========================================================================
-    // Test Scenario
+    // Quiet Mode Control
     // ========================================================================
-    initial begin
-        // Khởi tạo waveform dump
-        $dumpfile("riscv_soc_tb.vcd");
-        $dumpvars(0, tb_riscv_soc_top);
-        
-        // Header
-        $display("========================================");
-        $display("  RISC-V SoC Testbench");
-        $display("========================================");
-        $display("Time: %0t", $time);
-        
-        // Reset sequence
-        rst_n = 0;
-        #100;
-        rst_n = 1;
-        $display("[%0t] Reset released", $time);
-        
-        // Load test program vào IMEM
-        // (Giả sử bạn đã có initial block trong inst_mem_axi_slave)
-        $display("[%0t] Starting program execution...", $time);
-        
-        // Chạy trong 100 cycles
-        repeat(100) @(posedge clk);
-        
-        $display("========================================");
-        $display("  Simulation Complete");
-        $display("========================================");
-        $finish;
-    end
+    reg verbose_mode;
     
-    // ========================================================================
-    // Monitor - Theo dõi hoạt động của CPU
-    // ========================================================================
-    integer instr_count;
-    initial instr_count = 0;
-    
+    // Monitor (only in verbose mode)
     always @(posedge clk) begin
-        if (rst_n) begin
-            if (!debug_stall) instr_count = instr_count + 1;
-            
-            $display("[%0t] #%0d PC=%h | Instr=%h | ALU=%h | MemData=%h | Stall=%b | Branch=%b->%h", 
-                     $time, instr_count, debug_pc, debug_instr, debug_alu_result, 
-                     debug_mem_data, debug_stall, debug_branch_taken, debug_branch_target);
-            
-            // Hiển thị forwarding info nếu có
-            if (debug_forward_a != 2'b00 || debug_forward_b != 2'b00) begin
-                $display("       Forwarding: A=%b, B=%b", debug_forward_a, debug_forward_b);
-            end
-            
-            // Warning nếu stall quá lâu
-            if (debug_stall && instr_count > 5) begin
-                $display("       WARNING: Pipeline stalled for extended period!");
-            end
+        if (rst_n && verbose_mode) begin
+            $display("[%3d] PC=%h IR=%h ALU=%h St=%b Fwd=%d/%d",
+                     cycle_count, debug_pc, debug_instr, debug_alu_result, 
+                     debug_stall, debug_forward_a, debug_forward_b);
         end
     end
     
     // ========================================================================
-    // AXI Transaction Monitor (hierarchical access)
+    // Test Programs
     // ========================================================================
-    reg write_in_progress;
-    initial write_in_progress = 0;
     
-    always @(posedge clk) begin
-        if (rst_n) begin
-            // Monitor AXI Read
-            if (dut.m_axi_arvalid && dut.m_axi_arready) begin
-                $display("       [AXI-AR] Read Request: addr=0x%h", dut.m_axi_araddr);
-            end
-            if (dut.m_axi_rvalid && dut.m_axi_rready) begin
-                $display("       [AXI-R]  Read Response: data=0x%h, resp=%b", dut.m_axi_rdata, dut.m_axi_rresp);
+    // Test 1: Basic ALU Operations
+    task load_test_alu;
+        begin
+            $display("  Program: ALU Operations + Forwarding");
+            dut.imem_slave.imem.memory[0] = 32'h00A00093;  // ADDI x1, x0, 10
+            dut.imem_slave.imem.memory[1] = 32'h01400113;  // ADDI x2, x0, 20
+            dut.imem_slave.imem.memory[2] = 32'h002081B3;  // ADD  x3, x1, x2
+            dut.imem_slave.imem.memory[3] = 32'h40218233;  // SUB  x4, x3, x2
+            dut.imem_slave.imem.memory[4] = 32'h0020F2B3;  // AND  x5, x1, x2
+            dut.imem_slave.imem.memory[5] = 32'h0020E333;  // OR   x6, x1, x2
+            dut.imem_slave.imem.memory[6] = 32'h0000006F;  // JAL  x0, 0
+            for (i = 7; i < 1024; i = i + 1)
+                dut.imem_slave.imem.memory[i] = 32'h00000013;
+        end
+    endtask
+    
+    // Test 2: Branch Instructions
+    task load_test_branch;
+        begin
+            $display("  Program: Branch & Jump Instructions");
+            dut.imem_slave.imem.memory[0] = 32'h00A00093;  // ADDI x1, x0, 10
+            dut.imem_slave.imem.memory[1] = 32'h00A00113;  // ADDI x2, x0, 10
+            dut.imem_slave.imem.memory[2] = 32'h00208463;  // BEQ  x1, x2, 8
+            dut.imem_slave.imem.memory[3] = 32'h06300193;  // ADDI x3, x0, 99 (skip)
+            dut.imem_slave.imem.memory[4] = 32'h04D00213;  // ADDI x4, x0, 77
+            dut.imem_slave.imem.memory[5] = 32'h00100293;  // ADDI x5, x0, 1
+            dut.imem_slave.imem.memory[6] = 32'hFE209EE3;  // BNE  x1, x2, -4
+            dut.imem_slave.imem.memory[7] = 32'h0000006F;  // JAL  x0, 0
+            for (i = 8; i < 1024; i = i + 1)
+                dut.imem_slave.imem.memory[i] = 32'h00000013;
+        end
+    endtask
+    
+    // Test 3: Memory Store/Load
+    task load_test_memory;
+        begin
+            $display("  Program: Store & Load Word");
+            dut.imem_slave.imem.memory[0] = 32'h00A00093;  // ADDI x1, x0, 10
+            dut.imem_slave.imem.memory[1] = 32'h01400113;  // ADDI x2, x0, 20
+            dut.imem_slave.imem.memory[2] = 32'h002081B3;  // ADD  x3, x1, x2
+            dut.imem_slave.imem.memory[3] = 32'h10000237;  // LUI  x4, 0x10000
+            dut.imem_slave.imem.memory[4] = 32'h00322023;  // SW   x3, 0(x4)
+            dut.imem_slave.imem.memory[5] = 32'h00500293;  // ADDI x5, x0, 5
+            dut.imem_slave.imem.memory[6] = 32'h00022303;  // LW   x6, 0(x4)
+            dut.imem_slave.imem.memory[7] = 32'h005303B3;  // ADD  x7, x6, x5
+            dut.imem_slave.imem.memory[8] = 32'h0000006F;  // JAL  x0, 0
+            for (i = 9; i < 1024; i = i + 1)
+                dut.imem_slave.imem.memory[i] = 32'h00000013;
+        end
+    endtask
+    
+    // Test 4: Byte/Halfword Operations
+    task load_test_byte_halfword;
+        begin
+            $display("  Program: Byte & Halfword Access");
+            dut.imem_slave.imem.memory[0] = 32'h0FF00093;  // ADDI x1, x0, 255
+            dut.imem_slave.imem.memory[1] = 32'h10000137;  // LUI  x2, 0x10000
+            dut.imem_slave.imem.memory[2] = 32'h00110023;  // SB   x1, 0(x2)
+            dut.imem_slave.imem.memory[3] = 32'h00111123;  // SH   x1, 2(x2)   // FIXED: funct3=001 for halfword
+            dut.imem_slave.imem.memory[4] = 32'h00010183;  // LB   x3, 0(x2)
+            dut.imem_slave.imem.memory[5] = 32'h00014203;  // LBU  x4, 0(x2)
+            dut.imem_slave.imem.memory[6] = 32'h00212283;  // LH   x5, 2(x2)
+            dut.imem_slave.imem.memory[7] = 32'h00216303;  // LHU  x6, 2(x2)
+            dut.imem_slave.imem.memory[8] = 32'h00000013;  // NOP
+            for (i = 9; i < 1024; i = i + 1)
+                dut.imem_slave.imem.memory[i] = 32'h00000013;
+        end
+    endtask
+    
+    // Test 5: Comprehensive Test
+    task load_test_comprehensive;
+        begin
+            $display("  Program: Comprehensive Test (ALU + Branch + Memory)");
+            dut.imem_slave.imem.memory[0]  = 32'h00A00093;  // ADDI x1, x0, 10
+            dut.imem_slave.imem.memory[1]  = 32'h01400113;  // ADDI x2, x0, 20
+            dut.imem_slave.imem.memory[2]  = 32'h002081B3;  // ADD  x3, x1, x2
+            dut.imem_slave.imem.memory[3]  = 32'h10000237;  // LUI  x4, 0x10000
+            dut.imem_slave.imem.memory[4]  = 32'h00322023;  // SW   x3, 0(x4)
+            dut.imem_slave.imem.memory[5]  = 32'h40218233;  // SUB  x4, x3, x2
+            dut.imem_slave.imem.memory[6]  = 32'h10000337;  // LUI  x6, 0x10000
+            dut.imem_slave.imem.memory[7]  = 32'h00032383;  // LW   x7, 0(x6)
+            dut.imem_slave.imem.memory[8]  = 32'h00738433;  // ADD  x8, x7, x7
+            dut.imem_slave.imem.memory[9]  = 32'h00208463;  // BEQ  x1, x2, 8
+            dut.imem_slave.imem.memory[10] = 32'h00100493;  // ADDI x9, x0, 1
+            dut.imem_slave.imem.memory[11] = 32'h00200513;  // ADDI x10,x0, 2
+            dut.imem_slave.imem.memory[12] = 32'h00000013;  // NOP
+            for (i = 13; i < 1024; i = i + 1)
+                dut.imem_slave.imem.memory[i] = 32'h00000013;
+        end
+    endtask
+    
+    // ========================================================================
+    // Run Test
+    // ========================================================================
+    task run_test;
+        input [31:0] target_pc;
+        input [31:0] max_cycles;
+        input integer expected_pass;
+        begin
+            cycle_count = 0;
+            while (debug_pc != target_pc && cycle_count < max_cycles) begin
+                @(posedge clk);
+                cycle_count = cycle_count + 1;
             end
             
-            // Monitor AXI Write with detailed state tracking
-            if (dut.m_axi_awvalid && dut.m_axi_awready) begin
-                $display("       [AXI-AW] ✅ Write Address Accepted: addr=0x%h", dut.m_axi_awaddr);
-                write_in_progress = 1;
-            end
-            
-            if (dut.m_axi_wvalid && dut.m_axi_wready) begin
-                $display("       [AXI-W]  ✅ Write Data Accepted: data=0x%h, strb=%b", dut.m_axi_wdata, dut.m_axi_wstrb);
-            end
-            
-            if (dut.m_axi_bvalid && dut.m_axi_bready) begin
-                $display("       [AXI-B]  ✅ Write Response: resp=%b", dut.m_axi_bresp);
-                if (dut.m_axi_bresp != 2'b00) begin
-                    $display("       ⚠️  ERROR: Write failed with BRESP=%b (2'b10=SLVERR)", dut.m_axi_bresp);
-                end
-                write_in_progress = 0;
-            end
-            
-            // Detect stuck write transactions
-            if (write_in_progress) begin
-                if (!dut.m_axi_wvalid && !dut.m_axi_awvalid) begin
-                    $display("       ⚠️  WAITING: WVALID=%b, AWVALID=%b, BVALID=%b", 
-                             dut.m_axi_wvalid, dut.m_axi_awvalid, dut.m_axi_bvalid);
-                end
+            if (debug_pc == target_pc) begin
+                $display("  Status: PASS - Reached target PC in %0d cycles", cycle_count);
+                if (expected_pass) passed_tests = passed_tests + 1;
+            end else begin
+                $display("  Status: FAIL - Timeout at PC=%h after %0d cycles", 
+                         debug_pc, cycle_count);
+                if (!expected_pass) passed_tests = passed_tests + 1;
             end
         end
-    end
+    endtask
     
     // ========================================================================
-    // Watchdog Timer - Ngăn simulation chạy mãi
+    // Verify Memory
+    // ========================================================================
+    task verify_memory;
+        input [31:0] addr;
+        input [31:0] expected;
+        input [255:0] desc;
+        reg [31:0] actual;
+        begin
+            actual = {dut.dmem_slave.dmem.memory[addr+3],
+                     dut.dmem_slave.dmem.memory[addr+2],
+                     dut.dmem_slave.dmem.memory[addr+1],
+                     dut.dmem_slave.dmem.memory[addr+0]};
+            
+            if (actual == expected) begin
+                $display("  ✓ %s: 0x%08h", desc, actual);
+            end else begin
+                $display("  ✗ %s: 0x%08h (expected 0x%08h)", desc, actual, expected);
+            end
+        end
+    endtask
+    
+    // ========================================================================
+    // Reset Sequence
+    // ========================================================================
+    task reset_dut;
+        begin
+            rst_n = 0;
+            repeat(10) @(posedge clk);
+            rst_n = 1;
+            repeat(2) @(posedge clk);
+        end
+    endtask
+    
+    // ========================================================================
+    // Main Test Sequence
     // ========================================================================
     initial begin
-        #100000; // Timeout sau 100us
-        $display("ERROR: Simulation timeout!");
+        $dumpfile("riscv_soc_top_tb.vcd");
+        $dumpvars(0, riscv_soc_top_tb);
+        
+        $display("\n╔═══════════════════════════════════════════════════════╗");
+        $display("║     RISC-V SoC AXI4-Lite Test Suite                 ║");
+        $display("╚═══════════════════════════════════════════════════════╝\n");
+        
+        total_tests = 5;
+        passed_tests = 0;
+        verbose_mode = 0;  // Set to 1 for detailed output
+        
+        // ====================================================================
+        // TEST 1: ALU Operations
+        // ====================================================================
+        test_num = 1;
+        $display("┌───────────────────────────────────────────────────────┐");
+        $display("│ Test %0d: ALU Operations & Forwarding                 │", test_num);
+        $display("└───────────────────────────────────────────────────────┘");
+        reset_dut();
+        load_test_alu();
+        run_test(32'h00000018, 100, 1);
+        $display("");
+        
+        // ====================================================================
+        // TEST 2: Branch Instructions
+        // ====================================================================
+        test_num = 2;
+        $display("┌───────────────────────────────────────────────────────┐");
+        $display("│ Test %0d: Branch & Control Flow                       │", test_num);
+        $display("└───────────────────────────────────────────────────────┘");
+        reset_dut();
+        load_test_branch();
+        run_test(32'h0000001C, 100, 1);
+        $display("");
+        
+        // ====================================================================
+        // TEST 3: Memory Operations
+        // ====================================================================
+        test_num = 3;
+        $display("┌───────────────────────────────────────────────────────┐");
+        $display("│ Test %0d: Memory Store & Load                         │", test_num);
+        $display("└───────────────────────────────────────────────────────┘");
+        reset_dut();
+        load_test_memory();
+        run_test(32'h00000020, 120, 1);
+        verify_memory(0, 32'h0000001E, "DMEM[0x10000000]");
+        $display("");
+        
+        // ====================================================================
+        // TEST 4: Byte/Halfword Operations
+        // ====================================================================
+        test_num = 4;
+        $display("┌───────────────────────────────────────────────────────┐");
+        $display("│ Test %0d: Byte & Halfword Access                      │", test_num);
+        $display("└───────────────────────────────────────────────────────┘");
+        reset_dut();
+        load_test_byte_halfword();
+        run_test(32'h00000024, 150, 1);
+        $display("  Memory Check:");
+        $display("    Byte 0: 0x%02h (expected 0xFF)", dut.dmem_slave.dmem.memory[0]);
+        $display("    Half 2: 0x%02h%02h (expected 0x00FF)", 
+                 dut.dmem_slave.dmem.memory[3], dut.dmem_slave.dmem.memory[2]);
+        $display("");
+        
+        // ====================================================================
+        // TEST 5: Comprehensive Test
+        // ====================================================================
+        test_num = 5;
+        $display("┌───────────────────────────────────────────────────────┐");
+        $display("│ Test %0d: Comprehensive (ALU + Branch + Memory)       │", test_num);
+        $display("└───────────────────────────────────────────────────────┘");
+        reset_dut();
+        load_test_comprehensive();
+        run_test(32'h00000034, 200, 1);
+        verify_memory(0, 32'h0000001E, "DMEM[0x10000000]");
+        $display("");
+        
+        // ====================================================================
+        // Summary
+        // ====================================================================
+        $display("\n╔═══════════════════════════════════════════════════════╗");
+        $display("║                   Test Summary                        ║");
+        $display("╠═══════════════════════════════════════════════════════╣");
+        $display("║  Total Tests:  %2d                                     ║", total_tests);
+        $display("║  Passed:       %2d                                     ║", passed_tests);
+        $display("║  Failed:       %2d                                     ║", total_tests - passed_tests);
+        $display("╠═══════════════════════════════════════════════════════╣");
+        
+        if (passed_tests == total_tests) begin
+            $display("║           ✓✓✓ ALL TESTS PASSED ✓✓✓                   ║");
+        end else begin
+            $display("║           ✗✗✗ SOME TESTS FAILED ✗✗✗                  ║");
+        end
+        
+        $display("╚═══════════════════════════════════════════════════════╝\n");
+        
         $finish;
     end
     
     // ========================================================================
-    // Memory Initialization Info
+    // Timeout Protection
     // ========================================================================
     initial begin
-        // Đợi reset
-        @(posedge rst_n);
-        #1;
-        
-        // Program được load từ memory/program.hex
-        $display("[%0t] Test program loaded from memory/program.hex", $time);
-        $display("       IMEM content:");
-        $display("       [0x00] = 0x%08h", dut.imem_slave.imem.memory[0]);
-        $display("       [0x04] = 0x%08h", dut.imem_slave.imem.memory[1]);
-        $display("       [0x08] = 0x%08h", dut.imem_slave.imem.memory[2]);
-        $display("       [0x0C] = 0x%08h", dut.imem_slave.imem.memory[3]);
-        $display("       [0x10] = 0x%08h", dut.imem_slave.imem.memory[4]);
+        #1000000;
+        $display("\n!!! GLOBAL TIMEOUT !!!");
+        $finish;
     end
-    
-    // ========================================================================
-    // Register File Monitor (Optional - nếu có access)
-    // ========================================================================
-    // always @(posedge clk) begin
-    //     if (dut.cpu.regfile.wen && rst_n) begin
-    //         $display("       RegWrite: x%0d <= %h", 
-    //                  dut.cpu.regfile.waddr, dut.cpu.regfile.wdata);
-    //     end
-    // end
 
 endmodule
