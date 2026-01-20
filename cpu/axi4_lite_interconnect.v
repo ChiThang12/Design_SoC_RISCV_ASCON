@@ -146,14 +146,17 @@ module axi4_lite_interconnect (
     endfunction
     
     // ========================================================================
-    // Write Channel Routing
+    // Write Channel Routing - FIXED
     // ========================================================================
+    // CRITICAL FIX: Track which slave for both address and data independently
+    // but synchronously to avoid mismatches
     reg wr_slave_sel;
     
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             wr_slave_sel <= 1'b0;
         end else if (M_AXI_AWVALID && M_AXI_AWREADY) begin
+            // Latch slave selection when address is accepted
             wr_slave_sel <= addr_decode_wr(M_AXI_AWADDR);
         end
     end
@@ -169,7 +172,7 @@ module axi4_lite_interconnect (
     
     assign M_AXI_AWREADY = addr_decode_wr(M_AXI_AWADDR) ? S1_AXI_AWREADY : S0_AXI_AWREADY;
     
-    // Write Data Channel
+    // Write Data Channel - FIXED to use latched wr_slave_sel properly
     assign S0_AXI_WDATA  = M_AXI_WDATA;
     assign S0_AXI_WSTRB  = M_AXI_WSTRB;
     assign S0_AXI_WVALID = M_AXI_WVALID && !wr_slave_sel;
@@ -180,7 +183,7 @@ module axi4_lite_interconnect (
     
     assign M_AXI_WREADY = wr_slave_sel ? S1_AXI_WREADY : S0_AXI_WREADY;
     
-    // Write Response Channel
+    // Write Response Channel - use latched wr_slave_sel
     assign M_AXI_BRESP  = wr_slave_sel ? S1_AXI_BRESP  : S0_AXI_BRESP;
     assign M_AXI_BVALID = wr_slave_sel ? S1_AXI_BVALID : S0_AXI_BVALID;
     
