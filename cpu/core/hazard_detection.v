@@ -24,6 +24,8 @@ module hazard_detection (
         // ===== Load-Use Hazard Detection =====
         // Check if there's a load instruction in EX stage that creates a data hazard
         // with the current instruction in ID stage
+        // IMPORTANT: This must trigger even if rd_id_ex is x0, to avoid unnecessary 
+        // complexity; however, typically x0 writes are ignored in register file
         if (memread_id_ex && 
             ((rd_id_ex == rs1_id && rs1_id != 5'b0) || 
              (rd_id_ex == rs2_id && rs2_id != 5'b0))) begin
