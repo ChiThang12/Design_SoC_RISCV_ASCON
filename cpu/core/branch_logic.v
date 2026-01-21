@@ -26,7 +26,9 @@ module branch_logic (
     always @(*) begin
         taken = 1'b0;  // Default: don't take branch
         
-        if (branch) begin
+        // Only evaluate branch condition if branch signal is asserted
+        // This prevents non-branch instructions from being mistakenly detected as branches
+        if (branch == 1'b1) begin
             case (funct3)
                 BEQ:  taken = zero_flag;        // Take if rs1 == rs2
                 BNE:  taken = ~zero_flag;       // Take if rs1 != rs2
@@ -37,6 +39,7 @@ module branch_logic (
                 default: taken = 1'b0;          // Invalid funct3
             endcase
         end
+        // If branch == 0, taken stays 0 (no branch for non-branch instructions)
     end
 
 endmodule
