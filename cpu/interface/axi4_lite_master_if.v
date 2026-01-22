@@ -1,11 +1,92 @@
 // ============================================================================
-// axi4_lite_master_if.v - AXI4-Lite Master Interface
+// Module: axi4_lite_master_if
+// ----------------------------------------------------------------------------
+// Description:
+//   AXI4-Lite Master Interface đóng vai trò cầu nối giữa CPU core
+//   (giao diện memory đơn giản) và bus AXI4-Lite chuẩn.
+//
+//   Module này che giấu hoàn toàn giao thức AXI khỏi CPU, cho phép CPU
+//   chỉ cần phát các tín hiệu:
+//     - cpu_addr
+//     - cpu_req
+//     - cpu_wr
+//     - cpu_wdata / cpu_wstrb
+//
+//   và nhận lại:
+//     - cpu_rdata
+//     - cpu_ready
+//     - cpu_error
+//
+//   - Hỗ trợ AXI4-Lite single-beat read / write
+//   - Điều khiển handshake AW/W/B và AR/R bằng FSM
+//   - Chỉ xử lý 1 transaction tại một thời điểm (non-pipelined)
+//   - Phù hợp cho softcore CPU (RISC-V, MIPS, custom CPU)
+//
+// Operation:
+//   - Khi cpu_req được assert, module latch request vào internal registers
+//   - FSM bắt đầu AXI transaction tương ứng:
+//       * Write  : AW -> W -> B
+//       * Read   : AR -> R
+//   - Module giữ VALID cho đến khi READY từ slave được assert
+//   - Khi transaction hoàn tất:
+//       * cpu_ready được pulse 1 cycle
+//       * cpu_rdata hợp lệ (đối với read)
+//       * cpu_error phản ánh BRESP / RRESP
+//
+// Author: ChiThang
 // ============================================================================
-// Mô tả:
-//   - Chuyển đổi CPU memory request sang AXI4-Lite protocol
-//   - Hỗ trợ read/write transactions
-//   - State machine điều khiển handshake
+//
+// Clock & Reset
+// clk              : Clock hệ thống
+// rst_n            : Reset active-low
+//
+// ---------------------------------------------------------------------------
+// CPU Request Interface (Memory-like Interface)
+// ---------------------------------------------------------------------------
+// cpu_addr         : Địa chỉ truy cập (byte address)
+// cpu_wdata        : Dữ liệu ghi từ CPU
+// cpu_wstrb        : Byte enable (AXI WSTRB)
+// cpu_req          : Yêu cầu truy cập bộ nhớ
+// cpu_wr           : 1 = write, 0 = read
+//
+// cpu_rdata        : Dữ liệu đọc trả về cho CPU
+// cpu_ready        : Pulse báo transaction hoàn tất
+// cpu_error        : Báo lỗi AXI (SLVERR / DECERR)
+//
+// ---------------------------------------------------------------------------
+// AXI4-Lite Master Interface
+// ---------------------------------------------------------------------------
+//
+// Write Address Channel (AW)
+// M_AXI_AWADDR     : Địa chỉ ghi
+// M_AXI_AWPROT     : Protection attributes (fixed = 3'b000)
+// M_AXI_AWVALID    : Master báo địa chỉ hợp lệ
+// M_AXI_AWREADY    : Slave sẵn sàng nhận địa chỉ
+//
+// Write Data Channel (W)
+// M_AXI_WDATA      : Dữ liệu ghi
+// M_AXI_WSTRB      : Byte strobe
+// M_AXI_WVALID     : Master báo dữ liệu hợp lệ
+// M_AXI_WREADY     : Slave sẵn sàng nhận dữ liệu
+//
+// Write Response Channel (B)
+// M_AXI_BRESP      : Phản hồi ghi (OKAY / SLVERR / DECERR)
+// M_AXI_BVALID     : Slave báo response hợp lệ
+// M_AXI_BREADY     : Master sẵn sàng nhận response
+//
+// Read Address Channel (AR)
+// M_AXI_ARADDR     : Địa chỉ đọc
+// M_AXI_ARPROT     : Protection attributes (fixed = 3'b000)
+// M_AXI_ARVALID    : Master báo địa chỉ hợp lệ
+// M_AXI_ARREADY    : Slave sẵn sàng nhận địa chỉ
+//
+// Read Data Channel (R)
+// M_AXI_RDATA      : Dữ liệu đọc từ slave
+// M_AXI_RRESP      : Phản hồi đọc (OKAY / SLVERR / DECERR)
+// M_AXI_RVALID     : Slave báo dữ liệu hợp lệ
+// M_AXI_RREADY     : Master sẵn sàng nhận dữ liệu
 // ============================================================================
+
 
 module axi4_lite_master_if (
     input wire clk,
