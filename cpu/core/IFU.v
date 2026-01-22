@@ -25,75 +25,62 @@ module IFU (
     // ========================================================================
     reg [31:0] PC;
     
-    // CRITICAL FIX: Lưu PC của instruction hiện tại trước khi advance
-    reg [31:0] PC_current_instr;
-    
     // ========================================================================
     // Next PC Calculation
     // ========================================================================
     wire [31:0] next_pc;
     
     // Logic tính next_pc:
-    // - Nếu stall=1: giữ nguyên PC
     // - Nếu pc_src=1: nhảy đến target_pc (branch/jump)
     // - Nếu pc_src=0: PC + 4 (sequential)
-    assign next_pc = stall ? PC : 
-                     pc_src ? target_pc : 
-                     PC + 32'd4;
+    assign next_pc = pc_src ? target_pc : (PC + 32'd4);
     
     // ========================================================================
-    // Simplified Memory Interface
+    // Memory Interface - Always output current PC and request
     // ========================================================================
-    // Always output current PC and request instruction
     always @(*) begin
         imem_addr = PC;
-        imem_valid = 1'b1;  // Always valid
+        imem_valid = 1'b1;  // Always requesting
     end
     
     // ========================================================================
     // Program Counter Update
+    // CRITICAL FIX: Chỉ cập nhật PC khi imem_ready=1 (instruction fetch complete)
     // ========================================================================
     always @(posedge clock or posedge reset) begin
         if (reset) begin
             PC <= 32'h00000000;
-            PC_current_instr <= 32'h00000000;
         end else begin
-            // CRITICAL: Lưu PC hiện tại TRƯỚC KHI cập nhật
-            // PC này tương ứng với instruction sẽ được latch ở cycle này
-            if (!stall) begin
-                PC_current_instr <= PC;
+            // Chỉ cập nhật PC khi:
+            // 1. Không bị stall
+            // 2. Memory đã sẵn sàng (imem_ready = 1)
+            if (!stall && imem_ready) begin
+                PC <= next_pc;
             end
-            
-            // Cập nhật PC cho cycle tiếp theo
-            if (stall) begin
-                PC <= PC;  // Hold PC when stalled
-            end else if (pc_src) begin
-                PC <= target_pc;  // Branch/Jump takes priority
-            end else begin
-                PC <= PC + 32'd4;  // Sequential increment
-            end
+            // Nếu stall hoặc memory chưa ready, giữ nguyên PC
         end
     end
     
     // ========================================================================
     // Instruction Latch
+    // CRITICAL FIX: Chỉ latch instruction mới khi imem_ready=1
     // ========================================================================
     always @(posedge clock or posedge reset) begin
         if (reset) begin
             Instruction_Code <= 32'h00000013; // NOP
         end else if (stall) begin
-            Instruction_Code <= Instruction_Code;  // Hold instruction
-        end else begin
-            Instruction_Code <= imem_rdata;  // Always latch new instruction
+            Instruction_Code <= Instruction_Code;  // Hold instruction khi stall
+        end else if (imem_ready) begin
+            Instruction_Code <= imem_rdata;  // Latch instruction mới khi ready
         end
+        // Nếu không ready và không stall, giữ nguyên instruction cũ
     end
     
     // ========================================================================
-    // Output Current PC - PC của instruction hiện tại được output
+    // PC Output - Output PC hiện tại
     // ========================================================================
     always @(*) begin
-        // CRITICAL FIX: Output PC của instruction hiện tại, không phải PC đã advance
-        PC_out = PC_current_instr;
+        PC_out = PC;
     end
 
 endmodule

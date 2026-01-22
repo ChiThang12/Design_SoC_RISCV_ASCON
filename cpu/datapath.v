@@ -181,11 +181,21 @@ module datapath (
     wire flush_id_ex;
     
     hazard_detection hazard_unit (
+        // Load-use hazard detection
         .memread_id_ex(memread_ex),
         .rd_id_ex(rd_ex),
         .rs1_id(rs1_id),
         .rs2_id(rs2_id),
+        
+        // Branch/Jump control
         .branch_taken(branch_taken_detected),
+        
+        // Memory ready signals (NEW)
+        .imem_ready(imem_ready),
+        .dmem_ready(dmem_ready),
+        .dmem_valid(dmem_valid),
+        
+        // Control outputs
         .stall(stall),
         .flush_if_id(flush_if_id),
         .flush_id_ex(flush_id_ex)

@@ -27,8 +27,18 @@ module inst_mem (
     // Khởi tạo bộ nhớ từ file hex khi simulation
     // File program.hex chứa các lệnh dạng hex, mỗi dòng 1 lệnh 32-bit
     // ========================================================================
+    integer i;
     initial begin
-        $readmemh("memory/program.hex", memory);
+        `ifndef TESTBENCH_MODE
+            $readmemh("memory/program.hex", memory);
+        `else
+            // Trong testbench mode, khởi tạo memory = 0
+            
+            for (i = 0; i < 1024; i = i + 1) begin
+                memory[i] = 32'h00000000;
+            end
+            $display("[IMEM] Running in TESTBENCH_MODE - memory initialized to zeros");
+        `endif
     end
 
 endmodule
