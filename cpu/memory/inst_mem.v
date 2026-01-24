@@ -30,7 +30,7 @@ module inst_mem (
     integer i;
     initial begin
         `ifndef TESTBENCH_MODE
-            $readmemh("memory/program.hex", memory);
+            $readmemh("program.hex", memory);
         `else
             // Trong testbench mode, khởi tạo memory = 0
             

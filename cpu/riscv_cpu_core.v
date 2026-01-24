@@ -154,7 +154,7 @@ module riscv_cpu_core (
     // MEM Stage
     // ========================================================================
     wire [31:0] mem_read_data_extended;
-    
+    reg mem_req_pending; 
     // ========================================================================
     // MEM/WB Pipeline Register
     // ========================================================================
@@ -448,17 +448,22 @@ module riscv_cpu_core (
             byte_size_ex_mem <= 2'b0;
             funct3_ex_mem <= 3'b0;
         end else begin
-            regwrite_ex_mem <= regwrite_ex;
-            memread_ex_mem <= memread_ex;
-            memwrite_ex_mem <= memwrite_ex;
-            memtoreg_ex_mem <= memtoreg_ex;
-            jump_ex_mem <= jump_ex;
+            // Control signals: Update hoặc clear
+            if (!stall) begin
+                regwrite_ex_mem <= regwrite_ex;
+                memread_ex_mem <= memread_ex;
+                memwrite_ex_mem <= memwrite_ex;
+                memtoreg_ex_mem <= memtoreg_ex;
+                jump_ex_mem <= jump_ex;
+                rd_ex_mem <= rd_ex;
+                byte_size_ex_mem <= byte_size_ex;
+                funct3_ex_mem <= funct3_ex;
+            end 
+            
+            // Data paths: LUÔN update
             alu_result_ex_mem <= alu_result_ex;
             write_data_ex_mem <= alu_in2_pre_mux;
             pc_plus_4_ex_mem <= pc_plus_4_ex;
-            rd_ex_mem <= rd_ex;
-            byte_size_ex_mem <= byte_size_ex;
-            funct3_ex_mem <= funct3_ex;
         end
     end
     
@@ -477,11 +482,28 @@ module riscv_cpu_core (
     // ========================================================================
     // STAGE 4: MEMORY ACCESS (MEM)
     // ========================================================================
-    
+
+
+        // Track memory request state
+    // Memory transaction tracking
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            mem_req_pending <= 1'b0;
+        end else begin
+            // Priority 1: Clear when pipeline moves (stall released)
+            if (!stall) begin
+                mem_req_pending <= 1'b0;
+            end
+            // Priority 2: Set when transaction completes
+            else if (dmem_valid && dmem_ready) begin
+                mem_req_pending <= 1'b1;
+            end
+        end
+    end   
     // Data Memory Interface
     assign dmem_addr = alu_result_mem;
     assign dmem_wdata = write_data_mem;
-    assign dmem_valid = memread_mem | memwrite_mem;
+    assign dmem_valid = (memread_mem | memwrite_mem) && !mem_req_pending;  // ← FIX!
     assign dmem_we = memwrite_mem;
     
     // Write Strobe Generation
@@ -531,13 +553,24 @@ module riscv_cpu_core (
             pc_plus_4_mem_wb <= 32'h0;
             rd_mem_wb <= 5'b0;
         end else begin
-            regwrite_mem_wb <= regwrite_mem;
-            memtoreg_mem_wb <= memtoreg_mem;
-            jump_mem_wb <= jump_mem;
+            // Control signals: Update hoặc CLEAR
+            if (!stall) begin
+                regwrite_mem_wb <= regwrite_mem;
+                memtoreg_mem_wb <= memtoreg_mem;
+                jump_mem_wb <= jump_mem;
+                rd_mem_wb <= rd_mem;
+            end else begin
+                // THÊM ELSE BLOCK NÀY - Insert bubble khi stall
+                regwrite_mem_wb <= 1'b0;  // ← CRITICAL!
+                memtoreg_mem_wb <= 1'b0;
+                jump_mem_wb <= 1'b0;
+                rd_mem_wb <= 5'b0;
+            end
+            
+            // Data paths: Luôn update (KHÔNG ĐỔI)
             alu_result_mem_wb <= alu_result_mem;
             mem_data_mem_wb <= mem_read_data_extended;
             pc_plus_4_mem_wb <= pc_plus_4_mem;
-            rd_mem_wb <= rd_mem;
         end
     end
     

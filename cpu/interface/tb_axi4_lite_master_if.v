@@ -3,7 +3,7 @@
 // ============================================================================
 
 `timescale 1ns/1ps
-`include "axi4_lite_master_if.v"
+`include "interface/axi4_lite_master_if.v"
 module tb_axi4_lite_master_if;
 
     // ========================================================================
