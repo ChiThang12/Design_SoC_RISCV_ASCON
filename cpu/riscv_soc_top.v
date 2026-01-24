@@ -1,426 +1,388 @@
 // ============================================================================
 // Module: riscv_soc_top (WITH DEBUG PORTS)
 // ============================================================================
-`include "datapath.v"
+`include "riscv_cpu_core.v"
 `include "interface/imem_access_unit.v"
 `include "interface/dmem_access_unit.v"
 `include "memory/inst_mem_axi_slave.v"
 `include "memory/data_mem_axi_slave.v"
+// ============================================================================
+// riscv_soc_top.v - RISC-V SoC with AXI4-Lite Interconnect
+// ============================================================================
+// Description:
+//   Top-level SoC integrating:
+//   - RISC-V CPU Core (5-stage pipeline)
+//   - Instruction Memory (via AXI4-Lite)
+//   - Data Memory (via AXI4-Lite)
+//   - AXI4-Lite Interconnect
+//
+// Author: ChiThang
+// ============================================================================
 
 module riscv_soc_top (
     input wire clk,
-    input wire rst_n,
-    
-    // Debug outputs
-    output wire [31:0] pc_current,
-    output wire [31:0] instruction_current,
-    
-    // Debug: AXI IMEM signals
-    output wire        S_AXI_IMEM_ARVALID,
-    output wire        S_AXI_IMEM_ARREADY,
-    output wire [31:0] S_AXI_IMEM_ARADDR,
-    output wire        S_AXI_IMEM_RVALID,
-    output wire        S_AXI_IMEM_RREADY,
-    output wire [31:0] S_AXI_IMEM_RDATA,
-    
-    // Debug: AXI DMEM signals
-    output wire        S_AXI_DMEM_AWVALID,
-    output wire        S_AXI_DMEM_AWREADY,
-    output wire [31:0] S_AXI_DMEM_AWADDR,
-    output wire        S_AXI_DMEM_WVALID,
-    output wire        S_AXI_DMEM_WREADY,
-    output wire [31:0] S_AXI_DMEM_WDATA,
-    output wire        S_AXI_DMEM_ARVALID,
-    output wire        S_AXI_DMEM_ARREADY,
-    output wire [31:0] S_AXI_DMEM_ARADDR,
-    output wire        S_AXI_DMEM_RVALID,
-    output wire        S_AXI_DMEM_RREADY,
-    output wire [31:0] S_AXI_DMEM_RDATA
+    input wire rst_n
 );
 
     // ========================================================================
-    // Internal Signals - Datapath <-> IMEM Access Unit
+    // Internal Signals
     // ========================================================================
-    wire [31:0] imem_addr;
-    wire        imem_valid;
-    wire [31:0] imem_rdata;
-    wire        imem_ready;
     
-    // ========================================================================
-    // Internal Signals - Datapath <-> DMEM Access Unit
-    // ========================================================================
-    wire [31:0] dmem_addr;
-    wire [31:0] dmem_wdata;
-    wire [3:0]  dmem_wstrb;
-    wire        dmem_valid;
-    wire        dmem_we;
-    wire [31:0] dmem_rdata;
-    wire        dmem_ready;
+    // CPU → IMEM Access Unit
+    wire [31:0] cpu_imem_addr;
+    wire        cpu_imem_valid;
+    wire [31:0] cpu_imem_rdata;
+    wire        cpu_imem_ready;
     
-    // ========================================================================
-    // AXI Signals - IMEM Master
-    // ========================================================================
-    wire [31:0] M0_AXI_AWADDR;
-    wire [2:0]  M0_AXI_AWPROT;
-    wire        M0_AXI_AWVALID;
-    wire        M0_AXI_AWREADY;
-    
-    wire [31:0] M0_AXI_WDATA;
-    wire [3:0]  M0_AXI_WSTRB;
-    wire        M0_AXI_WVALID;
-    wire        M0_AXI_WREADY;
-    
-    wire [1:0]  M0_AXI_BRESP;
-    wire        M0_AXI_BVALID;
-    wire        M0_AXI_BREADY;
-    
-    wire [31:0] M0_AXI_ARADDR;
-    wire [2:0]  M0_AXI_ARPROT;
-    wire        M0_AXI_ARVALID;
-    wire        M0_AXI_ARREADY;
-    
-    wire [31:0] M0_AXI_RDATA;
-    wire [1:0]  M0_AXI_RRESP;
-    wire        M0_AXI_RVALID;
-    wire        M0_AXI_RREADY;
+    // CPU → DMEM Access Unit
+    wire [31:0] cpu_dmem_addr;
+    wire [31:0] cpu_dmem_wdata;
+    wire [3:0]  cpu_dmem_wstrb;
+    wire        cpu_dmem_valid;
+    wire        cpu_dmem_we;
+    wire [31:0] cpu_dmem_rdata;
+    wire        cpu_dmem_ready;
     
     // ========================================================================
-    // AXI Signals - DMEM Master
+    // AXI4-Lite Master Signals (IMEM Access Unit → Interconnect)
     // ========================================================================
-    wire [31:0] M1_AXI_AWADDR;
-    wire [2:0]  M1_AXI_AWPROT;
-    wire        M1_AXI_AWVALID;
-    wire        M1_AXI_AWREADY;
+    wire [31:0] imem_m_axi_awaddr;
+    wire [2:0]  imem_m_axi_awprot;
+    wire        imem_m_axi_awvalid;
+    wire        imem_m_axi_awready;
     
-    wire [31:0] M1_AXI_WDATA;
-    wire [3:0]  M1_AXI_WSTRB;
-    wire        M1_AXI_WVALID;
-    wire        M1_AXI_WREADY;
+    wire [31:0] imem_m_axi_wdata;
+    wire [3:0]  imem_m_axi_wstrb;
+    wire        imem_m_axi_wvalid;
+    wire        imem_m_axi_wready;
     
-    wire [1:0]  M1_AXI_BRESP;
-    wire        M1_AXI_BVALID;
-    wire        M1_AXI_BREADY;
+    wire [1:0]  imem_m_axi_bresp;
+    wire        imem_m_axi_bvalid;
+    wire        imem_m_axi_bready;
     
-    wire [31:0] M1_AXI_ARADDR;
-    wire [2:0]  M1_AXI_ARPROT;
-    wire        M1_AXI_ARVALID;
-    wire        M1_AXI_ARREADY;
+    wire [31:0] imem_m_axi_araddr;
+    wire [2:0]  imem_m_axi_arprot;
+    wire        imem_m_axi_arvalid;
+    wire        imem_m_axi_arready;
     
-    wire [31:0] M1_AXI_RDATA;
-    wire [1:0]  M1_AXI_RRESP;
-    wire        M1_AXI_RVALID;
-    wire        M1_AXI_RREADY;
-    
-    // ========================================================================
-    // AXI Signals - IMEM Slave
-    // ========================================================================
-    wire [31:0] S0_AXI_AWADDR;
-    wire [2:0]  S0_AXI_AWPROT;
-    wire        S0_AXI_AWVALID;
-    wire        S0_AXI_AWREADY;
-    
-    wire [31:0] S0_AXI_WDATA;
-    wire [3:0]  S0_AXI_WSTRB;
-    wire        S0_AXI_WVALID;
-    wire        S0_AXI_WREADY;
-    
-    wire [1:0]  S0_AXI_BRESP;
-    wire        S0_AXI_BVALID;
-    wire        S0_AXI_BREADY;
-    
-    wire [31:0] S0_AXI_ARADDR;
-    wire [2:0]  S0_AXI_ARPROT;
-    wire        S0_AXI_ARVALID;
-    wire        S0_AXI_ARREADY;
-    
-    wire [31:0] S0_AXI_RDATA;
-    wire [1:0]  S0_AXI_RRESP;
-    wire        S0_AXI_RVALID;
-    wire        S0_AXI_RREADY;
+    wire [31:0] imem_m_axi_rdata;
+    wire [1:0]  imem_m_axi_rresp;
+    wire        imem_m_axi_rvalid;
+    wire        imem_m_axi_rready;
     
     // ========================================================================
-    // AXI Signals - DMEM Slave
+    // AXI4-Lite Master Signals (DMEM Access Unit → Interconnect)
     // ========================================================================
-    wire [31:0] S1_AXI_AWADDR;
-    wire [2:0]  S1_AXI_AWPROT;
-    wire        S1_AXI_AWVALID;
-    wire        S1_AXI_AWREADY;
+    wire [31:0] dmem_m_axi_awaddr;
+    wire [2:0]  dmem_m_axi_awprot;
+    wire        dmem_m_axi_awvalid;
+    wire        dmem_m_axi_awready;
     
-    wire [31:0] S1_AXI_WDATA;
-    wire [3:0]  S1_AXI_WSTRB;
-    wire        S1_AXI_WVALID;
-    wire        S1_AXI_WREADY;
+    wire [31:0] dmem_m_axi_wdata;
+    wire [3:0]  dmem_m_axi_wstrb;
+    wire        dmem_m_axi_wvalid;
+    wire        dmem_m_axi_wready;
     
-    wire [1:0]  S1_AXI_BRESP;
-    wire        S1_AXI_BVALID;
-    wire        S1_AXI_BREADY;
+    wire [1:0]  dmem_m_axi_bresp;
+    wire        dmem_m_axi_bvalid;
+    wire        dmem_m_axi_bready;
     
-    wire [31:0] S1_AXI_ARADDR;
-    wire [2:0]  S1_AXI_ARPROT;
-    wire        S1_AXI_ARVALID;
-    wire        S1_AXI_ARREADY;
+    wire [31:0] dmem_m_axi_araddr;
+    wire [2:0]  dmem_m_axi_arprot;
+    wire        dmem_m_axi_arvalid;
+    wire        dmem_m_axi_arready;
     
-    wire [31:0] S1_AXI_RDATA;
-    wire [1:0]  S1_AXI_RRESP;
-    wire        S1_AXI_RVALID;
-    wire        S1_AXI_RREADY;
-    
-    // ========================================================================
-    // Export AXI signals for debugging
-    // ========================================================================
-    assign S_AXI_IMEM_ARVALID = S0_AXI_ARVALID;
-    assign S_AXI_IMEM_ARREADY = S0_AXI_ARREADY;
-    assign S_AXI_IMEM_ARADDR  = S0_AXI_ARADDR;
-    assign S_AXI_IMEM_RVALID  = S0_AXI_RVALID;
-    assign S_AXI_IMEM_RREADY  = S0_AXI_RREADY;
-    assign S_AXI_IMEM_RDATA   = S0_AXI_RDATA;
-    
-    assign S_AXI_DMEM_AWVALID = S1_AXI_AWVALID;
-    assign S_AXI_DMEM_AWREADY = S1_AXI_AWREADY;
-    assign S_AXI_DMEM_AWADDR  = S1_AXI_AWADDR;
-    assign S_AXI_DMEM_WVALID  = S1_AXI_WVALID;
-    assign S_AXI_DMEM_WREADY  = S1_AXI_WREADY;
-    assign S_AXI_DMEM_WDATA   = S1_AXI_WDATA;
-    assign S_AXI_DMEM_ARVALID = S1_AXI_ARVALID;
-    assign S_AXI_DMEM_ARREADY = S1_AXI_ARREADY;
-    assign S_AXI_DMEM_ARADDR  = S1_AXI_ARADDR;
-    assign S_AXI_DMEM_RVALID  = S1_AXI_RVALID;
-    assign S_AXI_DMEM_RREADY  = S1_AXI_RREADY;
-    assign S_AXI_DMEM_RDATA   = S1_AXI_RDATA;
+    wire [31:0] dmem_m_axi_rdata;
+    wire [1:0]  dmem_m_axi_rresp;
+    wire        dmem_m_axi_rvalid;
+    wire        dmem_m_axi_rready;
     
     // ========================================================================
-    // Datapath Instance
+    // AXI4-Lite Slave Signals (Interconnect → IMEM Slave)
     // ========================================================================
-    datapath u_datapath (
-        .clock(clk),
-        .reset(~rst_n),
+    wire [31:0] imem_s_axi_awaddr;
+    wire [2:0]  imem_s_axi_awprot;
+    wire        imem_s_axi_awvalid;
+    wire        imem_s_axi_awready;
+    
+    wire [31:0] imem_s_axi_wdata;
+    wire [3:0]  imem_s_axi_wstrb;
+    wire        imem_s_axi_wvalid;
+    wire        imem_s_axi_wready;
+    
+    wire [1:0]  imem_s_axi_bresp;
+    wire        imem_s_axi_bvalid;
+    wire        imem_s_axi_bready;
+    
+    wire [31:0] imem_s_axi_araddr;
+    wire [2:0]  imem_s_axi_arprot;
+    wire        imem_s_axi_arvalid;
+    wire        imem_s_axi_arready;
+    
+    wire [31:0] imem_s_axi_rdata;
+    wire [1:0]  imem_s_axi_rresp;
+    wire        imem_s_axi_rvalid;
+    wire        imem_s_axi_rready;
+    
+    // ========================================================================
+    // AXI4-Lite Slave Signals (Interconnect → DMEM Slave)
+    // ========================================================================
+    wire [31:0] dmem_s_axi_awaddr;
+    wire [2:0]  dmem_s_axi_awprot;
+    wire        dmem_s_axi_awvalid;
+    wire        dmem_s_axi_awready;
+    
+    wire [31:0] dmem_s_axi_wdata;
+    wire [3:0]  dmem_s_axi_wstrb;
+    wire        dmem_s_axi_wvalid;
+    wire        dmem_s_axi_wready;
+    
+    wire [1:0]  dmem_s_axi_bresp;
+    wire        dmem_s_axi_bvalid;
+    wire        dmem_s_axi_bready;
+    
+    wire [31:0] dmem_s_axi_araddr;
+    wire [2:0]  dmem_s_axi_arprot;
+    wire        dmem_s_axi_arvalid;
+    wire        dmem_s_axi_arready;
+    
+    wire [31:0] dmem_s_axi_rdata;
+    wire [1:0]  dmem_s_axi_rresp;
+    wire        dmem_s_axi_rvalid;
+    wire        dmem_s_axi_rready;
+    
+    // ========================================================================
+    // Reset Synchronizer
+    // ========================================================================
+    wire rst = ~rst_n;
+    
+    // ========================================================================
+    // MODULE INSTANCES
+    // ========================================================================
+    
+    // ------------------------------------------------------------------------
+    // 1. RISC-V CPU Core
+    // ------------------------------------------------------------------------
+    riscv_cpu_core cpu (
+        .clk(clk),
+        .rst(rst),
         
-        // IMEM Interface
-        .imem_addr(imem_addr),
-        .imem_valid(imem_valid),
-        .imem_rdata(imem_rdata),
-        .imem_ready(imem_ready),
+        // Instruction Memory Interface
+        .imem_addr(cpu_imem_addr),
+        .imem_valid(cpu_imem_valid),
+        .imem_rdata(cpu_imem_rdata),
+        .imem_ready(cpu_imem_ready),
         
-        // DMEM Interface
-        .dmem_addr(dmem_addr),
-        .dmem_wdata(dmem_wdata),
-        .dmem_wstrb(dmem_wstrb),
-        .dmem_valid(dmem_valid),
-        .dmem_we(dmem_we),
-        .dmem_rdata(dmem_rdata),
-        .dmem_ready(dmem_ready),
-        
-        // Debug outputs
-        .pc_current(pc_current),
-        .instruction_current(instruction_current),
-        .alu_result_debug(),
-        .mem_out_debug(),
-        .branch_taken_debug(),
-        .branch_target_debug(),
-        .stall_debug(),
-        .forward_a_debug(),
-        .forward_b_debug()
+        // Data Memory Interface
+        .dmem_addr(cpu_dmem_addr),
+        .dmem_wdata(cpu_dmem_wdata),
+        .dmem_wstrb(cpu_dmem_wstrb),
+        .dmem_valid(cpu_dmem_valid),
+        .dmem_we(cpu_dmem_we),
+        .dmem_rdata(cpu_dmem_rdata),
+        .dmem_ready(cpu_dmem_ready)
     );
     
-    // ========================================================================
-    // IMEM Access Unit Instance
-    // ========================================================================
-    imem_access_unit u_imem_access (
+    // ------------------------------------------------------------------------
+    // 2. Instruction Memory Access Unit (AXI4-Lite Master)
+    // ------------------------------------------------------------------------
+    imem_access_unit imem_access (
         .clk(clk),
         .rst_n(rst_n),
         
-        // IF Interface
-        .if_addr(imem_addr),
-        .if_req(imem_valid),
-        .if_data(imem_rdata),
-        .if_ready(imem_ready),
-        .if_error(),
+        // CPU Interface
+        .if_addr(cpu_imem_addr),
+        .if_req(cpu_imem_valid),
+        .if_data(cpu_imem_rdata),
+        .if_ready(cpu_imem_ready),
+        .if_error(),  // Not used
         
-        // AXI Master Interface
-        .M_AXI_AWADDR(M0_AXI_AWADDR),
-        .M_AXI_AWPROT(M0_AXI_AWPROT),
-        .M_AXI_AWVALID(M0_AXI_AWVALID),
-        .M_AXI_AWREADY(M0_AXI_AWREADY),
+        // AXI4-Lite Master Interface
+        .M_AXI_AWADDR(imem_m_axi_awaddr),
+        .M_AXI_AWPROT(imem_m_axi_awprot),
+        .M_AXI_AWVALID(imem_m_axi_awvalid),
+        .M_AXI_AWREADY(imem_m_axi_awready),
         
-        .M_AXI_WDATA(M0_AXI_WDATA),
-        .M_AXI_WSTRB(M0_AXI_WSTRB),
-        .M_AXI_WVALID(M0_AXI_WVALID),
-        .M_AXI_WREADY(M0_AXI_WREADY),
+        .M_AXI_WDATA(imem_m_axi_wdata),
+        .M_AXI_WSTRB(imem_m_axi_wstrb),
+        .M_AXI_WVALID(imem_m_axi_wvalid),
+        .M_AXI_WREADY(imem_m_axi_wready),
         
-        .M_AXI_BRESP(M0_AXI_BRESP),
-        .M_AXI_BVALID(M0_AXI_BVALID),
-        .M_AXI_BREADY(M0_AXI_BREADY),
+        .M_AXI_BRESP(imem_m_axi_bresp),
+        .M_AXI_BVALID(imem_m_axi_bvalid),
+        .M_AXI_BREADY(imem_m_axi_bready),
         
-        .M_AXI_ARADDR(M0_AXI_ARADDR),
-        .M_AXI_ARPROT(M0_AXI_ARPROT),
-        .M_AXI_ARVALID(M0_AXI_ARVALID),
-        .M_AXI_ARREADY(M0_AXI_ARREADY),
+        .M_AXI_ARADDR(imem_m_axi_araddr),
+        .M_AXI_ARPROT(imem_m_axi_arprot),
+        .M_AXI_ARVALID(imem_m_axi_arvalid),
+        .M_AXI_ARREADY(imem_m_axi_arready),
         
-        .M_AXI_RDATA(M0_AXI_RDATA),
-        .M_AXI_RRESP(M0_AXI_RRESP),
-        .M_AXI_RVALID(M0_AXI_RVALID),
-        .M_AXI_RREADY(M0_AXI_RREADY)
+        .M_AXI_RDATA(imem_m_axi_rdata),
+        .M_AXI_RRESP(imem_m_axi_rresp),
+        .M_AXI_RVALID(imem_m_axi_rvalid),
+        .M_AXI_RREADY(imem_m_axi_rready)
     );
     
-    // ========================================================================
-    // DMEM Access Unit Instance
-    // ========================================================================
-    dmem_access_unit u_dmem_access (
+    // ------------------------------------------------------------------------
+    // 3. Data Memory Access Unit (AXI4-Lite Master)
+    // ------------------------------------------------------------------------
+    dmem_access_unit dmem_access (
         .clk(clk),
         .rst_n(rst_n),
         
-        // MEM Interface
-        .mem_addr(dmem_addr),
-        .mem_wdata(dmem_wdata),
-        .mem_wstrb(dmem_wstrb),
-        .mem_req(dmem_valid),
-        .mem_wr(dmem_we),
-        .mem_rdata(dmem_rdata),
-        .mem_ready(dmem_ready),
-        .mem_error(),
+        // CPU Interface
+        .mem_addr(cpu_dmem_addr),
+        .mem_wdata(cpu_dmem_wdata),
+        .mem_wstrb(cpu_dmem_wstrb),
+        .mem_req(cpu_dmem_valid),
+        .mem_wr(cpu_dmem_we),
+        .mem_rdata(cpu_dmem_rdata),
+        .mem_ready(cpu_dmem_ready),
+        .mem_error(),  // Not used
         
-        // AXI Master Interface
-        .M_AXI_AWADDR(M1_AXI_AWADDR),
-        .M_AXI_AWPROT(M1_AXI_AWPROT),
-        .M_AXI_AWVALID(M1_AXI_AWVALID),
-        .M_AXI_AWREADY(M1_AXI_AWREADY),
+        // AXI4-Lite Master Interface
+        .M_AXI_AWADDR(dmem_m_axi_awaddr),
+        .M_AXI_AWPROT(dmem_m_axi_awprot),
+        .M_AXI_AWVALID(dmem_m_axi_awvalid),
+        .M_AXI_AWREADY(dmem_m_axi_awready),
         
-        .M_AXI_WDATA(M1_AXI_WDATA),
-        .M_AXI_WSTRB(M1_AXI_WSTRB),
-        .M_AXI_WVALID(M1_AXI_WVALID),
-        .M_AXI_WREADY(M1_AXI_WREADY),
+        .M_AXI_WDATA(dmem_m_axi_wdata),
+        .M_AXI_WSTRB(dmem_m_axi_wstrb),
+        .M_AXI_WVALID(dmem_m_axi_wvalid),
+        .M_AXI_WREADY(dmem_m_axi_wready),
         
-        .M_AXI_BRESP(M1_AXI_BRESP),
-        .M_AXI_BVALID(M1_AXI_BVALID),
-        .M_AXI_BREADY(M1_AXI_BREADY),
+        .M_AXI_BRESP(dmem_m_axi_bresp),
+        .M_AXI_BVALID(dmem_m_axi_bvalid),
+        .M_AXI_BREADY(dmem_m_axi_bready),
         
-        .M_AXI_ARADDR(M1_AXI_ARADDR),
-        .M_AXI_ARPROT(M1_AXI_ARPROT),
-        .M_AXI_ARVALID(M1_AXI_ARVALID),
-        .M_AXI_ARREADY(M1_AXI_ARREADY),
+        .M_AXI_ARADDR(dmem_m_axi_araddr),
+        .M_AXI_ARPROT(dmem_m_axi_arprot),
+        .M_AXI_ARVALID(dmem_m_axi_arvalid),
+        .M_AXI_ARREADY(dmem_m_axi_arready),
         
-        .M_AXI_RDATA(M1_AXI_RDATA),
-        .M_AXI_RRESP(M1_AXI_RRESP),
-        .M_AXI_RVALID(M1_AXI_RVALID),
-        .M_AXI_RREADY(M1_AXI_RREADY)
+        .M_AXI_RDATA(dmem_m_axi_rdata),
+        .M_AXI_RRESP(dmem_m_axi_rresp),
+        .M_AXI_RVALID(dmem_m_axi_rvalid),
+        .M_AXI_RREADY(dmem_m_axi_rready)
     );
     
-    // ========================================================================
-    // Direct connections - IMEM Master to IMEM Slave
-    // ========================================================================
-    assign S0_AXI_AWADDR  = M0_AXI_AWADDR;
-    assign S0_AXI_AWPROT  = M0_AXI_AWPROT;
-    assign S0_AXI_AWVALID = M0_AXI_AWVALID;
-    assign M0_AXI_AWREADY = S0_AXI_AWREADY;
+    // ------------------------------------------------------------------------
+    // 4. AXI4-Lite Interconnect (Simple Direct Connection)
+    // ------------------------------------------------------------------------
+    // IMEM Path: IMEM Access Unit → IMEM Slave
+    assign imem_s_axi_awaddr  = imem_m_axi_awaddr;
+    assign imem_s_axi_awprot  = imem_m_axi_awprot;
+    assign imem_s_axi_awvalid = imem_m_axi_awvalid;
+    assign imem_m_axi_awready = imem_s_axi_awready;
     
-    assign S0_AXI_WDATA   = M0_AXI_WDATA;
-    assign S0_AXI_WSTRB   = M0_AXI_WSTRB;
-    assign S0_AXI_WVALID  = M0_AXI_WVALID;
-    assign M0_AXI_WREADY  = S0_AXI_WREADY;
+    assign imem_s_axi_wdata   = imem_m_axi_wdata;
+    assign imem_s_axi_wstrb   = imem_m_axi_wstrb;
+    assign imem_s_axi_wvalid  = imem_m_axi_wvalid;
+    assign imem_m_axi_wready  = imem_s_axi_wready;
     
-    assign M0_AXI_BRESP   = S0_AXI_BRESP;
-    assign M0_AXI_BVALID  = S0_AXI_BVALID;
-    assign S0_AXI_BREADY  = M0_AXI_BREADY;
+    assign imem_m_axi_bresp   = imem_s_axi_bresp;
+    assign imem_m_axi_bvalid  = imem_s_axi_bvalid;
+    assign imem_s_axi_bready  = imem_m_axi_bready;
     
-    assign S0_AXI_ARADDR  = M0_AXI_ARADDR;
-    assign S0_AXI_ARPROT  = M0_AXI_ARPROT;
-    assign S0_AXI_ARVALID = M0_AXI_ARVALID;
-    assign M0_AXI_ARREADY = S0_AXI_ARREADY;
+    assign imem_s_axi_araddr  = imem_m_axi_araddr;
+    assign imem_s_axi_arprot  = imem_m_axi_arprot;
+    assign imem_s_axi_arvalid = imem_m_axi_arvalid;
+    assign imem_m_axi_arready = imem_s_axi_arready;
     
-    assign M0_AXI_RDATA   = S0_AXI_RDATA;
-    assign M0_AXI_RRESP   = S0_AXI_RRESP;
-    assign M0_AXI_RVALID  = S0_AXI_RVALID;
-    assign S0_AXI_RREADY  = M0_AXI_RREADY;
+    assign imem_m_axi_rdata   = imem_s_axi_rdata;
+    assign imem_m_axi_rresp   = imem_s_axi_rresp;
+    assign imem_m_axi_rvalid  = imem_s_axi_rvalid;
+    assign imem_s_axi_rready  = imem_m_axi_rready;
     
-    // ========================================================================
-    // Direct connections - DMEM Master to DMEM Slave
-    // ========================================================================
-    assign S1_AXI_AWADDR  = M1_AXI_AWADDR;
-    assign S1_AXI_AWPROT  = M1_AXI_AWPROT;
-    assign S1_AXI_AWVALID = M1_AXI_AWVALID;
-    assign M1_AXI_AWREADY = S1_AXI_AWREADY;
+    // DMEM Path: DMEM Access Unit → DMEM Slave
+    assign dmem_s_axi_awaddr  = dmem_m_axi_awaddr;
+    assign dmem_s_axi_awprot  = dmem_m_axi_awprot;
+    assign dmem_s_axi_awvalid = dmem_m_axi_awvalid;
+    assign dmem_m_axi_awready = dmem_s_axi_awready;
     
-    assign S1_AXI_WDATA   = M1_AXI_WDATA;
-    assign S1_AXI_WSTRB   = M1_AXI_WSTRB;
-    assign S1_AXI_WVALID  = M1_AXI_WVALID;
-    assign M1_AXI_WREADY  = S1_AXI_WREADY;
+    assign dmem_s_axi_wdata   = dmem_m_axi_wdata;
+    assign dmem_s_axi_wstrb   = dmem_m_axi_wstrb;
+    assign dmem_s_axi_wvalid  = dmem_m_axi_wvalid;
+    assign dmem_m_axi_wready  = dmem_s_axi_wready;
     
-    assign M1_AXI_BRESP   = S1_AXI_BRESP;
-    assign M1_AXI_BVALID  = S1_AXI_BVALID;
-    assign S1_AXI_BREADY  = M1_AXI_BREADY;
+    assign dmem_m_axi_bresp   = dmem_s_axi_bresp;
+    assign dmem_m_axi_bvalid  = dmem_s_axi_bvalid;
+    assign dmem_s_axi_bready  = dmem_m_axi_bready;
     
-    assign S1_AXI_ARADDR  = M1_AXI_ARADDR;
-    assign S1_AXI_ARPROT  = M1_AXI_ARPROT;
-    assign S1_AXI_ARVALID = M1_AXI_ARVALID;
-    assign M1_AXI_ARREADY = S1_AXI_ARREADY;
+    assign dmem_s_axi_araddr  = dmem_m_axi_araddr;
+    assign dmem_s_axi_arprot  = dmem_m_axi_arprot;
+    assign dmem_s_axi_arvalid = dmem_m_axi_arvalid;
+    assign dmem_m_axi_arready = dmem_s_axi_arready;
     
-    assign M1_AXI_RDATA   = S1_AXI_RDATA;
-    assign M1_AXI_RRESP   = S1_AXI_RRESP;
-    assign M1_AXI_RVALID  = S1_AXI_RVALID;
-    assign S1_AXI_RREADY  = M1_AXI_RREADY;
+    assign dmem_m_axi_rdata   = dmem_s_axi_rdata;
+    assign dmem_m_axi_rresp   = dmem_s_axi_rresp;
+    assign dmem_m_axi_rvalid  = dmem_s_axi_rvalid;
+    assign dmem_s_axi_rready  = dmem_m_axi_rready;
     
-    // ========================================================================
-    // IMEM Slave Instance
-    // ========================================================================
-    inst_mem_axi_slave u_imem (
+    // ------------------------------------------------------------------------
+    // 5. Instruction Memory (AXI4-Lite Slave)
+    // ------------------------------------------------------------------------
+    inst_mem_axi_slave imem_slave (
         .clk(clk),
         .rst_n(rst_n),
         
-        .S_AXI_AWADDR(S0_AXI_AWADDR),
-        .S_AXI_AWPROT(S0_AXI_AWPROT),
-        .S_AXI_AWVALID(S0_AXI_AWVALID),
-        .S_AXI_AWREADY(S0_AXI_AWREADY),
+        // AXI4-Lite Slave Interface
+        .S_AXI_AWADDR(imem_s_axi_awaddr),
+        .S_AXI_AWPROT(imem_s_axi_awprot),
+        .S_AXI_AWVALID(imem_s_axi_awvalid),
+        .S_AXI_AWREADY(imem_s_axi_awready),
         
-        .S_AXI_WDATA(S0_AXI_WDATA),
-        .S_AXI_WSTRB(S0_AXI_WSTRB),
-        .S_AXI_WVALID(S0_AXI_WVALID),
-        .S_AXI_WREADY(S0_AXI_WREADY),
+        .S_AXI_WDATA(imem_s_axi_wdata),
+        .S_AXI_WSTRB(imem_s_axi_wstrb),
+        .S_AXI_WVALID(imem_s_axi_wvalid),
+        .S_AXI_WREADY(imem_s_axi_wready),
         
-        .S_AXI_BRESP(S0_AXI_BRESP),
-        .S_AXI_BVALID(S0_AXI_BVALID),
-        .S_AXI_BREADY(S0_AXI_BREADY),
+        .S_AXI_BRESP(imem_s_axi_bresp),
+        .S_AXI_BVALID(imem_s_axi_bvalid),
+        .S_AXI_BREADY(imem_s_axi_bready),
         
-        .S_AXI_ARADDR(S0_AXI_ARADDR),
-        .S_AXI_ARPROT(S0_AXI_ARPROT),
-        .S_AXI_ARVALID(S0_AXI_ARVALID),
-        .S_AXI_ARREADY(S0_AXI_ARREADY),
+        .S_AXI_ARADDR(imem_s_axi_araddr),
+        .S_AXI_ARPROT(imem_s_axi_arprot),
+        .S_AXI_ARVALID(imem_s_axi_arvalid),
+        .S_AXI_ARREADY(imem_s_axi_arready),
         
-        .S_AXI_RDATA(S0_AXI_RDATA),
-        .S_AXI_RRESP(S0_AXI_RRESP),
-        .S_AXI_RVALID(S0_AXI_RVALID),
-        .S_AXI_RREADY(S0_AXI_RREADY)
+        .S_AXI_RDATA(imem_s_axi_rdata),
+        .S_AXI_RRESP(imem_s_axi_rresp),
+        .S_AXI_RVALID(imem_s_axi_rvalid),
+        .S_AXI_RREADY(imem_s_axi_rready)
     );
     
-    // ========================================================================
-    // DMEM Slave Instance
-    // ========================================================================
-    data_mem_axi_slave u_dmem (
+    // ------------------------------------------------------------------------
+    // 6. Data Memory (AXI4-Lite Slave)
+    // ------------------------------------------------------------------------
+    data_mem_axi_slave dmem_slave (
         .clk(clk),
         .rst_n(rst_n),
         
-        .S_AXI_AWADDR(S1_AXI_AWADDR),
-        .S_AXI_AWPROT(S1_AXI_AWPROT),
-        .S_AXI_AWVALID(S1_AXI_AWVALID),
-        .S_AXI_AWREADY(S1_AXI_AWREADY),
+        // AXI4-Lite Slave Interface
+        .S_AXI_AWADDR(dmem_s_axi_awaddr),
+        .S_AXI_AWPROT(dmem_s_axi_awprot),
+        .S_AXI_AWVALID(dmem_s_axi_awvalid),
+        .S_AXI_AWREADY(dmem_s_axi_awready),
         
-        .S_AXI_WDATA(S1_AXI_WDATA),
-        .S_AXI_WSTRB(S1_AXI_WSTRB),
-        .S_AXI_WVALID(S1_AXI_WVALID),
-        .S_AXI_WREADY(S1_AXI_WREADY),
+        .S_AXI_WDATA(dmem_s_axi_wdata),
+        .S_AXI_WSTRB(dmem_s_axi_wstrb),
+        .S_AXI_WVALID(dmem_s_axi_wvalid),
+        .S_AXI_WREADY(dmem_s_axi_wready),
         
-        .S_AXI_BRESP(S1_AXI_BRESP),
-        .S_AXI_BVALID(S1_AXI_BVALID),
-        .S_AXI_BREADY(S1_AXI_BREADY),
+        .S_AXI_BRESP(dmem_s_axi_bresp),
+        .S_AXI_BVALID(dmem_s_axi_bvalid),
+        .S_AXI_BREADY(dmem_s_axi_bready),
         
-        .S_AXI_ARADDR(S1_AXI_ARADDR),
-        .S_AXI_ARPROT(S1_AXI_ARPROT),
-        .S_AXI_ARVALID(S1_AXI_ARVALID),
-        .S_AXI_ARREADY(S1_AXI_ARREADY),
+        .S_AXI_ARADDR(dmem_s_axi_araddr),
+        .S_AXI_ARPROT(dmem_s_axi_arprot),
+        .S_AXI_ARVALID(dmem_s_axi_arvalid),
+        .S_AXI_ARREADY(dmem_s_axi_arready),
         
-        .S_AXI_RDATA(S1_AXI_RDATA),
-        .S_AXI_RRESP(S1_AXI_RRESP),
-        .S_AXI_RVALID(S1_AXI_RVALID),
-        .S_AXI_RREADY(S1_AXI_RREADY)
+        .S_AXI_RDATA(dmem_s_axi_rdata),
+        .S_AXI_RRESP(dmem_s_axi_rresp),
+        .S_AXI_RVALID(dmem_s_axi_rvalid),
+        .S_AXI_RREADY(dmem_s_axi_rready)
     );
 
 endmodule
