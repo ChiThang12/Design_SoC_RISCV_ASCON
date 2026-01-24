@@ -56,13 +56,14 @@ module data_mem_axi_slave (
     // ========================================================================
     // State Machine for Write Channel
     // ========================================================================
-    localparam [1:0]
-        WR_IDLE  = 2'b00,
-        WR_ADDR  = 2'b01,
-        WR_DATA  = 2'b10,
-        WR_RESP  = 2'b11;
+    localparam [2:0]
+        WR_IDLE  = 3'b000,
+        WR_ADDR  = 3'b001,
+        WR_DATA  = 3'b010,
+        WR_WRITE = 3'b011,
+        WR_RESP  = 3'b100;
     
-    reg [1:0] wr_state, wr_next;
+    reg [2:0] wr_state, wr_next;
     
     // ========================================================================
     // Internal Signals
@@ -74,7 +75,6 @@ module data_mem_axi_slave (
     reg [31:0] rd_addr_latched;
     reg [2:0]  rd_prot_latched;
     
-    reg mem_write_enable;
     wire [31:0] mem_read_data;
     
     // ========================================================================
@@ -113,24 +113,24 @@ module data_mem_axi_slave (
     end
     
     // ========================================================================
-    // Memory address and control signals
+    // Memory control signals - FIXED: Separate read and write paths
     // ========================================================================
-    wire [31:0] mem_addr;
-    assign mem_addr = mem_write_enable ? wr_addr_latched : rd_addr_latched;
+    wire mem_write_enable;
+    wire mem_read_enable;
     
-    wire [1:0] byte_size_mem;
-    assign byte_size_mem = mem_write_enable ? byte_size_wr : byte_size_rd;
+    assign mem_write_enable = (wr_state == WR_WRITE);
+    assign mem_read_enable = (rd_state == RD_WAIT);
     
     // ========================================================================
     // Data Memory Instance
     // ========================================================================
     data_mem dmem (
         .clock(clk),
-        .address(mem_addr),
+        .address(mem_write_enable ? wr_addr_latched : rd_addr_latched),
         .write_data(wr_data_latched),
         .memwrite(mem_write_enable),
-        .memread(!mem_write_enable && (rd_state == RD_WAIT)),
-        .byte_size(byte_size_mem),
+        .memread(mem_read_enable),
+        .byte_size(mem_write_enable ? byte_size_wr : byte_size_rd),
         .sign_ext(sign_ext),
         .read_data(mem_read_data)
     );
@@ -241,7 +241,7 @@ module data_mem_axi_slave (
     end
     
     // ========================================================================
-    // Write State Machine - Combinational
+    // Write State Machine - Combinational - FIXED: Added WR_WRITE state
     // ========================================================================
     always @(*) begin
         wr_next = wr_state;
@@ -259,8 +259,13 @@ module data_mem_axi_slave (
             
             WR_DATA: begin
                 if (S_AXI_WVALID) begin
-                    wr_next = WR_RESP;
+                    wr_next = WR_WRITE;
                 end
+            end
+            
+            WR_WRITE: begin
+                // Perform write for 1 cycle, then go to response
+                wr_next = WR_RESP;
             end
             
             WR_RESP: begin
@@ -330,21 +335,6 @@ module data_mem_axi_slave (
     end
     
     // ========================================================================
-    // Memory Write Enable Control
-    // ========================================================================
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            mem_write_enable <= 1'b0;
-        end else begin
-            if (wr_state == WR_DATA && S_AXI_WVALID && !mem_write_enable) begin
-                mem_write_enable <= 1'b1;
-            end else begin
-                mem_write_enable <= 1'b0;
-            end
-        end
-    end
-    
-    // ========================================================================
     // Write Response Channel
     // ========================================================================
     always @(posedge clk or negedge rst_n) begin
@@ -353,11 +343,10 @@ module data_mem_axi_slave (
             S_AXI_BVALID <= 1'b0;
         end else begin
             case (wr_state)
-                WR_DATA: begin
-                    if (S_AXI_WVALID) begin
-                        S_AXI_BRESP  <= RESP_OKAY;
-                        S_AXI_BVALID <= 1'b1;
-                    end
+                WR_WRITE: begin
+                    // Assert BVALID after write completes
+                    S_AXI_BRESP  <= RESP_OKAY;
+                    S_AXI_BVALID <= 1'b1;
                 end
                 
                 WR_RESP: begin
@@ -382,7 +371,7 @@ module data_mem_axi_slave (
             $display("[DMEM WRITE] addr=0x%08h, data=0x%08h, strb=%b, size=%0d, time=%0t",
                      wr_addr_latched, wr_data_latched, wr_strb_latched, byte_size_wr, $time);
         end
-        if (rd_state == RD_WAIT) begin
+        if (mem_read_enable) begin
             $display("[DMEM READ]  addr=0x%08h, data=0x%08h, size=%0d, sign_ext=%b, time=%0t",
                      rd_addr_latched, mem_read_data, byte_size_rd, sign_ext, $time);
         end
