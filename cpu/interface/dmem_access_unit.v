@@ -1,22 +1,18 @@
 // ============================================================================
-// Module: dmem_access_unit
+// Module: dmem_access_unit (FIXED - No duplicate requests)
 // ----------------------------------------------------------------------------
 // Description:
 //   Data Memory Access Unit - Chuyên trách truy cập data memory thông qua
 //   AXI4-Lite bus. Module này che giấu giao thức AXI khỏi CPU core,
 //   cung cấp giao diện đơn giản cho Memory stage.
 //
-//   Đặc điểm:
-//   - Hỗ trợ cả READ và WRITE operations
-//   - AXI4-Lite single-beat read/write
-//   - MEM chỉ cần phát request 1-cycle pulse
-//   - Request được latch và giữ cho đến khi AXI transaction hoàn tất
-//   - Hỗ trợ byte-level write strobe
+//   FIX: Thêm cờ mem_req_served để đảm bảo mỗi request chỉ được xử lý 1 lần
+//        ngay cả khi mem_req giữ HIGH trong nhiều cycles
 //
 // Author: ChiThang
 // ============================================================================
 
-`include "interface/axi4_lite_master_if.v"
+//`include "interface/axi4_lite_master_if.v"
 
 module dmem_access_unit (
     input wire clk,
@@ -28,7 +24,7 @@ module dmem_access_unit (
     input wire [31:0] mem_addr,     // dmem_addr
     input wire [31:0] mem_wdata,    // dmem_wdata
     input wire [3:0]  mem_wstrb,    // dmem_wstrb
-    input wire        mem_req,      // dmem_valid (1-cycle pulse)
+    input wire        mem_req,      // dmem_valid (có thể giữ HIGH nhiều cycles)
     input wire        mem_wr,       // dmem_we (1=write, 0=read)
     output reg [31:0] mem_rdata,    // dmem_rdata
     output reg        mem_ready,    // dmem_ready (1-cycle pulse)
@@ -97,6 +93,7 @@ module dmem_access_unit (
     reg [3:0]  mem_wstrb_reg;
     reg        mem_wr_reg;
     reg        mem_req_pending;
+    reg        mem_req_served;     // ← NEW: Cờ đánh dấu request đã được serve
     
     // ========================================================================
     // State Machine - Sequential
@@ -138,7 +135,7 @@ module dmem_access_unit (
     end
     
     // ========================================================================
-    // Latch MEM Request
+    // Latch MEM Request - FIXED v2
     // ========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -147,27 +144,32 @@ module dmem_access_unit (
             mem_wstrb_reg <= 4'h0;
             mem_wr_reg <= 1'b0;
             mem_req_pending <= 1'b0;
+            mem_req_served <= 1'b0;
         end else begin
-            // Latch request khi nhận được mem_req
-            if (mem_req && !mem_req_pending) begin
+            // Latch request CHỈ KHI:
+            // 1. Có request mới (mem_req = 1)
+            // 2. Không có request đang pending
+            // 3. Request này chưa được served HOẶC địa chỉ/data đã thay đổi
+            if (mem_req && !mem_req_pending && 
+                (!mem_req_served || (mem_addr != mem_addr_reg) || (mem_wdata != mem_wdata_reg) || (mem_wr != mem_wr_reg))) begin
                 mem_addr_reg <= mem_addr;
                 mem_wdata_reg <= mem_wdata;
                 mem_wstrb_reg <= mem_wstrb;
                 mem_wr_reg <= mem_wr;
                 mem_req_pending <= 1'b1;
+                mem_req_served <= 1'b1;
             end 
-            // Clear pending khi transaction hoàn tất
+            // Clear pending và served khi transaction hoàn tất
             else if (mem_req_pending && axi_cpu_ready) begin
                 mem_req_pending <= 1'b0;
+                mem_req_served <= 1'b0;  // ← Reset ngay khi xong để sẵn sàng cho request mới
             end
         end
     end
     
     // ========================================================================
-    // AXI Request Generation - CRITICAL FIX
+    // AXI Request Generation
     // ========================================================================
-    // axi4_lite_master_if latch request khi state == IDLE && cpu_req
-    // Vì vậy chúng ta CHỈ assert cpu_req trong state REQUESTING (1 cycle)
     always @(*) begin
         axi_cpu_addr  = mem_addr_reg;
         axi_cpu_wdata = mem_wdata_reg;
@@ -175,7 +177,6 @@ module dmem_access_unit (
         axi_cpu_wr    = mem_wr_reg;
         
         // CHỈ assert request trong state REQUESTING
-        // Điều này đảm bảo axi4_lite_master_if nhận được pulse 1-cycle
         axi_cpu_req   = (state == ST_REQUESTING);
     end
     

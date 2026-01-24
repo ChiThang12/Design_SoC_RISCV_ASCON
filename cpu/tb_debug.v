@@ -1,356 +1,195 @@
 // ============================================================================
-// tb_riscv_soc_top.v - Testbench cho RISC-V SoC với AXI Interconnect
+// riscv_soc_tb_debug.v - Enhanced Debug Testbench for RISC-V SoC
 // ============================================================================
-// Mô tả:
-//   - Test instruction fetch từ IMEM qua AXI
-//   - Test data read/write tới DMEM qua AXI
-//   - Monitor debug signals
-//   - Dump waveform cho GTKWave
+// Tối ưu để debug pipeline, branch, hazard, AXI, memory access
 // ============================================================================
 
-`timescale 1ns/1ps
+`timescale 1ns / 1ps
 `include "riscv_soc_top.v"
-module tb_riscv_soc_top;
+
+module riscv_soc_tb_debug;
 
     // ========================================================================
-    // Clock và Reset
+    // Signals
     // ========================================================================
-    reg clk;
-    reg rst_n;
-    
-    // Clock period = 10ns (100MHz)
-    localparam CLK_PERIOD = 10;
-    
+    reg         clk;
+    reg         rst_n;
+    integer     cycle_count = 0;
+    integer     max_cycles  = 1000;     // Giới hạn để tránh chạy mãi
+
     // ========================================================================
-    // Debug Signals từ SoC
-    // ========================================================================
-    wire [31:0] debug_pc;
-    wire [31:0] debug_instr;
-    wire [31:0] debug_alu_result;
-    wire [31:0] debug_mem_data;
-    wire        debug_branch_taken;
-    wire [31:0] debug_branch_target;
-    wire        debug_stall;
-    wire [1:0]  debug_forward_a;
-    wire [1:0]  debug_forward_b;
-    
-    // ========================================================================
-    // DUT - RISC-V SoC
-    // ========================================================================
-    riscv_soc_top dut (
-        .clk(clk),
-        .rst_n(rst_n),
-        
-        .debug_pc(debug_pc),
-        .debug_instr(debug_instr),
-        .debug_alu_result(debug_alu_result),
-        .debug_mem_data(debug_mem_data),
-        .debug_branch_taken(debug_branch_taken),
-        .debug_branch_target(debug_branch_target),
-        .debug_stall(debug_stall),
-        .debug_forward_a(debug_forward_a),
-        .debug_forward_b(debug_forward_b)
-    );
-    
-    // ========================================================================
-    // Clock Generation
+    // Clock & Reset
     // ========================================================================
     initial begin
         clk = 0;
-        forever #(CLK_PERIOD/2) clk = ~clk;
+        forever #5 clk = ~clk;          // 100 MHz
     end
-    
+
+    // ========================================================================
+    // DUT
+    // ========================================================================
+    riscv_soc_top soc (
+        .clk   (clk),
+        .rst_n (rst_n)
+    );
+
+    // ========================================================================
+    // Waveform dump
+    // ========================================================================
+    initial begin
+        $dumpfile("riscv_soc_debug.vcd");
+        $dumpvars(0, riscv_soc_tb_debug);
+    end
+
+    // ========================================================================
+    // Cycle Counter & Basic Monitor
+    // ========================================================================
+    always @(posedge clk) begin
+        cycle_count <= cycle_count + 1;
+
+        // In PC mỗi cycle (có thể comment nếu quá nhiều)
+        // $display("[C%4d] PC_IF = 0x%08h  Instr_IF = 0x%08h", cycle_count, soc.cpu.pc_if, soc.cpu.instr_if);
+
+        // Dừng nếu chạy quá lâu
+        if (cycle_count > max_cycles) begin
+            $display("\n[TIMEOUT] Simulation exceeded %0d cycles!", max_cycles);
+            display_final_registers();
+            $finish;
+        end
+    end
+
+    // ========================================================================
+    // Enhanced Monitors (chỉ in khi có sự kiện quan trọng)
+    // ========================================================================
+    // 1. Write-back monitor
+    always @(posedge clk) begin
+        if (rst_n && soc.cpu.regwrite_wb && soc.cpu.rd_wb != 0) begin
+            $display("[C%4d] WB: x%02d <= 0x%08h   (from %s)",
+                cycle_count, soc.cpu.rd_wb, soc.cpu.write_back_data_wb,
+                (soc.cpu.mem_to_reg_wb) ? "MEMORY" : "ALU");
+        end
+    end
+
+    // 2. Branch / Jump monitor
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (soc.cpu.pc_src == 1'b1) begin   // Giả sử pc_src = 1 khi branch taken hoặc jump
+                $display("[C%4d] CONTROL FLOW: PC <= 0x%08h  (branch/jal taken from 0x%08h)",
+                    cycle_count, soc.cpu.pc_if, soc.cpu.pc_id); // pc_id là PC của lệnh branch
+            end
+        end
+    end
+
+    // 3. AXI IMEM (Fetch) monitor
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (soc.imem_m_axi_arvalid && soc.imem_m_axi_arready)
+                $display("[C%4d] IMEM FETCH REQ  Addr=0x%08h", cycle_count, soc.imem_m_axi_araddr);
+
+            if (soc.imem_m_axi_rvalid && soc.imem_m_axi_rready) begin
+                if (soc.imem_m_axi_rdata === 32'hx)
+                    $display("[C%4d] IMEM FETCH ERR  X-state @ Addr=0x%08h", cycle_count, soc.imem_m_axi_araddr);
+                else
+                    $display("[C%4d] IMEM FETCH OK   Addr=0x%08h  Instr=0x%08h",
+                        cycle_count, soc.imem_m_axi_araddr, soc.imem_m_axi_rdata);
+            end
+        end
+    end
+
+    // 4. DMEM transactions
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (soc.dmem_m_axi_awvalid && soc.dmem_m_axi_awready)
+                $display("[C%4d] DMEM WRITE REQ  Addr=0x%08h  Data=0x%08h  Strb=%b",
+                    cycle_count, soc.dmem_m_axi_awaddr, soc.dmem_m_axi_wdata, soc.dmem_m_axi_wstrb);
+
+            if (soc.dmem_m_axi_arvalid && soc.dmem_m_axi_arready)
+                $display("[C%4d] DMEM READ  REQ   Addr=0x%08h", cycle_count, soc.dmem_m_axi_araddr);
+
+            if (soc.dmem_m_axi_rvalid && soc.dmem_m_axi_rready)
+                $display("[C%4d] DMEM READ  RSP   Addr=0x%08h  Data=0x%08h",
+                    cycle_count, soc.dmem_m_axi_araddr, soc.dmem_m_axi_rdata);
+        end
+    end
+
     // ========================================================================
     // Test Sequence
     // ========================================================================
     initial begin
         // Khởi tạo
         rst_n = 0;
-        
-        // Wait 3 clock cycles
-        repeat(3) @(posedge clk);
-        
-        // Release reset
+        #20;
         rst_n = 1;
-        $display("\n[%0t] Reset released, SoC starting...", $time);
-        
-        // Chạy 200 clock cycles để observe
-        repeat(200) @(posedge clk);
-        
-        $display("\n[%0t] Simulation completed", $time);
-        $finish;
-    end
-    
-    // ========================================================================
-    // Monitor PC và Instructions
-    // ========================================================================
-    integer instr_count;
-    
-    initial begin
-        instr_count = 0;
-        
-        // Wait for reset release
-        @(posedge rst_n);
-        
-        $display("\n========================================");
-        $display("PC Trace:");
-        $display("========================================");
-        $display("Time\t\tPC\t\tInstruction\tALU Result");
-        
-        forever begin
-            @(posedge clk);
-            if (!debug_stall) begin
-                $display("%0t\t0x%08h\t0x%08h\t0x%08h", 
-                         $time, debug_pc, debug_instr, debug_alu_result);
-                instr_count = instr_count + 1;
-            end
-        end
-    end
-    
-    // ========================================================================
-    // Monitor Branch Events with Instruction Decode
-    // ========================================================================
-    reg [31:0] prev_pc;
-    reg branch_detected;
-    
-    initial begin
-        @(posedge rst_n);
-        prev_pc = 32'h0;
-        branch_detected = 0;
-        
-        forever begin
-            @(posedge clk);
-            
-            // Detect branch/jump
-            if (debug_branch_taken && !debug_stall) begin
-                branch_detected = 1;
-                $display("\n[%0t] *** BRANCH/JUMP TAKEN ***", $time);
-                $display("    From PC:   0x%08h", debug_pc);
-                $display("    To Target: 0x%08h", debug_branch_target);
-                $display("    Instruction: 0x%08h", debug_instr);
-            end
-            
-            // Monitor PC continuity
-            if (!debug_stall && prev_pc != 32'h0) begin
-                if (debug_pc != prev_pc + 4 && !branch_detected) begin
-                    $display("\n[%0t] WARNING: PC discontinuity without branch!", $time);
-                    $display("    Expected: 0x%08h, Got: 0x%08h", prev_pc + 4, debug_pc);
-                end
-            end
-            
-            if (!debug_stall) begin
-                prev_pc = debug_pc;
-                branch_detected = 0;
-            end
-        end
-    end
-    
-    // ========================================================================
-    // Monitor Memory Access (via interconnect) - DETAILED
-    // ========================================================================
-    reg [31:0] last_if_addr;
-    reg [31:0] last_mem_addr;
-    integer if_latency_count;
-    integer mem_latency_count;
-    
-    initial begin
-        @(posedge rst_n);
-        if_latency_count = 0;
-        mem_latency_count = 0;
-        
-        forever begin
-            @(posedge clk);
-            
-            // Monitor instruction fetch with latency tracking
-            if (dut.interconnect.M_AXI_ARVALID && 
-                dut.interconnect.M_AXI_ARREADY &&
-                !dut.interconnect.addr_decode_rd(dut.interconnect.M_AXI_ARADDR)) begin
-                last_if_addr = dut.interconnect.M_AXI_ARADDR;
-                if_latency_count = 1;
-                $display("[%0t] IMEM READ START: addr=0x%08h", 
-                         $time, dut.interconnect.M_AXI_ARADDR);
-            end
-            
-            if (dut.interconnect.S0_AXI_RVALID && dut.interconnect.S0_AXI_RREADY) begin
-                $display("[%0t] IMEM READ DONE: addr=0x%08h, data=0x%08h, latency=%0d cycles", 
-                         $time, last_if_addr, dut.interconnect.S0_AXI_RDATA, if_latency_count);
-                if_latency_count = 0;
-            end else if (if_latency_count > 0) begin
-                if_latency_count = if_latency_count + 1;
-            end
-            
-            // Monitor data read
-            if (dut.interconnect.M_AXI_ARVALID && 
-                dut.interconnect.M_AXI_ARREADY &&
-                dut.interconnect.addr_decode_rd(dut.interconnect.M_AXI_ARADDR)) begin
-                last_mem_addr = dut.interconnect.M_AXI_ARADDR;
-                mem_latency_count = 1;
-                $display("[%0t] DMEM READ START: addr=0x%08h", 
-                         $time, dut.interconnect.M_AXI_ARADDR);
-            end
-            
-            if (dut.interconnect.S1_AXI_RVALID && dut.interconnect.S1_AXI_RREADY) begin
-                $display("[%0t] DMEM READ DONE: addr=0x%08h, data=0x%08h, latency=%0d cycles", 
-                         $time, last_mem_addr, dut.interconnect.S1_AXI_RDATA, mem_latency_count);
-                mem_latency_count = 0;
-            end else if (mem_latency_count > 0) begin
-                mem_latency_count = mem_latency_count + 1;
-            end
-            
-            // Monitor data write
-            if (dut.interconnect.M_AXI_AWVALID && 
-                dut.interconnect.M_AXI_AWREADY) begin
-                $display("[%0t] DMEM WRITE: addr=0x%08h, data=0x%08h, strb=%b", 
-                         $time, dut.interconnect.M_AXI_AWADDR,
-                         dut.interconnect.M_AXI_WDATA,
-                         dut.interconnect.M_AXI_WSTRB);
-            end
-        end
-    end
-    
-    // ========================================================================
-    // Monitor Stalls và Hazards
-    // ========================================================================
-    initial begin
-        @(posedge rst_n);
-        
-        forever begin
-            @(posedge clk);
-            if (debug_stall) begin
-                $display("[%0t] PIPELINE STALL detected", $time);
-            end
-            
-            if (debug_forward_a != 2'b00) begin
-                $display("[%0t] FORWARD_A = %b", $time, debug_forward_a);
-            end
-            
-            if (debug_forward_b != 2'b00) begin
-                $display("[%0t] FORWARD_B = %b", $time, debug_forward_b);
-            end
-        end
-    end
-    
-    // ========================================================================
-    // Monitor AXI Protocol Violations
-    // ========================================================================
-    initial begin
-        @(posedge rst_n);
-        
-        forever begin
-            @(posedge clk);
-            
-            // Check AWVALID và WVALID relationship
-            if (dut.interconnect.M_AXI_AWVALID && 
-                !dut.interconnect.M_AXI_AWREADY &&
-                dut.interconnect.M_AXI_WVALID &&
-                !dut.interconnect.M_AXI_WREADY) begin
-                // Both waiting - this is OK
-            end
-            
-            // Check for hanging transactions
-            if (dut.interconnect.M_AXI_ARVALID && 
-                !dut.interconnect.M_AXI_ARREADY) begin
-                $display("[%0t] WARNING: Read address channel waiting", $time);
-            end
-        end
-    end
-    
-    // ========================================================================
-    // Performance Counter
-    // ========================================================================
-    integer cycle_count;
-    integer mem_read_count;
-    integer mem_write_count;
-    integer stall_count;
-    
-    initial begin
-        cycle_count = 0;
-        mem_read_count = 0;
-        mem_write_count = 0;
-        stall_count = 0;
-        
-        @(posedge rst_n);
-        
-        forever begin
-            @(posedge clk);
-            cycle_count = cycle_count + 1;
-            
-            if (debug_stall)
-                stall_count = stall_count + 1;
-                
-            if (dut.interconnect.M_AXI_ARVALID && 
-                dut.interconnect.M_AXI_ARREADY &&
-                dut.interconnect.addr_decode_rd(dut.interconnect.M_AXI_ARADDR))
-                mem_read_count = mem_read_count + 1;
-                
-            if (dut.interconnect.M_AXI_AWVALID && 
-                dut.interconnect.M_AXI_AWREADY)
-                mem_write_count = mem_write_count + 1;
-        end
-    end
-    
-    // ========================================================================
-    // Final Statistics
-    // ========================================================================
-    initial begin
-        @(posedge rst_n);
-        
-        #(CLK_PERIOD * 200);
-        
-        $display("\n========================================");
-        $display("Simulation Statistics:");
-        $display("========================================");
-        $display("Total Cycles:        %0d", cycle_count);
-        $display("Instructions:        %0d", instr_count);
-        $display("Memory Reads:        %0d", mem_read_count);
-        $display("Memory Writes:       %0d", mem_write_count);
-        $display("Pipeline Stalls:     %0d", stall_count);
-        $display("CPI: %.2f", $itor(cycle_count) / $itor(instr_count));
+        $display("\n======================================");
+        $display(" RISC-V SoC Debug Simulation Started ");
+        $display("======================================\n");
+        $display("[INFO] Reset released at cycle %0d", cycle_count);
 
-        $display("========================================\n");
-    end
-    
-    // ========================================================================
-    // Waveform Dump cho GTKWave
-    // ========================================================================
-    initial begin
-        $dumpfile("riscv_soc.vcd");
-        $dumpvars(0, tb_riscv_soc_top);
-        
-        // Dump deeper hierarchy
-        $dumpvars(0, dut.cpu);
-        $dumpvars(0, dut.interconnect);
-        $dumpvars(0, dut.imem_slave);
-        $dumpvars(0, dut.dmem_slave);
-    end
-    
-    // ========================================================================
-    // Timeout Protection
-    // ========================================================================
-    initial begin
-        #(CLK_PERIOD * 1000);
-        $display("\n[ERROR] Simulation timeout!");
+        // Chạy đủ lâu để xem chương trình
+        wait (cycle_count > 200);   // Hoặc thay bằng điều kiện hoàn thành (ví dụ: PC == địa chỉ end)
+
+        // Kết thúc
+        $display("\n======================================");
+        $display(" Simulation Completed ");
+        $display("======================================\n");
+
+        display_final_registers();
+        check_expected_results();
+
         $finish;
     end
-    
+
     // ========================================================================
-    // Test Specific Memory Content (Optional)
+    // Tasks hỗ trợ debug
     // ========================================================================
-    initial begin
-        // Wait một chút để memory được initialize
-        #(CLK_PERIOD * 5);
-        
-        $display("\n========================================");
-        $display("Initial Memory Content:");
-        $display("========================================");
-        
-        // Sample instruction memory
-        $display("IMEM[0x00] = 0x%08h", dut.imem_slave.imem.memory[0]);
-        $display("IMEM[0x04] = 0x%08h", dut.imem_slave.imem.memory[1]);
-        $display("IMEM[0x08] = 0x%08h", dut.imem_slave.imem.memory[2]);
-        $display("IMEM[0x0C] = 0x%08h", dut.imem_slave.imem.memory[3]);
-        
-        $display("\n");
-    end
+    task display_final_registers;
+        begin
+            $display("Final Register File:");
+            $display("--------------------------------------");
+            $display(" x1  = 0x%08h", soc.cpu.register_file.registers[1]);
+            $display(" x2  = 0x%08h", soc.cpu.register_file.registers[2]);
+            $display(" x3  = 0x%08h", soc.cpu.register_file.registers[3]);
+            $display(" x4  = 0x%08h", soc.cpu.register_file.registers[4]);
+            $display(" x5  = 0x%08h", soc.cpu.register_file.registers[5]);
+            $display(" x6  = 0x%08h", soc.cpu.register_file.registers[6]);
+            $display(" x7  = 0x%08h", soc.cpu.register_file.registers[7]);
+            $display(" x8  = 0x%08h", soc.cpu.register_file.registers[8]);
+            $display(" x9  = 0x%08h", soc.cpu.register_file.registers[9]);
+            $display("x10  = 0x%08h", soc.cpu.register_file.registers[10]);
+            $display("x12  = 0x%08h", soc.cpu.register_file.registers[12]);
+            $display("x13  = 0x%08h", soc.cpu.register_file.registers[13]);
+            $display("x14  = 0x%08h", soc.cpu.register_file.registers[14]);
+            $display("x15  = 0x%08h", soc.cpu.register_file.registers[15]);
+            $display("x20  = 0x%08h", soc.cpu.register_file.registers[20]);
+            $display("--------------------------------------");
+        end
+    endtask
+
+    task check_expected_results;
+        begin
+            $display("\nExpected vs Actual Check:");
+            $display("--------------------------------------");
+            compare_reg( 1, 32'h0000000a, "x1  (addi 10)");
+            compare_reg( 2, 32'h00000014, "x2  (addi 20)");
+            compare_reg( 3, 32'h0000001e, "x3  (add)");
+            compare_reg( 4, 32'h0000001e, "x4  (lw from mem[0])");
+            compare_reg( 5, 32'h00000023, "x5  (addi after lw)");
+            $display("--------------------------------------");
+        end
+    endtask
+
+    task compare_reg;
+        input [4:0]  reg_idx;
+        input [31:0] expected;
+        input string desc;
+        begin
+            if (soc.cpu.register_file.registers[reg_idx] === expected) begin
+                $display("[PASS] %s : 0x%08h", desc, expected);
+            end else begin
+                $display("[FAIL] %s : expected=0x%08h  actual=0x%08h",
+                    desc, expected, soc.cpu.register_file.registers[reg_idx]);
+            end
+        end
+    endtask
 
 endmodule
