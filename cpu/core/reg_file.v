@@ -30,13 +30,12 @@ module reg_file (
             end
         end
         else begin
-            // ================================================================
-            // WRITE: Ghi đồng bộ tại cạnh lên của clock
-            // ================================================================
-            if (regwrite && (write_reg != 5'b00000)) begin
-                registers[write_reg] <= write_data;
+            if (regwrite) begin
+                if (write_reg != 5'b00000) begin
+                    registers[write_reg] <= write_data;
+                end
             end
-            // x0 luôn = 0 (đảm bảo x0 không bao giờ bị ghi đè)
+            // x0 luôn = 0 (không cần điều kiện, safe vì x0 không bao giờ được ghi)
             registers[0] <= 32'h00000000;
         end
     end

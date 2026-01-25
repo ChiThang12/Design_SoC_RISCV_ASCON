@@ -1,12 +1,12 @@
 // ============================================================================
-// riscv_cpu_core.v - RISC-V 5-Stage Pipelined CPU Core
+// riscv_cpu_core.v - RISC-V 5-Stage Pipelined CPU Core (FIXED)
 // ============================================================================
 // Mô tả:
 //   - 5-stage pipeline: IF -> ID -> EX -> MEM -> WB
-//   - Hỗ trợ: RV32I base + RV32M (multiply/divide - đã comment)
+//   - Hỗ trợ: RV32I base
 //   - Forwarding Unit: Xử lý data hazards
 //   - Hazard Detection: Load-use hazard, branch flush
-//   - Interface: Tách biệt IMEM và DMEM (sẵn sàng kết nối AXI)
+//   - FIXED: Memory snapshot logic để tránh duplicate write-back
 // ============================================================================
 `include "core/IFU.v"
 `include "core/reg_file.v"
@@ -19,17 +19,6 @@
 `include "core/PIPELINE_REG_IF_ID.v"
 `include "core/PIPELINE_REG_ID_EX.v"
 `include "core/PIPELINE_REG_EX_WB.v"
-
-// ============================================================================
-// riscv_cpu_core.v - RISC-V 5-Stage Pipelined CPU Core (FIXED)
-// ============================================================================
-// Mô tả:
-//   - 5-stage pipeline: IF -> ID -> EX -> MEM -> WB
-//   - Hỗ trợ: RV32I base (M extension commented out)
-//   - Forwarding Unit: Xử lý data hazards
-//   - Hazard Detection: Load-use hazard, branch flush
-//   - FIXED: LUI, AUIPC, JAL, JALR, ALU control pipeline
-// ============================================================================
 
 module riscv_cpu_core (
     input wire clk,
@@ -151,10 +140,16 @@ module riscv_cpu_core (
     wire jump_mem;
     
     // ========================================================================
-    // MEM Stage
+    // MEM Stage - Snapshot Registers
     // ========================================================================
     wire [31:0] mem_read_data_extended;
-    reg mem_req_pending; 
+    reg mem_req_pending;
+    reg [4:0] rd_mem_snapshot;
+    reg regwrite_mem_snapshot;
+    reg memtoreg_mem_snapshot;
+    reg jump_mem_snapshot;
+    reg wb_done;
+    
     // ========================================================================
     // MEM/WB Pipeline Register
     // ========================================================================
@@ -252,7 +247,7 @@ module riscv_cpu_core (
     );
     
     // ========================================================================
-    // ID/EX PIPELINE REGISTER (EXTENDED)
+    // ID/EX PIPELINE REGISTER
     // ========================================================================
     reg regwrite_id_ex;
     reg alusrc_id_ex;
@@ -355,7 +350,6 @@ module riscv_cpu_core (
     );
     
     // ALU Input 1 with Forwarding
-    // SPECIAL CASE: LUI always uses 0 as input 1 (not rs1)
     wire [31:0] alu_in1_forwarded;
     assign alu_in1_forwarded = (forward_a == 2'b10) ? alu_result_mem :
                                (forward_a == 2'b01) ? write_back_data_wb :
@@ -371,10 +365,8 @@ module riscv_cpu_core (
                              read_data2_ex;
     
     // ALU Input 2 Mux: Register vs Immediate
-    // SPECIAL CASE: LUI uses immediate directly (not PC+imm)
     wire [31:0] alu_in2_imm;
-    assign alu_in2_imm = (opcode_ex == 7'b0110111) ? imm_ex :        // LUI: imm
-                         (opcode_ex == 7'b0010111) ? imm_ex : imm_ex; // AUIPC: imm
+    assign alu_in2_imm = imm_ex;
     
     assign alu_in2 = alusrc_ex ? alu_in2_imm : alu_in2_pre_mux;
     
@@ -409,18 +401,16 @@ module riscv_cpu_core (
     
     assign branch_target = pc_ex + imm_ex;
     assign jal_target = pc_ex + imm_ex;
-    assign jalr_target = (alu_in1 + imm_ex) & 32'hFFFFFFFE; // Clear LSB
+    assign jalr_target = (alu_in1 + imm_ex) & 32'hFFFFFFFE;
     
-    // Select target based on instruction type
-    assign target_pc_ex = (opcode_ex == 7'b1100111) ? jalr_target :  // JALR
-                          (jump_ex) ? jal_target :                    // JAL
-                          branch_target;                              // Branch
+    assign target_pc_ex = (opcode_ex == 7'b1100111) ? jalr_target :
+                          (jump_ex) ? jal_target :
+                          branch_target;
     
-    // PC source control
     assign pc_src_ex = (branch_ex & branch_taken_ex) | jump_ex;
     
     // ========================================================================
-    // EX/MEM PIPELINE REGISTER (EXTENDED)
+    // EX/MEM PIPELINE REGISTER
     // ========================================================================
     reg regwrite_ex_mem;
     reg memread_ex_mem;
@@ -434,6 +424,39 @@ module riscv_cpu_core (
     reg [1:0] byte_size_ex_mem;
     reg [2:0] funct3_ex_mem;
     
+    // always @(posedge clk or posedge rst) begin
+    //     if (rst) begin
+    //         regwrite_ex_mem <= 1'b0;
+    //         memread_ex_mem <= 1'b0;
+    //         memwrite_ex_mem <= 1'b0;
+    //         memtoreg_ex_mem <= 1'b0;
+    //         jump_ex_mem <= 1'b0;
+    //         alu_result_ex_mem <= 32'h0;
+    //         write_data_ex_mem <= 32'h0;
+    //         pc_plus_4_ex_mem <= 32'h0;
+    //         rd_ex_mem <= 5'b0;
+    //         byte_size_ex_mem <= 2'b0;
+    //         funct3_ex_mem <= 3'b0;
+    //     end else begin
+    //         if (!stall) begin
+    //             regwrite_ex_mem <= regwrite_ex;
+    //             memread_ex_mem <= memread_ex;
+    //             memwrite_ex_mem <= memwrite_ex;
+    //             memtoreg_ex_mem <= memtoreg_ex;
+    //             jump_ex_mem <= jump_ex;
+    //             rd_ex_mem <= rd_ex;
+    //             byte_size_ex_mem <= byte_size_ex;
+    //             funct3_ex_mem <= funct3_ex;
+    //         end
+            
+    //         alu_result_ex_mem <= alu_result_ex;
+    //         write_data_ex_mem <= alu_in2_pre_mux;
+    //         pc_plus_4_ex_mem <= pc_plus_4_ex;
+    //     end
+    // end
+    // ========================================================================
+    // EX/MEM PIPELINE REGISTER - FINAL FIX
+    // ========================================================================
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             regwrite_ex_mem <= 1'b0;
@@ -448,8 +471,14 @@ module riscv_cpu_core (
             byte_size_ex_mem <= 2'b0;
             funct3_ex_mem <= 3'b0;
         end else begin
-            // Control signals: Update hoặc clear
+            // Data paths - ALWAYS update
+            alu_result_ex_mem <= alu_result_ex;
+            write_data_ex_mem <= alu_in2_pre_mux;
+            pc_plus_4_ex_mem <= pc_plus_4_ex;
+            
+            // Control signals logic
             if (!stall) begin
+                // Pipeline advance normally
                 regwrite_ex_mem <= regwrite_ex;
                 memread_ex_mem <= memread_ex;
                 memwrite_ex_mem <= memwrite_ex;
@@ -458,15 +487,10 @@ module riscv_cpu_core (
                 rd_ex_mem <= rd_ex;
                 byte_size_ex_mem <= byte_size_ex;
                 funct3_ex_mem <= funct3_ex;
-            end 
-            
-            // Data paths: LUÔN update
-            alu_result_ex_mem <= alu_result_ex;
-            write_data_ex_mem <= alu_in2_pre_mux;
-            pc_plus_4_ex_mem <= pc_plus_4_ex;
+            end
+            // Khi stall - giữ nguyên giá trị (không thêm else)
         end
     end
-    
     assign regwrite_mem = regwrite_ex_mem;
     assign memread_mem = memread_ex_mem;
     assign memwrite_mem = memwrite_ex_mem;
@@ -482,28 +506,11 @@ module riscv_cpu_core (
     // ========================================================================
     // STAGE 4: MEMORY ACCESS (MEM)
     // ========================================================================
-
-
-        // Track memory request state
-    // Memory transaction tracking
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            mem_req_pending <= 1'b0;
-        end else begin
-            // Priority 1: Clear when pipeline moves (stall released)
-            if (!stall) begin
-                mem_req_pending <= 1'b0;
-            end
-            // Priority 2: Set when transaction completes
-            else if (dmem_valid && dmem_ready) begin
-                mem_req_pending <= 1'b1;
-            end
-        end
-    end   
+    
     // Data Memory Interface
     assign dmem_addr = alu_result_mem;
     assign dmem_wdata = write_data_mem;
-    assign dmem_valid = (memread_mem | memwrite_mem) && !mem_req_pending;  // ← FIX!
+    assign dmem_valid = (memread_mem | memwrite_mem) && !mem_req_pending;
     assign dmem_we = memwrite_mem;
     
     // Write Strobe Generation
@@ -522,18 +529,18 @@ module riscv_cpu_core (
     reg [31:0] mem_read_extended;
     always @(*) begin
         case (funct3_mem)
-            3'b000: mem_read_extended = {{24{dmem_rdata[7]}}, dmem_rdata[7:0]};   // LB
-            3'b001: mem_read_extended = {{16{dmem_rdata[15]}}, dmem_rdata[15:0]}; // LH
-            3'b010: mem_read_extended = dmem_rdata;                                // LW
-            3'b100: mem_read_extended = {24'h0, dmem_rdata[7:0]};                  // LBU
-            3'b101: mem_read_extended = {16'h0, dmem_rdata[15:0]};                 // LHU
+            3'b000: mem_read_extended = {{24{dmem_rdata[7]}}, dmem_rdata[7:0]};
+            3'b001: mem_read_extended = {{16{dmem_rdata[15]}}, dmem_rdata[15:0]};
+            3'b010: mem_read_extended = dmem_rdata;
+            3'b100: mem_read_extended = {24'h0, dmem_rdata[7:0]};
+            3'b101: mem_read_extended = {16'h0, dmem_rdata[15:0]};
             default: mem_read_extended = dmem_rdata;
         endcase
     end
     assign mem_read_data_extended = mem_read_extended;
     
     // ========================================================================
-    // MEM/WB PIPELINE REGISTER (EXTENDED)
+    // UNIFIED MEM/WB REGISTER + SNAPSHOT LOGIC
     // ========================================================================
     reg regwrite_mem_wb;
     reg memtoreg_mem_wb;
@@ -543,37 +550,141 @@ module riscv_cpu_core (
     reg [31:0] pc_plus_4_mem_wb;
     reg [4:0] rd_mem_wb;
     
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            regwrite_mem_wb <= 1'b0;
-            memtoreg_mem_wb <= 1'b0;
-            jump_mem_wb <= 1'b0;
-            alu_result_mem_wb <= 32'h0;
-            mem_data_mem_wb <= 32'h0;
-            pc_plus_4_mem_wb <= 32'h0;
-            rd_mem_wb <= 5'b0;
-        end else begin
-            // Control signals: Update hoặc CLEAR
-            if (!stall) begin
-                regwrite_mem_wb <= regwrite_mem;
-                memtoreg_mem_wb <= memtoreg_mem;
-                jump_mem_wb <= jump_mem;
-                rd_mem_wb <= rd_mem;
-            end else begin
-                // THÊM ELSE BLOCK NÀY - Insert bubble khi stall
-                regwrite_mem_wb <= 1'b0;  // ← CRITICAL!
-                memtoreg_mem_wb <= 1'b0;
-                jump_mem_wb <= 1'b0;
-                rd_mem_wb <= 5'b0;
-            end
+    // always @(posedge clk or posedge rst) begin
+    //     if (rst) begin
+    //         // Snapshot registers
+    //         mem_req_pending <= 1'b0;
+    //         rd_mem_snapshot <= 5'b0;
+    //         regwrite_mem_snapshot <= 1'b0;
+    //         memtoreg_mem_snapshot <= 1'b0;
+    //         jump_mem_snapshot <= 1'b0;
+    //         wb_done <= 1'b0;
             
-            // Data paths: Luôn update (KHÔNG ĐỔI)
+    //         // MEM/WB pipeline registers
+    //         regwrite_mem_wb <= 1'b0;
+    //         memtoreg_mem_wb <= 1'b0;
+    //         jump_mem_wb <= 1'b0;
+    //         alu_result_mem_wb <= 32'h0;
+    //         mem_data_mem_wb <= 32'h0;
+    //         pc_plus_4_mem_wb <= 32'h0;
+    //         rd_mem_wb <= 5'b0;
+    //     end else begin
+    //         // Data paths - ALWAYS update
+    //         alu_result_mem_wb <= alu_result_mem;
+    //         mem_data_mem_wb <= mem_read_data_extended;
+    //         pc_plus_4_mem_wb <= pc_plus_4_mem;
+            
+    //         // Control logic
+    //         if (!stall) begin
+    //             // Pipeline advance - Clear everything
+    //             mem_req_pending <= 1'b0;
+    //             wb_done <= 1'b0;
+    //             regwrite_mem_wb <= regwrite_mem;
+    //             memtoreg_mem_wb <= memtoreg_mem;
+    //             jump_mem_wb <= jump_mem;
+    //             rd_mem_wb <= rd_mem;
+                
+    //         end else if (dmem_valid && dmem_ready && !mem_req_pending) begin
+    //             // Memory handshake - Snapshot
+    //             mem_req_pending <= 1'b1;
+    //             wb_done <= 1'b0;
+    //             rd_mem_snapshot <= rd_mem;
+    //             regwrite_mem_snapshot <= regwrite_mem;
+    //             memtoreg_mem_snapshot <= memtoreg_mem;
+    //             jump_mem_snapshot <= jump_mem;
+    //             // Don't update WB stage yet
+    //             regwrite_mem_wb <= 1'b0;
+    //             memtoreg_mem_wb <= 1'b0;
+    //             jump_mem_wb <= 1'b0;
+    //             rd_mem_wb <= 5'b0;
+                
+    //         end else if (mem_req_pending && !wb_done) begin
+    //             // Enable write-back ONCE
+    //             regwrite_mem_wb <= regwrite_mem_snapshot;
+    //             memtoreg_mem_wb <= memtoreg_mem_snapshot;
+    //             jump_mem_wb <= jump_mem_snapshot;
+    //             rd_mem_wb <= rd_mem_snapshot;
+    //             wb_done <= 1'b1;
+                
+    //         end else begin
+    //             // Already done or stalling - Insert NOP
+    //             regwrite_mem_wb <= 1'b0;
+    //             memtoreg_mem_wb <= 1'b0;
+    //             jump_mem_wb <= 1'b0;
+    //             rd_mem_wb <= 5'b0;
+    //         end
+    //     end
+    // end
+        always @(posedge clk or posedge rst) begin
+    if (rst) begin
+        // Reset
+        mem_req_pending <= 1'b0;
+        rd_mem_snapshot <= 5'b0;
+        regwrite_mem_snapshot <= 1'b0;
+        memtoreg_mem_snapshot <= 1'b0;
+        jump_mem_snapshot <= 1'b0;
+        wb_done <= 1'b0;
+        
+        regwrite_mem_wb <= 1'b0;
+        memtoreg_mem_wb <= 1'b0;
+        jump_mem_wb <= 1'b0;
+        alu_result_mem_wb <= 32'h0;
+        mem_data_mem_wb <= 32'h0;
+        pc_plus_4_mem_wb <= 32'h0;
+        rd_mem_wb <= 5'b0;
+    end else begin
+        // ================================================================
+        // CRITICAL FIX: Data paths chỉ update khi !stall
+        // ================================================================
+        if (!stall) begin
             alu_result_mem_wb <= alu_result_mem;
             mem_data_mem_wb <= mem_read_data_extended;
             pc_plus_4_mem_wb <= pc_plus_4_mem;
         end
+        // Khi stall: data paths GIỮ NGUYÊN giá trị cũ
+        
+        // Control logic
+        if (!stall && !mem_req_pending) begin
+            // Pipeline advance
+            mem_req_pending <= 1'b0;
+            wb_done <= 1'b0;
+            regwrite_mem_wb <= regwrite_mem;
+            memtoreg_mem_wb <= memtoreg_mem;
+            jump_mem_wb <= jump_mem;
+            rd_mem_wb <= rd_mem;
+            
+        end else if (dmem_valid && dmem_ready && !mem_req_pending) begin
+            // Memory handshake - Snapshot
+            mem_req_pending <= 1'b1;
+            wb_done <= 1'b0;
+            rd_mem_snapshot <= rd_mem;
+            regwrite_mem_snapshot <= regwrite_mem;
+            memtoreg_mem_snapshot <= memtoreg_mem;
+            jump_mem_snapshot <= jump_mem;
+            
+            // Clear WB
+            regwrite_mem_wb <= 1'b0;
+            memtoreg_mem_wb <= 1'b0;
+            jump_mem_wb <= 1'b0;
+            rd_mem_wb <= 5'b0;
+            
+        end else if (mem_req_pending && !wb_done) begin
+            // Write-back from snapshot ONCE
+            regwrite_mem_wb <= regwrite_mem_snapshot;
+            memtoreg_mem_wb <= memtoreg_mem_snapshot;
+            jump_mem_wb <= jump_mem_snapshot;
+            rd_mem_wb <= rd_mem_snapshot;
+            wb_done <= 1'b1;
+            
+        end else begin
+            // Stalling or done → NOP
+            regwrite_mem_wb <= 1'b0;
+            memtoreg_mem_wb <= 1'b0;
+            jump_mem_wb <= 1'b0;
+            rd_mem_wb <= 5'b0;
+        end
     end
-    
+end
     assign regwrite_wb = regwrite_mem_wb;
     assign memtoreg_wb = memtoreg_mem_wb;
     assign jump_wb = jump_mem_wb;
@@ -587,8 +698,6 @@ module riscv_cpu_core (
     // ========================================================================
     wire [31:0] wb_data_before_jump;
     assign wb_data_before_jump = memtoreg_wb ? mem_data_wb : alu_result_wb;
-    
-    // JAL/JALR writes PC+4 to rd
     assign write_back_data_wb = jump_wb ? pc_plus_4_wb : wb_data_before_jump;
     
     // ========================================================================

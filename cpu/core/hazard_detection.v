@@ -74,7 +74,10 @@ module hazard_detection (
     //   2. Data memory access pending (dmem_valid && !dmem_ready)
     //   3. Instruction memory not ready
     
-    assign stall = load_use_hazard || dmem_stall || imem_stall;
+    // SỬA điều kiện stall - KHÔNG stall khi memory đã ready
+    assign stall = (load_use_hazard) ||           // Load-use hazard
+                (!imem_ready) ||                // IMEM chưa ready
+                (dmem_valid && !dmem_ready);    // DMEM đang busy (SỬA: bỏ !mem_req_pending)
     
     // ========================================================================
     // Flush Signals
