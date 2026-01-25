@@ -231,6 +231,209 @@ module riscv_soc_tb;
         end
     end
     
+    always @(posedge clk) begin
+    if (rst_n) begin
+        // Monitor stall và memory transactions
+        if (soc.cpu.stall) begin
+            $display("[STALL] imem_ready=%b, dmem_valid=%b, dmem_ready=%b, mem_req=%b",
+                     soc.imem_m_axi_arready,
+                     soc.cpu.dmem_valid,
+                     soc.cpu.dmem_ready,
+                     soc.cpu.mem_req_pending);
+            end
+        end
+    end
+// ========================================================================
+    // DEBUG: Pipeline Register Tracking
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n) begin
+            // Monitor stall và memory transactions
+            if (soc.cpu.stall) begin
+                $display("[STALL] imem_ready=%b, dmem_valid=%b, dmem_ready=%b, mem_req=%b",
+                         soc.imem_m_axi_arready,
+                         soc.cpu.dmem_valid,
+                         soc.cpu.dmem_ready,
+                         soc.cpu.mem_req_pending);
+            end
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: MEM/WB Pipeline Register State
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n && (soc.cpu.memread_mem || soc.cpu.memwrite_mem)) begin
+            $display("[MEM_STAGE] Cycle=%0d, Addr=0x%h, rd_mem=%0d, regwrite_mem=%b, memtoreg_mem=%b, mem_req_pending=%b",
+                     cycle_count,
+                     soc.cpu.alu_result_mem,
+                     soc.cpu.rd_mem,
+                     soc.cpu.regwrite_mem,
+                     soc.cpu.memtoreg_mem,
+                     soc.cpu.mem_req_pending);
+        end
+    end
+    
+    always @(posedge clk) begin
+        if (rst_n && soc.cpu.regwrite_wb) begin
+            $display("[WB_STAGE] Cycle=%0d, rd_wb=%0d, regwrite_wb=%b, memtoreg_wb=%b, alu_result_wb=0x%h, mem_data_wb=0x%h, final_data=0x%h",
+                     cycle_count,
+                     soc.cpu.rd_wb,
+                     soc.cpu.regwrite_wb,
+                     soc.cpu.memtoreg_wb,
+                     soc.cpu.alu_result_wb,
+                     soc.cpu.mem_data_wb,
+                     soc.cpu.write_back_data_wb);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: MEM/WB Register Updates
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n) begin
+            $display("[PIPE_UPDATE] regwrite: mem=%b->wb=%b, rd: mem=%0d->wb=%0d, stall=%b, mem_req_pending=%b",
+                     soc.cpu.regwrite_mem,
+                     soc.cpu.regwrite_wb,
+                     soc.cpu.rd_mem,
+                     soc.cpu.rd_wb,
+                     soc.cpu.stall,
+                     soc.cpu.mem_req_pending);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: Memory Request State Machine
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n && soc.cpu.dmem_valid) begin
+            $display("[DMEM_REQ] Cycle=%0d, valid=%b, ready=%b, we=%b, addr=0x%h, wdata=0x%h, mem_req_pending=%b->%b",
+                     cycle_count,
+                     soc.cpu.dmem_valid,
+                     soc.cpu.dmem_ready,
+                     soc.cpu.dmem_we,
+                     soc.cpu.dmem_addr,
+                     soc.cpu.dmem_wdata,
+                     soc.cpu.mem_req_pending,
+                     (soc.cpu.dmem_valid && soc.cpu.dmem_ready) ? 1'b1 : soc.cpu.mem_req_pending);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: WB_DONE Flag Tracking
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n && soc.cpu.mem_req_pending) begin
+            $display("[WB_DONE] Cycle=%0d, mem_req_pending=%b,regwrite_mem_wb=%b, rd_snapshot=%0d, rd_wb=%0d",
+                     cycle_count,
+                     soc.cpu.mem_req_pending,
+                     
+                     soc.cpu.regwrite_mem_wb,
+                     soc.cpu.rd_mem_snapshot,
+                     soc.cpu.rd_wb);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: Detailed WB Stage Transitions
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (soc.cpu.regwrite_mem_wb && !soc.cpu.regwrite_wb) begin
+                $display("[WB_TRANSITION] Cycle=%0d: MEM stage has regwrite=1, but WB stage regwrite went to 0!",
+                         cycle_count);
+            end
+        end
+    end
+
+    // ========================================================================
+    // DEBUG: WB_DONE Flag Tracking
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n && soc.cpu.mem_req_pending) begin
+            $display("[WB_DONE] Cycle=%0d, mem_req_pending=%b,regwrite_mem_wb=%b, rd_snapshot=%0d, rd_wb=%0d",
+                     cycle_count,
+                     soc.cpu.mem_req_pending,
+                     
+                     soc.cpu.regwrite_mem_wb,
+                     soc.cpu.rd_mem_snapshot,
+                     soc.cpu.rd_wb);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: SNAPSHOT MECHANISM - Detailed Tracking
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n) begin
+            // Track snapshot capture moment
+            if (soc.cpu.dmem_valid && soc.cpu.dmem_ready && !soc.cpu.mem_req_pending) begin
+                $display("[SNAPSHOT_CAPTURE] Cycle=%0d: rd_mem=%0d, regwrite_mem=%b, memtoreg_mem=%b, jump_mem=%b, addr=0x%h",
+                         cycle_count,
+                         soc.cpu.rd_mem,
+                         soc.cpu.regwrite_mem,
+                         soc.cpu.memtoreg_mem,
+                         soc.cpu.jump_mem,
+                         soc.cpu.alu_result_mem);
+            end
+            
+            // Track when snapshot is used for writeback
+            if (soc.cpu.mem_req_pending && !soc.cpu.wb_done) begin
+                $display("[SNAPSHOT_WRITEBACK] Cycle=%0d: Using snapshot - rd=%0d, regwrite=%b, memtoreg=%b, jump=%b",
+                         cycle_count,
+                         soc.cpu.rd_mem_snapshot,
+                         soc.cpu.regwrite_mem_snapshot,
+                         soc.cpu.memtoreg_mem_snapshot,
+                         soc.cpu.jump_mem_snapshot);
+            end
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: MEM Stage rd_mem Value Tracking
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n && (soc.cpu.memread_mem || soc.cpu.memwrite_mem)) begin
+            $display("[MEM_RD_TRACK] Cycle=%0d: rd_mem=%0d, regwrite_mem=%b, is_load=%b, is_store=%b, stall=%b",
+                     cycle_count,
+                     soc.cpu.rd_mem,
+                     soc.cpu.regwrite_mem,
+                     soc.cpu.memread_mem,
+                     soc.cpu.memwrite_mem,
+                     soc.cpu.stall);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: Pipeline rd Propagation
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n) begin
+            $display("[PIPE_RD] Cycle=%0d: ID.rd=%0d → EX.rd=%0d → MEM.rd=%0d → WB.rd=%0d (stall=%b)",
+                     cycle_count,
+                     soc.cpu.rd_id,
+                     soc.cpu.rd_ex,
+                     soc.cpu.rd_mem,
+                     soc.cpu.rd_wb,
+                     soc.cpu.stall);
+        end
+    end
+    
+    // ========================================================================
+    // DEBUG: Snapshot State Machine
+    // ========================================================================
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (soc.cpu.mem_req_pending !== soc.cpu.mem_req_pending) begin // On transition
+                $display("[SNAPSHOT_FSM] Cycle=%0d: mem_req_pending %b→%b, wb_done=%b",
+                         cycle_count,
+                         !soc.cpu.mem_req_pending,
+                         soc.cpu.mem_req_pending,
+                         soc.cpu.wb_done);
+            end
+        end
+    end
+
     // ========================================================================
     // Test Procedure
     // ========================================================================
@@ -280,23 +483,6 @@ module riscv_soc_tb;
         $display("x18 = 0x%h", soc.cpu.register_file.registers[18]);
         $display("x19 = 0x%h", soc.cpu.register_file.registers[19]);
         $display("x20 = 0x%h", soc.cpu.register_file.registers[20]);
-        
-        $display("========================================");
-        $display("Expected Results (Memory Test):");
-        $display("========================================");
-        $display("x1  = 0x00000005 (ADDI 5)");
-        $display("x2  = 0x00000003 (ADDI 3)");
-        $display("x3  = 0x00000003 (LW from mem[0])");
-        $display("x4  = 0x00000003 (LH from mem[0])");
-        $display("x5  = 0x00000003 (LB from mem[0])");
-        $display("x6  = 0x00000005 (ADDI 5)");
-        $display("x7  = 0x00000006 (ADDI 6)");
-        $display("x8  = 0x00000006 (LW from mem[17])");
-        $display("x9  = 0x0000000A (ADDI 10)");
-        $display("x10 = 0x00000005 (ADDI 5)");
-        $display("x11 = 0x00000000 (ADDI 0)");
-        $display("x20 = 0x12345000 (LUI)");
-        
         $display("========================================");
         $display("SoC Simulation Completed");
         $display("========================================");
@@ -314,3 +500,7 @@ module riscv_soc_tb;
     end
 
 endmodule
+//✅ CPU đang chạy đúng chương trình
+// ✅ AXI IMEM latency gây stall — expected
+// ⚠️ Load instruction WB quá sớm
+// ❌ mem_to_reg / WB enable chưa gắn chặt với dmem_ready
