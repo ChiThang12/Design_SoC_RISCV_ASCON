@@ -128,8 +128,6 @@ module axi4_lite_master_if (
         endcase
     end
     
-    // CRITICAL FIX: Request Latching Logic
-    // Only latch NEW request when in IDLE and not already pending
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             addr_reg    <= 32'h0;
@@ -138,27 +136,18 @@ module axi4_lite_master_if (
             wr_reg      <= 1'b0;
             req_pending <= 1'b0;
         end else begin
-            case (state)
-                IDLE: begin
-                    // Latch request only when new request arrives and not pending
-                    if (cpu_req && !req_pending) begin
-                        addr_reg    <= cpu_addr;
-                        wdata_reg   <= cpu_wdata;
-                        wstrb_reg   <= cpu_wstrb;
-                        wr_reg      <= cpu_wr;
-                        req_pending <= 1'b1;
-                    end
-                end
-                
-                DONE: begin
-                    // Clear pending flag when transaction completes
-                    req_pending <= 1'b0;
-                end
-                
-                default: begin
-                    // Keep pending during transaction
-                end
-            endcase
+            // ✅ Latch NGAY khi ở IDLE và có request
+            if ((state == IDLE) && cpu_req && !req_pending) begin
+                addr_reg    <= cpu_addr;
+                wdata_reg   <= cpu_wdata;
+                wstrb_reg   <= cpu_wstrb;
+                wr_reg      <= cpu_wr;
+                req_pending <= 1'b1;
+            end 
+            // Clear khi về IDLE
+            else if (state == DONE) begin
+                req_pending <= 1'b0;
+            end
         end
     end
     
