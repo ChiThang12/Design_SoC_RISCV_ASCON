@@ -423,40 +423,7 @@ module riscv_cpu_core (
     reg [4:0] rd_ex_mem;
     reg [1:0] byte_size_ex_mem;
     reg [2:0] funct3_ex_mem;
-    
-    // always @(posedge clk or posedge rst) begin
-    //     if (rst) begin
-    //         regwrite_ex_mem <= 1'b0;
-    //         memread_ex_mem <= 1'b0;
-    //         memwrite_ex_mem <= 1'b0;
-    //         memtoreg_ex_mem <= 1'b0;
-    //         jump_ex_mem <= 1'b0;
-    //         alu_result_ex_mem <= 32'h0;
-    //         write_data_ex_mem <= 32'h0;
-    //         pc_plus_4_ex_mem <= 32'h0;
-    //         rd_ex_mem <= 5'b0;
-    //         byte_size_ex_mem <= 2'b0;
-    //         funct3_ex_mem <= 3'b0;
-    //     end else begin
-    //         if (!stall) begin
-    //             regwrite_ex_mem <= regwrite_ex;
-    //             memread_ex_mem <= memread_ex;
-    //             memwrite_ex_mem <= memwrite_ex;
-    //             memtoreg_ex_mem <= memtoreg_ex;
-    //             jump_ex_mem <= jump_ex;
-    //             rd_ex_mem <= rd_ex;
-    //             byte_size_ex_mem <= byte_size_ex;
-    //             funct3_ex_mem <= funct3_ex;
-    //         end
-            
-    //         alu_result_ex_mem <= alu_result_ex;
-    //         write_data_ex_mem <= alu_in2_pre_mux;
-    //         pc_plus_4_ex_mem <= pc_plus_4_ex;
-    //     end
-    // end
-    // ========================================================================
-    // EX/MEM PIPELINE REGISTER - FINAL FIX
-    // ========================================================================
+
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             regwrite_ex_mem <= 1'b0;
@@ -549,142 +516,91 @@ module riscv_cpu_core (
     reg [31:0] mem_data_mem_wb;
     reg [31:0] pc_plus_4_mem_wb;
     reg [4:0] rd_mem_wb;
-    
-    // always @(posedge clk or posedge rst) begin
-    //     if (rst) begin
-    //         // Snapshot registers
-    //         mem_req_pending <= 1'b0;
-    //         rd_mem_snapshot <= 5'b0;
-    //         regwrite_mem_snapshot <= 1'b0;
-    //         memtoreg_mem_snapshot <= 1'b0;
-    //         jump_mem_snapshot <= 1'b0;
-    //         wb_done <= 1'b0;
-            
-    //         // MEM/WB pipeline registers
-    //         regwrite_mem_wb <= 1'b0;
-    //         memtoreg_mem_wb <= 1'b0;
-    //         jump_mem_wb <= 1'b0;
-    //         alu_result_mem_wb <= 32'h0;
-    //         mem_data_mem_wb <= 32'h0;
-    //         pc_plus_4_mem_wb <= 32'h0;
-    //         rd_mem_wb <= 5'b0;
-    //     end else begin
-    //         // Data paths - ALWAYS update
-    //         alu_result_mem_wb <= alu_result_mem;
-    //         mem_data_mem_wb <= mem_read_data_extended;
-    //         pc_plus_4_mem_wb <= pc_plus_4_mem;
-            
-    //         // Control logic
-    //         if (!stall) begin
-    //             // Pipeline advance - Clear everything
-    //             mem_req_pending <= 1'b0;
-    //             wb_done <= 1'b0;
-    //             regwrite_mem_wb <= regwrite_mem;
-    //             memtoreg_mem_wb <= memtoreg_mem;
-    //             jump_mem_wb <= jump_mem;
-    //             rd_mem_wb <= rd_mem;
-                
-    //         end else if (dmem_valid && dmem_ready && !mem_req_pending) begin
-    //             // Memory handshake - Snapshot
-    //             mem_req_pending <= 1'b1;
-    //             wb_done <= 1'b0;
-    //             rd_mem_snapshot <= rd_mem;
-    //             regwrite_mem_snapshot <= regwrite_mem;
-    //             memtoreg_mem_snapshot <= memtoreg_mem;
-    //             jump_mem_snapshot <= jump_mem;
-    //             // Don't update WB stage yet
-    //             regwrite_mem_wb <= 1'b0;
-    //             memtoreg_mem_wb <= 1'b0;
-    //             jump_mem_wb <= 1'b0;
-    //             rd_mem_wb <= 5'b0;
-                
-    //         end else if (mem_req_pending && !wb_done) begin
-    //             // Enable write-back ONCE
-    //             regwrite_mem_wb <= regwrite_mem_snapshot;
-    //             memtoreg_mem_wb <= memtoreg_mem_snapshot;
-    //             jump_mem_wb <= jump_mem_snapshot;
-    //             rd_mem_wb <= rd_mem_snapshot;
-    //             wb_done <= 1'b1;
-                
-    //         end else begin
-    //             // Already done or stalling - Insert NOP
-    //             regwrite_mem_wb <= 1'b0;
-    //             memtoreg_mem_wb <= 1'b0;
-    //             jump_mem_wb <= 1'b0;
-    //             rd_mem_wb <= 5'b0;
-    //         end
-    //     end
-    // end
-        always @(posedge clk or posedge rst) begin
-    if (rst) begin
-        // Reset
-        mem_req_pending <= 1'b0;
-        rd_mem_snapshot <= 5'b0;
-        regwrite_mem_snapshot <= 1'b0;
-        memtoreg_mem_snapshot <= 1'b0;
-        jump_mem_snapshot <= 1'b0;
-        wb_done <= 1'b0;
-        
-        regwrite_mem_wb <= 1'b0;
-        memtoreg_mem_wb <= 1'b0;
-        jump_mem_wb <= 1'b0;
-        alu_result_mem_wb <= 32'h0;
-        mem_data_mem_wb <= 32'h0;
-        pc_plus_4_mem_wb <= 32'h0;
-        rd_mem_wb <= 5'b0;
-    end else begin
-        // ================================================================
-        // CRITICAL FIX: Data paths chỉ update khi !stall
-        // ================================================================
-        if (!stall) begin
-            alu_result_mem_wb <= alu_result_mem;
-            mem_data_mem_wb <= mem_read_data_extended;
-            pc_plus_4_mem_wb <= pc_plus_4_mem;
-        end
-        // Khi stall: data paths GIỮ NGUYÊN giá trị cũ
-        
-        // Control logic
-        if (!stall && !mem_req_pending) begin
-            // Pipeline advance
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
             mem_req_pending <= 1'b0;
+            rd_mem_snapshot <= 5'b0;
+            regwrite_mem_snapshot <= 1'b0;
+            memtoreg_mem_snapshot <= 1'b0;
+            jump_mem_snapshot <= 1'b0;
             wb_done <= 1'b0;
-            regwrite_mem_wb <= regwrite_mem;
-            memtoreg_mem_wb <= memtoreg_mem;
-            jump_mem_wb <= jump_mem;
-            rd_mem_wb <= rd_mem;
             
-        end else if (dmem_valid && dmem_ready && !mem_req_pending) begin
-            // Memory handshake - Snapshot
-            mem_req_pending <= 1'b1;
-            wb_done <= 1'b0;
-            rd_mem_snapshot <= rd_mem;
-            regwrite_mem_snapshot <= regwrite_mem;
-            memtoreg_mem_snapshot <= memtoreg_mem;
-            jump_mem_snapshot <= jump_mem;
-            
-            // Clear WB
             regwrite_mem_wb <= 1'b0;
             memtoreg_mem_wb <= 1'b0;
             jump_mem_wb <= 1'b0;
+            alu_result_mem_wb <= 32'h0;
+            mem_data_mem_wb <= 32'h0;
+            pc_plus_4_mem_wb <= 32'h0;
             rd_mem_wb <= 5'b0;
-            
-        end else if (mem_req_pending && !wb_done) begin
-            // Write-back from snapshot ONCE
-            regwrite_mem_wb <= regwrite_mem_snapshot;
-            memtoreg_mem_wb <= memtoreg_mem_snapshot;
-            jump_mem_wb <= jump_mem_snapshot;
-            rd_mem_wb <= rd_mem_snapshot;
-            wb_done <= 1'b1;
             
         end else begin
-            // Stalling or done → NOP
-            regwrite_mem_wb <= 1'b0;
-            memtoreg_mem_wb <= 1'b0;
-            jump_mem_wb <= 1'b0;
-            rd_mem_wb <= 5'b0;
+            // ================================================================
+            // DATA PATHS - Chỉ update khi !stall
+            // ================================================================
+            if (!stall) begin
+                alu_result_mem_wb <= alu_result_mem;
+                mem_data_mem_wb <= mem_read_data_extended;
+                pc_plus_4_mem_wb <= pc_plus_4_mem;
+            end
+            
+            // ================================================================
+            // SNAPSHOT FSM - 3 STATES
+            // ================================================================
+            if (dmem_valid && dmem_ready && !mem_req_pending) begin
+                // ============================================================
+                // STATE 1: HANDSHAKE → Capture snapshot
+                // ============================================================
+                mem_req_pending <= 1'b1;
+                wb_done <= 1'b0;
+                
+                // Snapshot MEM stage control signals
+                rd_mem_snapshot <= rd_mem;
+                regwrite_mem_snapshot <= regwrite_mem;
+                memtoreg_mem_snapshot <= memtoreg_mem;
+                jump_mem_snapshot <= jump_mem;
+                
+                // KHÔNG CLEAR WB stage - để old instruction hoàn thành
+                // regwrite_mem_wb giữ nguyên
+                
+            end else if (mem_req_pending && !wb_done) begin
+                // ============================================================
+                // STATE 2: WRITEBACK → Apply snapshot to WB stage
+                // ============================================================
+                regwrite_mem_wb <= regwrite_mem_snapshot;
+                memtoreg_mem_wb <= memtoreg_mem_snapshot;
+                jump_mem_wb <= jump_mem_snapshot;
+                rd_mem_wb <= rd_mem_snapshot;
+                wb_done <= 1'b1;
+                
+            end else if (mem_req_pending && wb_done) begin
+                // ============================================================
+                // STATE 3: CLEAR → Reset FSM, transition to normal pipeline
+                // ============================================================
+                if (!stall) begin
+                    // Chỉ clear khi pipeline sẵn sàng advance
+                    mem_req_pending <= 1'b0;
+                    wb_done <= 1'b0;
+                    
+                    // Transition sang normal pipeline flow
+                    regwrite_mem_wb <= regwrite_mem;
+                    memtoreg_mem_wb <= memtoreg_mem;
+                    jump_mem_wb <= jump_mem;
+                    rd_mem_wb <= rd_mem;
+                end
+                // Nếu vẫn stall → giữ nguyên tất cả
+                
+            end else if (!stall && !mem_req_pending) begin
+                // ============================================================
+                // NORMAL PIPELINE ADVANCE
+                // ============================================================
+                regwrite_mem_wb <= regwrite_mem;
+                memtoreg_mem_wb <= memtoreg_mem;
+                jump_mem_wb <= jump_mem;
+                rd_mem_wb <= rd_mem;
+            end
+            // Nếu stall và không có FSM transition → giữ nguyên
         end
     end
-end
     assign regwrite_wb = regwrite_mem_wb;
     assign memtoreg_wb = memtoreg_mem_wb;
     assign jump_wb = jump_mem_wb;
