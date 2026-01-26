@@ -1,0 +1,297 @@
+$date
+	Mon Jan 26 09:14:15 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module tb_icache_axi_interface $end
+$var wire 32 ! M_AXI_ARADDR [31:0] $end
+$var wire 2 " M_AXI_ARBURST [1:0] $end
+$var wire 8 # M_AXI_ARLEN [7:0] $end
+$var wire 3 $ M_AXI_ARPROT [2:0] $end
+$var wire 3 % M_AXI_ARSIZE [2:0] $end
+$var wire 1 & M_AXI_ARVALID $end
+$var wire 1 ' M_AXI_RREADY $end
+$var wire 1 ( refill_busy $end
+$var wire 32 ) refill_data [31:0] $end
+$var wire 1 * refill_data_valid $end
+$var wire 1 + refill_done $end
+$var wire 2 , refill_word [1:0] $end
+$var reg 1 - M_AXI_ARREADY $end
+$var reg 32 . M_AXI_RDATA [31:0] $end
+$var reg 1 / M_AXI_RLAST $end
+$var reg 2 0 M_AXI_RRESP [1:0] $end
+$var reg 1 1 M_AXI_RVALID $end
+$var reg 32 2 ar_addr_latched [31:0] $end
+$var reg 8 3 ar_len_latched [7:0] $end
+$var reg 2 4 axi_state [1:0] $end
+$var reg 3 5 beat_counter [2:0] $end
+$var reg 1 6 clk $end
+$var integer 32 7 cycles [31:0] $end
+$var integer 32 8 end_time [31:0] $end
+$var integer 32 9 i [31:0] $end
+$var reg 32 : refill_addr [31:0] $end
+$var reg 1 ; refill_start $end
+$var reg 1 < rst_n $end
+$var integer 32 = start_time [31:0] $end
+$var integer 32 > word_count [31:0] $end
+$scope module dut $end
+$var wire 2 ? M_AXI_ARBURST [1:0] $end
+$var wire 8 @ M_AXI_ARLEN [7:0] $end
+$var wire 3 A M_AXI_ARPROT [2:0] $end
+$var wire 1 B M_AXI_ARREADY $end
+$var wire 3 C M_AXI_ARSIZE [2:0] $end
+$var wire 32 D M_AXI_RDATA [31:0] $end
+$var wire 1 E M_AXI_RLAST $end
+$var wire 2 F M_AXI_RRESP [1:0] $end
+$var wire 1 G M_AXI_RVALID $end
+$var wire 1 H clk $end
+$var wire 32 I refill_addr [31:0] $end
+$var wire 1 J refill_start $end
+$var wire 1 K rst_n $end
+$var reg 32 L M_AXI_ARADDR [31:0] $end
+$var reg 1 M M_AXI_ARVALID $end
+$var reg 1 N M_AXI_RREADY $end
+$var reg 1 O refill_busy $end
+$var reg 32 P refill_data [31:0] $end
+$var reg 1 Q refill_data_valid $end
+$var reg 1 R refill_done $end
+$var reg 2 S refill_word [1:0] $end
+$var reg 2 T state [1:0] $end
+$var reg 2 U word_counter [1:0] $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+b0 U
+b0 T
+b0 S
+0R
+0Q
+b0 P
+0O
+0N
+0M
+b0 L
+0K
+0J
+b0 I
+0H
+0G
+b0 F
+0E
+b0 D
+b10 C
+0B
+b0 A
+b11 @
+b1 ?
+bx >
+bx =
+0<
+0;
+b0 :
+b10000000000 9
+bx 8
+bx 7
+06
+b0 5
+b0 4
+b0 3
+b0 2
+01
+b0 0
+0/
+b0 .
+0-
+b0 ,
+0+
+0*
+b0 )
+0(
+0'
+0&
+b10 %
+b0 $
+b11 #
+b1 "
+b0 !
+$end
+#5000
+16
+1H
+#10000
+06
+0H
+#15000
+16
+1H
+#20000
+06
+0H
+1<
+1K
+#25000
+16
+1H
+#30000
+06
+0H
+1;
+1J
+b100000000 :
+b100000000 I
+#35000
+b1 T
+1O
+1(
+1M
+1&
+b100000000 L
+b100000000 !
+16
+1H
+#40000
+06
+0H
+b0 >
+0;
+0J
+#45000
+b1 4
+1-
+1B
+16
+1H
+#50000
+06
+0H
+#55000
+b10 T
+1N
+1'
+0M
+0&
+b10 4
+0-
+0B
+b11 3
+b100000000 2
+16
+1H
+#60000
+06
+0H
+#65000
+b10100000000000000000000001000000 .
+b10100000000000000000000001000000 D
+11
+1G
+16
+1H
+#70000
+06
+0H
+#75000
+b1 U
+1Q
+1*
+b10100000000000000000000001000000 P
+b10100000000000000000000001000000 )
+b1 5
+16
+1H
+#80000
+06
+0H
+#85000
+b10 5
+b10100000000000000000000001000001 .
+b10100000000000000000000001000001 D
+b10 U
+b1 S
+b1 ,
+1Q
+1*
+b1 >
+16
+1H
+#90000
+06
+0H
+#95000
+b11 U
+b10 S
+b10 ,
+b10100000000000000000000001000001 P
+b10100000000000000000000001000001 )
+1Q
+1*
+b11 5
+b10100000000000000000000001000010 .
+b10100000000000000000000001000010 D
+b10 >
+16
+1H
+#100000
+06
+0H
+#105000
+b100 5
+1/
+1E
+b10100000000000000000000001000011 .
+b10100000000000000000000001000011 D
+b0 U
+b11 S
+b11 ,
+b10100000000000000000000001000010 P
+b10100000000000000000000001000010 )
+1Q
+1*
+b11 >
+16
+1H
+#110000
+06
+0H
+#115000
+b0 T
+1R
+1+
+0O
+0(
+0N
+0'
+b1 U
+b0 S
+b0 ,
+b10100000000000000000000001000011 P
+b10100000000000000000000001000011 )
+1Q
+1*
+b0 4
+01
+0G
+0/
+0E
+b10100000000000000000000001000100 .
+b10100000000000000000000001000100 D
+b100 >
+16
+1H
+#120000
+06
+0H
+#125000
+0Q
+0*
+0R
+0+
+b101 >
+16
+1H
