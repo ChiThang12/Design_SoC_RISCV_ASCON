@@ -127,16 +127,16 @@ Khối memory **chuẩn AXI4 Full**, hỗ trợ burst – dùng cho ICache và D
 
 ### 4️⃣ riscv_cpu_core.v ✅ (CURRENT)
 
-👉 **Phiên bản hiện tại đang được sử dụng**
+👉 **Phiên bản hiện tại đang tạm được sử dụng**
 
 Kiến trúc:
 
 ```
 RISC-V Core
    ↓
-ICache / DCache
+ImemAccess / DmemAccess
    ↓
-AXI4 Full
+AXI4 Lite
    ↓
 Memory subsystem
 ```
@@ -144,11 +144,11 @@ Memory subsystem
 Đặc điểm:
 
 * RISC-V core chuẩn
-* Có ICache + DCache
-* Kết nối memory qua **AXI4 Full (burst)**
+* Có interface là ImemAccess và DmemAcess
+* Kết nối memory qua **AXI4 Lite**
 * Phù hợp cho nghiên cứu SoC và benchmark hiệu năng
 
-📌 Đây là **hướng phát triển chính của project**.
+📌 Đây là **hướng phát triển học thuật của project**.
 
 ---
 
