@@ -1,25 +1,25 @@
 // ============================================================================
-// Module: icache_top
+// Module: dcache_top
 // ============================================================================
 // Description:
-//   Top-level instruction cache integration with AXI4 Full interface
-//   Connects all sub-modules together
+//   Data cache with write-through policy and AXI4 Full interface
+//   Simpler than icache - optimized for RISC-V load/store operations
 //
 // Author: ChiThang
-// Version: AXI4 Full Support
+// Version: 1.0 - Write-through, direct-mapped
 // ============================================================================
 
-`include "cache/icache_defines.vh"
-`include "cache/icache_tag_array.v"
-`include "cache/icache_data_array.v"
-`include "cache/icache_axi_interface.v"
-`include "cache/icache_controller.v"
+`include "dcache_defines.vh"
+`include "dcache_tag_array.v"
+`include "dcache_data_array.v"
+`include "dcache_axi_interface.v"
+`include "dcache_controller.v"
 
-module icache_top #(
-    parameter CACHE_SIZE = `ICACHE_SIZE,
-    parameter LINE_SIZE  = `ICACHE_LINE_SIZE,
-    parameter ADDR_WIDTH = `ICACHE_ADDR_WIDTH,
-    parameter DATA_WIDTH = `ICACHE_DATA_WIDTH
+module dcache_top #(
+    parameter CACHE_SIZE = `DCACHE_SIZE,      // 8KB
+    parameter LINE_SIZE  = `DCACHE_LINE_SIZE, // 16 bytes (4 words)
+    parameter ADDR_WIDTH = `DCACHE_ADDR_WIDTH,
+    parameter DATA_WIDTH = `DCACHE_DATA_WIDTH
 )(
     input wire clk,
     input wire rst_n,
@@ -27,22 +27,25 @@ module icache_top #(
     // ========================================================================
     // CPU Interface
     // ========================================================================
-    input wire [ADDR_WIDTH-1:0] cpu_addr,
-    input wire                  cpu_req,
+    input wire [ADDR_WIDTH-1:0]  cpu_addr,
+    input wire [DATA_WIDTH-1:0]  cpu_wdata,
+    input wire [3:0]             cpu_wstrb,    // Byte enable
+    input wire                   cpu_req,
+    input wire                   cpu_we,       // Write enable
     output wire [DATA_WIDTH-1:0] cpu_rdata,
     output wire                  cpu_ready,
     
-    // Branch/Jump flush
-    input wire                  flush,
+    // Fence/Flush
+    input wire                   fence,
     
     // ========================================================================
-    // Memory Interface (AXI4 Full - Read Only)
+    // Memory Interface (AXI4 Full)
     // ========================================================================
     // AR Channel (Address Read)
     output wire [ADDR_WIDTH-1:0] mem_araddr,
-    output wire [7:0]            mem_arlen,     // Burst length
-    output wire [2:0]            mem_arsize,    // Transfer size
-    output wire [1:0]            mem_arburst,   // Burst type
+    output wire [7:0]            mem_arlen,
+    output wire [2:0]            mem_arsize,
+    output wire [1:0]            mem_arburst,
     output wire [2:0]            mem_arprot,
     output wire                  mem_arvalid,
     input wire                   mem_arready,
@@ -50,14 +53,11 @@ module icache_top #(
     // R Channel (Read Data)
     input wire [DATA_WIDTH-1:0]  mem_rdata,
     input wire [1:0]             mem_rresp,
-    input wire                   mem_rlast,     // Last transfer in burst
+    input wire                   mem_rlast,
     input wire                   mem_rvalid,
     output wire                  mem_rready,
     
-    // ========================================================================
-    // Unused Write Channels (tied off for read-only cache)
-    // ========================================================================
-    // AW Channel
+    // AW Channel (Address Write)
     output wire [ADDR_WIDTH-1:0] mem_awaddr,
     output wire [7:0]            mem_awlen,
     output wire [2:0]            mem_awsize,
@@ -66,14 +66,14 @@ module icache_top #(
     output wire                  mem_awvalid,
     input wire                   mem_awready,
     
-    // W Channel
+    // W Channel (Write Data)
     output wire [DATA_WIDTH-1:0] mem_wdata,
     output wire [3:0]            mem_wstrb,
     output wire                  mem_wlast,
     output wire                  mem_wvalid,
     input wire                   mem_wready,
     
-    // B Channel
+    // B Channel (Write Response)
     input wire [1:0]             mem_bresp,
     input wire                   mem_bvalid,
     output wire                  mem_bready,
@@ -82,24 +82,10 @@ module icache_top #(
     // Statistics (optional debug)
     // ========================================================================
     output wire [31:0] stat_hits,
-    output wire [31:0] stat_misses
+    output wire [31:0] stat_misses,
+    output wire [31:0] stat_writes
 );
 
-    // ========================================================================
-    // Tie off unused write channels (read-only cache)
-    // ========================================================================
-    assign mem_awaddr  = 32'h0;
-    assign mem_awlen   = 8'h0;
-    assign mem_awsize  = 3'b000;
-    assign mem_awburst = 2'b00;
-    assign mem_awprot  = 3'b000;
-    assign mem_awvalid = 1'b0;
-    assign mem_wdata   = 32'h0;
-    assign mem_wstrb   = 4'h0;
-    assign mem_wlast   = 1'b0;
-    assign mem_wvalid  = 1'b0;
-    assign mem_bready  = 1'b0;
-    
     // ========================================================================
     // Internal Signals
     // ========================================================================
@@ -121,8 +107,9 @@ module icache_top #(
     wire [5:0]  data_write_index;
     wire [1:0]  data_write_offset;
     wire [31:0] data_write_data;
+    wire [3:0]  data_write_strb;
     
-    // AXI Refill
+    // AXI Refill (Read)
     wire [31:0] refill_addr;
     wire        refill_start;
     wire        refill_busy;
@@ -131,12 +118,20 @@ module icache_top #(
     wire [1:0]  refill_word;
     wire        refill_data_valid;
     
+    // AXI Write-through
+    wire [31:0] wt_addr;
+    wire [31:0] wt_data;
+    wire [3:0]  wt_strb;
+    wire        wt_start;
+    wire        wt_busy;
+    wire        wt_done;
+    
     // ========================================================================
     // Sub-Module Instances
     // ========================================================================
     
     // Tag Array
-    icache_tag_array tag_array_inst (
+    dcache_tag_array tag_array_inst (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -152,7 +147,7 @@ module icache_top #(
     );
     
     // Data Array
-    icache_data_array data_array_inst (
+    dcache_data_array data_array_inst (
         .clk(clk),
         .rst_n(rst_n),
         
@@ -163,14 +158,16 @@ module icache_top #(
         .write_enable(data_write_enable),
         .write_index(data_write_index),
         .write_offset(data_write_offset),
-        .write_data(data_write_data)
+        .write_data(data_write_data),
+        .write_strb(data_write_strb)
     );
     
-    // AXI4 Interface
-    icache_axi_interface axi_interface_inst (
+    // AXI4 Interface (Read + Write)
+    dcache_axi_interface axi_interface_inst (
         .clk(clk),
         .rst_n(rst_n),
         
+        // Read refill
         .refill_addr(refill_addr),
         .refill_start(refill_start),
         .refill_busy(refill_busy),
@@ -179,6 +176,15 @@ module icache_top #(
         .refill_word(refill_word),
         .refill_data_valid(refill_data_valid),
         
+        // Write-through
+        .wt_addr(wt_addr),
+        .wt_data(wt_data),
+        .wt_strb(wt_strb),
+        .wt_start(wt_start),
+        .wt_busy(wt_busy),
+        .wt_done(wt_done),
+        
+        // AXI4 Full interface
         .M_AXI_ARADDR(mem_araddr),
         .M_AXI_ARLEN(mem_arlen),
         .M_AXI_ARSIZE(mem_arsize),
@@ -191,19 +197,40 @@ module icache_top #(
         .M_AXI_RRESP(mem_rresp),
         .M_AXI_RLAST(mem_rlast),
         .M_AXI_RVALID(mem_rvalid),
-        .M_AXI_RREADY(mem_rready)
+        .M_AXI_RREADY(mem_rready),
+        
+        .M_AXI_AWADDR(mem_awaddr),
+        .M_AXI_AWLEN(mem_awlen),
+        .M_AXI_AWSIZE(mem_awsize),
+        .M_AXI_AWBURST(mem_awburst),
+        .M_AXI_AWPROT(mem_awprot),
+        .M_AXI_AWVALID(mem_awvalid),
+        .M_AXI_AWREADY(mem_awready),
+        
+        .M_AXI_WDATA(mem_wdata),
+        .M_AXI_WSTRB(mem_wstrb),
+        .M_AXI_WLAST(mem_wlast),
+        .M_AXI_WVALID(mem_wvalid),
+        .M_AXI_WREADY(mem_wready),
+        
+        .M_AXI_BRESP(mem_bresp),
+        .M_AXI_BVALID(mem_bvalid),
+        .M_AXI_BREADY(mem_bready)
     );
     
     // Controller
-    icache_controller controller_inst (
+    dcache_controller controller_inst (
         .clk(clk),
         .rst_n(rst_n),
         
         .cpu_addr(cpu_addr),
+        .cpu_wdata(cpu_wdata),
+        .cpu_wstrb(cpu_wstrb),
         .cpu_req(cpu_req),
+        .cpu_we(cpu_we),
         .cpu_rdata(cpu_rdata),
         .cpu_ready(cpu_ready),
-        .flush(flush),
+        .fence(fence),
         
         .tag_lookup_index(tag_lookup_index),
         .tag_lookup_tag(tag_lookup_tag),
@@ -220,6 +247,7 @@ module icache_top #(
         .data_write_index(data_write_index),
         .data_write_offset(data_write_offset),
         .data_write_data(data_write_data),
+        .data_write_strb(data_write_strb),
         
         .refill_addr(refill_addr),
         .refill_start(refill_start),
@@ -229,8 +257,16 @@ module icache_top #(
         .refill_word(refill_word),
         .refill_data_valid(refill_data_valid),
         
+        .wt_addr(wt_addr),
+        .wt_data(wt_data),
+        .wt_strb(wt_strb),
+        .wt_start(wt_start),
+        .wt_busy(wt_busy),
+        .wt_done(wt_done),
+        
         .stat_hits(stat_hits),
-        .stat_misses(stat_misses)
+        .stat_misses(stat_misses),
+        .stat_writes(stat_writes)
     );
 
 endmodule

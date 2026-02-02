@@ -1,16 +1,15 @@
 // ============================================================================
-// Module: icache_controller
+// Module: icache_controller (COMPLETELY FIXED - V2)
 // ============================================================================
 // Description:
 //   Main cache controller with state machine
-//   - Handles lookup, miss detection, refill coordination
-//   - Interfaces with tag array, data array, and AXI interface
+//   CRITICAL FIX: cpu_ready và cpu_rdata phải là COMBINATIONAL cho cache HIT
+//   để có response ngay trong cùng clock cycle
 //
-// Author: ChiThang
+// Author: ChiThang (Fixed by Claude - V2)
 // ============================================================================
 
-`include "cache/icache_defines.vh"
-
+`include "icache_defines.vh"
 module icache_controller (
     input wire clk,
     input wire rst_n,
@@ -18,8 +17,8 @@ module icache_controller (
     // CPU Interface
     input wire [31:0] cpu_addr,
     input wire        cpu_req,
-    output reg [31:0] cpu_rdata,
-    output reg        cpu_ready,
+    output wire [31:0] cpu_rdata,      
+    output wire        cpu_ready,    
     input wire        flush,
     
     // Tag Array Interface
@@ -85,8 +84,8 @@ module icache_controller (
     // Refill tracking
     reg [5:0]  refill_index;
     reg [21:0] refill_tag;
-    reg [1:0]  requested_offset;  // Which word CPU originally requested
-    reg [31:0] requested_data;    // Save the requested word
+    reg [1:0]  requested_offset;
+    reg [31:0] requested_data;
     reg        requested_data_ready;
     
     // ========================================================================
@@ -119,7 +118,7 @@ module icache_controller (
                 if (!cpu_req) begin
                     next_state = `ICACHE_STATE_IDLE;
                 end else if (tag_hit) begin
-                    // Hit - back to IDLE
+                    // Hit - go back to IDLE
                     next_state = `ICACHE_STATE_IDLE;
                 end else begin
                     // Miss - start refill
@@ -145,12 +144,51 @@ module icache_controller (
     end
     
     // ========================================================================
-    // State Machine - Output Logic
+    // ✅ CRITICAL FIX: COMBINATIONAL OUTPUT for CPU Interface
+    // ========================================================================
+    // Cache HIT must respond in the SAME cycle (combinational logic)
+    // Cache MISS completion can use registered data
+    
+    reg        cpu_ready_int;
+    reg [31:0] cpu_rdata_int;
+    
+    always @(*) begin
+        cpu_ready_int = 1'b0;
+        cpu_rdata_int = 32'h0;
+        
+        case (state)
+            `ICACHE_STATE_COMPARE: begin
+                // ✅ CACHE HIT: Immediate combinational response
+                if (tag_hit && cpu_req) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = data_read_data;
+                end
+            end
+            
+            `ICACHE_STATE_REFILL: begin
+                // CACHE MISS: Response when refill completes
+                if (refill_done) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = requested_data;
+                end
+            end
+            
+            default: begin
+                cpu_ready_int = 1'b0;
+                cpu_rdata_int = 32'h0;
+            end
+        endcase
+    end
+    
+    // Direct assignment to output (COMBINATIONAL)
+    assign cpu_ready = cpu_ready_int;
+    assign cpu_rdata = cpu_rdata_int;
+    
+    // ========================================================================
+    // State Machine - Sequential Output Logic
     // ========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            cpu_ready           <= 1'b0;
-            cpu_rdata           <= 32'h0;
             refill_addr         <= 32'h0;
             refill_start        <= 1'b0;
             refill_index        <= 6'h0;
@@ -170,32 +208,39 @@ module icache_controller (
             stat_misses         <= 32'h0;
             
         end else begin
+            // ================================================================
             // Default: clear one-shot signals
-            cpu_ready         <= 1'b0;
+            // ================================================================
             refill_start      <= 1'b0;
             tag_update_valid  <= 1'b0;
             tag_flush_all     <= 1'b0;
             data_write_enable <= 1'b0;
             
+            // ================================================================
             // Handle flush
+            // ================================================================
             if (flush) begin
                 tag_flush_all <= 1'b1;
             end
             
+            // ================================================================
+            // State Machine Output
+            // ================================================================
             case (state)
                 `ICACHE_STATE_IDLE: begin
                     requested_data_ready <= 1'b0;
                 end
                 
                 `ICACHE_STATE_COMPARE: begin
-                    if (tag_hit) begin
-                        // ✅ CACHE HIT
-                        cpu_rdata <= data_read_data;
-                        cpu_ready <= 1'b1;
+                    if (tag_hit && cpu_req) begin
+                        // ✅ CACHE HIT - Update statistics only
                         stat_hits <= stat_hits + 1;
-                    end else if (cpu_req) begin
+                        // cpu_rdata and cpu_ready are handled by combinational logic above
+                    end
+                    
+                    if (!tag_hit && cpu_req) begin
                         // ❌ CACHE MISS - Prepare refill
-                        refill_addr      <= {cpu_addr[31:4], 4'b0000};  // Align to line
+                        refill_addr      <= {cpu_addr[31:4], 4'b0000};
                         refill_index     <= addr_index;
                         refill_tag       <= addr_tag;
                         requested_offset <= addr_offset;
@@ -230,9 +275,7 @@ module icache_controller (
                         tag_update_index <= refill_index;
                         tag_update_tag   <= refill_tag;
                         
-                        // Return data to CPU
-                        cpu_rdata <= requested_data;
-                        cpu_ready <= 1'b1;
+                        // cpu_rdata and cpu_ready are handled by combinational logic above
                     end
                 end
             endcase

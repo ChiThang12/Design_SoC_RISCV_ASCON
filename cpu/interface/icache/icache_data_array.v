@@ -17,7 +17,7 @@ module icache_data_array (
     input wire rst_n,
     
     // Read Interface
-    input wire [5:0]  read_index,       // Cache line index
+    input wire [5:0]  read_index,       // Cache line index 
     input wire [1:0]  read_offset,      // Word offset within line
     output wire [31:0] read_data,       // Read data output
     

@@ -70,9 +70,8 @@ module tb_icache_axi_interface;
     // Simulated Memory
     // ========================================================================
     reg [31:0] memory [0:1023];
-     integer i;
+    integer i;
     initial begin
-       
         for (i = 0; i < 1024; i = i + 1) begin
             memory[i] = 32'hA000_0000 + i;
         end
@@ -87,12 +86,13 @@ module tb_icache_axi_interface;
     end
     
     // ========================================================================
-    // AXI4 Slave Model (with Burst Support)
+    // AXI4 Slave Model (with Burst Support) - COMPLETELY FIXED
     // ========================================================================
     reg [31:0] ar_addr_latched;
     reg [7:0]  ar_len_latched;
-    reg [2:0]  beat_counter;
+    reg [7:0]  beat_counter;
     reg [1:0]  axi_state;
+    reg        data_sent;  // Track if data was sent this cycle
     
     localparam AXI_IDLE = 2'b00;
     localparam AXI_AR   = 2'b01;
@@ -107,14 +107,16 @@ module tb_icache_axi_interface;
             M_AXI_RLAST     <= 1'b0;
             ar_addr_latched <= 32'h0;
             ar_len_latched  <= 8'h0;
-            beat_counter    <= 0;
+            beat_counter    <= 8'h0;
             axi_state       <= AXI_IDLE;
+            data_sent       <= 1'b0;
         end else begin
             case (axi_state)
                 AXI_IDLE: begin
                     M_AXI_ARREADY <= 1'b0;
                     M_AXI_RVALID  <= 1'b0;
                     M_AXI_RLAST   <= 1'b0;
+                    data_sent     <= 1'b0;
                     
                     if (M_AXI_ARVALID) begin
                         M_AXI_ARREADY <= 1'b1;
@@ -127,35 +129,44 @@ module tb_icache_axi_interface;
                         // Latch address and burst info
                         ar_addr_latched <= M_AXI_ARADDR;
                         ar_len_latched  <= M_AXI_ARLEN;
-                        beat_counter    <= 0;
+                        beat_counter    <= 8'h0;
                         M_AXI_ARREADY   <= 1'b0;
                         axi_state       <= AXI_R;
+                        data_sent       <= 1'b0;
+                        // Don't send data yet - wait for next cycle
+                        M_AXI_RVALID    <= 1'b0;
                     end
                 end
                 
                 AXI_R: begin
-                    // Provide data
-                    M_AXI_RVALID <= 1'b1;
-                    M_AXI_RDATA  <= memory[(ar_addr_latched[11:2] + beat_counter)];
-                    M_AXI_RRESP  <= 2'b00; // OKAY
-                    
-                    // Check if last beat
-                    if (beat_counter == ar_len_latched) begin
-                        M_AXI_RLAST <= 1'b1;
-                    end else begin
-                        M_AXI_RLAST <= 1'b0;
-                    end
-                    
-                    // Wait for ready
-                    if (M_AXI_RREADY && M_AXI_RVALID) begin
-                        if (M_AXI_RLAST) begin
-                            // Burst complete
-                            M_AXI_RVALID <= 1'b0;
-                            M_AXI_RLAST  <= 1'b0;
-                            axi_state    <= AXI_IDLE;
+                    // Send data when master is ready
+                    if (M_AXI_RREADY) begin
+                        if (!data_sent) begin
+                            // Prepare new data
+                            M_AXI_RVALID <= 1'b1;
+                            M_AXI_RDATA  <= memory[(ar_addr_latched[11:2] + beat_counter)];
+                            M_AXI_RRESP  <= 2'b00; // OKAY
+                            M_AXI_RLAST  <= (beat_counter == ar_len_latched);
+                            data_sent    <= 1'b1;
                         end else begin
-                            // Continue burst
-                            beat_counter <= beat_counter + 1;
+                            // Data was sent, move to next beat
+                            if (M_AXI_RLAST) begin
+                                // Burst complete
+                                M_AXI_RVALID <= 1'b0;
+                                M_AXI_RLAST  <= 1'b0;
+                                axi_state    <= AXI_IDLE;
+                                data_sent    <= 1'b0;
+                            end else begin
+                                // Continue burst
+                                beat_counter <= beat_counter + 1;
+                                data_sent    <= 1'b0;
+                                M_AXI_RVALID <= 1'b0;
+                            end
+                        end
+                    end else begin
+                        // Master not ready, keep data valid
+                        if (data_sent) begin
+                            M_AXI_RVALID <= 1'b1;
                         end
                     end
                 end
@@ -339,7 +350,6 @@ module tb_icache_axi_interface;
         // TEST 6: Burst efficiency measurement
         // ====================================================================
         $display("\n[TEST 6] Measure burst efficiency");
-        
         
         start_time = $time;
         refill_addr = 32'h0000_0600;

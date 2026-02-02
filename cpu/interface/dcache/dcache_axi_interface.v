@@ -7,10 +7,10 @@
 //   - Uses ARLEN=3 for 4-beat INCR burst
 //
 // Author: ChiThang
-// Version: AXI4 Full
+// Version: AXI4 Full - Fixed
 // ============================================================================
 
-`include "icache_defines.vh"
+`include "dcache_defines.vh"
 
 module icache_axi_interface (
     input wire clk,
@@ -57,23 +57,24 @@ module icache_axi_interface (
     localparam [1:0]
         REFILL_IDLE = 2'b00,
         REFILL_AR   = 2'b01,
-        REFILL_R    = 2'b10;
+        REFILL_R    = 2'b10,
+        REFILL_DONE = 2'b11;
     
     reg [1:0] state;
     reg [1:0] word_counter;
     
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            state            <= REFILL_IDLE;
-            refill_busy      <= 1'b0;
-            refill_done      <= 1'b0;
+            state             <= REFILL_IDLE;
+            refill_busy       <= 1'b0;
+            refill_done       <= 1'b0;
             refill_data_valid <= 1'b0;
-            refill_data      <= 32'h0;
-            refill_word      <= 2'b00;
-            word_counter     <= 2'b00;
-            M_AXI_ARADDR     <= 32'h0;
-            M_AXI_ARVALID    <= 1'b0;
-            M_AXI_RREADY     <= 1'b0;
+            refill_data       <= 32'h0;
+            refill_word       <= 2'b00;
+            word_counter      <= 2'b00;
+            M_AXI_ARADDR      <= 32'h0;
+            M_AXI_ARVALID     <= 1'b0;
+            M_AXI_RREADY      <= 1'b0;
             
         end else begin
             // Default: clear one-shot signals
@@ -82,19 +83,23 @@ module icache_axi_interface (
             
             case (state)
                 REFILL_IDLE: begin
+                    refill_busy   <= 1'b0;
+                    M_AXI_ARVALID <= 1'b0;
+                    M_AXI_RREADY  <= 1'b0;
+                    word_counter  <= 2'b00;
+                    
                     if (refill_start) begin
                         // Start burst refill
                         M_AXI_ARADDR  <= refill_addr;
                         M_AXI_ARVALID <= 1'b1;
                         refill_busy   <= 1'b1;
-                        word_counter  <= 2'b00;
                         state         <= REFILL_AR;
                     end
                 end
                 
                 REFILL_AR: begin
                     // Wait for address handshake
-                    if (M_AXI_ARREADY) begin
+                    if (M_AXI_ARREADY && M_AXI_ARVALID) begin
                         M_AXI_ARVALID <= 1'b0;
                         M_AXI_RREADY  <= 1'b1;
                         state         <= REFILL_R;
@@ -112,11 +117,15 @@ module icache_axi_interface (
                         // Check for last beat (using RLAST)
                         if (M_AXI_RLAST) begin
                             M_AXI_RREADY  <= 1'b0;
-                            refill_busy   <= 1'b0;
-                            refill_done   <= 1'b1;
-                            state         <= REFILL_IDLE;
+                            state         <= REFILL_DONE;
                         end
                     end
+                end
+                
+                REFILL_DONE: begin
+                    refill_done <= 1'b1;
+                    refill_busy <= 1'b0;
+                    state       <= REFILL_IDLE;
                 end
                 
                 default: state <= REFILL_IDLE;
