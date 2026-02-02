@@ -7,7 +7,8 @@
 // ============================================================================
 
 `timescale 1ns/1ps
-
+`include "icache_defines.vh"
+`include "icache_top.v"
 module tb_icache_top;
 
     // Clock and Reset
@@ -119,9 +120,9 @@ module tb_icache_top;
     // Memory Model (4KB)
     // ========================================================================
     reg [31:0] main_memory [0:1023];
-    
+    integer i;
     initial begin
-        integer i;
+        
         for (i = 0; i < 1024; i = i + 1) begin
             main_memory[i] = 32'h00000013 + (i << 4); // addi instructions
         end
@@ -219,7 +220,14 @@ module tb_icache_top;
             $display("  [READ] Addr: 0x%08h -> Data: 0x%08h", addr, cpu_rdata);
         end
     endtask
-    
+
+    initial begin
+        $dumpfile("tb_top.vcd");
+        $dumpvars(0, tb_icache_top);
+    end
+
+    integer ar_count = 0;
+    integer burst_count = 0;
     // ========================================================================
     // Test Stimulus
     // ========================================================================
@@ -376,7 +384,7 @@ module tb_icache_top;
         flush = 0;
         #20;
         
-        integer burst_count = 0;
+        
         
         // Monitor AR channel
         fork
@@ -388,7 +396,7 @@ module tb_icache_top;
             end
             
             begin
-                integer ar_count = 0;
+                
                 repeat (20) begin
                     @(posedge clk);
                     if (mem_arvalid && mem_arready) begin
@@ -453,5 +461,6 @@ module tb_icache_top;
         $display("\n[ERROR] Test timeout!");
         $finish;
     end
-
+    
+    
 endmodule

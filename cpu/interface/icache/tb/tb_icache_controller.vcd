@@ -1,0 +1,241 @@
+$date
+	Wed Jan 28 07:42:39 2026
+$end
+$version
+	Icarus Verilog
+$end
+$timescale
+	1ps
+$end
+$scope module tb_icache_controller $end
+$var wire 32 ! cpu_rdata [31:0] $end
+$var wire 1 " cpu_ready $end
+$var wire 8 # data_addr [7:0] $end
+$var wire 6 $ data_read_index [5:0] $end
+$var wire 2 % data_read_offset [1:0] $end
+$var wire 32 & data_write_data [31:0] $end
+$var wire 1 ' data_write_enable $end
+$var wire 6 ( data_write_index [5:0] $end
+$var wire 2 ) data_write_offset [1:0] $end
+$var wire 32 * refill_addr [31:0] $end
+$var wire 1 + refill_start $end
+$var wire 32 , stat_hits [31:0] $end
+$var wire 32 - stat_misses [31:0] $end
+$var wire 1 . tag_flush_all $end
+$var wire 6 / tag_lookup_index [5:0] $end
+$var wire 22 0 tag_lookup_tag [21:0] $end
+$var wire 6 1 tag_update_index [5:0] $end
+$var wire 22 2 tag_update_tag [21:0] $end
+$var wire 1 3 tag_update_valid $end
+$var integer 32 4 beat_count [31:0] $end
+$var reg 1 5 clk $end
+$var reg 32 6 cpu_addr [31:0] $end
+$var reg 1 7 cpu_req $end
+$var reg 32 8 data_read_data [31:0] $end
+$var reg 1 9 flush $end
+$var integer 32 : i [31:0] $end
+$var integer 32 ; j [31:0] $end
+$var reg 32 < refill_base_addr [31:0] $end
+$var reg 1 = refill_busy $end
+$var reg 2 > refill_cnt [1:0] $end
+$var reg 32 ? refill_data [31:0] $end
+$var reg 1 @ refill_data_valid $end
+$var reg 1 A refill_done $end
+$var reg 3 B refill_state [2:0] $end
+$var reg 2 C refill_word [1:0] $end
+$var reg 1 D rst_n $end
+$var reg 1 E tag_hit $end
+$scope module dut $end
+$var wire 6 F addr_index [5:0] $end
+$var wire 2 G addr_offset [1:0] $end
+$var wire 22 H addr_tag [21:0] $end
+$var wire 1 I clk $end
+$var wire 32 J cpu_addr [31:0] $end
+$var wire 1 K cpu_req $end
+$var wire 32 L data_read_data [31:0] $end
+$var wire 6 M data_read_index [5:0] $end
+$var wire 2 N data_read_offset [1:0] $end
+$var wire 1 O flush $end
+$var wire 1 P refill_busy $end
+$var wire 32 Q refill_data [31:0] $end
+$var wire 1 R refill_data_valid $end
+$var wire 1 S refill_done $end
+$var wire 2 T refill_word [1:0] $end
+$var wire 1 U rst_n $end
+$var wire 1 V tag_hit $end
+$var wire 6 W tag_lookup_index [5:0] $end
+$var wire 22 X tag_lookup_tag [21:0] $end
+$var reg 32 Y cpu_rdata [31:0] $end
+$var reg 32 Z cpu_rdata_comb [31:0] $end
+$var reg 1 [ cpu_ready $end
+$var reg 1 \ cpu_ready_comb $end
+$var reg 32 ] data_write_data [31:0] $end
+$var reg 1 ^ data_write_enable $end
+$var reg 6 _ data_write_index [5:0] $end
+$var reg 2 ` data_write_offset [1:0] $end
+$var reg 3 a next_state [2:0] $end
+$var reg 32 b refill_addr [31:0] $end
+$var reg 6 c refill_index [5:0] $end
+$var reg 1 d refill_start $end
+$var reg 22 e refill_tag [21:0] $end
+$var reg 32 f requested_data [31:0] $end
+$var reg 1 g requested_data_ready $end
+$var reg 2 h requested_offset [1:0] $end
+$var reg 32 i stat_hits [31:0] $end
+$var reg 32 j stat_misses [31:0] $end
+$var reg 3 k state [2:0] $end
+$var reg 1 l tag_flush_all $end
+$var reg 6 m tag_update_index [5:0] $end
+$var reg 22 n tag_update_tag [21:0] $end
+$var reg 1 o tag_update_valid $end
+$upscope $end
+$scope task cpu_read $end
+$var reg 32 p addr [31:0] $end
+$var reg 1 q expect_hit $end
+$upscope $end
+$upscope $end
+$enddefinitions $end
+#0
+$dumpvars
+xq
+bx p
+0o
+b0 n
+b0 m
+0l
+b0 k
+b0 j
+b0 i
+b0 h
+0g
+b0 f
+b0 e
+0d
+b0 c
+b0 b
+b0 a
+b0 `
+b0 _
+0^
+b0 ]
+0\
+0[
+b0 Z
+b0 Y
+b0 X
+b0 W
+0V
+0U
+b0 T
+0S
+0R
+b0 Q
+0P
+0O
+b0 N
+b0 M
+b11010000000000000000000000000000 L
+0K
+b0 J
+0I
+b0 H
+b0 G
+b0 F
+0E
+0D
+b0 C
+b0 B
+0A
+0@
+b0 ?
+b0 >
+0=
+b0 <
+b10000000000 ;
+b100000000 :
+09
+b11010000000000000000000000000000 8
+07
+b0 6
+05
+b0 4
+03
+b0 2
+b0 1
+b0 0
+b0 /
+0.
+b0 -
+b0 ,
+0+
+b0 *
+b0 )
+b0 (
+0'
+b0 &
+b0 %
+b0 $
+b0 #
+0"
+b0 !
+$end
+#5000
+15
+1I
+#10000
+05
+0I
+#15000
+15
+1I
+#20000
+05
+0I
+1D
+1U
+#25000
+15
+1I
+#30000
+b11010000000000000000000001010000 8
+b11010000000000000000000001010000 L
+b1 a
+b10100 F
+b1010000 #
+b10100 $
+b10100 M
+b10100 /
+b10100 W
+05
+0I
+1E
+1V
+17
+1K
+b101000000 6
+b101000000 J
+1q
+b101000000 p
+#35000
+b11010000000000000000000001010000 Z
+1\
+b0 a
+b1 k
+15
+1I
+#40000
+05
+0I
+#45000
+b0 Z
+0\
+b1 a
+b1 i
+b1 ,
+b11010000000000000000000001010000 Y
+b11010000000000000000000001010000 !
+1[
+1"
+b0 k
+15
+1I
