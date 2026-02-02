@@ -1,8 +1,3 @@
-Ok, mình xem rồi 👍
-Nói ngắn gọn trước, rồi đi sâu từng ý cho rõ **“vấn đề hiện tại là gì”** và **tại sao kết luận của bạn là đúng**.
-
----
-
 ## 1️⃣ Vấn đề cốt lõi hiện tại (root problem)
 
 👉 **SoC của bạn đang chuẩn bị gắn Cache (ICache + DCache)**
