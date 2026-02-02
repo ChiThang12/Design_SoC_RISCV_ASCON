@@ -177,7 +177,7 @@ Memory subsystem
 | CPU/interface (AXI-Lite) | ❌ Deprecated | Đã thay bằng cache |
 | ICache / DCache          | ✅ Active     | Kiến trúc mới      |
 | Memory AXI4 Full         | ✅ Active     | Burst-capable      |
-| riscv_cpu_core           | ✅ Main       | CPU + Cache + AXI4 |
+| riscv_cpu_core           | ✅ Main (old)       | CPU + Memaccess + AXI4_lite |
 
 ---
 
