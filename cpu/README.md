@@ -11,32 +11,32 @@ Repository này chứa các phiên bản khác nhau của **RISC-V SoC** trong q
 ## Cấu trúc thư mục
 
 ```
-.
-├── CPU/
-│   ├── core/
-│   ├── dma/
-│   └── interface/
-│       ├── dcache/
-│       ├── icache/
-│       ├── tb/
-│       ├── axi4_lite_master_if.v
-│       ├── dmem_access_unit.v
-│       └── imem_access_unit.v
+CPU/
+├── core/
+├── dma/
+└── interface/
+│     ├── dcache/
+│     ├── icache/
+│     ├── tb/
+│     ├── axi4_lite_master_if.v
+│     ├── dmem_access_unit.v
+│     └── imem_access_unit.v
 │
 ├── memory/
-│   └── memory_axi4full/
-│       ├── data_mem_axi_slave.v
-│       ├── data_mem_burst.v
-│       ├── data_mem.v
-│       ├── inst_mem_axi_slave.v
-│       ├── inst_mem.v
-│       ├── MEMORY_UPGRADE_ANALYSIS.md
-│       ├── program.hex
-│       ├── tb_memory_axi_slaves.v
-│       ├── tb_memory_axi_slaves.vcd
-│       └── tb_memory_axi_slaves.vvp
+│   └──
+├── memory_axi4full/
+│     ├── data_mem_axi_slave.v
+│     ├── data_mem_burst.v
+│     ├── data_mem.v
+│     ├── inst_mem_axi_slave.v
+│     ├── inst_mem.v
+│     ├── MEMORY_UPGRADE_ANALYSIS.md
+│     ├── program.hex
+│     ├── tb_memory_axi_slaves.v
+│     ├── tb_memory_axi_slaves.vcd
+│     └── tb_memory_axi_slaves.vvp
 │
-├── riscv5stagedemo/
+├── riscv5stagedemo/           (RISCV architecture not SoC)
 │
 ├── riscv_core_axi.v          (LEGACY)
 ├── riscv_cpu_core.v          (UPDATED)
@@ -86,7 +86,7 @@ Bao gồm:
 
 ---
 
-### 2️⃣ memory/memory_axi4full/ ✅ (ACTIVE)
+### 2️⃣ memory_axi4full/ ✅ (ACTIVE)
 
 Khối memory **chuẩn AXI4 Full**, hỗ trợ burst – dùng cho ICache và DCache.
 
