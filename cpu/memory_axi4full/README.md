@@ -180,4 +180,5 @@ Bạn đã:
 > **Hệ thống của bạn đã sẵn sàng cho ICache, nhưng DCache đang bị bóp cổ bởi AXI4-Lite**
 
 ### Và cách giải quyết:
-
+* KHÔNG đụng inst_mem
+* CHỈ nâng cấp data_mem lên AXI4 Full
