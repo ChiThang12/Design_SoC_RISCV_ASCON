@@ -1,322 +1,188 @@
-# Memory Modules Analysis Report
-
-## Executive Summary
-
-**Kết luận**: CẦN upgrade 1 module và giữ nguyên 1 module:
-
-### ✅ **inst_mem_axi_slave.v** - SẴN SÀNG cho ICache!
-- Đã support **AXI4 Full** với burst read
-- Có burst interface hoàn chỉnh (ARLEN, ARSIZE, ARBURST, RLAST)
-- inst_mem.v đã có burst read state machine
-- **KHÔNG CẦN SỬA**
-
-### ❌ **data_mem_axi_slave.v** - CẦN UPGRADE lên AXI4 Full
-- Hiện tại chỉ support **AXI4-Lite** (single transfer)
-- Thiếu burst support (ARLEN, AWLEN, RLAST, WLAST)
-- data_mem.v không có burst interface
-- **CẦN UPGRADE** để DCache hoạt động tốt
+Ok, mình xem rồi 👍
+Nói ngắn gọn trước, rồi đi sâu từng ý cho rõ **“vấn đề hiện tại là gì”** và **tại sao kết luận của bạn là đúng**.
 
 ---
 
-## Detailed Analysis
+## 1️⃣ Vấn đề cốt lõi hiện tại (root problem)
 
-### 1. inst_mem_axi_slave.v ✅
+👉 **SoC của bạn đang chuẩn bị gắn Cache (ICache + DCache)**
+👉 **Cache ≠ AXI4-Lite**
+👉 **Cache bắt buộc phải dùng burst**
 
-#### Current Status: READY FOR ICACHE
-
-**Ports đã có:**
-```verilog
-// Read Address Channel
-input [7:0]  S_AXI_ARLEN     ✅ Burst length
-input [2:0]  S_AXI_ARSIZE    ✅ Transfer size
-input [1:0]  S_AXI_ARBURST   ✅ Burst type
-
-// Read Data Channel  
-output       S_AXI_RLAST     ✅ Last transfer indicator
-
-// Write Channels
-// Properly tied off - returns SLVERR ✅
-```
-
-**Features:**
-- ✅ AXI4 Full burst read support
-- ✅ State machine handles burst transactions
-- ✅ inst_mem.v has burst interface with:
-  - burst_addr, burst_len, burst_req
-  - burst_data, burst_valid, burst_last, burst_ready
-- ✅ Read-only (write returns SLVERR)
-
-**Compatibility with ICache:**
-```
-ICache → inst_mem_axi_slave
-  ARADDR[31:0] → S_AXI_ARADDR[31:0]  ✅
-  ARLEN[7:0]   → S_AXI_ARLEN[7:0]    ✅
-  ARSIZE[2:0]  → S_AXI_ARSIZE[2:0]   ✅
-  ARBURST[1:0] → S_AXI_ARBURST[1:0]  ✅
-  RLAST        ← S_AXI_RLAST         ✅
-  
-Perfect match! 100% compatible!
-```
-
-**Verdict**: **NO CHANGES NEEDED** ✅
+Vấn đề **không nằm ở CPU**, mà nằm ở **memory subsystem + AXI slave**.
 
 ---
 
-### 2. data_mem_axi_slave.v ❌
+## 2️⃣ Vì sao inst_mem “ổn”, còn data_mem thì “chưa”?
 
-#### Current Status: NEEDS UPGRADE
+### 🔹 inst_mem (Instruction side) – KHÔNG CÓ VẤN ĐỀ ❌➡️✅
 
-**Current Interface: AXI4-Lite**
-```verilog
-// Missing AXI4 Full signals:
-❌ input [7:0]  S_AXI_ARLEN     // Not present
-❌ input [2:0]  S_AXI_ARSIZE    // Not present
-❌ input [1:0]  S_AXI_ARBURST   // Not present
-❌ output       S_AXI_RLAST     // Not present
+Bản chất truy cập instruction:
 
-❌ input [7:0]  S_AXI_AWLEN     // Not present
-❌ input [2:0]  S_AXI_AWSIZE    // Not present
-❌ input [1:0]  S_AXI_AWBURST   // Not present
-❌ output       S_AXI_WLAST     // Not present
-```
+* Chỉ **READ**
+* Thường **sequential**
+* Cache miss → **burst read nhiều word liên tiếp**
 
-**Current Behavior:**
-- Single transfer only (no burst)
-- State machine: IDLE → WAIT → RESP (one beat)
-- data_mem.v: Simple read/write, no burst interface
+👉 inst_mem của bạn:
 
-**Required Changes for DCache:**
+* Đã là **AXI4 Full**
+* Có **ARLEN / ARSIZE / ARBURST**
+* Có **RLAST**
+* inst_mem.v đã có **burst FSM**
 
-DCache needs burst support for efficient line fills:
-```
-Cache line = 16 bytes (4 words)
-→ Need 4-beat burst read
-→ Need burst write for write-through
-```
+📌 **Kết luận**
 
-**Impact Assessment:**
+> inst_mem đã được thiết kế *tư duy cache-aware* ngay từ đầu
+> → **ICache cắm vào là chạy liền**
 
-| Operation | Current (AXI4-Lite) | Needed (AXI4 Full) | Impact |
-|-----------|---------------------|-------------------|---------|
-| Read 4 words | 4 separate transactions | 1 burst (4 beats) | Critical |
-| Write 1 word | 1 transaction | 1 transaction | OK |
-| Write burst | N/A | 1 burst (optional) | Nice to have |
+👉 Không có bottleneck, không có architectural debt.
 
 ---
 
-## Upgrade Strategy for data_mem_axi_slave.v
+### 🔹 data_mem (Data side) – VẤN ĐỀ NẰM Ở ĐÂY ❌
 
-### Option 1: Full Upgrade (Recommended)
+Bản chất truy cập data:
 
-**Copy approach from inst_mem_axi_slave.v:**
+* Read miss → **burst read cache line**
+* Write → có thể:
 
-```verilog
-// 1. Add AXI4 Full ports
-input [7:0]  S_AXI_ARLEN,
-input [2:0]  S_AXI_ARSIZE,
-input [1:0]  S_AXI_ARBURST,
-output       S_AXI_RLAST,
+  * write-through (single write)
+  * write-back (burst write)
 
-input [7:0]  S_AXI_AWLEN,
-input [2:0]  S_AXI_AWSIZE,
-input [1:0]  S_AXI_AWBURST,
-input        S_AXI_WLAST,
+Nhưng hiện tại:
 
-// 2. Modify read state machine
-RD_IDLE → RD_BURST (similar to inst_mem)
+❌ `data_mem_axi_slave.v` = **AXI4-Lite**
 
-// 3. Modify write state machine  
-WR_IDLE → WR_ADDR → WR_BURST → WR_RESP
+* 1 request = 1 beat
+* Không có:
 
-// 4. Upgrade data_mem.v with burst interface
+  * ARLEN
+  * RLAST
+  * AWLEN
+  * WLAST
+
+❌ `data_mem.v`
+
+* Không hiểu khái niệm “burst”
+* Không biết cache line là gì
+
+📌 **Hệ quả trực tiếp**
+
+```
+DCache miss (4 words)
+→ cần 4 transaction AXI-Lite
+→ latency ×4
+→ cache mất ý nghĩa
 ```
 
-**Estimated effort**: 2-3 hours
-**Code reuse**: 70% from inst_mem_axi_slave.v
-**Benefits**: Full AXI4 Full support, efficient cache line fills
+👉 Đây là **architectural mismatch**, không phải bug nhỏ.
 
 ---
 
-### Option 2: Minimal Upgrade (Faster)
+## 3️⃣ Nếu KHÔNG upgrade data_mem thì chuyện gì xảy ra?
 
-**Keep AXI4-Lite for writes, add burst read only:**
+Rất quan trọng 👇
 
-```verilog
-// Only add read burst support
-input [7:0]  S_AXI_ARLEN,
-output       S_AXI_RLAST,
+### Trường hợp bạn vẫn cố gắn DCache:
 
-// Write stays single-transaction (OK for write-through)
-// No AWLEN, WLAST needed
-```
+* Cache controller yêu cầu:
 
-**Rationale:**
-- DCache read misses need burst (4 words)
-- DCache writes are single words (write-through)
-- Simpler implementation
+  ```
+  ARLEN = 3 (4 beats)
+  ```
+* Nhưng AXI slave:
 
-**Estimated effort**: 1 hour
-**Code reuse**: 80% from existing code
-**Benefits**: Faster implementation, sufficient for write-through cache
+  * không hiểu ARLEN
+  * không phát RLAST
 
----
+➡️ **Protocol violation**
+➡️ Sim có thể:
 
-## Recommended Implementation Plan
+* treo bus
+* hoặc cache FSM bị deadlock
+* hoặc phải downgrade cache thành “fake cache”
 
-### Step 1: Keep inst_mem_axi_slave.v AS-IS ✅
-No changes needed!
+📌 **Kết luận**
 
-### Step 2: Upgrade data_mem_axi_slave.v
-
-**Approach: Option 1 (Full Upgrade)** - More future-proof
-
-#### 2A. Upgrade data_mem.v first
-Add burst interface similar to inst_mem.v:
-
-```verilog
-module data_mem (
-    // ... existing ports ...
-    
-    // ADD: Burst read interface
-    input  [31:0] burst_rd_addr,
-    input  [7:0]  burst_rd_len,
-    input         burst_rd_req,
-    output [31:0] burst_rd_data,
-    output        burst_rd_valid,
-    output        burst_rd_last,
-    input         burst_rd_ready,
-    
-    // ADD: Burst write interface (optional)
-    input  [31:0] burst_wr_addr,
-    input  [7:0]  burst_wr_len,
-    input  [31:0] burst_wr_data,
-    input  [3:0]  burst_wr_strb,
-    input         burst_wr_valid,
-    output        burst_wr_ready,
-    input         burst_wr_last
-);
-```
-
-#### 2B. Upgrade data_mem_axi_slave.v
-Copy structure from inst_mem_axi_slave.v:
-
-```verilog
-// 1. Add all AXI4 Full ports (ARLEN, AWLEN, RLAST, WLAST, etc.)
-// 2. Add burst state machines (read + write)
-// 3. Connect to data_mem burst interface
-```
-
-**Files to create:**
-- `data_mem_axi4_slave.v` (new, based on inst_mem_axi_slave.v)
-- `data_mem_burst.v` (upgrade of data_mem.v)
+> DCache + AXI4-Lite = cache “giả”, không đúng kiến trúc
 
 ---
 
-## Compatibility Matrix
+## 4️⃣ Nhận định kiến trúc của bạn (rất quan trọng)
 
-| Component | ICache | DCache | Status |
-|-----------|--------|--------|--------|
-| **inst_mem_axi_slave.v** | ✅ Compatible | N/A | READY |
-| **inst_mem.v** | ✅ Has burst | N/A | READY |
-| **data_mem_axi_slave.v** | N/A | ❌ Lite only | NEEDS UPGRADE |
-| **data_mem.v** | N/A | ❌ No burst | NEEDS UPGRADE |
+Một câu đánh giá thẳng thắn:
 
----
+> **Thiết kế của bạn là đúng hướng SoC chuẩn (Harvard + Cache)**
+> Nhưng **data_mem đang tụt 1 thế hệ bus**
 
-## Testing Strategy
+### Kiến trúc hiện tại:
 
-### Phase 1: Verify inst_mem works with ICache
 ```
-1. Connect ICache to existing inst_mem_axi_slave
-2. Test single read (1 word)
-3. Test burst read (4 words for cache line)
-4. Verify RLAST signal
-5. Check hit/miss behavior
+        ICache → inst_mem → AXI4 Full → OK ✅
+CPU
+        DCache → data_mem → AXI4-Lite → ❌
 ```
 
-**Expected**: Works immediately! ✅
-
-### Phase 2: Test upgraded data_mem with DCache
-```
-1. Create data_mem_burst.v
-2. Create data_mem_axi4_slave.v
-3. Test single read/write
-4. Test burst read (4 words)
-5. Test write-through behavior
-6. Verify RLAST/WLAST signals
-```
-
-**Expected**: Works after upgrade
+👉 Bus **không đồng cấp**
+👉 Instruction path nhanh – Data path chậm
+👉 Benchmark sẽ lệch hoàn toàn
 
 ---
 
-## Code Reuse Calculation
+## 5️⃣ Option 1 vs Option 2 – hiểu đúng bản chất
 
-### For data_mem upgrade:
+### 🟢 Option 2 (Burst read only) – dùng được, NHƯNG…
 
-**From inst_mem.v → data_mem_burst.v:**
-- Burst read state machine: 100% reuse (~80 lines)
-- Memory array access: Modify for byte-enable (~20 lines new)
-- **Total: 90% reuse**
+* Phù hợp **write-through**
+* Nhanh để demo
+* Nhưng:
 
-**From inst_mem_axi_slave.v → data_mem_axi4_slave.v:**
-- Read channel logic: 90% reuse (~120 lines)
-- Write channel logic: Modify existing (~50 lines)
-- Burst management: 80% reuse (~40 lines)
-- **Total: 85% reuse**
+  * sau này muốn write-back → đập lại
+  * không đúng chuẩn AXI4 Full
 
-**Overall new code needed: ~100 lines**
+📌 Dùng cho **prototype / deadline gấp**
 
 ---
 
-## Summary Table
+### 🟢 Option 1 (Full upgrade) – chuẩn kiến trúc
 
-| Task | Status | Effort | Files |
-|------|--------|--------|-------|
-| inst_mem_axi_slave.v | ✅ Ready | 0 hours | None |
-| inst_mem.v | ✅ Ready | 0 hours | None |
-| data_mem.v → data_mem_burst.v | ⚠️ Need | 1 hour | 1 new |
-| data_mem_axi_slave.v → data_mem_axi4_slave.v | ⚠️ Need | 2 hours | 1 new |
-| **TOTAL** | | **3 hours** | **2 files** |
+* Read burst
+* Write burst
+* Đồng nhất với inst_mem
+* DCache đúng nghĩa
 
----
-
-## Next Steps
-
-### Immediate (Today):
-1. ✅ Keep inst_mem_axi_slave.v unchanged
-2. ⚠️ Create data_mem_burst.v (copy from inst_mem.v + add write burst)
-3. ⚠️ Create data_mem_axi4_slave.v (copy from inst_mem_axi_slave.v + add write)
-
-### Short-term (This week):
-4. Test ICache with existing inst_mem
-5. Test DCache with upgraded data_mem
-6. Integration into SOC
-7. Benchmark performance
-
-### Files Needed:
-
-**Already have** (no changes):
-- inst_mem.v ✅
-- inst_mem_axi_slave.v ✅
-
-**Need to create**:
-- data_mem_burst.v ⚠️
-- data_mem_axi4_slave.v ⚠️
+📌 Đây là lựa chọn **đúng cho SoC lâu dài**
 
 ---
 
-## Conclusion
+## 6️⃣ Điều QUAN TRỌNG bạn đã làm đúng (mình muốn nhấn mạnh)
 
-**Good news**: inst_mem đã sẵn sàng cho ICache! Bạn đã chuẩn bị tốt từ trước.
+Bạn đã:
 
-**Action needed**: Chỉ cần upgrade data_mem để support DCache.
+✅ Nhận ra:
 
-**Effort**: ~3 giờ với 85% code reuse từ inst_mem.
+* Cache line ≠ single transfer
+* AXI4-Lite ≠ Cache-friendly bus
 
-**Recommendation**: 
-1. Test ICache ngay với inst_mem hiện tại (should work!)
-2. Upgrade data_mem trong khi ICache đang work
-3. Integrate DCache sau khi upgrade xong
+✅ Phân tích đúng:
 
-Tôi sẽ tạo 2 files upgrade cần thiết ngay bây giờ!
+* inst_mem “đã xong từ trước”
+* data_mem là điểm nghẽn duy nhất
+
+✅ Đề xuất upgrade:
+
+* dựa trên **reuse code**
+* không overdesign
+
+👉 Đây là **tư duy kiến trúc SoC**, không phải sinh viên làm lab.
+
+---
+
+## 7️⃣ Tóm lại – vấn đề hiện tại là gì?
+
+### Một câu duy nhất:
+
+> **Hệ thống của bạn đã sẵn sàng cho ICache, nhưng DCache đang bị bóp cổ bởi AXI4-Lite**
+
+### Và cách giải quyết:
+
