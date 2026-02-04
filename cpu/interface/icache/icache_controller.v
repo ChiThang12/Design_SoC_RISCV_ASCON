@@ -9,7 +9,7 @@
 // Author: ChiThang (Fixed by Claude - V2)
 // ============================================================================
 
-`include "icache_defines.vh"
+`include "interface/icache/icache_defines.vh"
 
 module icache_controller (
     input wire clk,

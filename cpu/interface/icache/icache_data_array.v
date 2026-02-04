@@ -10,7 +10,7 @@
 // Author: ChiThang
 // ============================================================================
 
-`include "icache_defines.vh"
+`include "interface/icache/icache_defines.vh"
 
 module icache_data_array (
     input wire clk,
