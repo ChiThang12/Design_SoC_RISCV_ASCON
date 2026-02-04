@@ -10,6 +10,7 @@
 // ============================================================================
 
 `include "icache_defines.vh"
+
 module icache_controller (
     input wire clk,
     input wire rst_n,

@@ -7,7 +7,10 @@
 // ============================================================================
 
 `timescale 1ns/1ps
+<<<<<<< HEAD:cpu/interface/icache/tb/tb_top.v
 `include "icache_defines.vh"
+=======
+>>>>>>> 31deff1 (Update CPU):cpu/interface/cache/tb_top.v
 `include "icache_top.v"
 module tb_icache_top;
 
@@ -220,6 +223,7 @@ module tb_icache_top;
             $display("  [READ] Addr: 0x%08h -> Data: 0x%08h", addr, cpu_rdata);
         end
     endtask
+<<<<<<< HEAD:cpu/interface/icache/tb/tb_top.v
 
     initial begin
         $dumpfile("tb_top.vcd");
@@ -228,6 +232,10 @@ module tb_icache_top;
 
     integer ar_count = 0;
     integer burst_count = 0;
+=======
+    integer ar_count = 0;
+     integer burst_count = 0;
+>>>>>>> 31deff1 (Update CPU):cpu/interface/cache/tb_top.v
     // ========================================================================
     // Test Stimulus
     // ========================================================================
@@ -384,7 +392,11 @@ module tb_icache_top;
         flush = 0;
         #20;
         
+<<<<<<< HEAD:cpu/interface/icache/tb/tb_top.v
         
+=======
+       
+>>>>>>> 31deff1 (Update CPU):cpu/interface/cache/tb_top.v
         
         // Monitor AR channel
         fork
