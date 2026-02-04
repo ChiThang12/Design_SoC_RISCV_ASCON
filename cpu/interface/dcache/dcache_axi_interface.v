@@ -10,7 +10,7 @@
 // Version: AXI4 Full with Write Support
 // ============================================================================
 
-`include "dcache_defines.vh"
+`include "interface/dcache/dcache_defines.vh"
 
 module dcache_axi_interface (
     input wire clk,

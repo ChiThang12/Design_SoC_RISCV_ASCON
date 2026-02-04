@@ -10,7 +10,7 @@
 // Version: AXI4 Full - Fixed
 // ============================================================================
 
-`include "icache_defines.vh"
+`include "interface/icache/icache_defines.vh"
 
 module icache_axi_interface (
     input wire clk,

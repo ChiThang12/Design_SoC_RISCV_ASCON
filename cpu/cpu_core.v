@@ -266,7 +266,7 @@ module riscv_soc_top_cached (
     // ------------------------------------------------------------------------
     // Note: Need to modify inst_mem_axi_slave to support AXI4 Full
     // For now, this is a placeholder showing the connection pattern
-    inst_mem_axi4_slave imem (
+    inst_mem_axi_slave imem (
         .clk(clk),
         .rst_n(rst_n),
         
