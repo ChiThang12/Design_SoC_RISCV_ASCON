@@ -11,8 +11,8 @@
 // ============================================================================
 
 `timescale 1ns/1ps
-
-// Define testbench mode để inst_mem load program.hex
+`include "cpu_core.v"
+// // Define testbench mode để inst_mem load program.hex
 `define TESTBENCH_MODE
 
 module tb_riscv_soc_cached;
@@ -73,7 +73,7 @@ module tb_riscv_soc_cached;
         #1;
         
         // Load program từ file hex
-        $readmemh("program.hex", dut.imem.imem.memory);
+        $readmemh("memory_axi4full/program.hex", dut.imem.imem.memory);
         $display("[TB] Loaded program.hex into instruction memory");
         
         // Hiển thị một vài lệnh đầu tiên

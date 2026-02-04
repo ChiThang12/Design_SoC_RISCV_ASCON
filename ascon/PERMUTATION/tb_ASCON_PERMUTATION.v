@@ -24,6 +24,7 @@ module tb_ASCON_PERMUTATION;
     reg         start_perm;
     reg         mode;
     
+    
     wire [319:0] state_out;
     wire        valid;
     wire        done;
