@@ -26,7 +26,7 @@ IF ERRORLEVEL 1 (
     echo [ERROR] Git commit failed!
     exit /b 1
 )
-
+git push
 echo --------------------------------------------
 echo Commit done successfully.
 echo ============================================
