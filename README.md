@@ -190,6 +190,7 @@ Verification is treated as a **first-class citizen** in the design process.
 > Many student projects skip verification — this project does not.
 
 ## 7. Source 
+```
 SoC_RISC-V/
 ├── cpu/
 │   ├── core/                 # RTL core logic (pipeline, control, ALU…)
@@ -246,5 +247,6 @@ SoC_RISC-V/
 │   └── debug_notes.md
 │
 └── README.md
+```
 
 
