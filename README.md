@@ -189,3 +189,33 @@ Verification is treated as a **first-class citizen** in the design process.
 
 > Many student projects skip verification — this project does not.
 
+## 7. Source 
+SoC RISC-V
+├── cpu
+│   ├── core\
+│   ├── debug_cpu\
+│   ├── dma\
+│   ├── interface\
+│   ├── memory_axi4full\
+│   ├── riscv5stagedemo\
+│   ├── cpu_core.v
+│   ├── riscv_cpu_core.v
+│   ├── tb_cpu_core.v
+│   ├── tb_riscv_cpu_core.v
+│   ├── u<........> // WORKFLOW for Linux
+│   └── w<........> // WORKFLOW for Window
+├── ascon
+│   ├── CONTROLLER\
+│   ├── PERMUTATION\
+│   ├── STATE_REGISTER\
+│   └── SW_check\
+└── dma
+   ├── dma_defines_axi4.vh      # Enhanced constants and parameters
+   ├── dma_engine_axi4.v        # AXI4-Full master transfer engine
+   ├── dma_channel_axi4.v       # Enhanced channel controller
+   ├── dma_top_axi4.v          # Top-level integration module
+   ├── dma_arbiter.v           # Priority-based arbiter (reused)
+   ├── dma_config_slave.v      # AXI4-Lite config interface (reused)
+   └── README.md               # This file
+
+
