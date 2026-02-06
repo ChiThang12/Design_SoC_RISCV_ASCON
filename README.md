@@ -190,32 +190,61 @@ Verification is treated as a **first-class citizen** in the design process.
 > Many student projects skip verification — this project does not.
 
 ## 7. Source 
-SoC RISC-V
-├── cpu
-│   ├── core\
-│   ├── debug_cpu\
-│   ├── dma\
-│   ├── interface\
-│   ├── memory_axi4full\
-│   ├── riscv5stagedemo\
-│   ├── cpu_core.v
-│   ├── riscv_cpu_core.v
-│   ├── tb_cpu_core.v
-│   ├── tb_riscv_cpu_core.v
-│   ├── u<........> // WORKFLOW for Linux
-│   └── w<........> // WORKFLOW for Window
-├── ascon
-│   ├── CONTROLLER\
-│   ├── PERMUTATION\
-│   ├── STATE_REGISTER\
-│   └── SW_check\
-└── dma
-   ├── dma_defines_axi4.vh      # Enhanced constants and parameters
-   ├── dma_engine_axi4.v        # AXI4-Full master transfer engine
-   ├── dma_channel_axi4.v       # Enhanced channel controller
-   ├── dma_top_axi4.v          # Top-level integration module
-   ├── dma_arbiter.v           # Priority-based arbiter (reused)
-   ├── dma_config_slave.v      # AXI4-Lite config interface (reused)
-   └── README.md               # This file
+SoC_RISC-V/
+├── cpu/
+│   ├── core/                 # RTL core logic (pipeline, control, ALU…)
+│   ├── interface/            # CPU ↔ AXI / memory / peripheral interfaces
+│   ├── memory/               # MMU / cache / memory-side logic
+│   ├── dma/                  # CPU-side DMA control (if tightly coupled)
+│   ├── debug/                # Debug logic (trace, counters, hooks)
+│   │
+│   ├── cpu_top.sv            # Single top-level CPU module
+│   ├── riscv_cpu.sv          # Wrapper / integration CPU
+│   │
+│   ├── tb/
+│   │   ├── tb_cpu_top.sv
+│   │   └── tb_riscv_cpu.sv
+│   │
+│   ├── workflow/
+│   │   ├── linux/
+│   │   └── windows/
+│   │
+│   └── README.md
+│
+├── ascon/
+│   ├── rtl/
+│   │   ├── controller/
+│   │   ├── permutation/
+│   │   ├── state_register/
+│   │   └── ascon_top.sv
+│   │
+│   ├── sw_check/             # Software golden model / test vectors
+│   └── README.md
+│
+├── dma/
+│   ├── rtl/
+│   │   ├── dma_defines_axi4.vh
+│   │   ├── dma_engine_axi4.v
+│   │   ├── dma_channel_axi4.v
+│   │   ├── dma_arbiter.v
+│   │   ├── dma_config_slave.v
+│   │   └── dma_top_axi4.v
+│   │
+│   ├── tb/
+│   │   └── tb_dma_top.sv
+│   │
+│   └── README.md
+│
+├── soc_top/
+│   ├── soc_top.sv             # Integrates CPU + DMA + ASCON
+│   ├── address_map.vh
+│   └── README.md
+│
+├── docs/
+│   ├── architecture.md
+│   ├── memory_map.md
+│   └── debug_notes.md
+│
+└── README.md
 
 
