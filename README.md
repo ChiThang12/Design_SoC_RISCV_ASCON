@@ -1,5 +1,3 @@
-# Design_SoC_RISCV_ASCON
-
 # RISC-V–ASCON SoC Design
 
 ## 1. Project Overview
