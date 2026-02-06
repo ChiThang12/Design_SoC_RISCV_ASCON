@@ -288,7 +288,7 @@ module tb_riscv_soc_top_cached;
         $display("========================================\n");
         
         // Finish simulation
-        #1000;
+        #200;
         $finish;
     end
     
@@ -297,7 +297,7 @@ module tb_riscv_soc_top_cached;
     // ========================================================================
     
     initial begin
-        #1000000; // 1ms timeout
+        #100000; // 1ms timeout
         $display("\n");
         $display("========================================");
         $display("  TIMEOUT - Simulation exceeded 1ms");
