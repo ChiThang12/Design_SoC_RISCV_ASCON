@@ -50,6 +50,7 @@ The SoC follows a **Harvard architecture**, separating instruction and data path
 ---
 
 ## 3. RISC-V CPU Core
+<img width="548" height="333" alt="image" src="https://github.com/user-attachments/assets/e9bf6e5f-9964-4cfd-b90b-5c1abc6d421b" />
 
 The CPU core is **fully custom-designed**, demonstrating a clear understanding of **RISC-V microarchitecture**.
 
