@@ -2,11 +2,7 @@
 
 ## Tổng quan
 
-Repository này chứa các phiên bản khác nhau của **RISC-V SoC** trong quá trình phát triển, từ kiến trúc **CPU + AXI interface trực tiếp** cho đến kiến trúc **CPU + Cache (ICache/DCache) + AXI4 Full + Memory** hiện tại.
 
-⚠️ **Lưu ý quan trọng**: Một số thư mục/module trong repo là **phiên bản cũ (legacy / outdated)**, được giữ lại để tham khảo kiến trúc và debug. Kiến trúc đang được hướng tới hiện nay là **CPU + Cache + AXI4 Full + Memory**.
-
----
 
 ## Cấu trúc thư mục
 
@@ -181,19 +177,3 @@ Memory subsystem
 
 ---
 
-## Kết luận
-
-* Repo chứa **nhiều thế hệ kiến trúc** của cùng một SoC RISC-V
-* Kiến trúc hiện tại:
-
-> **RISC-V Core + Cache (ICache/DCache) + AXI4 Full + Memory**
-
-* Các module AXI-Lite cũ được giữ lại **chỉ để tham khảo**, không dùng trong flow chính.
-
-📌 Khi phát triển tiếp, nên **tập trung vào**:
-
-* `riscv_cpu_core.v`
-* `CPU/core/`
-* `CPU/interface/{icache,dcache}`
-* `memory/memory_axi4full/`
-# test push
