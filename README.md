@@ -1,271 +1,192 @@
 # Design_SoC_RISCV_ASCON
 
-# Architecture
-<img width="1433" height="848" alt="image" src="https://github.com/user-attachments/assets/d733e4b3-514e-47d7-b8be-5655e80607b8" />
-# RISC-V SoC with Cache & ASCON Accelerator – Architecture README
+# RISC-V–ASCON SoC Design
 
-## 1. Tổng quan kiến trúc
+## 1. Project Overview
 
-Thiết kế này là một **RISC-V SoC hiện đại**, tập trung vào:
+The **RISC-V–ASCON SoC** project is a custom-designed **32-bit RISC-V System-on-Chip**, focusing on **hands-on microarchitecture design**, **memory subsystem implementation**, **AXI-based interconnect**, and **integration of a cryptographic accelerator**.
 
-* RISC-V core pipeline 5 stage (RV32IM – custom)
-* Kiến trúc **Harvard** với **ICache & DCache**
-* Kết nối memory thông qua **AXI4 Full (burst-capable)**
-* Tích hợp **ASCON Crypto Accelerator** dùng cho mã hóa/xác thực
-* Giao tiếp điều khiển qua **AXI4-Lite**, dữ liệu lớn qua **DMA (AXI Master)**
+Instead of assembling pre-built IPs, this project emphasizes **understanding and building each major component from scratch**, following industry-style design practices.
 
-Kiến trúc được thiết kế theo hướng **scalable – cache-aware – accelerator-friendly**, phù hợp cho SoC nghiên cứu hoặc embedded security SoC.
+### Project Goals
 
----
+| Goal          | Description                                       |
+| ------------- | ------------------------------------------------- |
+| CPU Design    | Understand and implement a pipelined RISC-V CPU   |
+| Memory System | Design cache-based instruction & data memory      |
+| Interconnect  | Use AXI4 / AXI4-Lite buses                        |
+| Security      | Integrate ASCON cryptographic accelerator         |
+| Practice      | Approach real-world SoC & enterprise design flows |
 
-## 2. Sơ đồ khối tổng thể
+This project is intended for:
 
-Luồng chính của hệ thống:
-
-```
-            +----------------------+
-            |   System Control     |
-            | PLL / Clock / Reset  |
-            +----------+-----------+
-                       |
-        +--------------v--------------+
-        |        Interrupt Ctrl        |
-        |        (CLINT / PLIC)        |
-        +--------------+--------------+
-                       |
-
-+----------------------------------------------------+
-|                  RISC-V Core                        |
-|            RV32IM – 5-stage Pipeline                |
-|                                                    |
-|  IF  →  ID  →  EX  →  MEM  →  WB                     |
-|                                                    |
-|  I-PORT (AXI4)              D-PORT (AXI4)           |
-|  ITLB → ICache              DTLB → DCache           |
-|                                                    |
-+----------------------+-----------------------------+
-                       |
-                AXI Interconnect
-                       |
-      +----------------+------------------+
-      |                                   |
-+-----v------+                    +-------v--------+
-| Instr Mem |                    |   Data Mem       |
-| ROM/Flash |                    |   SRAM           |
-| 128 KB    |                    |   128 KB         |
-+------------+                    +-----------------+
-
-                       |
-                       |
-          +------------v-------------------+
-          |     ASCON Crypto Accelerator    |
-          |                                |
-          |  AXI4-Lite (Control Registers) |
-          |  DMA (AXI Master – Data Path)  |
-          +--------------------------------+
-```
+* Advanced learning in **SoC & CPU design**
+* **FPGA prototyping**
+* Demonstrating skills for **IC Design / SoC Engineer** roles
 
 ---
 
-## 3. RISC-V Core Subsystem
+## 2. System Architecture
+<img width="704" height="455" alt="image" src="https://github.com/user-attachments/assets/4baf43f4-5838-4eec-9da7-d5703e37b191" />
 
-### 3.1 Core Pipeline
+The SoC follows a **Harvard architecture**, separating instruction and data paths for higher performance and scalability.
 
-* ISA: **RV32IM (Custom)**
-* Pipeline: **5 stages**
+### Top-Level Components
 
-  * IF (Fetch)
-  * ID (Decode / Register File / ImmGen)
-  * EX (ALU, Branch, Multiply)
-  * MEM (Load/Store)
-  * WB (Write Back)
+| Component         | Description                           |
+| ----------------- | ------------------------------------- |
+| RISC-V CPU Core   | Custom 32-bit pipelined processor     |
+| Instruction Cache | Dedicated cache for instruction fetch |
+| Data Cache        | Load/store cache for data access      |
+| AXI4 Interconnect | High-bandwidth system bus             |
+| ASCON Accelerator | Cryptographic offload engine          |
+| External Memory   | SRAM / DRAM / FPGA memory             |
 
-Core được thiết kế **bus-agnostic**, mọi truy cập bộ nhớ đều đi qua cache + AXI.
+### Architecture Highlights
 
----
-
-### 3.2 Instruction Path (I-PORT)
-
-```
-PC → ITLB → ICache → AXI4 Read → Instruction Memory
-```
-
-* ICache hỗ trợ **burst read** (cache line fill)
-* AXI4 Full: ARLEN, ARSIZE, ARBURST, RLAST
-* Instruction Memory:
-
-  * ROM / Flash
-  * Read-only
-  * Burst-capable
-
-📌 Mục tiêu: giảm instruction fetch latency và tối ưu IPC.
+* Separate **instruction** and **data** memory paths
+* High-bandwidth traffic via **AXI4 Full**
+* Low-latency control via **AXI4-Lite**
+* DMA-capable crypto accelerator
 
 ---
 
-### 3.3 Data Path (D-PORT)
+## 3. RISC-V CPU Core
 
-```
-Load/Store → DTLB → DCache → AXI4 Read/Write → Data Memory
-```
+The CPU core is **fully custom-designed**, demonstrating a clear understanding of **RISC-V microarchitecture**.
 
-* DCache hỗ trợ:
+### ISA Support
 
-  * Burst read (cache line fill)
-  * Single write / burst write (tùy policy)
-* AXI4 Full cho data path
-* Data Memory:
+| Extension         | Supported |
+| ----------------- | --------- |
+| RV32I             | ✔         |
+| RV32M             | ✔         |
+| Custom Extensions | Planned   |
 
-  * SRAM
-  * Read / Write
-  * Burst-capable
+### Pipeline Architecture
 
-📌 Đây là điểm khác biệt chính so với kiến trúc AXI4-Lite cũ.
+| Stage | Description                        |
+| ----- | ---------------------------------- |
+| IF    | Instruction Fetch                  |
+| ID    | Instruction Decode & Register Read |
+| EX    | Execute / ALU / Branch             |
+| MEM   | Data Memory Access                 |
+| WB    | Write Back                         |
 
----
+### Hazard Handling
 
-## 4. AXI Interconnect
+| Hazard Type    | Handling Method        |
+| -------------- | ---------------------- |
+| Data Hazard    | Forwarding / Bypassing |
+| Load-Use       | Pipeline Stall         |
+| Control Hazard | Pipeline Flush         |
 
-* Chuẩn bus chính: **AXI4 Full**
-* Kết nối:
+### Control Flow
 
-  * ICache → Instruction Memory
-  * DCache → Data Memory
-  * CPU / DMA → Accelerator
+* Branch decision at **EX stage**
+* PC redirection for:
 
-AXI được dùng để:
+  * Branch taken
+  * JAL / JALR
+* Pipeline flush on misprediction
 
-* Hỗ trợ **burst transaction**
-* Cho phép **DMA & accelerator hoạt động song song với CPU**
-
----
-
-## 5. ASCON Crypto Accelerator Subsystem
-
-### 5.1 Tổng quan
-
-ASCON accelerator được thiết kế theo mô hình **Control Plane + Data Plane**:
-
-* Control: AXI4-Lite
-* Data: DMA (AXI4 Master)
+> This core is **not a black box** — all datapath and control logic are explicitly designed.
 
 ---
 
-### 5.2 Control Registers (AXI4-Lite Slave)
+## 4. Memory Subsystem & AXI Interface
 
-Dùng cho CPU cấu hình accelerator:
+The memory subsystem is designed using **industry-standard AXI protocols**, making it suitable for real-world SoC integration.
 
-* Config
-* Status
-* Key / Nonce
-* Mode (Encrypt / Decrypt / Hash)
-* Command
-* Message length
+### Memory Architecture
 
-📌 AXI4-Lite **chỉ dùng cho control**, không truyền dữ liệu lớn.
+| Path        | Description           |
+| ----------- | --------------------- |
+| Instruction | ICache → AXI → Memory |
+| Data        | DCache → AXI → Memory |
 
----
+### Cache Design
 
-### 5.3 DMA Engine (AXI4 Master)
+| Feature       | Description                  |
+| ------------- | ---------------------------- |
+| Mapping       | Direct-mapped (configurable) |
+| Policy        | Write-through / Write-back   |
+| Miss Handling | AXI burst transaction        |
+| Controller    | Decoupled from CPU           |
 
-```
-Memory → DMA Read Channel  → Input FIFO
-Output FIFO → DMA Write Channel → Memory
-```
+### AXI Interface Usage
 
-* Hỗ trợ burst transfer
-* Giảm tải CPU
-* Cho phép xử lý dữ liệu lớn hiệu quả
+| Interface | Purpose                   |
+| --------- | ------------------------- |
+| AXI4 Full | Memory & DMA transactions |
+| AXI4-Lite | Control & configuration   |
 
----
+### AXI Concepts Applied
 
-### 5.4 ASCON Core
-
-* Thành phần chính:
-
-  * Key Register
-  * State Memory
-  * Permutation Engine
-
-* Controller:
-
-  * FSM điều phối các pha ASCON
-
-* Buffering:
-
-  * Input FIFO
-  * Data Buffer
-  * Output FIFO
-
-📌 Thiết kế fully decoupled giữa compute và memory.
+* Valid / Ready handshake
+* Independent read & write channels
+* Burst transfers
+* Latency hiding via cache
 
 ---
 
-## 6. System Control Subsystem
+## 5. ASCON Cryptographic Accelerator
 
-Bao gồm:
+ASCON is a **lightweight authenticated encryption algorithm**, well-suited for embedded and IoT systems.
 
-* PLL / Clock Generator
-* Clock Gating & Power Management
-* Reset Manager
+### Role in the SoC
 
-Vai trò:
+| Function       | Description                    |
+| -------------- | ------------------------------ |
+| Encryption     | Secure data encryption         |
+| Decryption     | Secure data decryption         |
+| Authentication | Message integrity verification |
 
-* Quản lý clock domain
-* Reset toàn hệ thống
-* Tối ưu power
+### Integration Strategy
 
----
+| Interface           | Usage                         |
+| ------------------- | ----------------------------- |
+| AXI4-Lite (Slave)   | Control & status registers    |
+| AXI4 (Master / DMA) | High-throughput data transfer |
 
-## 7. Interrupt Subsystem
+### Security-Oriented Design
 
-* CLINT:
+* Clear separation between:
 
-  * Timer interrupt
-  * Software interrupt
+  * Control registers
+  * Data processing logic
+* Designed for future extensions:
 
-* PLIC:
-
-  * External interrupts
-  * Accelerator interrupt (ASCON done)
-
-CPU nhận interrupt để đồng bộ với accelerator và system events.
-
----
-
-## 8. Đặc điểm kiến trúc nổi bật
-
-* Cache-aware design (ICache + DCache)
-* AXI4 Full cho data-intensive path
-* AXI4-Lite chỉ dùng cho control
-* Accelerator tích hợp đúng chuẩn SoC
-* DMA giúp accelerator hoạt động song song CPU
+  * Secure boot
+  * Trusted execution environments
 
 ---
 
-## 9. So sánh với kiến trúc cũ
+## 6. Verification & Simulation
 
-| Tiêu chí      | Kiến trúc cũ | Kiến trúc hiện tại |
-| ------------- | ------------ | ------------------ |
-| Memory access | AXI4-Lite    | AXI4 Full + Burst  |
-| Cache         | Không / giả  | ICache + DCache    |
-| Accelerator   | CPU-driven   | DMA-driven         |
-| Performance   | Thấp         | Cao                |
-| Scalability   | Kém          | Tốt                |
+Verification is treated as a **first-class citizen** in the design process.
 
----
+### Simulation Tools
 
-## 10. Kết luận
+| Tool           | Purpose            |
+| -------------- | ------------------ |
+| Icarus Verilog | RTL simulation     |
+| GTKWave        | Waveform debugging |
 
-Kiến trúc này là một **SoC RISC-V hoàn chỉnh và đúng chuẩn**, phù hợp cho:
+### Testbench Strategy
 
-* Nghiên cứu kiến trúc SoC
-* Cache & memory system
-* Hardware accelerator integration
-* Security-focused embedded systems
+* Clock & reset generation
+* Memory models
+* AXI behavioral models
+* Basic assertions and monitors
 
-👉 Đây là nền tảng tốt để mở rộng thêm:
+### Automation Scripts
 
-* MMU đầy đủ
-* Multi-core
-* Advanced power management
-* Các accelerator khác
+| Script            | Description                |
+| ----------------- | -------------------------- |
+| `run_verilog.sh`  | Compile & simulate RTL     |
+| `lint_verilog.sh` | Lint & code quality checks |
+| `clean.sh`        | Clean build artifacts      |
+
+> Many student projects skip verification — this project does not.
+
