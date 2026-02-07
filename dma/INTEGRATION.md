@@ -11,7 +11,7 @@ Tài liệu này hướng dẫn tích hợp DMA Controller AXI4-Full vào hệ t
 │                          CPU Core                                │
 │                      (ARM Cortex-A/R/M)                         │
 └───────────────┬─────────────────────────────────────────────────┘
-                │ AXI4-Lite (Config)
+                │ AXI4-FULL (Config)
                 │
 ┌───────────────▼─────────────────────────────────────────────────┐
 │                     AXI Interconnect                             │
