@@ -9,11 +9,11 @@
 // Version: AXI4 Full Support
 // ============================================================================
 
-`include "interface/icache/icache_defines.vh"
-`include "interface/icache/icache_tag_array.v"
-`include "interface/icache/icache_data_array.v"
-`include "interface/icache/icache_axi_interface.v"
-`include "interface/icache/icache_controller.v"
+`include "cpu/interface/icache/icache_defines.vh"
+`include "cpu/interface/icache/icache_tag_array.v"
+`include "cpu/interface/icache/icache_data_array.v"
+`include "cpu/interface/icache/icache_axi_interface.v"
+`include "cpu/interface/icache/icache_controller.v"
 
 module icache_top #(
     parameter CACHE_SIZE = `ICACHE_SIZE,

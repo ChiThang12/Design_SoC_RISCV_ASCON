@@ -8,17 +8,17 @@
 //   - Hazard Detection: Load-use hazard, branch flush
 //   - FIXED: Memory snapshot logic để tránh duplicate write-back
 // ============================================================================
-`include "core/IFU.v"
-`include "core/reg_file.v"
-`include "core/imm_gen.v"
-`include "core/control.v"
-`include "core/alu.v"
-`include "core/branch_logic.v"
-`include "core/forwarding_unit.v"
-`include "core/hazard_detection.v"
-`include "core/PIPELINE_REG_IF_ID.v"
-`include "core/PIPELINE_REG_ID_EX.v"
-`include "core/PIPELINE_REG_EX_WB.v"
+`include "cpu/core/IFU.v"
+`include "cpu/core/reg_file.v"
+`include "cpu/core/imm_gen.v"
+`include "cpu/core/control.v"
+`include "cpu/core/alu.v"
+`include "cpu/core/branch_logic.v"
+`include "cpu/core/forwarding_unit.v"
+`include "cpu/core/hazard_detection.v"
+`include "cpu/core/PIPELINE_REG_IF_ID.v"
+`include "cpu/core/PIPELINE_REG_ID_EX.v"
+`include "cpu/core/PIPELINE_REG_EX_WB.v"
 
 module riscv_cpu_core (
     input wire clk,

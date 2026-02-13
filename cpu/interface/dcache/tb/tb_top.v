@@ -5,10 +5,9 @@
 //   Complete integration test for data cache with AXI4 Full
 //   Tests read hits/misses, write-through, and mixed operations
 // ============================================================================
-
 `timescale 1ns/1ps
-`include "dcache_defines.vh"
-`include "dcache_top.v"
+`include "cpu/interface/dcache/tb/dcache_defines.vh"
+`include "cpu/interface/dcache/tb/dcache_top.v"
 
 module tb_dcache_top;
 

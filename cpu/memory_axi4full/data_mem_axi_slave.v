@@ -12,7 +12,7 @@
 // Created: For DCache integration
 // ============================================================================
 
-`include "memory_axi4full/data_mem_burst.v"
+`include "cpu/memory_axi4full/data_mem_burst.v"
 
 module data_mem_axi4_slave #(
     parameter ADDR_WIDTH = 32,
@@ -294,25 +294,16 @@ module data_mem_axi4_slave #(
         
         case (wr_state)
             WR_IDLE: begin
-                if (S_AXI_AWVALID) begin
-                    wr_next = WR_ADDR;
-                end
+                if (S_AXI_AWVALID && S_AXI_AWREADY)
+                    wr_next = WR_BURST;
             end
-            
-            WR_ADDR: begin
-                wr_next = WR_BURST;
-            end
-            
             WR_BURST: begin
-                if (S_AXI_WVALID && S_AXI_WLAST) begin
+                if (S_AXI_WVALID && S_AXI_WLAST)
                     wr_next = WR_RESP;
-                end
             end
-            
             WR_RESP: begin
-                if (S_AXI_BREADY) begin
+                if (S_AXI_BREADY)
                     wr_next = WR_IDLE;
-                end
             end
             
             default: wr_next = WR_IDLE;
@@ -332,20 +323,17 @@ module data_mem_axi4_slave #(
         end else begin
             case (wr_state)
                 WR_IDLE: begin
-                    if (S_AXI_AWVALID) begin
-                        S_AXI_AWREADY <= 1'b1;
-                        write_addr <= S_AXI_AWADDR;
+                    // Assert awready ngay khi idle (luôn sẵn sàng nhận)
+                    S_AXI_AWREADY <= 1'b1;
+                    if (S_AXI_AWVALID && S_AXI_AWREADY) begin
+                        write_addr      <= S_AXI_AWADDR;
                         wr_burst_length <= S_AXI_AWLEN;
-                        wr_burst_size <= S_AXI_AWSIZE;
-                        wr_burst_type <= S_AXI_AWBURST;
-                    end else begin
-                        S_AXI_AWREADY <= 1'b0;
+                        wr_burst_size   <= S_AXI_AWSIZE;
+                        wr_burst_type   <= S_AXI_AWBURST;
+                        S_AXI_AWREADY   <= 1'b0;  // deassert sau handshake
                     end
                 end
-                
-                default: begin
-                    S_AXI_AWREADY <= 1'b0;
-                end
+                default: S_AXI_AWREADY <= 1'b0;
             endcase
         end
     end

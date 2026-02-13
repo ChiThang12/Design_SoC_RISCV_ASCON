@@ -9,11 +9,11 @@
 // Version: 1.0 - Write-through, direct-mapped
 // ============================================================================
 
-`include "dcache_defines.vh"
-`include "dcache_tag_array.v"
-`include "dcache_data_array.v"
-`include "dcache_axi_interface.v"
-`include "dcache_controller.v"
+`include "cpu/interface/dcache/tb/dcache_defines.vh"
+`include "cpu/interface/dcache/tb/dcache_tag_array.v"
+`include "cpu/interface/dcache/tb/dcache_data_array.v"
+`include "cpu/interface/dcache/tb/dcache_axi_interface.v"
+`include "cpu/interface/dcache/tb/dcache_controller.v"
 
 module dcache_top #(
     parameter CACHE_SIZE = `DCACHE_SIZE,      // 8KB

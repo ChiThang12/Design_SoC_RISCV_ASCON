@@ -1,11 +1,11 @@
 // ============================================================================
 // Module: riscv_soc_top (WITH DEBUG PORTS)
 // ============================================================================
-`include "riscv_cpu_core.v"
-`include "interface/imem_access_unit.v"
-`include "interface/dmem_access_unit.v"
-`include "memory/inst_mem_axi_slave.v"
-`include "memory/data_mem_axi_slave.v"
+`include "cpu/riscv_cpu_core.v"
+`include "cpu/interface/imem_access_unit.v"
+`include "cpu/interface/dmem_access_unit.v"
+`include "cpu/memory/inst_mem_axi_slave.v"
+`include "cpu/memory/data_mem_axi_slave.v"
 // ============================================================================
 // riscv_soc_top.v - RISC-V SoC with AXI4-Lite Interconnect
 // ============================================================================

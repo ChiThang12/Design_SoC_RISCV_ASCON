@@ -11,7 +11,7 @@
 // Updated: Upgraded from AXI4-Lite to AXI4 Full
 // ============================================================================
 
-`include "memory_axi4full/inst_mem.v"
+`include "cpu/memory_axi4full/inst_mem.v"
 
 module inst_mem_axi_slave #(
     parameter ADDR_WIDTH = 32,
