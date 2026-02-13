@@ -1,0 +1,39 @@
+# Cadence Genus(TM) Synthesis Solution, Version 23.10-p004_1, built Feb  1 2024 13:43:46
+
+# Date: Fri Feb 13 19:29:55 2026
+# Host: vku-truongsa (x86_64 w/Linux 3.10.0-1160.119.1.el7.x86_64) (4cores*24cpus*6physical cpus*Intel(R) Xeon(R) CPU E5-2667 v2 @ 3.30GHz 25600KB)
+# OS:   CentOS Linux release 7.9.2009 (Core)
+
+source ./scripts/run_syn.tcl
+read_hdl ./rtl/inst_mem.v
+elaborate $DESIGN
+time_info Elaboration
+change_names -verilog -log_change ${_LOG_PATH}/change_names.log
+check_design -unresolved
+read_sdc ./rtl/constraints.sdc
+report timing -lint
+set_attribute syn_generic_effort $GEN_EFF
+syn_generic
+time_info GENERIC
+write_snapshot -outdir $_REPORTS_PATH -tag generic
+report datapath > $_REPORTS_PATH/generic/${DESIGN}_datapath.rpt
+report_summary -outdir $_REPORTS_PATH
+set_attribute syn_map_effort $MAP_OPT_EFF
+syn_map
+time_info MAPPED
+write_snapshot -outdir $_REPORTS_PATH -tag map
+report_summary -outdir $_REPORTS_PATH
+report datapath > $_REPORTS_PATH/map/${DESIGN}_datapath.rpt
+set_attribute syn_opt_effort $MAP_OPT_EFF
+syn_opt
+write_snapshot -outdir $_REPORTS_PATH -tag syn_opt
+report_summary -outdir $_REPORTS_PATH
+time_info OPT
+write_snapshot -outdir $_REPORTS_PATH -tag final
+report_summary -outdir $_REPORTS_PATH
+report_timing   >      $_REPORTS_PATH/timing.rpt
+write_hdl    > ${_OUTPUTS_PATH}/${DESIGN}.vg
+write_sdc    > ${_OUTPUTS_PATH}/${DESIGN}.sdc
+write_db -design $DESIGN -common ${_OUTPUTS_PATH}/${DESIGN}.cui
+time_info FINAL
+exit

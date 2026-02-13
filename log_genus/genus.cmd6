@@ -1,0 +1,23 @@
+# Cadence Genus(TM) Synthesis Solution, Version 23.10-p004_1, built Feb  1 2024 13:43:46
+
+# Date: Fri Feb 13 19:26:36 2026
+# Host: vku-truongsa (x86_64 w/Linux 3.10.0-1160.119.1.el7.x86_64) (4cores*24cpus*6physical cpus*Intel(R) Xeon(R) CPU E5-2667 v2 @ 3.30GHz 25600KB)
+# OS:   CentOS Linux release 7.9.2009 (Core)
+
+source ./scripts/run_syn.tcl
+read_hdl ./rtl/inst_mem.v
+elaborate $DESIGN
+time_info Elaboration
+change_names -verilog -log_change ${_LOG_PATH}/change_names.log
+change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted {[ ]}   -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "\[ \]" -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "/"     -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "."     -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+change_names -net -inst -port_bus -subport_bus -subdesign -force -last_restricted "_" -log_change ${_LOG_PATH}/change_names.log -append_log
+check_design -unresolved
+read_sdc ../rtl/constraints.sdc
+read_sdc ./rtl/constraints.sdc
+report timing -lint
+set_attribute syn_generic_effort $GEN_EFF
+syn_generic
+exit

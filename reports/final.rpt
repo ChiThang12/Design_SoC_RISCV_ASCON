@@ -1,0 +1,51 @@
+
+
+Working Directory = /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON
+QoS Summary for inst_mem
+==========================================================================================
+Metric                          generic         map             syn_opt         final          
+==========================================================================================
+Slack (ps):                    -1,507          -1,507          -1,507          -1,507
+  R2R (ps):                     2,121           2,129           1,922           1,922
+  I2R (ps):                     4,949           4,304           4,309           4,309
+  R2O (ps):                    -1,507          -1,507          -1,507          -1,507
+  I2O (ps):                  no_value        no_value        no_value        no_value
+  CG  (ps):                  no_value        no_value        no_value        no_value
+TNS (ps):                     -48,227         -48,227         -48,227         -48,227
+  R2R (ps):                         0               0               0               0
+  I2R (ps):                         0               0               0               0
+  R2O (ps):                   -48,227         -48,227         -48,227         -48,227
+  I2O (ps):                  no_value        no_value        no_value        no_value
+  CG  (ps):                  no_value        no_value        no_value        no_value
+Failing Paths:                     32              32              32              32
+Cell Area:                    264,167         269,106         269,549         269,549
+Total Cell Area:              264,167         269,106         269,549         269,549
+Leaf Instances:                   261             211             235             235
+Total Instances:                  261             211             235             235
+Utilization (%):                 0.00            0.00            0.00            0.00
+Tot. Net Length (um):        no_value        no_value        no_value        no_value
+Avg. Net Length (um):        no_value        no_value        no_value        no_value
+Route Overflow H (%):        no_value        no_value        no_value        no_value
+Route Overflow V (%):        no_value        no_value        no_value        no_value
+MBCI(%) (bits/gate) :            0.00            0.00            0.00            0.00
+Norm Cong Hotspot Area:
+  Max Cong:                  no_value        no_value        no_value        no_value
+  Tot Cong:                  no_value        no_value        no_value        no_value
+==========================================================================================
+CPU  Runtime (h:m:s):        00:00:43        00:00:16        00:00:11        00:00:02
+Real Runtime (h:m:s):        00:02:40        00:01:16        00:01:10        00:00:26
+CPU  Elapsed (h:m:s):        00:00:46        00:01:01        00:01:12        00:01:14
+Real Elapsed (h:m:s):        00:02:41        00:03:56        00:05:06        00:05:32
+Memory (MB):                  1646.82         1659.47         1652.29         1660.29
+==========================================================================================
+==========================================================================================
+Flow Settings:
+==========================================================================================
+Total Runtime (h:m:s): 00:05:34
+Total Memory (MB):     1660.29
+Executable Version:    23.10-p004_1
+==========================================================================================
+Total Cell Area =  Cell Area + Physical Cell Area
+Total Instances =  Leaf Instances + Physical Instances
+
+
