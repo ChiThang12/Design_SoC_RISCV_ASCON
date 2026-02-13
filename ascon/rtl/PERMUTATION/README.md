@@ -226,6 +226,6 @@ rounds = 12; // p^a
 ---
 
 **Version:** 1.0  
-**Author:** [Your Name]  
+**Author:** ChiThang  
 **Date:** February 2026  
-**License:** [Your License]
+**License:** 
