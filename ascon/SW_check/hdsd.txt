@@ -11,6 +11,7 @@ python ascon_tester.py --permutation --rounds 6
 python ascon_tester.py --permutation --state "0123456789ABCDEF FEDCBA9876543210 0011223344556677 8899AABBCCDDEEFF 1122334455667788"
                                           
 python run_auto.py --permutation --state "0f0f0f0f0f0f0f0f f0f0f0f0f0f0f0f0 a5a5a5a5a5a5a5a5 5a5a5a5a5a5a5a5a ffffffffffffffff"
+python ascon/SW_check/run_auto.py --permutation --state "0f0f0f0f0f0f0f0f f0f0f0f0f0f0f0f0 a5a5a5a5a5a5a5a5 5a5a5a5a5a5a5a5a ffffffffffffffff"
 2. Test hash:
 bash
 # Test hash cơ bản

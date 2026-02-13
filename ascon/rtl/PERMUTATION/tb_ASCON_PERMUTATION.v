@@ -4,7 +4,7 @@
 // ============================================================================
 
 
-`include "ascon_PERMUTATION.v"
+`include "ascon/rtl/PERMUTATION/ascon_PERMUTATION.v"
 // ============================================================================
 // ASCON_PERMUTATION Testbench
 // Mô tả: Testbench đầy đủ cho module ASCON_PERMUTATION và các sub-modules
