@@ -107,10 +107,10 @@ set_attribute use_scan_seqs_for_non_dft false
 ####################################################################
 
 puts "=====> Before read hdl"
-return
+#return
 
 #set hdl_verilog_defines {UPSKILL = 1}
-read_hdl "inst_mem.v"
+read_hdl "./rtl/inst_mem.v"
 elaborate $DESIGN
 #set_dont_touch [get_cells -hier "*set_dont_touch_*"]
 
@@ -118,11 +118,11 @@ puts "Runtime & Memory after 'read_hdl'"
 time_info Elaboration
 
 change_names -verilog -log_change ${_LOG_PATH}/change_names.log
-change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted {[ ]}   -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
-change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "\[ \]" -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
-change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "/"     -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
-change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "."     -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
-change_names -net -inst -port_bus -subport_bus -subdesign -force -last_restricted "_" -log_change ${_LOG_PATH}/change_names.log -append_log
+#change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted {[ ]}   -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+#change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "\[ \]" -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+#change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "/"     -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+#change_names -net -inst -port_bus -subport_bus -subdesign -force -restricted "."     -replace_str "x" -log_change ${_LOG_PATH}/change_names.log -append_log
+#change_names -net -inst -port_bus -subport_bus -subdesign -force -last_restricted "_" -log_change ${_LOG_PATH}/change_names.log -append_log
 
 check_design -unresolved
 
@@ -130,7 +130,7 @@ check_design -unresolved
 ## Constraints Setup
 ####################################################################
 
-read_sdc ../rtl/constraints.sdc
+read_sdc ./rtl/constraints.sdc
 puts "The number of exceptions is [llength [find /designs/$DESIGN -exception *]]"
 
 

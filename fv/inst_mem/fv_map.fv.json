@@ -579,20 +579,20 @@
 "object":"/designs/inst_mem/instances_seq/total_beats_reg[1]",
 "type":"instance"},
 {"index": "1", 
- "date": "Fri Feb 13 12:33:35 UTC 2026",
- "seconds": 1770986015.282332,
+ "date": "Fri Feb 13 12:56:13 UTC 2026",
+ "seconds": 1770987373.084364,
  "netlist": "fv/inst_mem/fv_map.v.gz", 
  "netlist_exists": "1", 
  "netlist_normalize": "/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/fv/inst_mem/fv_map.v.gz", 
- "netlist_mtime": "1770986012", 
- "netlist_timestamp": "Fri Feb 13 12:33:32 UTC 2026", 
- "netlist_size": "3578", 
- "netlist_cksum": "3502601705", 
+ "netlist_mtime": "1770987370", 
+ "netlist_timestamp": "Fri Feb 13 12:56:10 UTC 2026", 
+ "netlist_size": "3568", 
+ "netlist_cksum": "3589421841", 
  "design_name": "inst_mem", 
  "synth_workdir": "/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON", 
  "synthesis_command":"",
  "current_label": "fv_map", 
  "previous_label": "rtl", 
- "write_verif_file_runtime": 2.992021 
+ "write_verif_file_runtime": 2.7339029999999998 
  }
 ]

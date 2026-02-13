@@ -16,7 +16,7 @@ set_input_delay -min 0.5 -clock VCLK [remove_from_collection [all_inputs] {clk r
 
 # 5. Thiết lập Output Delay
 # Output phải sẵn sàng cho tầng tiếp theo (Instruction Decoder / AXI Bus)
-set_output_delay -max 4.0 -clock VCLK [all_outputs]
+set_output_delay -max 2.0 -clock VCLK [all_outputs]
 set_output_delay -min 0.5 -clock VCLK [all_outputs]
 
 # 6. False Path

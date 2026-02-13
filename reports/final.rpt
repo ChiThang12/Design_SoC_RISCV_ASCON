@@ -5,23 +5,23 @@ QoS Summary for inst_mem
 ==========================================================================================
 Metric                          generic         map             syn_opt         final          
 ==========================================================================================
-Slack (ps):                    -1,507          -1,507          -1,507          -1,507
-  R2R (ps):                     2,121           2,129           1,922           1,922
-  I2R (ps):                     4,949           4,304           4,309           4,309
-  R2O (ps):                    -1,507          -1,507          -1,507          -1,507
+Slack (ps):                       493             493             493             493
+  R2R (ps):                     2,121           2,130           1,922           1,922
+  I2R (ps):                     4,949           4,338           4,338           4,338
+  R2O (ps):                       493             493             493             493
   I2O (ps):                  no_value        no_value        no_value        no_value
   CG  (ps):                  no_value        no_value        no_value        no_value
-TNS (ps):                     -48,227         -48,227         -48,227         -48,227
+TNS (ps):                           0               0               0               0
   R2R (ps):                         0               0               0               0
   I2R (ps):                         0               0               0               0
-  R2O (ps):                   -48,227         -48,227         -48,227         -48,227
+  R2O (ps):                         0               0               0               0
   I2O (ps):                  no_value        no_value        no_value        no_value
   CG  (ps):                  no_value        no_value        no_value        no_value
-Failing Paths:                     32              32              32              32
-Cell Area:                    264,167         269,106         269,549         269,549
-Total Cell Area:              264,167         269,106         269,549         269,549
-Leaf Instances:                   261             211             235             235
-Total Instances:                  261             211             235             235
+Failing Paths:                      0               0               0               0
+Cell Area:                    264,167         269,104         269,547         269,547
+Total Cell Area:              264,167         269,104         269,547         269,547
+Leaf Instances:                   261             210             234             234
+Total Instances:                  261             210             234             234
 Utilization (%):                 0.00            0.00            0.00            0.00
 Tot. Net Length (um):        no_value        no_value        no_value        no_value
 Avg. Net Length (um):        no_value        no_value        no_value        no_value
@@ -32,17 +32,17 @@ Norm Cong Hotspot Area:
   Max Cong:                  no_value        no_value        no_value        no_value
   Tot Cong:                  no_value        no_value        no_value        no_value
 ==========================================================================================
-CPU  Runtime (h:m:s):        00:00:43        00:00:16        00:00:11        00:00:02
-Real Runtime (h:m:s):        00:02:40        00:01:16        00:01:10        00:00:26
-CPU  Elapsed (h:m:s):        00:00:46        00:01:01        00:01:12        00:01:14
-Real Elapsed (h:m:s):        00:02:41        00:03:56        00:05:06        00:05:32
-Memory (MB):                  1646.82         1659.47         1652.29         1660.29
+CPU  Runtime (h:m:s):        00:00:32        00:00:11        00:00:06        00:00:01
+Real Runtime (h:m:s):        00:00:29        00:00:10        00:00:07        00:00:03
+CPU  Elapsed (h:m:s):        00:00:34        00:00:45        00:00:51        00:00:52
+Real Elapsed (h:m:s):        00:00:29        00:00:39        00:00:47        00:00:49
+Memory (MB):                  1638.71         1644.35         1645.17         1653.17
 ==========================================================================================
 ==========================================================================================
 Flow Settings:
 ==========================================================================================
-Total Runtime (h:m:s): 00:05:34
-Total Memory (MB):     1660.29
+Total Runtime (h:m:s): 00:00:50
+Total Memory (MB):     1653.17
 Executable Version:    23.10-p004_1
 ==========================================================================================
 Total Cell Area =  Cell Area + Physical Cell Area

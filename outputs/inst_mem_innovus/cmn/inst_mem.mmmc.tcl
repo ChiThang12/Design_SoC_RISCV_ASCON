@@ -1,6 +1,6 @@
 #################################################################################
 #
-# Created by Genus(TM) Synthesis Solution 23.10-p004_1 on Fri Feb 13 19:35:48 +07 2026
+# Created by Genus(TM) Synthesis Solution 23.10-p004_1 on Fri Feb 13 19:56:27 +07 2026
 #
 #################################################################################
 
@@ -52,7 +52,7 @@ create_delay_corner -name default_emulate_power_delay_corner \
 
 ## constraint_mode
 create_constraint_mode -name default_emulate_constraint_mode \
-    -sdc_files { outputs/inst_mem.cui/cmn/inst_mem.mmmc/modes/default_emulate_constraint_mode/default_emulate_constraint_mode.sdc.gz }
+    -sdc_files { outputs/inst_mem_innovus/cmn/inst_mem.mmmc/modes/default_emulate_constraint_mode/default_emulate_constraint_mode.sdc.gz }
 
 ## analysis_view
 create_analysis_view -name default_emulate_view \
