@@ -3,9 +3,9 @@
 // Mô tả: Thực hiện permutation p^a hoặc p^b
 // Hỗ trợ cả chế độ pipelined và iterative
 // ============================================================================
-`include "ascon_CONSTANT_ADDITION.v"
-`include "ascon_SUBTITUTION_LAYER.v"
-`include "ascon_LINEAR_DIFFUSION.v"
+`include "ascon/rtl/PERMUTATION/ascon_CONSTANT_ADDITION.v"
+`include "ascon/rtl/PERMUTATION/ascon_SUBTITUTION_LAYER.v"
+`include "ascon/rtl/PERMUTATION/ascon_LINEAR_DIFFUSION.v"
 
 module ASCON_PERMUTATION (
     input  wire         clk,
