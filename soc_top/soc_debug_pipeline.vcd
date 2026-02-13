@@ -1,0 +1,82 @@
+[*]
+[*] GTKWave Analyzer v3.3.48 (w)1999-2013 BSI
+[*] Fri Feb 13 07:58:17 2026
+[*]
+[dumpfile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\tb_cpu_debug.vcd"
+[dumpfile_mtime] "Fri Feb 13 04:20:19 2026"
+[dumpfile_size] 381574
+[savefile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\soc_top\soc_debug_pipeline.vcd"
+[timestart] 51300
+[size] 1493 862
+[pos] -191 -191
+*-16.339312 242300 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_cpu_debug.
+[treeopen] tb_cpu_debug.dut.
+[treeopen] tb_cpu_debug.dut.icache.
+[sst_width] 249
+[signals_width] 275
+[sst_expanded] 1
+[sst_vpaned_height] 245
+@200
+-BOOT
+@28
+tb_cpu_debug.clk
+tb_cpu_debug.rst_n
+@20000
+-
+@200
+-PIPELINE
+-INPUT
+@22
+[color] 1
+tb_cpu_debug.dut.cpu.imem_addr[31:0]
+@28
+[color] 1
+tb_cpu_debug.dut.cpu.imem_valid
+[color] 5
+tb_cpu_debug.dut.cpu.imem_ready
+@22
+[color] 5
+tb_cpu_debug.dut.cpu.imem_rdata[31:0]
+@200
+-PC->Instr
+@22
+tb_cpu_debug.dut.cpu.pc_if[31:0]
+tb_cpu_debug.dut.cpu.instr_if[31:0]
+tb_cpu_debug.dut.cpu.pc_id[31:0]
+tb_cpu_debug.dut.cpu.instr_id[31:0]
+@200
+-ALU
+@22
+tb_cpu_debug.dut.cpu.arithmetic_logic_unit.in1[31:0]
+tb_cpu_debug.dut.cpu.arithmetic_logic_unit.in2[31:0]
+tb_cpu_debug.dut.cpu.arithmetic_logic_unit.alu_result[31:0]
+@200
+-OUTPUT
+@22
+[color] 1
+tb_cpu_debug.dut.cpu.dmem_rdata[31:0]
+@28
+[color] 1
+tb_cpu_debug.dut.cpu.dmem_ready
+@22
+[color] 5
+tb_cpu_debug.dut.cpu.dmem_addr[31:0]
+@28
+[color] 5
+tb_cpu_debug.dut.cpu.dmem_valid
+@22
+[color] 5
+tb_cpu_debug.dut.cpu.dmem_wdata[31:0]
+@28
+[color] 5
+tb_cpu_debug.dut.cpu.dmem_we
+@22
+[color] 5
+tb_cpu_debug.dut.cpu.dmem_wstrb[3:0]
+[color] 5
+tb_cpu_debug.dut.cpu.dmem_wstrb_reg[3:0]
+@200
+-
+[pattern_trace] 1
+[pattern_trace] 0

@@ -50,7 +50,7 @@ module data_mem_burst #(
     input  wire [DATA_WIDTH-1:0] burst_wr_data,
     input  wire [3:0]            burst_wr_strb,
     input  wire                  burst_wr_valid,
-    output reg                   burst_wr_ready,
+    output wire                   burst_wr_ready,
     input  wire                  burst_wr_last
 );
 
@@ -246,32 +246,30 @@ module data_mem_burst #(
     // ========================================================================
     reg [ADDR_WIDTH-1:0] wr_current_addr;
     
+    assign burst_wr_ready = 1'b1;  // memory luôn sẵn sàng nhận write
+                                    // (không có back-pressure thực sự)
+
+    // Giữ lại phần ghi memory trong always @(posedge clk):
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            burst_wr_ready <= 1'b0;
             wr_current_addr <= {ADDR_WIDTH{1'b0}};
         end else begin
-            if (burst_wr_valid) begin
-                // Write with byte enable
-                if (burst_wr_strb[0]) memory[wr_current_addr + 0] <= burst_wr_data[7:0];
-                if (burst_wr_strb[1]) memory[wr_current_addr + 1] <= burst_wr_data[15:8];
-                if (burst_wr_strb[2]) memory[wr_current_addr + 2] <= burst_wr_data[23:16];
-                if (burst_wr_strb[3]) memory[wr_current_addr + 3] <= burst_wr_data[31:24];
-                
-                burst_wr_ready <= 1'b1;
-                
-                if (!burst_wr_last) begin
+            if (burst_wr_valid && burst_wr_ready) begin
+                if (burst_wr_strb[0]) memory[wr_current_addr+0] <= burst_wr_data[7:0];
+                if (burst_wr_strb[1]) memory[wr_current_addr+1] <= burst_wr_data[15:8];
+                if (burst_wr_strb[2]) memory[wr_current_addr+2] <= burst_wr_data[23:16];
+                if (burst_wr_strb[3]) memory[wr_current_addr+3] <= burst_wr_data[31:24];
+
+                if (!burst_wr_last)
                     wr_current_addr <= wr_current_addr + (DATA_WIDTH/8);
-                end else begin
-                    wr_current_addr <= burst_wr_addr;  // Reset for next burst
-                end
-            end else begin
-                burst_wr_ready <= 1'b0;
+                else
+                    wr_current_addr <= burst_wr_addr;
+            end else if (!burst_wr_valid) begin
                 wr_current_addr <= burst_wr_addr;
             end
         end
     end
-    
+        
     // ========================================================================
     // Memory Initialization
     // ========================================================================

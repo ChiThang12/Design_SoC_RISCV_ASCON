@@ -169,7 +169,7 @@
 // ============================================================================
 
 `timescale 1ns / 1ps
-`include "riscv_soc_top.v"
+`include "cpu/riscv_soc_top.v"
 
 module riscv_soc_tb;
 

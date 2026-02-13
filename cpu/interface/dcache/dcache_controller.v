@@ -11,7 +11,7 @@
 // Author: ChiThang
 // ============================================================================
 
-`include "interface/dcache/dcache_defines.vh"
+`include "cpu/interface/dcache/dcache_defines.vh"
 
 module dcache_controller (
     input wire clk,

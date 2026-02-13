@@ -10,7 +10,7 @@
 // Author: ChiThang
 // ============================================================================
 
-`include "dcache_defines.vh"
+`include "cpu/interface/dcache/tb/dcache_defines.vh"
 
 module dcache_tag_array (
     input wire clk,

@@ -10,7 +10,7 @@
 // Version: AXI4 Full with Write Support
 // ============================================================================
 
-`include "interface/dcache/dcache_defines.vh"
+`include "cpu/interface/dcache/dcache_defines.vh"
 
 module dcache_axi_interface (
     input wire clk,
@@ -169,10 +169,37 @@ module dcache_axi_interface (
     localparam [1:0]
         WR_IDLE = 2'b00,
         WR_AW   = 2'b01,
-        WR_W    = 2'b10,
+        WR_W    = 2'b10,   // unused but kept for localparam consistency
         WR_B    = 2'b11;
     
     reg [1:0] wr_state;
+
+    // -----------------------------------------------------------------------
+    // FIX: Track each channel's handshake completion independently.
+    //
+    // BUG (original code): The transition condition
+    //   (!M_AXI_AWVALID || M_AXI_AWREADY) && (!M_AXI_WVALID || M_AXI_WREADY)
+    // is evaluated in the SAME always block where AWVALID/WVALID are cleared
+    // via non-blocking assignments.  Because non-blocking assignments only
+    // take effect AFTER the block completes, the condition sees the OLD values
+    // of AWVALID/WVALID.
+    //
+    // Scenario that causes deadlock:
+    //   Cycle N  : AWREADY=1, WREADY=0
+    //              -> AWVALID <= 0  (pending, not yet applied)
+    //              -> Condition: (!1||1) && (!1||0) = TRUE && FALSE = FALSE
+    //                 -> State stays WR_AW, AWVALID becomes 0 next cycle
+    //   Cycle N+1: AWVALID=0, AWREADY=0 (slave dropped ready), WREADY still 0
+    //              -> Condition: (!0||0) && (!1||0) = TRUE && FALSE = FALSE
+    //              -> STUCK FOREVER because AWVALID=0 means slave never sends
+    //                 AWREADY again, and WVALID=1 but WREADY never comes.
+    //
+    // FIX: Use sticky flags aw_done / w_done that latch the moment each
+    // channel's handshake fires.  The transition to WR_B checks these flags
+    // instead of the live valid/ready signals.
+    // -----------------------------------------------------------------------
+    reg aw_done;   // AW channel handshake complete
+    reg w_done;    // W  channel handshake complete
     
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -185,6 +212,8 @@ module dcache_axi_interface (
             M_AXI_WSTRB    <= 4'h0;
             M_AXI_WVALID   <= 1'b0;
             M_AXI_BREADY   <= 1'b0;
+            aw_done        <= 1'b0;
+            w_done         <= 1'b0;
             
         end else begin
             // Default: clear one-shot signals
@@ -196,32 +225,41 @@ module dcache_axi_interface (
                     M_AXI_AWVALID <= 1'b0;
                     M_AXI_WVALID  <= 1'b0;
                     M_AXI_BREADY  <= 1'b0;
+                    // Reset completion flags on entry/idle
+                    aw_done       <= 1'b0;
+                    w_done        <= 1'b0;
                     
                     if (wt_start) begin
-                        // Latch write data
+                        // Latch write data and assert both channels together
                         M_AXI_AWADDR  <= wt_addr;
                         M_AXI_WDATA   <= wt_data;
                         M_AXI_WSTRB   <= wt_strb;
                         M_AXI_AWVALID <= 1'b1;
-                        M_AXI_WVALID  <= 1'b1;  // Can issue AW and W simultaneously
+                        M_AXI_WVALID  <= 1'b1;
                         wt_busy       <= 1'b1;
                         wr_state      <= WR_AW;
                     end
                 end
                 
                 WR_AW: begin
-                    // Wait for both AW and W handshakes
-                    if (M_AXI_AWREADY) begin
+                    // --- AW channel handshake ---
+                    if (M_AXI_AWVALID && M_AXI_AWREADY) begin
                         M_AXI_AWVALID <= 1'b0;
+                        aw_done       <= 1'b1;   // latch: AW done
                     end
                     
-                    if (M_AXI_WREADY) begin
+                    // --- W channel handshake ---
+                    if (M_AXI_WVALID && M_AXI_WREADY) begin
                         M_AXI_WVALID <= 1'b0;
+                        w_done       <= 1'b1;    // latch: W done
                     end
                     
-                    if ((!M_AXI_AWVALID || M_AXI_AWREADY) && 
-                        (!M_AXI_WVALID || M_AXI_WREADY)) begin
-                        // Both channels done
+                    // --- Transition: both channels complete ---
+                    // Use sticky flags so we don't miss one channel finishing
+                    // before the other.  A channel is "done" either if it just
+                    // fired this cycle OR if it already fired in a prior cycle.
+                    if ((aw_done || (M_AXI_AWVALID && M_AXI_AWREADY)) &&
+                        (w_done  || (M_AXI_WVALID  && M_AXI_WREADY ))) begin
                         M_AXI_BREADY <= 1'b1;
                         wr_state     <= WR_B;
                     end
@@ -234,6 +272,8 @@ module dcache_axi_interface (
                         wr_state     <= WR_IDLE;
                     end
                 end
+                
+                default: wr_state <= WR_IDLE;
             endcase
         end
     end

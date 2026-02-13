@@ -21,10 +21,10 @@
 // ============================================================================
 // Cache Size Configuration
 // ============================================================================
-`define DCACHE_SIZE         8192        // 8KB total cache size
+`define DCACHE_SIZE         1024        // 1KB total cache size (64 lines x 16bytes)
 `define DCACHE_LINE_SIZE    16          // 16 bytes per cache line (4 words)
-`define DCACHE_NUM_LINES    512         // 8KB / 16B = 512 lines
-`define DCACHE_NUM_SETS     512         // Direct-mapped: 1 way
+`define DCACHE_NUM_LINES    64          // 1KB / 16B = 64 lines (2^6)
+`define DCACHE_NUM_SETS     64          // Direct-mapped: 1 way
 
 // ============================================================================
 // Address Width
@@ -36,14 +36,15 @@
 // Address Breakdown (for 32-bit address)
 // ============================================================================
 // [31:10] - Tag (22 bits)
-// [9:4]   - Index (6 bits) -> 2^6 = 64 sets
-// [3:2]   - Word offset (2 bits) -> 4 words per line
-// [1:0]   - Byte offset (2 bits) -> 4 bytes per word
+// [9:4]   - Index (6 bits)   -> 2^6 = 64 lines
+// [3:2]   - Word offset (2 bits) -> 4 words per line (each 4 bytes)
+// [1:0]   - Byte offset (2 bits) -> within 4-byte word
+// Total: 22 + 6 + 2 + 2 = 32 bits
 
-`define DCACHE_TAG_WIDTH    22          // Bits for tag
-`define DCACHE_INDEX_WIDTH  6           // Bits for index (2^6 = 64 lines)
-`define DCACHE_OFFSET_WIDTH 2           // Bits for word offset
-`define DCACHE_BYTE_WIDTH   2           // Bits for byte offset
+`define DCACHE_TAG_WIDTH    22          // Bits for tag [31:10]
+`define DCACHE_INDEX_WIDTH  6           // Bits for index [9:4] (2^6 = 64 lines)
+`define DCACHE_OFFSET_WIDTH 2           // Bits for word offset [3:2]
+`define DCACHE_BYTE_WIDTH   2           // Bits for byte offset [1:0]
 
 `define DCACHE_WORDS_PER_LINE 4         // 16 bytes / 4 bytes = 4 words
 
