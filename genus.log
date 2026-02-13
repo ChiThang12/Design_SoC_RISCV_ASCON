@@ -1,0 +1,1561 @@
+Cadence Genus(TM) Synthesis Solution.
+Copyright 2024 Cadence Design Systems, Inc. All rights reserved worldwide.
+Cadence and the Cadence logo are registered trademarks and Genus is a trademark
+of Cadence Design Systems, Inc. in the United States and other countries.
+
+[20:06:54.393609] Configured Lic search path (23.02-s003): 5280@192.168.32.10
+
+Version: 23.10-p004_1, built Wed Jan 31 22:43:46 PST 2024
+Options: 
+Date:    Fri Feb 13 20:06:54 2026
+Host:    vku-truongsa (x86_64 w/Linux 3.10.0-1160.119.1.el7.x86_64) (4cores*24cpus*6physical cpus*Intel(R) Xeon(R) CPU E5-2667 v2 @ 3.30GHz 25600KB) (98831888KB)
+PID:     29373
+OS:      CentOS Linux release 7.9.2009 (Core)
+
+Checking out license: Genus_Synthesis
+[20:06:54.415496] Periodic Lic check successful
+[20:06:54.939898] Feature usage summary:
+[20:06:54.939905] Genus_Synthesis
+
+
+
+***********************************************************************************************************
+***********************************************************************************************************
+
+
+
+Finished executable startup (1 second elapsed).
+
+Loading tool scripts...
+Finished loading tool scripts (20 seconds elapsed).
+
+WARNING: This version of the tool is 743 days old.
+@genus:root: 1> read_db ./outputs/inst_mem_innovus/
+%# Begin ::stylus_db::read (02/13 20:07:33, mem=995.76M)
+(stylus_db): Argument checking
+(stylus_db): Determining DB Schema from './outputs/inst_mem_innovus/cmn/inst_mem.sql'.
+(stylus_db): Reading Native DB: /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/outputs/inst_mem_innovus/syn/inst_mem.db
+Reading database file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/outputs/inst_mem_innovus/syn/inst_mem.db'.
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'define' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C.lib, Line 23)
+        : Check to see if this construct is really needed for synthesis. Many liberty constructs are not actually required.
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'library_features' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C.lib, Line 83)
+Warning : Unsupported attribute in the pin group. [LBR-510]
+        : The attribute 'bus_naming_style' defined on line 147 is not supported for 'cell' group. It should be defined at 'library' level. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C.lib)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 241)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 272)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 306)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 307)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 498)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 499)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 1194)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 1195)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 1890)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 1891)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 2586)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 2587)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 2779)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 2780)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 2972)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 2973)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 3165)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 3166)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 3633)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 3634)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 4101)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 4102)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 4566)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 4597)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'padres' for the cell 'sg13g2_IOPadAnalog'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib, Line 4684)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 241)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 272)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 306)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 307)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 498)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 499)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 1194)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 1195)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 1890)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 1891)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 2586)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 2587)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 2779)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 2780)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 2972)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 2973)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 3165)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 3166)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 3633)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 3634)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 4101)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 4102)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 4597)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 4566)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'padres' for the cell 'sg13g2_IOPadAnalog'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib, Line 4684)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 8657)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 8665)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 16295)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 16303)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 16319)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 16311)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'SH' for the cell 'sg13g2_sighold'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib, Line 32108)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 8657)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 8665)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 16295)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 16303)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 16311)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 16319)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'SH' for the cell 'sg13g2_sighold'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib, Line 32108)
+
+  Message Summary for Library all 5 libraries:
+  ********************************************
+  Missing a function attribute in the output pin definition. [LBR-518]: 4
+  Unsupported attribute in the pin group. [LBR-510]: 1
+  An unsupported construct was detected in this library. [LBR-40]: 62
+  ********************************************
+ 
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p08V_3p0V_125C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_io_slow_1p35V_3p0V_125C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C' and 'sg13g2_io_slow_1p35V_3p0V_125C'.
+        : This is a common source of delay calculation confusion and should be avoided.
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p08V_125C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/slow/sg13g2_stdcell_slow_1p35V_125C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C' and 'sg13g2_stdcell_slow_1p35V_125C'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.080000, 125.000000) in library 'RM_IHPSG13_2P_1024x32_c2_bm_bist_slow_1p08V_125C.lib'.
+        : The nominal operating condition is represented, either by the nominal PVT values specified in the library source (via nom_process,nom_voltage and nom_temperature respectively), or by the default PVT values (1.0,1.0,1.0).
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.080000, 125.000000) in library 'sg13g2_io_slow_1p08V_3p0V_125C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.350000, 125.000000) in library 'sg13g2_io_slow_1p35V_3p0V_125C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.080000, 125.000000) in library 'sg13g2_stdcell_slow_1p08V_125C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.350000, 125.000000) in library 'sg13g2_stdcell_slow_1p35V_125C.lib'.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[0]' has no function.
+        : If the remainder of this library cell's semantic checks are successful, it will be considered as a timing-model (because one of its outputs does not have a valid function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[1]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[2]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[3]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[4]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[5]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[6]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[7]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[8]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[9]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[10]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[11]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[12]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[13]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[14]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[15]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[16]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[17]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[18]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[19]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[20]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[21]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[22]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[23]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[24]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[25]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[26]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[27]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[28]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[29]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[30]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[31]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[0]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[1]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[2]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[3]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[4]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[5]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[6]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[7]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[8]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[9]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[10]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[11]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[12]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[13]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[14]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[15]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[16]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[17]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[18]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[19]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[20]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[21]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[22]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[23]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[24]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[25]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[26]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[27]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[28]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[29]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[30]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[31]' has no function.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+        : Add the missing output pin(s), then reload the library. Else the library cell will be marked as timing model i.e. unusable. Timing_model means that the cell does not have any defined function. If there is no output pin, Genus will mark library cell as unusable i.e. the attribute 'usable' will be marked to 'false' on the libcell. Therefore, the cell is not used for mapping and it will not be picked up from the library for synthesis. If you query the attribute 'unusable_reason' on the libcell; result will be: 'Library cell has no output pins.'Note: The message LBR-9 is only for the logical pins and not for the power_ground pins. Genus will depend upon the output function defined in the pin group (output pin) of the cell, to use it for mapping. The pg_pin will not have any function defined.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'sg13g2_IOPadAnalog/padres' has no function.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'sg13g2_IOPadAnalog/padres' has no function.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_lgcp_1'
+        : To make the cell usable, change the value of 'dont_use' attribute to false.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'sg13g2_sighold/SH' has no function.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_slgcp_1'
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_lgcp_1'
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'sg13g2_sighold/SH' has no function.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_slgcp_1'
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadIOVdd and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadIOVdd).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadIOVdd).
+        : Library cell names must be unique.  Any duplicates will be deleted.  Only the first (as determined by the order of libraries) will be retained.
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadIOVss and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadIOVss).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadIOVss).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadIn and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadIn).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadIn).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadInOut16mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadInOut16mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadInOut16mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadInOut30mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadInOut30mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadInOut30mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadInOut4mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadInOut4mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadInOut4mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadOut16mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadOut16mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadOut16mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadOut30mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadOut30mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadOut30mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadOut4mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadOut4mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadOut4mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadTriOut16mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadTriOut16mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadTriOut16mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadTriOut30mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadTriOut30mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadTriOut30mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadTriOut4mA and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadTriOut4mA).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadTriOut4mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadVdd and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadVdd).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadVdd).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadVss and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadVss).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadVss).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_slow_1p08V_3p0V_125C/sg13g2_IOPadAnalog and sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadAnalog).  Deleting (sg13g2_io_slow_1p35V_3p0V_125C/sg13g2_IOPadAnalog).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_a21o_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21o_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21o_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_a21o_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21o_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21o_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_a21oi_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21oi_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21oi_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_a21oi_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21oi_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_a21oi_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_a221oi_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_a221oi_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_a221oi_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_a22oi_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_a22oi_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_a22oi_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_and2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_and2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_and2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_and2_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_and2_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_and2_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_and3_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_and3_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_and3_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_and3_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_and3_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_and3_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_and4_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_and4_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_and4_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_and4_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_and4_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_and4_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_antennanp and sg13g2_stdcell_slow_1p35V_125C/sg13g2_antennanp).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_antennanp).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_buf_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_buf_16 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_16).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_16).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_buf_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_buf_4 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_4).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_4).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_buf_8 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_8).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_buf_8).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_decap_4 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_decap_4).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_decap_4).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_decap_8 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_decap_8).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_decap_8).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dfrbp_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbp_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbp_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dfrbp_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbp_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbp_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dfrbpq_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbpq_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbpq_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dfrbpq_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbpq_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dfrbpq_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dlhq_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlhq_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlhq_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dlhr_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlhr_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlhr_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dlhrq_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlhrq_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlhrq_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dllr_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dllr_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dllr_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dllrq_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dllrq_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dllrq_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dlygate4sd1_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlygate4sd1_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlygate4sd1_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dlygate4sd2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlygate4sd2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlygate4sd2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_dlygate4sd3_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlygate4sd3_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_dlygate4sd3_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_ebufn_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_ebufn_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_ebufn_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_ebufn_4 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_ebufn_4).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_ebufn_4).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_ebufn_8 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_ebufn_8).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_ebufn_8).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_einvn_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_einvn_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_einvn_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_einvn_4 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_einvn_4).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_einvn_4).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_einvn_8 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_einvn_8).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_einvn_8).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_fill_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_fill_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_fill_4 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_4).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_4).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_fill_8 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_8).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_fill_8).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_inv_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_inv_16 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_16).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_16).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_inv_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_inv_4 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_4).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_4).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_inv_8 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_8).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_inv_8).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_lgcp_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_lgcp_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_lgcp_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_mux2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_mux2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_mux2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_mux2_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_mux2_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_mux2_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_mux4_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_mux4_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_mux4_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand2_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand2b_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2b_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2b_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand2b_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2b_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand2b_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand3_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand3_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand3_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand3b_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand3b_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand3b_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nand4_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand4_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nand4_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor2_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor2b_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2b_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2b_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor2b_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2b_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor2b_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor3_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor3_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor3_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor3_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor3_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor3_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor4_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor4_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor4_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_nor4_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor4_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_nor4_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_o21ai_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_o21ai_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_o21ai_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_or2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_or2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_or2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_or2_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_or2_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_or2_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_or3_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_or3_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_or3_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_or3_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_or3_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_or3_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_or4_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_or4_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_or4_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_or4_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_or4_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_or4_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_sdfbbp_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfbbp_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfbbp_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_sdfrbp_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbp_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbp_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_sdfrbp_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbp_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbp_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_sdfrbpq_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbpq_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbpq_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_sdfrbpq_2 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbpq_2).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_sdfrbpq_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_sighold and sg13g2_stdcell_slow_1p35V_125C/sg13g2_sighold).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_sighold).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_slgcp_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_slgcp_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_slgcp_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_tiehi and sg13g2_stdcell_slow_1p35V_125C/sg13g2_tiehi).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_tiehi).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_tielo and sg13g2_stdcell_slow_1p35V_125C/sg13g2_tielo).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_tielo).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_xnor2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_xnor2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_xnor2_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_slow_1p08V_125C/sg13g2_xor2_1 and sg13g2_stdcell_slow_1p35V_125C/sg13g2_xor2_1).  Deleting (sg13g2_stdcell_slow_1p35V_125C/sg13g2_xor2_1).
+Info    : Set default library domain. [LBR-109]
+        : The default library domain is 'library_domain:slow'.
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'define' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C.lib, Line 23)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'library_features' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C.lib, Line 83)
+Warning : Unsupported attribute in the pin group. [LBR-510]
+        : The attribute 'bus_naming_style' defined on line 147 is not supported for 'cell' group. It should be defined at 'library' level. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C.lib)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 241)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 272)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 306)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 307)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 498)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 499)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 1194)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 1195)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 1890)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 1891)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 2586)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 2587)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 2779)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 2780)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 2972)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 2973)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 3165)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 3166)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 3633)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 3634)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 4101)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 4102)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 4566)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 4597)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'padres' for the cell 'sg13g2_IOPadAnalog'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib, Line 4684)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 241)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 272)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 306)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 307)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 498)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 499)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 1194)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 1195)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 1890)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 1891)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 2586)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 2587)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 2779)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 2780)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 2972)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 2973)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 3165)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 3166)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 3633)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 3634)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 4101)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 4102)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 4566)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 4597)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'padres' for the cell 'sg13g2_IOPadAnalog'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib, Line 4684)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 8657)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 8665)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 16295)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 16303)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 16311)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 16319)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'SH' for the cell 'sg13g2_sighold'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib, Line 32108)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 8657)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_decap_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 8665)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 16295)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 16303)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 16311)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'is_filler_cell' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 16319)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'SH' for the cell 'sg13g2_sighold'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib, Line 32108)
+
+  Message Summary for Library all 5 libraries:
+  ********************************************
+  Missing a function attribute in the output pin definition. [LBR-518]: 4
+  Unsupported attribute in the pin group. [LBR-510]: 1
+  An unsupported construct was detected in this library. [LBR-40]: 62
+  ********************************************
+ 
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p2V_3p3V_25C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_io_typ_1p5V_3p3V_25C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C' and 'sg13g2_io_typ_1p5V_3p3V_25C'.
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p20V_25C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/typ/sg13g2_stdcell_typ_1p50V_25C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C' and 'sg13g2_stdcell_typ_1p50V_25C'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.200000, 25.000000) in library 'RM_IHPSG13_2P_1024x32_c2_bm_bist_typ_1p20V_25C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.200000, 25.000000) in library 'sg13g2_io_typ_1p2V_3p3V_25C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.500000, 25.000000) in library 'sg13g2_io_typ_1p5V_3p3V_25C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.200000, 25.000000) in library 'sg13g2_stdcell_typ_1p20V_25C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.500000, 25.000000) in library 'sg13g2_stdcell_typ_1p50V_25C.lib'.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[0]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[1]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[2]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[3]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[4]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[5]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[6]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[7]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[8]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[9]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[10]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[11]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[12]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[13]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[14]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[15]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[16]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[17]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[18]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[19]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[20]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[21]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[22]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[23]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[24]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[25]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[26]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[27]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[28]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[29]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[30]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/A_DOUT[31]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[0]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[1]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[2]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[3]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[4]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[5]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[6]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[7]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[8]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[9]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[10]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[11]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[12]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[13]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[14]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[15]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[16]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[17]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[18]' has no function.
+Info    : An output library pin lacks a function attribute. [LBR-41]
+        : Output pin 'RM_IHPSG13_2P_1024x32_c2_bm_bist/B_DOUT[19]' has no function.
+Warning : Maximum message print count reached. [MESG-11]
+        : Maximum print count of '120' reached for message 'LBR-41'.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_lgcp_1'
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_slgcp_1'
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_lgcp_1'
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_slgcp_1'
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadIOVdd and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadIOVdd).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadIOVdd).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadIOVss and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadIOVss).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadIOVss).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadIn and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadIn).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadIn).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadInOut16mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadInOut16mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadInOut16mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadInOut30mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadInOut30mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadInOut30mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadInOut4mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadInOut4mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadInOut4mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadOut16mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadOut16mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadOut16mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadOut30mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadOut30mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadOut30mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadOut4mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadOut4mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadOut4mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadTriOut16mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadTriOut16mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadTriOut16mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadTriOut30mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadTriOut30mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadTriOut30mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadTriOut4mA and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadTriOut4mA).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadTriOut4mA).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadVdd and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadVdd).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadVdd).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadVss and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadVss).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadVss).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_io_typ_1p2V_3p3V_25C/sg13g2_IOPadAnalog and sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadAnalog).  Deleting (sg13g2_io_typ_1p5V_3p3V_25C/sg13g2_IOPadAnalog).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_typ_1p20V_25C/sg13g2_a21o_1 and sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21o_1).  Deleting (sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21o_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_typ_1p20V_25C/sg13g2_a21o_2 and sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21o_2).  Deleting (sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21o_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_typ_1p20V_25C/sg13g2_a21oi_1 and sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21oi_1).  Deleting (sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21oi_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_typ_1p20V_25C/sg13g2_a21oi_2 and sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21oi_2).  Deleting (sg13g2_stdcell_typ_1p50V_25C/sg13g2_a21oi_2).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_typ_1p20V_25C/sg13g2_a221oi_1 and sg13g2_stdcell_typ_1p50V_25C/sg13g2_a221oi_1).  Deleting (sg13g2_stdcell_typ_1p50V_25C/sg13g2_a221oi_1).
+Warning : Multiply-defined library cell. [LBR-22]
+        : Library-cell name collision (sg13g2_stdcell_typ_1p20V_25C/sg13g2_a22oi_1 and sg13g2_stdcell_typ_1p50V_25C/sg13g2_a22oi_1).  Deleting (sg13g2_stdcell_typ_1p50V_25C/sg13g2_a22oi_1).
+Warning : Maximum message print count reached. [MESG-11]
+        : Maximum print count of '120' reached for message 'LBR-22'.
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'define' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C.lib, Line 23)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'library_features' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C.lib, Line 83)
+Warning : Unsupported attribute in the pin group. [LBR-510]
+        : The attribute 'bus_naming_style' defined on line 147 is not supported for 'cell' group. It should be defined at 'library' level. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C.lib)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 241)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 272)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 306)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 307)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 498)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 499)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 1194)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 1195)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 1890)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 1891)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 2586)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 2587)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'pad_drivers' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 2779)
+Info    : An unsupported construct was detected in this library. [LBR-40]
+        : Unknown Liberty attribute 'bond_pads' encountered. Ignoring (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 2780)
+Warning : Maximum message print count reached. [MESG-11]
+        : Maximum print count of '140' reached for message 'LBR-40'.
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'padres' for the cell 'sg13g2_IOPadAnalog'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib, Line 4684)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'padres' for the cell 'sg13g2_IOPadAnalog'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p65V_3p6V_m40C.lib, Line 4684)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'SH' for the cell 'sg13g2_sighold'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_stdcell_fast_1p32V_m40C.lib, Line 32108)
+Info    : Missing a function attribute in the output pin definition. [LBR-518]
+        : Functionality is missing at pin 'SH' for the cell 'sg13g2_sighold'. (File /home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_stdcell_fast_1p65V_m40C.lib, Line 32108)
+
+  Message Summary for Library all 5 libraries:
+  ********************************************
+  Missing a function attribute in the output pin definition. [LBR-518]: 4
+  Unsupported attribute in the pin group. [LBR-510]: 1
+  An unsupported construct was detected in this library. [LBR-40]: 62
+  ********************************************
+ 
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C.lib'
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p32V_3p6V_m40C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C' and 'sg13g2_io_fast_1p32V_3p6V_m40C'.
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_io_fast_1p65V_3p6V_m40C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C' and 'sg13g2_io_fast_1p65V_3p6V_m40C'.
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_stdcell_fast_1p32V_m40C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C' and 'sg13g2_stdcell_fast_1p32V_m40C'.
+            Reading file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lib/fast/sg13g2_stdcell_fast_1p65V_m40C.lib'
+Warning : Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature. Genus reports the message, if the respective values of the 2 given .libs differ. [LBR-38]
+        : The libraries are 'RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C' and 'sg13g2_stdcell_fast_1p65V_m40C'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.320000, -55.000000) in library 'RM_IHPSG13_2P_1024x32_c2_bm_bist_fast_1p32V_m55C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.320000, -40.000000) in library 'sg13g2_io_fast_1p32V_3p6V_m40C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.650000, -40.000000) in library 'sg13g2_io_fast_1p65V_3p6V_m40C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.320000, -40.000000) in library 'sg13g2_stdcell_fast_1p32V_m40C.lib'.
+Info    : Created nominal operating condition. [LBR-412]
+        : Operating condition '_nominal_' was created for the PVT values (1.000000, 1.650000, -40.000000) in library 'sg13g2_stdcell_fast_1p65V_m40C.lib'.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadIOVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVdd' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_IOPadVss' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_4' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_decap_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_decap_8' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_1' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_1' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_2' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_2' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_4' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_4' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_fill_8' must have an output pin.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_lgcp_1'
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_slgcp_1'
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_antennanp' has no outputs.
+Warning : Library cell has no output pins defined. [LBR-9]
+        : Library cell 'sg13g2_antennanp' must have an output pin.
+        Cell 'sg13g2_decap_4' has no outputs.
+Warning : Maximum message print count reached. [MESG-11]
+        : Maximum print count of '120' reached for message 'LBR-9'.
+        Cell 'sg13g2_decap_4' has no outputs.
+        Cell 'sg13g2_decap_8' has no outputs.
+        Cell 'sg13g2_decap_8' has no outputs.
+        Cell 'sg13g2_fill_1' has no outputs.
+        Cell 'sg13g2_fill_1' has no outputs.
+        Cell 'sg13g2_fill_2' has no outputs.
+        Cell 'sg13g2_fill_2' has no outputs.
+        Cell 'sg13g2_fill_4' has no outputs.
+        Cell 'sg13g2_fill_4' has no outputs.
+        Cell 'sg13g2_fill_8' has no outputs.
+        Cell 'sg13g2_fill_8' has no outputs.
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_lgcp_1'
+Warning : Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion, 'dont_use' attribute should be set to false. [LBR-101]
+        : Clock gating integrated cell name: 'sg13g2_slgcp_1'
+Warning : Multiple ports are found on a pin without MUSTJOINALLPORTS in the pin property in the LEF file. [PHYS-2381]
+        : Multiple ports are found on pin 'pad' on cell 'sg13g2_IOPadAnalog' without MUSTJOINALLPORTS in the pin property.
+        : This means that only one port would be connected, which may not be the expected behavior. Should consider adding MUSTJOINALLPORTS property.
+Warning : Site already defined before, duplicated site will be ignored. [PHYS-106]
+        : Site 'sg13g2_ioSite' read already, this site in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef' is ignored.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Corner' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Filler200' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Filler400' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Filler1000' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Filler2000' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Filler4000' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_Filler10000' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadIn' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadOut4mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadOut16mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadOut30mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadTriOut4mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadTriOut16mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadTriOut30mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadInOut4mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadInOut16mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadInOut30mA' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadAnalog' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadIOVss' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadIOVdd' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadVss' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+Warning : Duplicate macro definition. [PHYS-107]
+        : Macro 'sg13g2_IOPadVdd' is already defined. Ignoring this definition in file '/home/ducnm.23ce/Documents/SoC_RISCV/Design_SoC_RISCV_ASCON/libraries/lef/sg13g2_io_notracks.lef'.
+
+  According to lef_library, there are total 7 routing layers [ V(3) / H(4) ]
+
+Warning : The variant range of wire parameters is too large. An example of wire parameters are, a WIDTH for layer, PITCH for layer, MINSPACING for layers, etc. [PHYS-12]
+        : The variant range (0.16, 2) of 'WIDTH' for layers 'Metal1' and 'TopMetal2' is too large.
+        : Check the consistency of the parameters, and see if you can ignore this message or you're using different LEF file with wrong parameters.
+Warning : The variant range of wire parameters is too large. An example of wire parameters are, a WIDTH for layer, PITCH for layer, MINSPACING for layers, etc. [PHYS-12]
+        : The variant range (0.18, 2) of 'MINSPACING' for layers 'Metal1' and 'TopMetal2' is too large.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDD' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDDARRAY' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VSS' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDD' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDDARRAY' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VSS' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Corner cannot be found in library.
+        : Ensure that the proper library files are available and have been imported.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler200 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler400 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler1000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler2000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler4000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler10000 cannot be found in library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDD' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDDARRAY' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VSS' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDD' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDDARRAY' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VSS' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Corner cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler200 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler400 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler1000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler2000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler4000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler10000 cannot be found in library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDD' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDDARRAY' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VSS' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDD' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VDDARRAY' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Pin names are not consistent in lib and LEF files. [PHYS-113]
+        : Pin 'VSS' of library cell 'RM_IHPSG13_2P_1024x32_c2_bm_bist' is in logical library but not in physical library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Corner cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler200 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler400 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler1000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler2000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler4000 cannot be found in library.
+Warning : Physical cell not defined in library. [PHYS-279]
+        : The physical (LEF) cell sg13g2_Filler10000 cannot be found in library.
+==================================
+Stage : incr_opt 
+==================================
+  =================
+   Message Summary
+  =================
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|   Id    |  Sev  |Count|                                                                         Message Text                                                                          |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+|LBR-9    |Warning|  264|Library cell has no output pins defined.                                                                                                                       |
+|         |       |     |Add the missing output pin(s)                                                                                                                                  |
+|         |       |     | , then reload the library. Else the library cell will be marked as timing model i.e. unusable. Timing_model means that the cell does not have any defined     |
+|         |       |     | function. If there is no output pin, Genus will mark library cell as unusable i.e. the attribute 'usable' will be marked to 'false' on the libcell. Therefore,|
+|         |       |     | the cell is not used for mapping and it will not be picked up from the library for synthesis. If you query the attribute 'unusable_reason' on the libcell;    |
+|         |       |     | result will be: 'Library cell has no output pins.'Note: The message LBR-9 is only for the logical pins and not for the power_ground pins. Genus will depend   |
+|         |       |     | upon the output function defined in the pin group (output pin) of the cell, to use it for mapping. The pg_pin will not have any function defined.             |
+|LBR-22   |Warning|  594|Multiply-defined library cell.                                                                                                                                 |
+|         |       |     |Library cell names must be unique.  Any duplicates will be deleted.  Only the first (as determined by the order of libraries) will be retained.                |
+|LBR-38   |Warning|   16|Libraries have inconsistent nominal operating conditions. In the Liberty library, there are attributes called nom_voltage, nom_process and nom_temperature.    |
+|         |       |     | Genus reports the message, if the respective values of the 2 given .libs differ.                                                                              |
+|         |       |     |This is a common source of delay calculation confusion and should be avoided.                                                                                  |
+|LBR-40   |Info   |  372|An unsupported construct was detected in this library.                                                                                                         |
+|         |       |     |Check to see if this construct is really needed for synthesis. Many liberty constructs are not actually required.                                              |
+|LBR-41   |Info   |  408|An output library pin lacks a function attribute.                                                                                                              |
+|         |       |     |If the remainder of this library cell's semantic checks are successful, it will be considered as a timing-model                                                |
+|         |       |     | (because one of its outputs does not have a valid function.                                                                                                   |
+|LBR-101  |Warning|   24|Unusable clock gating integrated cell found at the time of loading libraries. This warning happens because a particular library cell is defined as             |
+|         |       |     | 'clock_gating_integrated_cell', but 'dont_use' attribute is defined as true in the liberty library. To make Genus use this cell for clock gating insertion,   |
+|         |       |     | 'dont_use' attribute should be set to false.                                                                                                                  |
+|         |       |     |To make the cell usable, change the value of 'dont_use' attribute to false.                                                                                    |
+|LBR-109  |Info   |    2|Set default library domain.                                                                                                                                    |
+|LBR-412  |Info   |   30|Created nominal operating condition.                                                                                                                           |
+|         |       |     |The nominal operating condition is represented, either by the nominal PVT values specified in the library source                                               |
+|         |       |     | (via nom_process,nom_voltage and nom_temperature respectively), or by the default PVT values (1.0,1.0,1.0).                                                   |
+|LBR-510  |Warning|    6|Unsupported attribute in the pin group.                                                                                                                        |
+|LBR-518  |Info   |   24|Missing a function attribute in the output pin definition.                                                                                                     |
+|LBR-785  |Info   |  594|Stored shadowed libcells.                                                                                                                                      |
+|         |       |     |Before deleting duplicate libcells, their names are stored.                                                                                                    |
+|PHYS-12  |Warning|    4|The variant range of wire parameters is too large. An example of wire parameters are, a WIDTH for layer, PITCH for layer, MINSPACING for layers, etc.          |
+|         |       |     |Check the consistency of the parameters, and see if you can ignore this message or you're using different LEF file with wrong parameters.                      |
+|PHYS-106 |Warning|    2|Site already defined before, duplicated site will be ignored.                                                                                                  |
+|PHYS-107 |Warning|   44|Duplicate macro definition.                                                                                                                                    |
+|PHYS-113 |Warning|   36|Pin names are not consistent in lib and LEF files.                                                                                                             |
+|PHYS-279 |Warning|   42|Physical cell not defined in library.                                                                                                                          |
+|         |       |     |Ensure that the proper library files are available and have been imported.                                                                                     |
+|PHYS-2381|Warning|    2|Multiple ports are found on a pin without MUSTJOINALLPORTS in the pin property in the LEF file.                                                                |
+|         |       |     |This means that only one port would be connected, which may not be the expected behavior. Should consider adding MUSTJOINALLPORTS property.                    |
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Warning : Detected a pin with itself as the related_pin in a combinational cell. [LBR-157]
+        : The pin 'pad' of libcell 'sg13g2_IOPadAnalog' has the pin 'pad' as a related pin.
+        : This timing-arc of the cell will be ignored.
+Warning : Automatically disabling an arc which forms loop at output. [LBR-73]
+        : The arc is named 'pad_pad_n90' between pins 'pad' and 'pad' in libcell 'sg13g2_IOPadAnalog'.
+        : Check to see whether the timing arc in question is crucial for synthesis.  If it is, disable a proper arc in the loop.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S' and 'X' in libcell 'sg13g2_mux2_1'.
+        : Setting the 'timing_sense' to non_unate.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S' and 'X' in libcell 'sg13g2_mux2_2'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S1' and 'X' in libcell 'sg13g2_mux4_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S0' and 'X' in libcell 'sg13g2_mux4_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'B' and 'Y' in libcell 'sg13g2_xnor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'A' and 'Y' in libcell 'sg13g2_xnor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'B' and 'X' in libcell 'sg13g2_xor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'A' and 'X' in libcell 'sg13g2_xor2_1'.
+Warning : Detected a pin with itself as the related_pin in a combinational cell. [LBR-157]
+        : The pin 'pad' of libcell 'sg13g2_IOPadAnalog' has the pin 'pad' as a related pin.
+Warning : Automatically disabling an arc which forms loop at output. [LBR-73]
+        : The arc is named 'pad_pad_n90' between pins 'pad' and 'pad' in libcell 'sg13g2_IOPadAnalog'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S' and 'X' in libcell 'sg13g2_mux2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S' and 'X' in libcell 'sg13g2_mux2_2'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S1' and 'X' in libcell 'sg13g2_mux4_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S0' and 'X' in libcell 'sg13g2_mux4_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'B' and 'Y' in libcell 'sg13g2_xnor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'A' and 'Y' in libcell 'sg13g2_xnor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'B' and 'X' in libcell 'sg13g2_xor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'A' and 'X' in libcell 'sg13g2_xor2_1'.
+Warning : Detected a pin with itself as the related_pin in a combinational cell. [LBR-157]
+        : The pin 'pad' of libcell 'sg13g2_IOPadAnalog' has the pin 'pad' as a related pin.
+Warning : Automatically disabling an arc which forms loop at output. [LBR-73]
+        : The arc is named 'pad_pad_n90' between pins 'pad' and 'pad' in libcell 'sg13g2_IOPadAnalog'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S' and 'X' in libcell 'sg13g2_mux2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S' and 'X' in libcell 'sg13g2_mux2_2'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S1' and 'X' in libcell 'sg13g2_mux4_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'S0' and 'X' in libcell 'sg13g2_mux4_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'B' and 'Y' in libcell 'sg13g2_xnor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'A' and 'Y' in libcell 'sg13g2_xnor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'B' and 'X' in libcell 'sg13g2_xor2_1'.
+Info    : Both 'pos_unate' and 'neg_unate' timing_sense arcs have been processed. [LBR-162]
+        : Non_unate 'timing_sense' inferred between pin 'A' and 'X' in libcell 'sg13g2_xor2_1'.
+%# End ::stylus_db::read (02/13 20:07:37, total cpu=16:00:07, real=16:00:04, peak res=421.90M, current mem=1229.79M)
+@genus:root: 2> get_db inst.name
+Error   : <Start> word is not recognized. [TUI-182] [get_db]
+        : 'inst.name' is not a recognized object/attribute. Type 'help root:' to get a list of all supported objects and attributes.
+        : Check if the given <Start> word is a valid object_type, object or attribute.
+1
+@genus:root: 3> get_db insts .name
+u_ram_macro g1242__2398 g1243__5107 g1244__6260 g1245__4319 g1246__8428 g1247__5526 g1248__6783 g1249__3680 g1250__1617 g1251__2802 g1252__1705 g1253__5122 g1254__8246 g1255__7098 g1256__6131 g1257__1881 g1258__5115 g1259__7482 g1260__4733 g1261__6161 g1262__9315 g1263__9945 g1264__2883 g1265__2346 g1266__1666 g1267__7410 g1268__6417 g1269__5477 drc_bufs burst_last_reg g1477__2398 g1478__5107 {beat_count_reg[7]} g1480__6260 {beat_count_reg[6]} g1483__8428 {beat_count_reg[5]} g1486__6783 g1487__3680 {beat_count_reg[4]} g1490__1617 g1491__2802 g1492__1705 {beat_count_reg[3]} g1495__5122 g1496__8246 g1497__7098 {burst_data_reg[30]} {current_addr_reg[7]} {burst_data_reg[4]} {burst_data_reg[21]} {burst_data_reg[22]} {burst_data_reg[23]} {burst_data_reg[24]} {burst_data_reg[25]} {burst_data_reg[26]} {burst_data_reg[27]} {burst_data_reg[28]} {burst_data_reg[29]} {current_addr_reg[6]} {burst_data_reg[31]} {burst_data_reg[0]} {burst_data_reg[1]} {burst_data_reg[2]} {current_addr_reg[3]} {current_addr_reg[4]} {burst_data_reg[3]} {current_addr_reg[5]} {beat_count_reg[1]} {beat_count_reg[2]} {beat_count_reg[0]} g1523__6131 {burst_data_reg[6]} {current_addr_reg[9]} {current_addr_reg[10]} {current_addr_reg[11]} {burst_data_reg[7]} {burst_data_reg[8]} {burst_data_reg[9]} {burst_data_reg[10]} {burst_data_reg[11]} {burst_data_reg[12]} {current_addr_reg[8]} {burst_data_reg[14]} {burst_data_reg[15]} {burst_data_reg[16]} {burst_data_reg[17]} {burst_data_reg[18]} {burst_data_reg[19]} {burst_data_reg[20]} {burst_data_reg[13]} g1544__5115 {burst_data_reg[5]} g1546__7482 g1548__4733 g1549__6161 g1550__9315 g1551__9945 g1552__2883 g1553__2346 g1554__1666 g1555__7410 g1556__6417 g1557__5477 g1558__2398 g1559__5107 g1560__6260 g1561__4319 g1562__8428 g1563__5526 g1564__6783 g1565__3680 g1566__1617 g1567__2802 g1568__1705 g1569__5122 g1570__8246 g1571__7098 g1572__6131 g1573__1881 g1574__5115 g1575__7482 g1576__4733 g1577__6161 g1578__9315 g1579__9945 g1580__2883 g1581__2346 g1582__1666 g1583__7410 g1584__6417 g1585__5477 g1586__2398 g1587__5107 g1588__6260 g1589__4319 g1590__8428 g1591__5526 g1592__6783 g1593__3680 g1594__1617 g1595__2802 g1596__1705 g1597__5122 g1598__8246 {total_beats_reg[6]} {total_beats_reg[3]} {total_beats_reg[4]} {total_beats_reg[5]} {total_beats_reg[2]} {total_beats_reg[7]} {total_beats_reg[0]} {total_beats_reg[1]} g1608__7098 g1611__5115 g1612__7482 g1614__6161 g1615__9315 g1616__9945 g1617__2883 g1618 g1620 g1621 g1622__2346 g1623__1666 g1624__7410 g1625__6417 g1626__5477 g1627__2398 g1628__5107 g1629__6260 g1630__4319 g1631__8428 g1632__5526 g1633__6783 g1634 g1635__3680 g1636__1617 g1637__2802 g1638__1705 g1639__5122 g1640__8246 g1641__7098 g1642__6131 g1643__1881 g1644 g1645__5115 g1646__7482 drc_bufs1652 drc_bufs1653 drc_bufs1654 drc_bufs1655 drc_bufs1663 drc_buf_sp drc_buf_sp1666 drc_buf_sp1669 drc_buf_sp1672 drc_buf_sp1675 drc_buf_sp1678 drc_buf_sp1681 drc_buf_sp1684 drc_buf_sp1687 drc_buf_sp1690 drc_buf_sp1693 drc_buf_sp1696 drc_buf_sp1699 drc_buf_sp1702 drc_buf_sp1705 drc_buf_sp1708 drc_buf_sp1711 drc_buf_sp1714 drc_buf_sp1717 drc_buf_sp1720 drc_buf_sp1723 drc_buf_sp1726 drc_buf_sp1729 drc_buf_sp1732 drc_buf_sp1735 drc_buf_sp1738 drc_buf_sp1741 drc_buf_sp1744 drc_buf_sp1747 drc_buf_sp1750 drc_buf_sp1753 drc_buf_sp1756 {current_addr_reg[2]} burst_state_reg g2 g3 g2147 g2148 g2149 g2150
+@genus:root: 4> get_db insts .area
+264167.2813 18.144 18.144 18.144 14.5152 18.144 14.5152 9.072 18.144 14.5152 7.2576 18.144 14.5152 9.072 18.144 14.5152 7.2576 18.144 14.5152 9.072 18.144 14.5152 7.2576 14.5152 9.072 18.144 14.5152 9.072 7.2576 7.2576 48.9888 9.072 10.8864 48.9888 9.072 48.9888 14.5152 48.9888 14.5152 9.072 48.9888 14.5152 14.5152 9.072 48.9888 14.5152 14.5152 14.5152 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 14.5152 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 9.072 48.9888 9.072 18.144 18.144 9.072 9.072 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 7.2576 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 14.5152 7.2576 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 18.144 14.5152 14.5152 7.2576 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 48.9888 7.2576 7.2576 7.2576 9.072 14.5152 14.5152 9.072 5.4432 7.2576 7.2576 18.144 18.144 18.144 9.072 9.072 10.8864 18.144 18.144 18.144 18.144 18.144 14.5152 5.4432 9.072 9.072 10.8864 14.5152 21.7728 21.7728 14.5152 9.072 9.072 5.4432 7.2576 10.8864 7.2576 7.2576 7.2576 7.2576 7.2576 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 14.5152 52.6176 54.432 12.7008 9.072 12.7008 9.072 12.7008 9.072
+@genus:root: 5> get_db insts .name
+u_ram_macro g1242__2398 g1243__5107 g1244__6260 g1245__4319 g1246__8428 g1247__5526 g1248__6783 g1249__3680 g1250__1617 g1251__2802 g1252__1705 g1253__5122 g1254__8246 g1255__7098 g1256__6131 g1257__1881 g1258__5115 g1259__7482 g1260__4733 g1261__6161 g1262__9315 g1263__9945 g1264__2883 g1265__2346 g1266__1666 g1267__7410 g1268__6417 g1269__5477 drc_bufs burst_last_reg g1477__2398 g1478__5107 {beat_count_reg[7]} g1480__6260 {beat_count_reg[6]} g1483__8428 {beat_count_reg[5]} g1486__6783 g1487__3680 {beat_count_reg[4]} g1490__1617 g1491__2802 g1492__1705 {beat_count_reg[3]} g1495__5122 g1496__8246 g1497__7098 {burst_data_reg[30]} {current_addr_reg[7]} {burst_data_reg[4]} {burst_data_reg[21]} {burst_data_reg[22]} {burst_data_reg[23]} {burst_data_reg[24]} {burst_data_reg[25]} {burst_data_reg[26]} {burst_data_reg[27]} {burst_data_reg[28]} {burst_data_reg[29]} {current_addr_reg[6]} {burst_data_reg[31]} {burst_data_reg[0]} {burst_data_reg[1]} {burst_data_reg[2]} {current_addr_reg[3]} {current_addr_reg[4]} {burst_data_reg[3]} {current_addr_reg[5]} {beat_count_reg[1]} {beat_count_reg[2]} {beat_count_reg[0]} g1523__6131 {burst_data_reg[6]} {current_addr_reg[9]} {current_addr_reg[10]} {current_addr_reg[11]} {burst_data_reg[7]} {burst_data_reg[8]} {burst_data_reg[9]} {burst_data_reg[10]} {burst_data_reg[11]} {burst_data_reg[12]} {current_addr_reg[8]} {burst_data_reg[14]} {burst_data_reg[15]} {burst_data_reg[16]} {burst_data_reg[17]} {burst_data_reg[18]} {burst_data_reg[19]} {burst_data_reg[20]} {burst_data_reg[13]} g1544__5115 {burst_data_reg[5]} g1546__7482 g1548__4733 g1549__6161 g1550__9315 g1551__9945 g1552__2883 g1553__2346 g1554__1666 g1555__7410 g1556__6417 g1557__5477 g1558__2398 g1559__5107 g1560__6260 g1561__4319 g1562__8428 g1563__5526 g1564__6783 g1565__3680 g1566__1617 g1567__2802 g1568__1705 g1569__5122 g1570__8246 g1571__7098 g1572__6131 g1573__1881 g1574__5115 g1575__7482 g1576__4733 g1577__6161 g1578__9315 g1579__9945 g1580__2883 g1581__2346 g1582__1666 g1583__7410 g1584__6417 g1585__5477 g1586__2398 g1587__5107 g1588__6260 g1589__4319 g1590__8428 g1591__5526 g1592__6783 g1593__3680 g1594__1617 g1595__2802 g1596__1705 g1597__5122 g1598__8246 {total_beats_reg[6]} {total_beats_reg[3]} {total_beats_reg[4]} {total_beats_reg[5]} {total_beats_reg[2]} {total_beats_reg[7]} {total_beats_reg[0]} {total_beats_reg[1]} g1608__7098 g1611__5115 g1612__7482 g1614__6161 g1615__9315 g1616__9945 g1617__2883 g1618 g1620 g1621 g1622__2346 g1623__1666 g1624__7410 g1625__6417 g1626__5477 g1627__2398 g1628__5107 g1629__6260 g1630__4319 g1631__8428 g1632__5526 g1633__6783 g1634 g1635__3680 g1636__1617 g1637__2802 g1638__1705 g1639__5122 g1640__8246 g1641__7098 g1642__6131 g1643__1881 g1644 g1645__5115 g1646__7482 drc_bufs1652 drc_bufs1653 drc_bufs1654 drc_bufs1655 drc_bufs1663 drc_buf_sp drc_buf_sp1666 drc_buf_sp1669 drc_buf_sp1672 drc_buf_sp1675 drc_buf_sp1678 drc_buf_sp1681 drc_buf_sp1684 drc_buf_sp1687 drc_buf_sp1690 drc_buf_sp1693 drc_buf_sp1696 drc_buf_sp1699 drc_buf_sp1702 drc_buf_sp1705 drc_buf_sp1708 drc_buf_sp1711 drc_buf_sp1714 drc_buf_sp1717 drc_buf_sp1720 drc_buf_sp1723 drc_buf_sp1726 drc_buf_sp1729 drc_buf_sp1732 drc_buf_sp1735 drc_buf_sp1738 drc_buf_sp1741 drc_buf_sp1744 drc_buf_sp1747 drc_buf_sp1750 drc_buf_sp1753 drc_buf_sp1756 {current_addr_reg[2]} burst_state_reg g2 g3 g2147 g2148 g2149 g2150
+@genus:root: 6> get_db insts .is_macro
+false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false false
+@genus:root: 7> get_db insts -if {.name == u_ram_macro g1242__2398 g1243__5107}
+Error   : Evaluation for '-if/-expr' option failed. [TUI-180] [get_db]
+        : Expression '.name == u_ram_macro g1242__2398 g1243__5107' provided to '-if/-expr' option is invalid.
+        : Check '-if/-expr' option.
+1
+@genus:root: 8> get_db insts -if {.name == *macro*}
+inst:inst_mem/u_ram_macro
+@genus:root: 9> set_db [get_db insts -if {.name == *macro*}] .is_macro true
+Error   : The attribute is read-only. [TUI-26] [set_db]
+        : attribute: 'is_macro', object type: 'inst'
+        : Cannot set or reset read-only attributes.
+1
+@genus:root: 10> get_db [get_db insts -if {.name == *macro*}] .area
+264167.2813
+@genus:root: 11> exit
+
+Lic Summary:
+[20:43:08.484624] Cdslmd servers: vm-fsemi-edu02-h4l0gt0b
+[20:43:08.484691] Feature usage summary:
+[20:43:08.484698] Genus_Synthesis
+
+Normal exit.
