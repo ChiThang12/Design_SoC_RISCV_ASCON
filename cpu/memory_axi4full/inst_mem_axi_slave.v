@@ -1,138 +1,125 @@
 // ============================================================================
-// inst_mem_axi_slave.v - Instruction Memory AXI4 Full Slave
+// inst_mem_axi_slave.v - AXI4 Full Slave (v3 - 8-beat burst support)
 // ============================================================================
-// Description:
-//   - AXI4 Full slave wrapper for instruction memory
-//   - Supports burst read transactions for I-Cache line fills
-//   - Read-only (write operations return SLVERR)
-//   - Optimized for cache coherency
-//
-// Author: ChiThang
-// Updated: Upgraded from AXI4-Lite to AXI4 Full
+// - S_AXI_ARREADY = wire combinational (= IDLE state)
+// - burst_req     = wire combinational (= AR handshake)
+// - burst_addr    = S_AXI_ARADDR trực tiếp khi handshake (zero-latency)
+// - burst_len     = S_AXI_ARLEN (pass thẳng từ master, hỗ trợ bất kỳ ARLEN)
+//   → ARLEN=3  : 4-beat  (4 words, line cũ)
+//   → ARLEN=7  : 8-beat  (8 words, line mới)
 // ============================================================================
 
 `include "cpu/memory_axi4full/inst_mem.v"
 
 module inst_mem_axi_slave #(
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
-    parameter MEM_SIZE = 4096,
-    parameter MEM_INIT_FILE = ""
+    parameter ADDR_WIDTH    = 32,
+    parameter DATA_WIDTH    = 32,
+    parameter MEM_SIZE      = 4096,
+    parameter MEM_INIT_FILE = "cpu/memory_axi4full/program.hex"
 )(
     input wire clk,
     input wire rst_n,
-    
-    // ========================================================================
-    // AXI4 Full Slave Interface
-    // ========================================================================
-    
-    // Write Address Channel (not supported - instruction memory is read-only)
-    input wire [ADDR_WIDTH-1:0]  S_AXI_AWADDR,
-    input wire [7:0]             S_AXI_AWLEN,    // Burst length - 1
-    input wire [2:0]             S_AXI_AWSIZE,   // 2^AWSIZE bytes per beat
-    input wire [1:0]             S_AXI_AWBURST,  // Burst type
-    input wire [2:0]             S_AXI_AWPROT,
-    input wire                   S_AXI_AWVALID,
-    output reg                   S_AXI_AWREADY,
-    
-    // Write Data Channel (not supported)
-    input wire [DATA_WIDTH-1:0]  S_AXI_WDATA,
-    input wire [DATA_WIDTH/8-1:0] S_AXI_WSTRB,
-    input wire                   S_AXI_WLAST,
-    input wire                   S_AXI_WVALID,
-    output reg                   S_AXI_WREADY,
-    
-    // Write Response Channel (always returns error)
-    output reg [1:0]             S_AXI_BRESP,
-    output reg                   S_AXI_BVALID,
-    input wire                   S_AXI_BREADY,
-    
-    // Read Address Channel
-    input wire [ADDR_WIDTH-1:0]  S_AXI_ARADDR,
-    input wire [7:0]             S_AXI_ARLEN,    // Burst length - 1 (0-255)
-    input wire [2:0]             S_AXI_ARSIZE,   // Transfer size
-    input wire [1:0]             S_AXI_ARBURST,  // 00=FIXED, 01=INCR, 10=WRAP
-    input wire [2:0]             S_AXI_ARPROT,
-    input wire                   S_AXI_ARVALID,
-    output reg                   S_AXI_ARREADY,
-    
-    // Read Data Channel
-    output wire [DATA_WIDTH-1:0] S_AXI_RDATA,
-    output wire [1:0]            S_AXI_RRESP,
-    output wire                  S_AXI_RLAST,
-    output wire                  S_AXI_RVALID,
-    input wire                   S_AXI_RREADY
+
+    // Write channels (read-only memory, always SLVERR)
+    input wire [ADDR_WIDTH-1:0]    S_AXI_AWADDR,
+    input wire [7:0]               S_AXI_AWLEN,
+    input wire [2:0]               S_AXI_AWSIZE,
+    input wire [1:0]               S_AXI_AWBURST,
+    input wire [2:0]               S_AXI_AWPROT,
+    input wire                     S_AXI_AWVALID,
+    output reg                     S_AXI_AWREADY,
+
+    input wire [DATA_WIDTH-1:0]    S_AXI_WDATA,
+    input wire [DATA_WIDTH/8-1:0]  S_AXI_WSTRB,
+    input wire                     S_AXI_WLAST,
+    input wire                     S_AXI_WVALID,
+    output reg                     S_AXI_WREADY,
+
+    output reg [1:0]               S_AXI_BRESP,
+    output reg                     S_AXI_BVALID,
+    input wire                     S_AXI_BREADY,
+
+    // Read channels
+    input wire [ADDR_WIDTH-1:0]    S_AXI_ARADDR,
+    input wire [7:0]               S_AXI_ARLEN,
+    input wire [2:0]               S_AXI_ARSIZE,
+    input wire [1:0]               S_AXI_ARBURST,
+    input wire [2:0]               S_AXI_ARPROT,
+    input wire                     S_AXI_ARVALID,
+    output wire                    S_AXI_ARREADY,   // wire combinational
+
+    output wire [DATA_WIDTH-1:0]   S_AXI_RDATA,
+    output wire [1:0]              S_AXI_RRESP,
+    output wire                    S_AXI_RLAST,
+    output wire                    S_AXI_RVALID,
+    input wire                     S_AXI_RREADY
 );
 
-    // ========================================================================
-    // AXI Response Codes
-    // ========================================================================
     localparam [1:0] RESP_OKAY   = 2'b00;
     localparam [1:0] RESP_SLVERR = 2'b10;
-    
-    // Burst types
-    localparam [1:0] BURST_FIXED = 2'b00;
-    localparam [1:0] BURST_INCR  = 2'b01;
-    localparam [1:0] BURST_WRAP  = 2'b10;
-    
-    // ========================================================================
-    // Read State Machine
-    // ========================================================================
-    localparam [1:0]
-        RD_IDLE    = 2'b00,
-        RD_BURST   = 2'b01,
-        RD_WAIT    = 2'b10;
-    
-    reg [1:0] rd_state, rd_next;
-    
-    // ========================================================================
-    // Write State Machine (for error responses)
-    // ========================================================================
-    localparam [1:0]
-        WR_IDLE = 2'b00,
-        WR_ADDR = 2'b01,
-        WR_DATA = 2'b10,
-        WR_RESP = 2'b11;
-    
-    reg [1:0] wr_state, wr_next;
-    
-    // ========================================================================
-    // Internal Signals
-    // ========================================================================
-    // Read transaction registers
+
+    // =========================================================================
+    // Read state machine — 2 state
+    // =========================================================================
+    localparam RD_IDLE  = 1'b0;
+    localparam RD_BURST = 1'b1;
+    reg rd_state;
+
+    // ARREADY = combinational: sẵn sàng ngay khi IDLE
+    assign S_AXI_ARREADY = (rd_state == RD_IDLE);
+
+    // AR handshake
+    wire ar_handshake = S_AXI_ARVALID && S_AXI_ARREADY;
+
+    // burst_req = combinational: imem nhận lệnh ngay cycle handshake
+    wire burst_req = ar_handshake;
+
+    // =========================================================================
+    // Latch AR params khi handshake
+    // burst_len latch S_AXI_ARLEN — imem dùng để detect RLAST
+    // ARLEN=3 → 4 beat, ARLEN=7 → 8 beat (generic, không hardcode)
+    // =========================================================================
     reg [ADDR_WIDTH-1:0] read_addr;
-    reg [7:0] burst_length;
-    reg [2:0] burst_size;
-    reg [1:0] burst_type;
-    
-    // Simple PC interface (for single reads)
-    wire [ADDR_WIDTH-1:0] simple_pc;
-    wire [DATA_WIDTH-1:0] simple_inst;
-    
-    // Burst interface
-    wire [ADDR_WIDTH-1:0] burst_addr;
-    wire [7:0] burst_len;
-    reg burst_req;
+    reg [7:0]            burst_len_r;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            read_addr   <= {ADDR_WIDTH{1'b0}};
+            burst_len_r <= 8'd0;
+        end else if (ar_handshake) begin
+            read_addr   <= S_AXI_ARADDR;
+            burst_len_r <= S_AXI_ARLEN;
+        end
+    end
+
+    // =========================================================================
+    // Read state machine sequential
+    // =========================================================================
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            rd_state <= RD_IDLE;
+        else case (rd_state)
+            RD_IDLE:  if (ar_handshake)                              rd_state <= RD_BURST;
+            RD_BURST: if (S_AXI_RVALID && S_AXI_RREADY && S_AXI_RLAST) rd_state <= RD_IDLE;
+            default:  rd_state <= RD_IDLE;
+        endcase
+    end
+
+    // =========================================================================
+    // Instruction Memory
+    // burst_addr: dùng S_AXI_ARADDR trực tiếp khi handshake (zero-latency
+    //             first beat), sau đó dùng read_addr đã latch
+    // burst_len:  khi handshake dùng S_AXI_ARLEN trực tiếp để imem thấy
+    //             đúng ngay cycle burst_req=1
+    // =========================================================================
+    wire [ADDR_WIDTH-1:0] burst_addr = ar_handshake ? S_AXI_ARADDR : read_addr;
+    wire [7:0]            burst_len  = ar_handshake ? S_AXI_ARLEN  : burst_len_r;
+
     wire [DATA_WIDTH-1:0] burst_data;
-    wire burst_valid;
-    wire burst_last;
-    wire burst_ready;
-    
-    // Use burst interface when in burst state
-    assign simple_pc = read_addr;
-    assign burst_addr = read_addr;
-    assign burst_len = burst_length;
-    assign burst_ready = S_AXI_RREADY;
-    
-    // Connect outputs
-    assign S_AXI_RDATA = burst_data;
-    assign S_AXI_RRESP = RESP_OKAY;
-    assign S_AXI_RLAST = burst_last;
-    assign S_AXI_RVALID = burst_valid;
-    
-    // ========================================================================
-    // Instruction Memory Instance
-    // ========================================================================
+    wire                  burst_valid;
+    wire                  burst_last;
+    wire [DATA_WIDTH-1:0] simple_inst; // unused
+
     inst_mem #(
         .MEM_SIZE(MEM_SIZE),
         .ADDR_WIDTH(ADDR_WIDTH),
@@ -141,214 +128,71 @@ module inst_mem_axi_slave #(
     ) imem (
         .clk(clk),
         .rst_n(rst_n),
-        
-        // Simple interface (unused in burst mode)
-        .PC(simple_pc),
+        .PC(burst_addr),
         .Instruction_Code(simple_inst),
-        
-        // Burst interface
         .burst_addr(burst_addr),
         .burst_len(burst_len),
         .burst_req(burst_req),
         .burst_data(burst_data),
         .burst_valid(burst_valid),
         .burst_last(burst_last),
-        .burst_ready(burst_ready)
+        .burst_ready(S_AXI_RREADY)
     );
-    
-    // ========================================================================
-    // Read State Machine - Sequential
-    // ========================================================================
+
+    assign S_AXI_RDATA  = burst_data;
+    assign S_AXI_RRESP  = RESP_OKAY;
+    assign S_AXI_RLAST  = burst_last;
+    assign S_AXI_RVALID = burst_valid;
+
+    // =========================================================================
+    // Write channels — always SLVERR (read-only memory)
+    // =========================================================================
+    localparam [1:0] WR_IDLE = 2'b00, WR_DATA = 2'b01, WR_RESP = 2'b10;
+    reg [1:0] wr_state;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            rd_state <= RD_IDLE;
-        end else begin
-            rd_state <= rd_next;
-        end
-    end
-    
-    // ========================================================================
-    // Read State Machine - Combinational
-    // ========================================================================
-    always @(*) begin
-        rd_next = rd_state;
-        
-        case (rd_state)
-            RD_IDLE: begin
-                if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-                    rd_next = RD_BURST;
-                end
-            end
-            
-            RD_BURST: begin
-                // Stay in burst until last transfer
-                if (S_AXI_RVALID && S_AXI_RREADY && S_AXI_RLAST) begin
-                    rd_next = RD_IDLE;
-                end
-            end
-            
-            default: rd_next = RD_IDLE;
-        endcase
-    end
-    
-    // ========================================================================
-    // Read Address Channel Logic
-    // ========================================================================
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            S_AXI_ARREADY <= 1'b0;
-            read_addr     <= {ADDR_WIDTH{1'b0}};
-            burst_length  <= 8'd0;
-            burst_size    <= 3'd0;
-            burst_type    <= 2'd0;
-            burst_req     <= 1'b0;
-        end else begin
-            case (rd_state)
-                RD_IDLE: begin
-                    S_AXI_ARREADY <= 1'b1;  // Always ready in idle
-                    burst_req <= 1'b0;
-                    
-                    if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-                        // Latch burst parameters
-                        read_addr    <= S_AXI_ARADDR;
-                        burst_length <= S_AXI_ARLEN;
-                        burst_size   <= S_AXI_ARSIZE;
-                        burst_type   <= S_AXI_ARBURST;
-                        
-                        // Trigger burst read
-                        burst_req <= 1'b1;
-                        S_AXI_ARREADY <= 1'b0;
-                    end
-                end
-                
-                RD_BURST: begin
-                    S_AXI_ARREADY <= 1'b0;
-                    burst_req <= 1'b0;  // Clear after one cycle
-                end
-                
-                default: begin
-                    S_AXI_ARREADY <= 1'b0;
-                    burst_req <= 1'b0;
-                end
-            endcase
-        end
-    end
-    
-    // ========================================================================
-    // Write Channels - Not Supported (Return Error)
-    // ========================================================================
-    
-    // Write state machine - sequential
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            wr_state <= WR_IDLE;
-        end else begin
-            wr_state <= wr_next;
-        end
-    end
-    
-    // Write state machine - combinational
-    always @(*) begin
-        wr_next = wr_state;
-        
-        case (wr_state)
-            WR_IDLE: begin
-                if (S_AXI_AWVALID) begin
-                    wr_next = WR_ADDR;
-                end
-            end
-            
-            WR_ADDR: begin
-                wr_next = WR_DATA;
-            end
-            
-            WR_DATA: begin
-                if (S_AXI_WVALID && S_AXI_WLAST) begin
-                    wr_next = WR_RESP;
-                end
-            end
-            
-            WR_RESP: begin
-                if (S_AXI_BREADY) begin
-                    wr_next = WR_IDLE;
-                end
-            end
-            
-            default: wr_next = WR_IDLE;
-        endcase
-    end
-    
-    // Write address channel
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+            wr_state      <= WR_IDLE;
             S_AXI_AWREADY <= 1'b0;
+            S_AXI_WREADY  <= 1'b0;
+            S_AXI_BRESP   <= RESP_SLVERR;
+            S_AXI_BVALID  <= 1'b0;
         end else begin
-            if (wr_state == WR_IDLE && S_AXI_AWVALID) begin
-                S_AXI_AWREADY <= 1'b1;
-            end else begin
-                S_AXI_AWREADY <= 1'b0;
-            end
-        end
-    end
-    
-    // Write data channel
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            S_AXI_WREADY <= 1'b0;
-        end else begin
-            if (wr_state == WR_DATA && S_AXI_WVALID) begin
-                S_AXI_WREADY <= 1'b1;
-            end else begin
-                S_AXI_WREADY <= 1'b0;
-            end
-        end
-    end
-    
-    // Write response channel (always error)
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            S_AXI_BRESP  <= RESP_SLVERR;
-            S_AXI_BVALID <= 1'b0;
-        end else begin
+            S_AXI_AWREADY <= 1'b0;
+            S_AXI_WREADY  <= 1'b0;
             case (wr_state)
+                WR_IDLE: if (S_AXI_AWVALID) begin
+                    S_AXI_AWREADY <= 1'b1;
+                    wr_state      <= WR_DATA;
+                end
                 WR_DATA: begin
+                    S_AXI_WREADY <= 1'b1;
                     if (S_AXI_WVALID && S_AXI_WLAST) begin
-                        S_AXI_BRESP  <= RESP_SLVERR;  // Read-only memory
+                        S_AXI_BRESP  <= RESP_SLVERR;
                         S_AXI_BVALID <= 1'b1;
+                        wr_state     <= WR_RESP;
                     end
                 end
-                
-                WR_RESP: begin
-                    if (S_AXI_BREADY) begin
-                        S_AXI_BVALID <= 1'b0;
-                    end
-                end
-                
-                default: begin
+                WR_RESP: if (S_AXI_BREADY) begin
                     S_AXI_BVALID <= 1'b0;
+                    wr_state     <= WR_IDLE;
                 end
+                default: wr_state <= WR_IDLE;
             endcase
         end
     end
-    
-    // ========================================================================
-    // Debug/Simulation
-    // ========================================================================
+
+    // =========================================================================
+    // Debug
+    // =========================================================================
     `ifdef SIMULATION
     always @(posedge clk) begin
-        if (S_AXI_ARVALID && S_AXI_ARREADY) begin
-            $display("[IMEM AXI] Read burst: addr=0x%h, len=%0d, size=%0d, type=%0d @ %0t",
-                     S_AXI_ARADDR, S_AXI_ARLEN + 1, S_AXI_ARSIZE, S_AXI_ARBURST, $time);
-        end
-        
-        if (S_AXI_RVALID && S_AXI_RREADY) begin
-            $display("[IMEM AXI] Read data: data=0x%h, last=%b @ %0t",
+        if (ar_handshake)
+            $display("[IMEM] Burst start: addr=0x%h len=%0d @ %0t",
+                     S_AXI_ARADDR, S_AXI_ARLEN+1, $time);
+        if (S_AXI_RVALID && S_AXI_RREADY)
+            $display("[IMEM] Beat: data=0x%h last=%b @ %0t",
                      S_AXI_RDATA, S_AXI_RLAST, $time);
-        end
-        
-        if (wr_state == WR_RESP && S_AXI_BREADY) begin
-            $display("[IMEM WARNING] Write attempt to ROM rejected @ %0t", $time);
-        end
     end
     `endif
 
