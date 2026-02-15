@@ -1,0 +1,132 @@
+[*]
+[*] GTKWave Analyzer v3.3.48 (w)1999-2013 BSI
+[*] Sun Feb 15 08:25:30 2026
+[*]
+[dumpfile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\tb_cpu_debug.vcd"
+[dumpfile_mtime] "Sun Feb 15 08:21:01 2026"
+[dumpfile_size] 1643147
+[savefile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\wave.gtkw"
+[timestart] 1307300
+[size] 1493 862
+[pos] -1 -1
+*-15.000000 1379800 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_cpu_debug.
+[treeopen] tb_cpu_debug.dut.
+[treeopen] tb_cpu_debug.dut.cpu.
+[treeopen] tb_cpu_debug.dut.icache.
+[treeopen] tb_cpu_debug.dut.imem.
+[sst_width] 197
+[signals_width] 263
+[sst_expanded] 1
+[sst_vpaned_height] 245
+@28
+tb_cpu_debug.dut.icache.rst_n
+[color] 1
+tb_cpu_debug.dut.clk
+@200
+-cpu
+@24
+tb_cpu_debug.dut.cpu_imem_addr[31:0]
+@22
+tb_cpu_debug.dut.cpu_imem_rdata[31:0]
+@28
+tb_cpu_debug.dut.cpu_imem_ready
+tb_cpu_debug.dut.cpu_imem_valid
+@200
+-
+@24
+tb_cpu_debug.dut.cpu.pc_id[31:0]
+@22
+tb_cpu_debug.dut.cpu.instr_id[31:0]
+@24
+tb_cpu_debug.dut.cpu.pc_if[31:0]
+@22
+tb_cpu_debug.dut.cpu.instr_if[31:0]
+@200
+-icache
+@28
+tb_cpu_debug.dut.icache.cpu_req
+@200
+-
+@28
+tb_cpu_debug.dut.icache.controller_inst.ctrl_hit
+@200
+-
+@28
+tb_cpu_debug.dut.icache.controller_inst.refill_done
+tb_cpu_debug.dut.icache.controller_inst.pf_active
+tb_cpu_debug.dut.icache.controller_inst.refill_start
+@200
+-
+@28
+tb_cpu_debug.dut.icache.controller_inst.loading_cpu_line
+tb_cpu_debug.dut.icache.controller_inst.stall_data_rdy
+tb_cpu_debug.dut.icache.controller_inst.refill_done
+@200
+-icache - axi
+@28
+[color] 1
+tb_cpu_debug.dut.clk
+@200
+-icache - axi - AR
+@22
+tb_cpu_debug.dut.icache.mem_araddr[31:0]
+@28
+tb_cpu_debug.dut.icache.mem_arready
+tb_cpu_debug.dut.icache.mem_arvalid
+@200
+-icache - axi - R
+@22
+tb_cpu_debug.dut.icache.mem_rdata[31:0]
+@28
+tb_cpu_debug.dut.icache.mem_rready
+tb_cpu_debug.dut.icache.mem_rvalid
+@200
+-icache - hit - miss
+@24
+tb_cpu_debug.dut.icache.controller_inst.stat_hits[31:0]
+tb_cpu_debug.dut.icache.controller_inst.stat_misses[31:0]
+@200
+-icache - controller
+@22
+tb_cpu_debug.dut.icache.controller_inst.refill_data[31:0]
+tb_cpu_debug.dut.icache.controller_inst.stall_data[31:0]
+@c00022
+tb_cpu_debug.dut.icache.data_read_data[31:0]
+@28
+(0)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(1)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(2)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(3)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(4)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(5)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(6)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(7)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(8)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(9)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(10)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(11)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(12)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(13)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(14)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(15)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(16)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(17)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(18)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(19)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(20)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(21)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(22)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(23)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(24)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(25)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(26)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(27)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(28)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(29)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(30)tb_cpu_debug.dut.icache.data_read_data[31:0]
+(31)tb_cpu_debug.dut.icache.data_read_data[31:0]
+@1401200
+-group_end
+[pattern_trace] 1
+[pattern_trace] 0

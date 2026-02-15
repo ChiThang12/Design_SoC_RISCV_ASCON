@@ -1,286 +1,437 @@
-// ============================================================================
-// Module: icache_controller (COMPLETELY FIXED - V2)
-// ============================================================================
-// Description:
-//   Main cache controller with state machine
-//   CRITICAL FIX: cpu_ready và cpu_rdata phải là COMBINATIONAL cho cache HIT
-//   để có response ngay trong cùng clock cycle
-//
-// Author: ChiThang (Fixed by Claude - V2)
-// ============================================================================
+// `include "cpu/interface/icache/icache_defines.vh"
+
+// // ============================================================================
+// // icache_controller — 8 words/line, index 5 bit, offset 3 bit
+// // ============================================================================
+// module icache_controller (
+//     input wire clk,
+//     input wire rst_n,
+
+//     input wire [31:0]  cpu_addr,
+//     input wire         cpu_req,
+//     output wire [31:0] cpu_rdata,
+//     output wire        cpu_ready,
+//     input wire         flush,
+
+//     output wire [4:0]  tag_lookup_index,   // 5 bit
+//     output wire [21:0] tag_lookup_tag,
+//     input wire         tag_hit,
+//     output reg         tag_update_valid,
+//     output reg [4:0]   tag_update_index,   // 5 bit
+//     output reg [21:0]  tag_update_tag,
+//     output reg         tag_flush_all,
+
+//     output wire [4:0]  data_read_index,    // 5 bit
+//     output wire [2:0]  data_read_offset,   // 3 bit
+//     input wire [31:0]  data_read_data,
+//     output reg         data_write_enable,
+//     output reg [4:0]   data_write_index,   // 5 bit
+//     output reg [2:0]   data_write_offset,  // 3 bit
+//     output reg [31:0]  data_write_data,
+
+//     output wire [31:0] refill_addr,
+//     output wire        refill_start,
+//     input wire         refill_busy,
+//     input wire         refill_done,
+//     input wire [31:0]  refill_data,
+//     input wire [2:0]   refill_word,        // 3 bit
+//     input wire         refill_data_valid,
+
+//     output reg [31:0]  stat_hits,
+//     output reg [31:0]  stat_misses
+// );
+
+//     // =========================================================================
+//     // Address decomposition — LINE_SIZE=32 bytes
+//     // [31:10] tag=22bit  [9:5] index=5bit  [4:2] offset=3bit  [1:0]=00
+//     // =========================================================================
+//     wire [21:0] cpu_tag    = cpu_addr[31:10];
+//     wire [4:0]  cpu_index  = cpu_addr[9:5];
+//     wire [2:0]  cpu_offset = cpu_addr[4:2];
+//     wire [31:0] cpu_line_addr = {cpu_addr[31:5], 5'b00000};  // align 32 bytes
+
+//     // =========================================================================
+//     // Shadow valid/tag — 32 lines
+//     // =========================================================================
+//     reg        ctrl_valid [0:31];
+//     reg [21:0] ctrl_tag   [0:31];
+
+//     wire ctrl_hit = ctrl_valid[cpu_index] && (ctrl_tag[cpu_index] == cpu_tag);
+
+//     assign tag_lookup_index = cpu_index;
+//     assign tag_lookup_tag   = cpu_tag;
+//     assign data_read_index  = cpu_index;
+//     assign data_read_offset = cpu_offset;
+
+//     // =========================================================================
+//     // Prefetch engine
+//     // =========================================================================
+//     reg [31:0] pf_ptr;      // line-aligned, bước 32 bytes
+//     reg [4:0]  pf_index;
+//     reg [21:0] pf_tag;
+//     reg        pf_active;
+
+//     wire [4:0]  pf_ptr_index = pf_ptr[9:5];
+//     wire [21:0] pf_ptr_tag   = pf_ptr[31:10];
+
+//     wire pf_ptr_cached = ctrl_valid[pf_ptr_index] &&
+//                          (ctrl_tag[pf_ptr_index] == pf_ptr_tag);
+
+//     wire cpu_miss = cpu_req && !ctrl_hit;
+
+//     wire loading_cpu_line = pf_active &&
+//                             (pf_index == cpu_index) &&
+//                             (pf_tag   == cpu_tag);
+
+//     assign refill_addr  = cpu_miss ? cpu_line_addr : pf_ptr;
+//     assign refill_start = !refill_busy && !pf_active &&
+//                           (cpu_miss || !pf_ptr_cached);
+
+//     // =========================================================================
+//     // CPU stall capture
+//     // =========================================================================
+//     reg [31:0] stall_data;
+//     reg        stall_data_rdy;
+
+//     // =========================================================================
+//     // CPU output
+//     // =========================================================================
+//     reg        cpu_ready_int;
+//     reg [31:0] cpu_rdata_int;
+
+//     always @(*) begin
+//         cpu_ready_int = 1'b0;
+//         cpu_rdata_int = 32'h0;
+//         if (cpu_req) begin
+//             if (ctrl_hit) begin
+//                 cpu_ready_int = 1'b1;
+//                 cpu_rdata_int = data_read_data;
+//             end else if (loading_cpu_line && stall_data_rdy && refill_done) begin
+//                 cpu_ready_int = 1'b1;
+//                 cpu_rdata_int = stall_data;
+//             end
+//         end
+//     end
+
+//     assign cpu_ready = cpu_ready_int;
+//     assign cpu_rdata = cpu_rdata_int;
+
+//     // =========================================================================
+//     // Sequential
+//     // =========================================================================
+//     integer i;
+
+//     always @(posedge clk or negedge rst_n) begin
+//         if (!rst_n) begin
+//             pf_ptr            <= 32'h0;
+//             pf_index          <= 5'h0;
+//             pf_tag            <= 22'h0;
+//             pf_active         <= 1'b0;
+//             stall_data        <= 32'h0;
+//             stall_data_rdy    <= 1'b0;
+//             tag_update_valid  <= 1'b0;
+//             tag_update_index  <= 5'h0;
+//             tag_update_tag    <= 22'h0;
+//             tag_flush_all     <= 1'b0;
+//             data_write_enable <= 1'b0;
+//             data_write_index  <= 5'h0;
+//             data_write_offset <= 3'h0;
+//             data_write_data   <= 32'h0;
+//             stat_hits         <= 32'h0;
+//             stat_misses       <= 32'h0;
+//             for (i = 0; i < 32; i = i + 1) begin
+//                 ctrl_valid[i] <= 1'b0;
+//                 ctrl_tag[i]   <= 22'h0;
+//             end
+
+//         end else begin
+//             tag_update_valid  <= 1'b0;
+//             tag_flush_all     <= 1'b0;
+//             data_write_enable <= 1'b0;
+
+//             if (flush) begin
+//                 tag_flush_all  <= 1'b1;
+//                 pf_active      <= 1'b0;
+//                 pf_ptr         <= cpu_line_addr;
+//                 stall_data_rdy <= 1'b0;
+//                 for (i = 0; i < 32; i = i + 1)
+//                     ctrl_valid[i] <= 1'b0;
+
+//             end else begin
+
+//                 // Phase 1: khởi động load
+//                 if (!refill_busy && !pf_active) begin
+//                     if (cpu_miss) begin
+//                         pf_index       <= cpu_index;
+//                         pf_tag         <= cpu_tag;
+//                         pf_active      <= 1'b1;
+//                         stall_data_rdy <= 1'b0;
+//                         stat_misses    <= stat_misses + 1;
+//                         pf_ptr         <= cpu_line_addr + 32'd32; // bước 32 bytes
+//                     end else if (pf_ptr_cached) begin
+//                         pf_ptr <= pf_ptr + 32'd32;
+//                     end else begin
+//                         pf_index  <= pf_ptr_index;
+//                         pf_tag    <= pf_ptr_tag;
+//                         pf_active <= 1'b1;
+//                         pf_ptr    <= pf_ptr + 32'd32;
+//                     end
+//                 end
+
+//                 // Phase 2: nhận data
+//                 if (refill_data_valid) begin
+//                     data_write_enable <= 1'b1;
+//                     data_write_index  <= pf_index;
+//                     data_write_offset <= refill_word;
+//                     data_write_data   <= refill_data;
+
+//                     if (loading_cpu_line && !stall_data_rdy &&
+//                         refill_word == cpu_offset) begin
+//                         stall_data     <= refill_data;
+//                         stall_data_rdy <= 1'b1;
+//                     end
+//                 end
+
+//                 // Phase 3: xong 1 line
+//                 if (refill_done) begin
+//                     tag_update_valid     <= 1'b1;
+//                     tag_update_index     <= pf_index;
+//                     tag_update_tag       <= pf_tag;
+//                     ctrl_valid[pf_index] <= 1'b1;
+//                     ctrl_tag[pf_index]   <= pf_tag;
+//                     pf_active            <= 1'b0;
+//                     stall_data_rdy       <= 1'b0;
+//                 end
+
+//                 if (cpu_req && ctrl_hit)
+//                     stat_hits <= stat_hits + 1;
+//             end
+//         end
+//     end
+// endmodule
 
 `include "cpu/interface/icache/icache_defines.vh"
 
+// ============================================================================
+// icache_controller — 8 words/line, index 5 bit, offset 3 bit
+// ============================================================================
 module icache_controller (
     input wire clk,
     input wire rst_n,
-    
-    // CPU Interface
-    input wire [31:0] cpu_addr,
-    input wire        cpu_req,
-    output wire [31:0] cpu_rdata,      
-    output wire        cpu_ready,    
-    input wire        flush,
-    
-    // Tag Array Interface
-    output wire [5:0]  tag_lookup_index,
+
+    input wire [31:0]  cpu_addr,
+    input wire         cpu_req,
+    output wire [31:0] cpu_rdata,
+    output wire        cpu_ready,
+    input wire         flush,
+
+    output wire [4:0]  tag_lookup_index,   // 5 bit
     output wire [21:0] tag_lookup_tag,
     input wire         tag_hit,
     output reg         tag_update_valid,
-    output reg [5:0]   tag_update_index,
+    output reg [4:0]   tag_update_index,   // 5 bit
     output reg [21:0]  tag_update_tag,
     output reg         tag_flush_all,
-    
-    // Data Array Interface
-    output wire [5:0]  data_read_index,
-    output wire [1:0]  data_read_offset,
+
+    output wire [4:0]  data_read_index,    // 5 bit
+    output wire [2:0]  data_read_offset,   // 3 bit
     input wire [31:0]  data_read_data,
     output reg         data_write_enable,
-    output reg [5:0]   data_write_index,
-    output reg [1:0]   data_write_offset,
+    output reg [4:0]   data_write_index,   // 5 bit
+    output reg [2:0]   data_write_offset,  // 3 bit
     output reg [31:0]  data_write_data,
-    
-    // AXI Refill Interface
-    output reg [31:0]  refill_addr,
-    output reg         refill_start,
+
+    output wire [31:0] refill_addr,
+    output wire        refill_start,
     input wire         refill_busy,
     input wire         refill_done,
     input wire [31:0]  refill_data,
-    input wire [1:0]   refill_word,
+    input wire [2:0]   refill_word,        // 3 bit
     input wire         refill_data_valid,
-    
-    // Statistics
+
     output reg [31:0]  stat_hits,
     output reg [31:0]  stat_misses
 );
 
-    // ========================================================================
-    // Address Decomposition
-    // ========================================================================
-    wire [21:0] addr_tag;
-    wire [5:0]  addr_index;
-    wire [1:0]  addr_offset;
-    
-    assign addr_tag    = cpu_addr[31:10];
-    assign addr_index  = cpu_addr[9:4];
-    assign addr_offset = cpu_addr[3:2];
-    
-    // ========================================================================
-    // Tag Array Lookup (Continuous)
-    // ========================================================================
-    assign tag_lookup_index = addr_index;
-    assign tag_lookup_tag   = addr_tag;
-    
-    // ========================================================================
-    // Data Array Read (Continuous)
-    // ========================================================================
-    assign data_read_index  = addr_index;
-    assign data_read_offset = addr_offset;
-    
-    // ========================================================================
-    // State Machine
-    // ========================================================================
-    reg [2:0] state, next_state;
-    
-    // Refill tracking
-    reg [5:0]  refill_index;
-    reg [21:0] refill_tag;
-    reg [1:0]  requested_offset;
-    reg [31:0] requested_data;
-    reg        requested_data_ready;
-    
-    // ========================================================================
-    // State Machine - Sequential
-    // ========================================================================
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            state <= `ICACHE_STATE_IDLE;
-        end else if (flush) begin
-            state <= `ICACHE_STATE_IDLE;
-        end else begin
-            state <= next_state;
-        end
-    end
-    
-    // ========================================================================
-    // State Machine - Combinational (Next State Logic)
-    // ========================================================================
-    always @(*) begin
-        next_state = state;
-        
-        case (state)
-            `ICACHE_STATE_IDLE: begin
-                if (cpu_req) begin
-                    next_state = `ICACHE_STATE_COMPARE;
-                end
-            end
-            
-            `ICACHE_STATE_COMPARE: begin
-                if (!cpu_req) begin
-                    next_state = `ICACHE_STATE_IDLE;
-                end else if (tag_hit) begin
-                    // Hit - go back to IDLE
-                    next_state = `ICACHE_STATE_IDLE;
-                end else begin
-                    // Miss - start refill
-                    next_state = `ICACHE_STATE_MISS_REQ;
-                end
-            end
-            
-            `ICACHE_STATE_MISS_REQ: begin
-                // Wait for refill to start
-                if (refill_busy) begin
-                    next_state = `ICACHE_STATE_REFILL;
-                end
-            end
-            
-            `ICACHE_STATE_REFILL: begin
-                if (refill_done) begin
-                    next_state = `ICACHE_STATE_IDLE;
-                end
-            end
-            
-            default: next_state = `ICACHE_STATE_IDLE;
-        endcase
-    end
-    
-    // ========================================================================
-    // ✅ CRITICAL FIX: COMBINATIONAL OUTPUT for CPU Interface
-    // ========================================================================
-    // Cache HIT must respond in the SAME cycle (combinational logic)
-    // Cache MISS completion can use registered data
-    
+    // =========================================================================
+    // Address decomposition — LINE_SIZE=32 bytes
+    // [31:10] tag=22bit  [9:5] index=5bit  [4:2] offset=3bit  [1:0]=00
+    // =========================================================================
+    wire [21:0] cpu_tag    = cpu_addr[31:10];
+    wire [4:0]  cpu_index  = cpu_addr[9:5];
+    wire [2:0]  cpu_offset = cpu_addr[4:2];
+    wire [31:0] cpu_line_addr = {cpu_addr[31:5], 5'b00000};  // align 32 bytes
+
+    // =========================================================================
+    // Shadow valid/tag — 32 lines
+    // =========================================================================
+    reg        ctrl_valid [0:31];
+    reg [21:0] ctrl_tag   [0:31];
+
+    // FIX: ctrl_hit_committed = line đang được commit ngay cycle này
+    // Khi refill_done=1, ctrl_valid[pf_index] chưa kịp update (registered lag),
+    // nhưng ta biết line đó đã xong → tính là hit ngay để tránh cpu_miss=1 sai.
+    wire line_just_done = refill_done &&
+                          (pf_index == cpu_index) &&
+                          (pf_tag   == cpu_tag);
+    wire ctrl_hit = (ctrl_valid[cpu_index] || line_just_done) &&
+                    (ctrl_tag[cpu_index] == cpu_tag || line_just_done);
+
+    assign tag_lookup_index = cpu_index;
+    assign tag_lookup_tag   = cpu_tag;
+    assign data_read_index  = cpu_index;
+    assign data_read_offset = cpu_offset;
+
+    // =========================================================================
+    // Prefetch engine
+    // =========================================================================
+    reg [31:0] pf_ptr;      // line-aligned, bước 32 bytes
+    reg [4:0]  pf_index;
+    reg [21:0] pf_tag;
+    reg        pf_active;
+
+    wire [4:0]  pf_ptr_index = pf_ptr[9:5];
+    wire [21:0] pf_ptr_tag   = pf_ptr[31:10];
+
+    // FIX: pf_ptr_cached tính cả line vừa được commit
+    wire pf_line_just_done = refill_done &&
+                             (pf_index == pf_ptr_index) &&
+                             (pf_tag   == pf_ptr_tag);
+    wire pf_ptr_cached = (ctrl_valid[pf_ptr_index] || pf_line_just_done) &&
+                         (ctrl_tag[pf_ptr_index] == pf_ptr_tag || pf_line_just_done);
+
+    wire cpu_miss = cpu_req && !ctrl_hit;
+
+    wire loading_cpu_line = pf_active &&
+                            (pf_index == cpu_index) &&
+                            (pf_tag   == cpu_tag);
+
+    assign refill_addr  = cpu_miss ? cpu_line_addr : pf_ptr;
+    // FIX: bypass pf_active stale khi refill_done=1
+    assign refill_start = !refill_busy &&
+                          (!pf_active || refill_done) &&
+                          (cpu_miss || !pf_ptr_cached);
+
+    // =========================================================================
+    // CPU stall capture
+    // =========================================================================
+    reg [31:0] stall_data;
+    reg        stall_data_rdy;
+
+    // =========================================================================
+    // CPU output
+    // =========================================================================
     reg        cpu_ready_int;
     reg [31:0] cpu_rdata_int;
-    
+
     always @(*) begin
         cpu_ready_int = 1'b0;
         cpu_rdata_int = 32'h0;
-        
-        case (state)
-            `ICACHE_STATE_COMPARE: begin
-                // ✅ CACHE HIT: Immediate combinational response
-                if (tag_hit && cpu_req) begin
-                    cpu_ready_int = 1'b1;
-                    cpu_rdata_int = data_read_data;
-                end
+        if (cpu_req) begin
+            if (ctrl_hit) begin
+                cpu_ready_int = 1'b1;
+                cpu_rdata_int = data_read_data;
+            end else if (loading_cpu_line && stall_data_rdy && refill_done) begin
+                cpu_ready_int = 1'b1;
+                cpu_rdata_int = stall_data;
             end
-            
-            `ICACHE_STATE_REFILL: begin
-                // CACHE MISS: Response when refill completes
-                if (refill_done) begin
-                    cpu_ready_int = 1'b1;
-                    cpu_rdata_int = requested_data;
-                end
-            end
-            
-            default: begin
-                cpu_ready_int = 1'b0;
-                cpu_rdata_int = 32'h0;
-            end
-        endcase
-    end
-    
-    // Direct assignment to output (COMBINATIONAL)
-    assign cpu_ready = cpu_ready_int;
-    assign cpu_rdata = cpu_rdata_int;
-    
-    // ========================================================================
-    // State Machine - Sequential Output Logic
-    // ========================================================================
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            refill_addr         <= 32'h0;
-            refill_start        <= 1'b0;
-            refill_index        <= 6'h0;
-            refill_tag          <= 22'h0;
-            requested_offset    <= 2'b00;
-            requested_data      <= 32'h0;
-            requested_data_ready <= 1'b0;
-            tag_update_valid    <= 1'b0;
-            tag_update_index    <= 6'h0;
-            tag_update_tag      <= 22'h0;
-            tag_flush_all       <= 1'b0;
-            data_write_enable   <= 1'b0;
-            data_write_index    <= 6'h0;
-            data_write_offset   <= 2'b00;
-            data_write_data     <= 32'h0;
-            stat_hits           <= 32'h0;
-            stat_misses         <= 32'h0;
-            
-        end else begin
-            // ================================================================
-            // Default: clear one-shot signals
-            // ================================================================
-            refill_start      <= 1'b0;
-            tag_update_valid  <= 1'b0;
-            tag_flush_all     <= 1'b0;
-            data_write_enable <= 1'b0;
-            
-            // ================================================================
-            // Handle flush
-            // ================================================================
-            if (flush) begin
-                tag_flush_all <= 1'b1;
-            end
-            
-            // ================================================================
-            // State Machine Output
-            // ================================================================
-            case (state)
-                `ICACHE_STATE_IDLE: begin
-                    requested_data_ready <= 1'b0;
-                end
-                
-                `ICACHE_STATE_COMPARE: begin
-                    if (tag_hit && cpu_req) begin
-                        // ✅ CACHE HIT - Update statistics only
-                        stat_hits <= stat_hits + 1;
-                        // cpu_rdata and cpu_ready are handled by combinational logic above
-                    end
-                    
-                    if (!tag_hit && cpu_req) begin
-                        // ❌ CACHE MISS - Prepare refill
-                        refill_addr      <= {cpu_addr[31:4], 4'b0000};
-                        refill_index     <= addr_index;
-                        refill_tag       <= addr_tag;
-                        requested_offset <= addr_offset;
-                        stat_misses      <= stat_misses + 1;
-                    end
-                end
-                
-                `ICACHE_STATE_MISS_REQ: begin
-                    // Start AXI refill
-                    refill_start <= 1'b1;
-                end
-                
-                `ICACHE_STATE_REFILL: begin
-                    // Write incoming data to cache
-                    if (refill_data_valid) begin
-                        data_write_enable <= 1'b1;
-                        data_write_index  <= refill_index;
-                        data_write_offset <= refill_word;
-                        data_write_data   <= refill_data;
-                        
-                        // Check if this is the word CPU requested
-                        if (refill_word == requested_offset && !requested_data_ready) begin
-                            requested_data       <= refill_data;
-                            requested_data_ready <= 1'b1;
-                        end
-                    end
-                    
-                    // Refill complete
-                    if (refill_done) begin
-                        // Mark line as valid
-                        tag_update_valid <= 1'b1;
-                        tag_update_index <= refill_index;
-                        tag_update_tag   <= refill_tag;
-                        
-                        // cpu_rdata and cpu_ready are handled by combinational logic above
-                    end
-                end
-            endcase
         end
     end
 
+    assign cpu_ready = cpu_ready_int;
+    assign cpu_rdata = cpu_rdata_int;
+
+    // =========================================================================
+    // Sequential
+    // =========================================================================
+    integer i;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            pf_ptr            <= 32'h0;
+            pf_index          <= 5'h0;
+            pf_tag            <= 22'h0;
+            pf_active         <= 1'b0;
+            stall_data        <= 32'h0;
+            stall_data_rdy    <= 1'b0;
+            tag_update_valid  <= 1'b0;
+            tag_update_index  <= 5'h0;
+            tag_update_tag    <= 22'h0;
+            tag_flush_all     <= 1'b0;
+            data_write_enable <= 1'b0;
+            data_write_index  <= 5'h0;
+            data_write_offset <= 3'h0;
+            data_write_data   <= 32'h0;
+            stat_hits         <= 32'h0;
+            stat_misses       <= 32'h0;
+            for (i = 0; i < 32; i = i + 1) begin
+                ctrl_valid[i] <= 1'b0;
+                ctrl_tag[i]   <= 22'h0;
+            end
+
+        end else begin
+            tag_update_valid  <= 1'b0;
+            tag_flush_all     <= 1'b0;
+            data_write_enable <= 1'b0;
+
+            if (flush) begin
+                tag_flush_all  <= 1'b1;
+                pf_active      <= 1'b0;
+                pf_ptr         <= cpu_line_addr;
+                stall_data_rdy <= 1'b0;
+                for (i = 0; i < 32; i = i + 1)
+                    ctrl_valid[i] <= 1'b0;
+
+            end else begin
+
+                // Phase 1: khởi động load
+                // FIX: điều kiện khớp với assign refill_start
+                if (!refill_busy && (!pf_active || refill_done)) begin
+                    if (cpu_miss) begin
+                        pf_index       <= cpu_index;
+                        pf_tag         <= cpu_tag;
+                        pf_active      <= 1'b1;
+                        stall_data_rdy <= 1'b0;
+                        stat_misses    <= stat_misses + 1;
+                        pf_ptr         <= cpu_line_addr + 32'd32; // bước 32 bytes
+                    end else if (pf_ptr_cached) begin
+                        pf_ptr <= pf_ptr + 32'd32;
+                    end else begin
+                        pf_index  <= pf_ptr_index;
+                        pf_tag    <= pf_ptr_tag;
+                        pf_active <= 1'b1;
+                        pf_ptr    <= pf_ptr + 32'd32;
+                    end
+                end
+
+                // Phase 2: nhận data
+                if (refill_data_valid) begin
+                    data_write_enable <= 1'b1;
+                    data_write_index  <= pf_index;
+                    data_write_offset <= refill_word;
+                    data_write_data   <= refill_data;
+
+                    if (loading_cpu_line && !stall_data_rdy &&
+                        refill_word == cpu_offset) begin
+                        stall_data     <= refill_data;
+                        stall_data_rdy <= 1'b1;
+                    end
+                end
+
+                // Phase 3: xong 1 line
+                if (refill_done) begin
+                    tag_update_valid     <= 1'b1;
+                    tag_update_index     <= pf_index;
+                    tag_update_tag       <= pf_tag;
+                    ctrl_valid[pf_index] <= 1'b1;
+                    ctrl_tag[pf_index]   <= pf_tag;
+                    pf_active            <= 1'b0;
+                    stall_data_rdy       <= 1'b0;
+                end
+
+                if (cpu_req && ctrl_hit)
+                    stat_hits <= stat_hits + 1;
+            end
+        end
+    end
 endmodule
