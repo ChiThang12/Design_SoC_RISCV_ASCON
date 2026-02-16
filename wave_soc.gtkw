@@ -1,0 +1,51 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Feb 16 02:12:47 2026
+[*]
+[dumpfile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_soc.vcd"
+[dumpfile_mtime] "Mon Feb 16 02:10:14 2026"
+[dumpfile_size] 294258
+[savefile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/wave_soc.gtkw"
+[timestart] 1266300
+[size] 1488 841
+[pos] -46 -30
+*-15.300000 1395000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] run_soc.
+[treeopen] run_soc.soc.
+[treeopen] run_soc.soc.cpu.
+[sst_width] 248
+[signals_width] 258
+[sst_expanded] 1
+[sst_vpaned_height] 250
+@24
+run_soc.soc.cpu.alu_in1[31:0]
+run_soc.soc.cpu.alu_in2[31:0]
+run_soc.soc.cpu.alu_result_ex[31:0]
+run_soc.soc.cpu.alu_result_ex_mem[31:0]
+run_soc.soc.cpu.alu_result_mem_wb[31:0]
+run_soc.soc.cpu.alu_result_wb[31:0]
+@200
+-
+@24
+run_soc.soc.cpu.alu_in1_forwarded[31:0]
+@200
+-
+@24
+run_soc.soc.cpu.alu_result_mem[31:0]
+run_soc.soc.cpu.write_back_data_wb[31:0]
+@28
+run_soc.soc.cpu.forward_a[1:0]
+@24
+run_soc.soc.cpu.read_data1_ex[31:0]
+@22
+run_soc.soc.cpu.register_file.write_reg[4:0]
+@24
+run_soc.soc.cpu.register_file.write_data[31:0]
+@22
+run_soc.soc.cpu.register_file.read_reg_num1[4:0]
+@24
+run_soc.soc.cpu.register_file.read_data1[31:0]
+@29
+run_soc.soc.cpu.stall
+[pattern_trace] 1
+[pattern_trace] 0

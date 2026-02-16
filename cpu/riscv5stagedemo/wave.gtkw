@@ -1,0 +1,45 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Mon Feb 16 02:10:04 2026
+[*]
+[dumpfile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/cpu/riscv5stagedemo/waveform.vcd"
+[dumpfile_mtime] "Mon Feb 16 01:06:48 2026"
+[dumpfile_size] 172589
+[savefile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/cpu/riscv5stagedemo/wave.gtkw"
+[timestart] 1151100
+[size] 744 841
+[pos] -36 -20
+*-14.700000 1216400 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] testbench.
+[treeopen] testbench.dut.
+[sst_width] 40
+[signals_width] 222
+[sst_expanded] 0
+[sst_vpaned_height] 251
+@24
+testbench.dut.alu_in1[31:0]
+testbench.dut.alu_in2[31:0]
+testbench.dut.alu_result_ex[31:0]
+testbench.dut.alu_result_mem_reg[31:0]
+testbench.dut.alu_result_wb[31:0]
+testbench.dut.alu_result_wb_reg[31:0]
+testbench.dut.alu_in1_forwarded[31:0]
+@200
+-
+@24
+testbench.dut.alu_result_mem[31:0]
+testbench.dut.write_data_wb[31:0]
+@28
+testbench.dut.forward_a[1:0]
+@24
+testbench.dut.read_data1_ex[31:0]
+@22
+testbench.dut.register_file.write_reg[4:0]
+@25
+testbench.dut.register_file.write_data[31:0]
+@22
+testbench.dut.register_file.read_reg_num1[4:0]
+@25
+testbench.dut.register_file.read_data1[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
