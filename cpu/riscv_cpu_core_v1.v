@@ -491,7 +491,7 @@ module riscv_cpu_core (
     assign byte_size_mem = byte_size_ex_mem;
     assign funct3_mem = funct3_ex_mem;
     
-    // ========================================================================
+// ========================================================================
     // STAGE 4: MEMORY ACCESS (MEM) - via LSU
     // ========================================================================
 
@@ -550,64 +550,143 @@ module riscv_cpu_core (
     assign dmem_wstrb = lsu_dmem_wstrb_out;
     assign dmem_valid = lsu_dmem_valid;
     assign dmem_we    = lsu_dmem_we;
-
-    // mem_read_data_extended: driven from LSU result_data (already sign/zero extended)
-    assign mem_read_data_extended = lsu_result_data;
     
     // ========================================================================
-    // UNIFIED MEM/WB REGISTER - Driven by LSU result
+    // MEM/WB PIPELINE REGISTER
+    // Simplified: CHỈ cho non-memory instructions
+    // Memory instructions không đi qua register này, chúng đi qua LSU path
     // ========================================================================
     reg regwrite_mem_wb;
-    reg memtoreg_mem_wb;
     reg jump_mem_wb;
     reg [31:0] alu_result_mem_wb;
-    reg [31:0] mem_data_mem_wb;
     reg [31:0] pc_plus_4_mem_wb;
     reg [4:0] rd_mem_wb;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             regwrite_mem_wb  <= 1'b0;
-            memtoreg_mem_wb  <= 1'b0;
             jump_mem_wb      <= 1'b0;
             alu_result_mem_wb <= 32'h0;
-            mem_data_mem_wb  <= 32'h0;
             pc_plus_4_mem_wb <= 32'h0;
             rd_mem_wb        <= 5'b0;
-        end else begin
-            if (!stall) begin
-                // Non-memory instructions: pass through normally
-                alu_result_mem_wb <= alu_result_mem;
-                pc_plus_4_mem_wb  <= pc_plus_4_mem;
-            end
+        end else if (!stall) begin
+            // Pipeline advance - CHỈ non-memory instructions
+            // Load instructions: regwrite=0 ở đây, sẽ được handle bởi LSU
+            // Store instructions: regwrite đã =0 từ control unit
+            regwrite_mem_wb  <= regwrite_mem & ~memread_mem;
+            jump_mem_wb      <= jump_mem;
+            alu_result_mem_wb <= alu_result_mem;
+            pc_plus_4_mem_wb <= pc_plus_4_mem;
+            rd_mem_wb        <= rd_mem;
+        end
+        // Note: KHÔNG có logic cho lsu_result_valid ở đây
+        // LSU results sẽ được handle riêng bởi WB Arbiter
+    end
+    
+    // ========================================================================
+    // WB HOLD REGISTER
+    // Giữ pipeline instruction khi conflict với LSU result
+    // ========================================================================
+    reg hold_valid;
+    reg hold_jump;
+    reg [4:0] hold_rd;
+    reg [31:0] hold_alu_result;
+    reg [31:0] hold_pc_plus_4;
 
-            // When LSU delivers a load result, capture it for WB
-            if (lsu_result_valid) begin
-                mem_data_mem_wb  <= lsu_result_data;
-                rd_mem_wb        <= lsu_result_rd;
-                regwrite_mem_wb  <= 1'b1;
-                memtoreg_mem_wb  <= 1'b1;
-                jump_mem_wb      <= 1'b0;
-            end else if (!stall) begin
-                // Normal (non-load) pipeline advance
-                regwrite_mem_wb  <= regwrite_mem & ~memread_mem;
-                memtoreg_mem_wb  <= 1'b0;
-                jump_mem_wb      <= jump_mem;
-                rd_mem_wb        <= rd_mem;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            hold_valid      <= 1'b0;
+            hold_jump       <= 1'b0;
+            hold_rd         <= 5'b0;
+            hold_alu_result <= 32'h0;
+            hold_pc_plus_4  <= 32'h0;
+        end else begin
+            // Conflict detection: LSU result VÀ pipeline WB đều valid
+            if (lsu_result_valid && regwrite_mem_wb) begin
+                // Hold pipeline instruction để write ở cycle sau
+                hold_valid      <= 1'b1;
+                hold_jump       <= jump_mem_wb;
+                hold_rd         <= rd_mem_wb;
+                hold_alu_result <= alu_result_mem_wb;
+                hold_pc_plus_4  <= pc_plus_4_mem_wb;
+            end 
+            // Clear hold khi không còn conflict
+            else if (hold_valid && !lsu_result_valid && !regwrite_mem_wb) begin
+                hold_valid <= 1'b0;
             end
         end
     end
-    assign regwrite_wb = regwrite_mem_wb;
-    assign memtoreg_wb = memtoreg_mem_wb;
-    assign jump_wb = jump_mem_wb;
-    assign alu_result_wb = alu_result_mem_wb;
-    assign mem_data_wb = mem_data_mem_wb;
-    assign pc_plus_4_wb = pc_plus_4_mem_wb;
-    assign rd_wb = rd_mem_wb;
+    
+    // ========================================================================
+    // WB ARBITER - 3-way Priority MUX
+    // Priority: Hold Register > LSU Result > Pipeline WB
+    // ========================================================================
+    reg wb_regwrite;
+    reg wb_memtoreg;
+    reg wb_jump;
+    reg [4:0] wb_rd;
+    reg [31:0] wb_alu_result;
+    reg [31:0] wb_mem_data;
+    reg [31:0] wb_pc_plus_4;
+
+    always @(*) begin
+        // Default values
+        wb_regwrite   = 1'b0;
+        wb_memtoreg   = 1'b0;
+        wb_jump       = 1'b0;
+        wb_rd         = 5'b0;
+        wb_alu_result = 32'h0;
+        wb_mem_data   = 32'h0;
+        wb_pc_plus_4  = 32'h0;
+        
+        // Priority 1: Hold Register (highest priority)
+        // Đảm bảo held instruction được write khi có slot available
+        if (hold_valid && !lsu_result_valid) begin
+            wb_regwrite   = 1'b1;
+            wb_jump       = hold_jump;
+            wb_rd         = hold_rd;
+            wb_alu_result = hold_alu_result;
+            wb_mem_data   = 32'h0;
+            wb_pc_plus_4  = hold_pc_plus_4;
+            wb_memtoreg   = 1'b0;
+        end 
+        // Priority 2: LSU Result (medium priority)
+        // LSU results được ưu tiên để giải phóng LSU buffer nhanh
+        else if (lsu_result_valid) begin
+            wb_regwrite   = 1'b1;
+            wb_jump       = 1'b0;
+            wb_rd         = lsu_result_rd;
+            wb_alu_result = 32'h0;
+            wb_mem_data   = lsu_result_data;
+            wb_pc_plus_4  = 32'h0;
+            wb_memtoreg   = 1'b1;
+        end 
+        // Priority 3: Current Pipeline Instruction (lowest priority)
+        else begin
+            wb_regwrite   = regwrite_mem_wb;
+            wb_jump       = jump_mem_wb;
+            wb_rd         = rd_mem_wb;
+            wb_alu_result = alu_result_mem_wb;
+            wb_mem_data   = 32'h0;
+            wb_pc_plus_4  = pc_plus_4_mem_wb;
+            wb_memtoreg   = 1'b0;
+        end
+    end
     
     // ========================================================================
     // STAGE 5: WRITE BACK (WB)
     // ========================================================================
+    
+    // WB Stage outputs - Từ arbiter
+    assign regwrite_wb = wb_regwrite;
+    assign memtoreg_wb = wb_memtoreg;
+    assign jump_wb     = wb_jump;
+    assign rd_wb       = wb_rd;
+    assign alu_result_wb = wb_alu_result;
+    assign mem_data_wb   = wb_mem_data;
+    assign pc_plus_4_wb  = wb_pc_plus_4;
+    
+    // Final write data selection
     wire [31:0] wb_data_before_jump;
     assign wb_data_before_jump = memtoreg_wb ? mem_data_wb : alu_result_wb;
     assign write_back_data_wb = jump_wb ? pc_plus_4_wb : wb_data_before_jump;
@@ -624,7 +703,7 @@ module riscv_cpu_core (
         .imem_ready(imem_ready),
         .lsu_scoreboard(lsu_scoreboard),
         .stall(stall),           // Pipeline hazard stall
-        .stall_if(stall_if),     // [FIX] IF-only stall cho imem_stall
+        .stall_if(stall_if),     // IF-only stall cho imem_stall
         .flush_if_id(flush_if_id),
         .flush_id_ex(flush_id_ex)
     );

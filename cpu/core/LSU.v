@@ -7,7 +7,7 @@
 module LSU (
     input wire clk,
     input wire rst,
-    
+    input wire result_ack, 
     // ========================================================================
     // PIPELINE INTERFACE - Request từ EX stage
     // ========================================================================
@@ -261,8 +261,10 @@ module LSU (
                 // PROCESS: Clear result buffer, quay lại IDLE
                 // ============================================================
                 PROCESS: begin
-                    result_buffer_valid <= 1'b0;
-                    state <= IDLE;
+                        if (result_ack) begin  // New input signal
+                            result_buffer_valid <= 1'b0;
+                            state <= IDLE;
+                        end
                 end
                 
                 default: begin
