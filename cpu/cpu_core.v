@@ -11,7 +11,7 @@
 // Version: 2.0 - With Cache Integration
 // ============================================================================
 
-`include "cpu/riscv_cpu_core_v1.v"
+`include "cpu/riscv_cpu_core_v2.v"
 `include "cpu/interface/icache/icache_top.v"
 `include "cpu/interface/dcache/dcache_top.v"
 `include "cpu/memory_axi4full/inst_mem_axi_slave.v"
