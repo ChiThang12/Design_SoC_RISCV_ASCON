@@ -1,4 +1,4 @@
-//`include "src/inst_mem.v"
+`include "src/inst_mem.v"
 module IFU (
     input wire clock,
     input wire reset,
@@ -8,7 +8,7 @@ module IFU (
     input wire stall,               // 1: giữ nguyên PC (pipeline stall)
     
     // Branch/Jump target address
-    input wire [31:0] target_pc,    // �?ịa chỉ nhảy đến
+    input wire [31:0] target_pc,    // �?ịa chỉ nhảy đến
     
     // Outputs
     output reg [31:0] PC_out,       // Current PC
@@ -38,7 +38,7 @@ module IFU (
     // ========================================================================
     always @(posedge clock or posedge reset) begin
         if (reset) begin
-            PC <= 32'h00000000;     // Reset PC v�? địa chỉ 0x00000000
+            PC <= 32'h00000000;     // Reset PC v�? địa chỉ 0x00000000
         end
         else begin
             PC <= next_pc;          // Cập nhật PC
@@ -56,7 +56,7 @@ module IFU (
     // Instruction Memory (FIXED: Added reset signal)
     // ========================================================================
     inst_mem inst_memory (
-        .PC({PC[31:2],2'b00}),       // �?ịa chỉ word (chia 4, b�? 2 bit thấp)
+        .PC({PC[31:2],2'b00}),       // �?ịa chỉ word (chia 4, b�? 2 bit thấp)
         .reset(reset),               // ADDED: Reset signal
         .Instruction_Code(Instruction_Code)
     );
