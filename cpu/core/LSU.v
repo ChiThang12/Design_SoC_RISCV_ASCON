@@ -1,276 +1,379 @@
 // ============================================================================
-// LSU.v - Load-Store Unit (Non-blocking Memory Subsystem)
+// LSU.v - Load-Store Unit (High-Performance SoC) v3
 // ============================================================================
-// ICARUS VERILOG COMPATIBLE VERSION
+// Architecture:
+//   - Store Buffer : 8 entry circular FIFO  → drain background xuống dCache
+//   - Load Queue   : 4 entry FIFO           → tăng từ 2→4 để chứa được load
+//                                              khi pipeline stall do scoreboard
+//   - Store-to-Load Forwarding
+//   - Background Drain FSM (load priority > drain)
+//
+// Key design decisions:
+//   - req_ready cho load  = !lq_full  (không phụ thuộc load_state)
+//   - req_ready cho store = !sb_full
+//   - Pipeline chỉ stall khi queue/buffer THỰC SỰ đầy
+//   - Scoreboard stall được handle bởi hazard unit, không phải LSU
+//   - Load FSM xử lý tuần tự: lấy 1 entry → dCache → WB → lấy entry tiếp
 // ============================================================================
 
 module LSU (
     input wire clk,
     input wire rst,
-    input wire result_ack, 
-    // ========================================================================
-    // PIPELINE INTERFACE - Request từ EX stage
-    // ========================================================================
-    input  wire        req_valid,       // Pipeline muốn gửi memory request
-    output wire        req_ready,       // LSU sẵn sàng nhận request
-    input  wire [31:0] req_addr,        // Memory address
-    input  wire [31:0] req_wdata,       // Write data
-    input  wire [3:0]  req_wstrb,       // Write strobe
-    input  wire        req_is_load,     // 1=load, 0=store
-    input  wire [4:0]  req_rd,          // Destination register
-    input  wire [2:0]  req_funct3,      // funct3 (LB, LH, LW, LBU, LHU)
-    
-    // ========================================================================
-    // PIPELINE INTERFACE - Result trả về WB stage
-    // ========================================================================
-    output wire        result_valid,    // LSU có kết quả sẵn sàng
-    output wire [31:0] result_data,     // Load data
-    output wire [4:0]  result_rd,       // Destination register
-    
-    // ========================================================================
-    // SCOREBOARD INTERFACE - Tracking pending loads
-    // ========================================================================
-    output wire [31:0] scoreboard,      // Bitmask: bit[i]=1 → register x[i] đang chờ load
-    
-    // ========================================================================
-    // MEMORY INTERFACE (AXI-like)
-    // ========================================================================
-    output reg  [31:0] dmem_addr,
-    output reg  [31:0] dmem_wdata,
-    output reg  [3:0]  dmem_wstrb,
-    output reg         dmem_valid,
-    output reg         dmem_we,
-    input  wire [31:0] dmem_rdata,
-    input  wire        dmem_ready
+
+    // Pipeline interface
+    input  wire        req_valid,
+    output wire        req_ready,
+    input  wire [31:0] req_addr,
+    input  wire [31:0] req_wdata,
+    input  wire [3:0]  req_wstrb,
+    input  wire        req_is_load,
+    input  wire [4:0]  req_rd,
+    input  wire [2:0]  req_funct3,
+
+    // WB interface
+    output reg         result_valid,
+    output reg  [31:0] result_data,
+    output reg  [4:0]  result_rd,
+    input  wire        result_ack,
+
+    // Scoreboard
+    output wire [31:0] scoreboard,
+
+    // dCache interface
+    output reg         dcache_req,
+    output reg         dcache_we,
+    output reg  [31:0] dcache_addr,
+    output reg  [31:0] dcache_wdata,
+    output reg  [3:0]  dcache_wstrb,
+    input  wire [31:0] dcache_rdata,
+    input  wire        dcache_ready
 );
 
     // ========================================================================
-    // PARAMETERS
+    // STORE BUFFER — 8 entry
     // ========================================================================
-    localparam QUEUE_DEPTH = 4;
-    
+    localparam SB_DEPTH = 8;
+    localparam SB_BITS  = 3;
+
+    reg [31:0] sb_addr  [0:SB_DEPTH-1];
+    reg [31:0] sb_wdata [0:SB_DEPTH-1];
+    reg [3:0]  sb_wstrb [0:SB_DEPTH-1];
+    reg        sb_valid [0:SB_DEPTH-1];
+
+    reg [SB_BITS-1:0] sb_wr_ptr;
+    reg [SB_BITS-1:0] sb_rd_ptr;
+    reg [SB_BITS:0]   sb_count;
+
+    wire sb_full  = (sb_count == SB_DEPTH);
+    wire sb_empty = (sb_count == 0);
+
     // ========================================================================
-    // Request Queue (FIFO) - Fixed depth 4
+    // LOAD QUEUE — 4 entry (tăng từ 2 để buffer được khi pipeline stall)
     // ========================================================================
-    reg [31:0] queue_addr   [0:3];
-    reg [31:0] queue_wdata  [0:3];
-    reg [3:0]  queue_wstrb  [0:3];
-    reg        queue_is_load[0:3];
-    reg [4:0]  queue_rd     [0:3];
-    reg [2:0]  queue_funct3 [0:3];
-    reg        queue_valid  [0:3];
-    
-    // Queue pointers - 2 bits for depth=4
-    reg [1:0] wr_ptr;  // Write pointer (0-3)
-    reg [1:0] rd_ptr;  // Read pointer (0-3)
-    reg [2:0] count;   // Entry counter (0-4)
-    
-    // Queue status
-    wire queue_full  = (count == 3'd4);
-    wire queue_empty = (count == 3'd0);
-    
-    // Request ready = queue chưa full
-    assign req_ready = !queue_full;
-    
+    localparam LQ_DEPTH = 4;
+    localparam LQ_BITS  = 2;
+
+    reg [31:0] lq_addr    [0:LQ_DEPTH-1];
+    reg [4:0]  lq_rd      [0:LQ_DEPTH-1];
+    reg [2:0]  lq_funct3  [0:LQ_DEPTH-1];
+    reg        lq_fwd     [0:LQ_DEPTH-1];
+    reg [31:0] lq_fwd_data[0:LQ_DEPTH-1];
+
+    reg [LQ_BITS-1:0] lq_wr_ptr;
+    reg [LQ_BITS-1:0] lq_rd_ptr;
+    reg [LQ_BITS:0]   lq_count;
+
+    wire lq_full  = (lq_count == LQ_DEPTH);
+    wire lq_empty = (lq_count == 0);
+
     // ========================================================================
-    // Result Buffer (cho load instructions)
-    // ========================================================================
-    reg        result_buffer_valid;
-    reg [31:0] result_buffer_data;
-    reg [4:0]  result_buffer_rd;
-    
-    assign result_valid = result_buffer_valid;
-    assign result_data  = result_buffer_data;
-    assign result_rd    = result_buffer_rd;
-    
-    // ========================================================================
-    // Scoreboard - Track pending loads
+    // SCOREBOARD
     // ========================================================================
     reg [31:0] scoreboard_reg;
     assign scoreboard = scoreboard_reg;
-    
+
+    // req_ready: độc lập cho load và store
+    assign req_ready = req_is_load ? !lq_full : !sb_full;
+
     // ========================================================================
-    // FSM States
+    // STORE-TO-LOAD FORWARDING (Combinational)
     // ========================================================================
-    localparam [1:0] IDLE     = 2'b00;
-    localparam [1:0] WAIT_MEM = 2'b01;
-    localparam [1:0] PROCESS  = 2'b10;
-    
-    reg [1:0] state;
-    
+    wire        fwd_hit;
+    wire [31:0] fwd_data;
+    reg         fwd_hit_r;
+    reg  [31:0] fwd_data_r;
+
+    integer fi;
+    always @(*) begin
+        fwd_hit_r  = 1'b0;
+        fwd_data_r = 32'h0;
+        for (fi = 0; fi < SB_DEPTH; fi = fi + 1) begin
+            if (sb_valid[fi] && (sb_addr[fi][31:2] == req_addr[31:2])) begin
+                fwd_hit_r  = 1'b1;
+                fwd_data_r = sb_wdata[fi];
+            end
+        end
+    end
+    assign fwd_hit  = fwd_hit_r;
+    assign fwd_data = fwd_data_r;
+
     // ========================================================================
-    // Current request being processed
+    // ENQUEUE CONTROL
     // ========================================================================
-    reg [31:0] current_addr;
-    reg [31:0] current_wdata;
-    reg [3:0]  current_wstrb;
-    reg        current_is_load;
-    reg [4:0]  current_rd;
-    reg [2:0]  current_funct3;
-    
+    wire do_store = req_valid && req_ready && !req_is_load;
+    wire do_load  = req_valid && req_ready &&  req_is_load;
+
     // ========================================================================
-    // Queue Management
+    // FSM STATES
     // ========================================================================
-    integer i;
-    
+    localparam [1:0]
+        LOAD_IDLE   = 2'b00,
+        LOAD_DCACHE = 2'b01,
+        LOAD_RESULT = 2'b10;
+
+    localparam [1:0]
+        DRAIN_IDLE = 2'b00,
+        DRAIN_REQ  = 2'b01,
+        DRAIN_WAIT = 2'b10;
+
+    reg [1:0] load_state;
+    reg [1:0] drain_state;
+
+    wire load_using_dcache = (load_state == LOAD_DCACHE);
+
+    // ========================================================================
+    // Registered current load — latch khi dequeue, dùng xuyên suốt DCACHE state
+    // ========================================================================
+    reg [31:0] cur_load_addr;
+    reg [4:0]  cur_load_rd;
+    reg [2:0]  cur_load_funct3;
+
+    // Load FSM sẵn sàng nhận entry mới: IDLE và không giữ result
+    wire load_fsm_ready = (load_state == LOAD_IDLE) && !result_valid;
+
+    // Dequeue: có entry trong LQ và Load FSM sẵn sàng
+    wire do_load_dequeue = !lq_empty && load_fsm_ready;
+
+    wire do_drain_pop = (drain_state == DRAIN_WAIT)
+                     && dcache_ready
+                     && !load_using_dcache;
+
+    // ========================================================================
+    // SIGN/ZERO EXTENSION
+    // ========================================================================
+    function [31:0] apply_funct3;
+        input [31:0] raw;
+        input [2:0]  f3;
+        case (f3)
+            3'b000:  apply_funct3 = {{24{raw[7]}},  raw[7:0]};
+            3'b001:  apply_funct3 = {{16{raw[15]}}, raw[15:0]};
+            3'b010:  apply_funct3 = raw;
+            3'b100:  apply_funct3 = {24'h0, raw[7:0]};
+            3'b101:  apply_funct3 = {16'h0, raw[15:0]};
+            default: apply_funct3 = raw;
+        endcase
+    endfunction
+
+    // ========================================================================
+    // QUEUE MANAGEMENT — enqueue + dequeue + count update
+    // ========================================================================
+    integer si;
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            wr_ptr <= 2'b00;
-            rd_ptr <= 2'b00;
-            count  <= 3'b000;
-            for (i = 0; i < 4; i = i + 1) begin
-                queue_valid[i] <= 1'b0;
-            end
+            sb_wr_ptr      <= 0;
+            sb_rd_ptr      <= 0;
+            sb_count       <= 0;
+            lq_wr_ptr      <= 0;
+            lq_rd_ptr      <= 0;
+            lq_count       <= 0;
+            scoreboard_reg <= 32'h0;
+            cur_load_addr   <= 32'h0;
+            cur_load_rd     <= 5'h0;
+            cur_load_funct3 <= 3'h0;
+            for (si = 0; si < SB_DEPTH; si = si + 1)
+                sb_valid[si] <= 1'b0;
         end else begin
-            // Handle enqueue and dequeue simultaneously
-            case ({req_valid && req_ready, !queue_empty && state == IDLE})
-                2'b10: begin
-                    // Only enqueue
-                    queue_addr[wr_ptr]    <= req_addr;
-                    queue_wdata[wr_ptr]   <= req_wdata;
-                    queue_wstrb[wr_ptr]   <= req_wstrb;
-                    queue_is_load[wr_ptr] <= req_is_load;
-                    queue_rd[wr_ptr]      <= req_rd;
-                    queue_funct3[wr_ptr]  <= req_funct3;
-                    queue_valid[wr_ptr]   <= 1'b1;
-                    wr_ptr <= wr_ptr + 2'b01;
-                    count  <= count + 3'b001;
+
+            // ----------------------------------------------------------------
+            // STORE: enqueue vào store buffer
+            // ----------------------------------------------------------------
+            if (do_store) begin
+                sb_addr  [sb_wr_ptr] <= req_addr;
+                sb_wdata [sb_wr_ptr] <= req_wdata;
+                sb_wstrb [sb_wr_ptr] <= req_wstrb;
+                sb_valid [sb_wr_ptr] <= 1'b1;
+                sb_wr_ptr <= sb_wr_ptr + 1'b1;
+            end
+
+            // STORE: drain pop
+            if (do_drain_pop) begin
+                sb_valid[sb_rd_ptr] <= 1'b0;
+                sb_rd_ptr <= sb_rd_ptr + 1'b1;
+            end
+
+            // sb_count
+            case ({do_store, do_drain_pop})
+                2'b10:   sb_count <= sb_count + 1'b1;
+                2'b01:   sb_count <= sb_count - 1'b1;
+                default: ;
+            endcase
+
+            // ----------------------------------------------------------------
+            // LOAD: enqueue vào load queue
+            // ----------------------------------------------------------------
+            if (do_load) begin
+                lq_addr    [lq_wr_ptr] <= req_addr;
+                lq_rd      [lq_wr_ptr] <= req_rd;
+                lq_funct3  [lq_wr_ptr] <= req_funct3;
+                lq_fwd     [lq_wr_ptr] <= fwd_hit;
+                lq_fwd_data[lq_wr_ptr] <= fwd_hit ? fwd_data : 32'h0;
+                lq_wr_ptr  <= lq_wr_ptr + 1'b1;
+
+                if (req_rd != 5'b0)
+                    scoreboard_reg[req_rd] <= 1'b1;
+            end
+
+            // ----------------------------------------------------------------
+            // LOAD: dequeue — latch entry DATA trước khi rd_ptr advance
+            // Verilog non-blocking: lq_rd_ptr chưa tăng tại thời điểm latch
+            // → cur_load_* nhận đúng entry hiện tại
+            // ----------------------------------------------------------------
+            if (do_load_dequeue) begin
+                cur_load_addr   <= lq_addr  [lq_rd_ptr];
+                cur_load_rd     <= lq_rd    [lq_rd_ptr];
+                cur_load_funct3 <= lq_funct3[lq_rd_ptr];
+                lq_rd_ptr <= lq_rd_ptr + 1'b1;
+            end
+
+            // lq_count
+            case ({do_load, do_load_dequeue})
+                2'b10:   lq_count <= lq_count + 1'b1;
+                2'b01:   lq_count <= lq_count - 1'b1;
+                default: ;
+            endcase
+
+            // ----------------------------------------------------------------
+            // SCOREBOARD: clear khi WB ack
+            // ----------------------------------------------------------------
+            if (result_valid && result_ack) begin
+                if (result_rd != 5'b0)
+                    scoreboard_reg[result_rd] <= 1'b0;
+            end
+        end
+    end
+
+    // ========================================================================
+    // LOAD FSM
+    // ========================================================================
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            load_state   <= LOAD_IDLE;
+            result_valid <= 1'b0;
+            result_data  <= 32'h0;
+            result_rd    <= 5'h0;
+        end else begin
+            case (load_state)
+
+                // ------------------------------------------------------------
+                // IDLE: Đợi do_load_dequeue
+                // cur_load_* được latch cùng cycle ở queue block (non-blocking)
+                // → cur_load_* hợp lệ từ cycle KẾ TIẾP (LOAD_DCACHE state)
+                // Forwarding: đọc trực tiếp lq_*[lq_rd_ptr] trước khi advance
+                // ------------------------------------------------------------
+                LOAD_IDLE: begin
+                    if (do_load_dequeue) begin
+                        if (lq_fwd[lq_rd_ptr]) begin
+                            // Forwarded: data từ store buffer, trả WB ngay
+                            result_valid <= 1'b1;
+                            result_rd    <= lq_rd[lq_rd_ptr];
+                            result_data  <= apply_funct3(
+                                               lq_fwd_data[lq_rd_ptr],
+                                               lq_funct3  [lq_rd_ptr]);
+                            load_state   <= LOAD_RESULT;
+                        end else begin
+                            // Không forward: chờ cur_load_* propagate 1 cycle
+                            // rồi gửi dCache ở LOAD_DCACHE
+                            load_state <= LOAD_DCACHE;
+                        end
+                    end
                 end
-                
-                2'b01: begin
-                    // Only dequeue
-                    queue_valid[rd_ptr] <= 1'b0;
-                    rd_ptr <= rd_ptr + 2'b01;
-                    count  <= count - 3'b001;
+
+                // ------------------------------------------------------------
+                // DCACHE: Gửi load request xuống dCache bằng cur_load_addr
+                // dcache_req được assert ở combinational block bên dưới
+                // Chờ dcache_ready trả về
+                // ------------------------------------------------------------
+                LOAD_DCACHE: begin
+                    if (dcache_ready) begin
+                        result_valid <= 1'b1;
+                        result_rd    <= cur_load_rd;
+                        result_data  <= apply_funct3(dcache_rdata,
+                                                     cur_load_funct3);
+                        load_state   <= LOAD_RESULT;
+                    end
                 end
-                
-                2'b11: begin
-                    // Both enqueue and dequeue
-                    queue_addr[wr_ptr]    <= req_addr;
-                    queue_wdata[wr_ptr]   <= req_wdata;
-                    queue_wstrb[wr_ptr]   <= req_wstrb;
-                    queue_is_load[wr_ptr] <= req_is_load;
-                    queue_rd[wr_ptr]      <= req_rd;
-                    queue_funct3[wr_ptr]  <= req_funct3;
-                    queue_valid[wr_ptr]   <= 1'b1;
-                    wr_ptr <= wr_ptr + 2'b01;
-                    
-                    queue_valid[rd_ptr] <= 1'b0;
-                    rd_ptr <= rd_ptr + 2'b01;
-                    // count stays the same
+
+                // ------------------------------------------------------------
+                // RESULT: Giữ result đến khi WB ack
+                // ------------------------------------------------------------
+                LOAD_RESULT: begin
+                    if (result_ack) begin
+                        result_valid <= 1'b0;
+                        load_state   <= LOAD_IDLE;
+                    end
                 end
-                
-                default: begin
-                    // No change
-                end
+
+                default: load_state <= LOAD_IDLE;
             endcase
         end
     end
-    
+
     // ========================================================================
-    // LSU FSM - Xử lý memory requests
+    // DRAIN FSM
     // ========================================================================
     always @(posedge clk or posedge rst) begin
         if (rst) begin
-            state <= IDLE;
-            dmem_valid <= 1'b0;
-            dmem_we    <= 1'b0;
-            dmem_addr  <= 32'h0;
-            dmem_wdata <= 32'h0;
-            dmem_wstrb <= 4'h0;
-            result_buffer_valid <= 1'b0;
-            result_buffer_data  <= 32'h0;
-            result_buffer_rd    <= 5'h0;
-            scoreboard_reg <= 32'h0;
-            current_addr    <= 32'h0;
-            current_wdata   <= 32'h0;
-            current_wstrb   <= 4'h0;
-            current_is_load <= 1'b0;
-            current_rd      <= 5'h0;
-            current_funct3  <= 3'h0;
+            drain_state <= DRAIN_IDLE;
         end else begin
-            case (state)
-                // ============================================================
-                // IDLE: Chờ request từ queue
-                // ============================================================
-                IDLE: begin
-                    if (!queue_empty && queue_valid[rd_ptr]) begin
-                        // Lấy request từ queue
-                        current_addr    <= queue_addr[rd_ptr];
-                        current_wdata   <= queue_wdata[rd_ptr];
-                        current_wstrb   <= queue_wstrb[rd_ptr];
-                        current_is_load <= queue_is_load[rd_ptr];
-                        current_rd      <= queue_rd[rd_ptr];
-                        current_funct3  <= queue_funct3[rd_ptr];
-                        
-                        // Gửi request xuống memory
-                        dmem_addr  <= queue_addr[rd_ptr];
-                        dmem_wdata <= queue_wdata[rd_ptr];
-                        dmem_wstrb <= queue_wstrb[rd_ptr];
-                        dmem_we    <= !queue_is_load[rd_ptr];  // 0=load, 1=store
-                        dmem_valid <= 1'b1;
-                        
-                        // Update scoreboard: Mark register as pending
-                        if (queue_is_load[rd_ptr] && queue_rd[rd_ptr] != 5'b0) begin
-                            scoreboard_reg[queue_rd[rd_ptr]] <= 1'b1;
-                        end
-                        
-                        state <= WAIT_MEM;
-                    end else begin
-                        dmem_valid <= 1'b0;
-                        result_buffer_valid <= 1'b0;
-                    end
+            case (drain_state)
+                DRAIN_IDLE: begin
+                    if (!sb_empty && !load_using_dcache)
+                        drain_state <= DRAIN_REQ;
                 end
-                
-                // ============================================================
-                // WAIT_MEM: Chờ memory response
-                // ============================================================
-                WAIT_MEM: begin
-                    if (dmem_ready) begin
-                        dmem_valid <= 1'b0;
-                        
-                        // Nếu là LOAD: Lưu kết quả vào result buffer
-                        if (current_is_load) begin
-                            result_buffer_valid <= 1'b1;
-                            result_buffer_rd    <= current_rd;
-                            
-                            // Extend data dựa theo funct3
-                            case (current_funct3)
-                                3'b000: result_buffer_data <= {{24{dmem_rdata[7]}}, dmem_rdata[7:0]};    // LB
-                                3'b001: result_buffer_data <= {{16{dmem_rdata[15]}}, dmem_rdata[15:0]}; // LH
-                                3'b010: result_buffer_data <= dmem_rdata;                                // LW
-                                3'b100: result_buffer_data <= {24'h0, dmem_rdata[7:0]};                  // LBU
-                                3'b101: result_buffer_data <= {16'h0, dmem_rdata[15:0]};                 // LHU
-                                default: result_buffer_data <= dmem_rdata;
-                            endcase
-                            
-                            // Clear scoreboard bit
-                            if (current_rd != 5'b0) begin
-                                scoreboard_reg[current_rd] <= 1'b0;
-                            end
-                        end else begin
-                            // STORE: không có result
-                            result_buffer_valid <= 1'b0;
-                        end
-                        
-                        state <= PROCESS;
-                    end
+                DRAIN_REQ: begin
+                    if (load_using_dcache) drain_state <= DRAIN_IDLE;
+                    else                   drain_state <= DRAIN_WAIT;
                 end
-                
-                // ============================================================
-                // PROCESS: Clear result buffer, quay lại IDLE
-                // ============================================================
-                PROCESS: begin
-                        if (result_ack) begin  // New input signal
-                            result_buffer_valid <= 1'b0;
-                            state <= IDLE;
-                        end
+                DRAIN_WAIT: begin
+                    if      (load_using_dcache) drain_state <= DRAIN_IDLE;
+                    else if (dcache_ready)      drain_state <= DRAIN_IDLE;
                 end
-                
-                default: begin
-                    state <= IDLE;
-                end
+                default: drain_state <= DRAIN_IDLE;
             endcase
+        end
+    end
+
+    // ========================================================================
+    // dCACHE DRIVE — Load priority > Drain
+    // Load dùng cur_load_addr (registered, không bị lq_rd_ptr advance)
+    // ========================================================================
+    always @(*) begin
+        dcache_req   = 1'b0;
+        dcache_we    = 1'b0;
+        dcache_addr  = 32'h0;
+        dcache_wdata = 32'h0;
+        dcache_wstrb = 4'h0;
+
+        if (load_using_dcache) begin
+            dcache_req  = 1'b1;
+            dcache_we   = 1'b0;
+            dcache_addr = cur_load_addr;
+        end else if (drain_state == DRAIN_REQ || drain_state == DRAIN_WAIT) begin
+            dcache_req   = 1'b1;
+            dcache_we    = 1'b1;
+            dcache_addr  = sb_addr [sb_rd_ptr];
+            dcache_wdata = sb_wdata[sb_rd_ptr];
+            dcache_wstrb = sb_wstrb[sb_rd_ptr];
         end
     end
 
