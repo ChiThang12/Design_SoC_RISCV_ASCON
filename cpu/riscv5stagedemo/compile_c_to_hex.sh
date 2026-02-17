@@ -1,4 +1,5 @@
-#!/bin/bash
+#!/usr/bin/bash
+
 set -e
 
 # Colors

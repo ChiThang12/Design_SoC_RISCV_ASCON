@@ -15,11 +15,3 @@ if [ $? -ne 0 ]; then
 fi
 echo "[OK] Bien dich thanh cong!"
 echo
-
-echo "[2/2] Dang chay mo phong voi vvp..."
-vvp run_program.vvp
-echo
-echo "========================================="
-echo "           HOAN TAT!"
-echo "========================================="
-read -p "Nhan Enter de thoat..."

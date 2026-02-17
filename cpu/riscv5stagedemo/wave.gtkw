@@ -1,82 +1,26 @@
 [*]
 [*] GTKWave Analyzer v3.3.48 (w)1999-2013 BSI
-[*] Mon Feb 16 17:44:44 2026
+[*] Tue Feb 17 10:06:19 2026
 [*]
 [dumpfile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\cpu\riscv5stagedemo\waveform.vcd"
-[dumpfile_mtime] "Mon Feb 16 08:43:47 2026"
-[dumpfile_size] 188044
+[dumpfile_mtime] "Tue Feb 17 10:04:57 2026"
+[dumpfile_size] 1596276
 [savefile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\cpu\riscv5stagedemo\wave.gtkw"
-[timestart] 1124500
+[timestart] 9874250
 [size] 1493 862
 [pos] -1 -1
-*-15.000000 1198800 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.000000 9909310 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] testbench.
 [treeopen] testbench.dut.
 [sst_width] 197
 [signals_width] 263
 [sst_expanded] 1
 [sst_vpaned_height] 245
-@200
--alu
+@22
+testbench.dut.instruction_if[31:0]
 @28
 testbench.dut.stall
-@24
-testbench.dut.read_data1_id[31:0]
-testbench.dut.read_data1_ex[31:0]
-testbench.dut.alu_in1[31:0]
-@200
--
-@24
-testbench.dut.alu_in2[31:0]
-testbench.dut.alu_result_debug[31:0]
-testbench.dut.alu_result_ex[31:0]
-testbench.dut.alu_result_mem[31:0]
-testbench.dut.alu_result_mem_reg[31:0]
-testbench.dut.alu_result_wb[31:0]
-testbench.dut.alu_result_wb_reg[31:0]
-@200
--reg
-@22
-[color] 5
-testbench.dut.register_file.read_reg_num1[4:0]
-@24
-[color] 5
-testbench.dut.register_file.read_data1[31:0]
-@22
-testbench.dut.register_file.read_reg_num2[4:0]
-@24
-[color] 5
-testbench.dut.register_file.read_data2[31:0]
-@28
-testbench.dut.register_file.regwrite
-@200
--
-@28
-testbench.dut.regwrite_mem
-@200
--
-@22
-testbench.dut.register_file.write_reg[4:0]
-@24
-testbench.dut.register_file.write_data[31:0]
-@200
--forwar
-@24
-testbench.dut.write_data_wb[31:0]
-@200
--mem
-@22
-testbench.dut.data_memory.byte_addr[9:0]
-@28
-testbench.dut.data_memory.memread
-testbench.dut.data_memory.memwrite
-@24
-testbench.dut.data_memory.read_data[31:0]
-testbench.dut.data_memory.write_data[31:0]
-testbench.dut.mem_data_wb[31:0]
-@28
-testbench.dut.memtoreg_wb
-@24
-testbench.dut.mem_read_data[31:0]
+@25
+testbench.dut.pc_if[31:0]
 [pattern_trace] 1
 [pattern_trace] 0

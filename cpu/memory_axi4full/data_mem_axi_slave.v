@@ -17,7 +17,8 @@
 module data_mem_axi4_slave #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter MEM_SIZE = 1024
+    // FIX MEM_SIZE: khớp với data_mem_burst — 8KB cover stack(0x0FC0)+bss+test data(0x17F7)
+    parameter MEM_SIZE = 8192
 )(
     input wire clk,
     input wire rst_n,
@@ -341,22 +342,37 @@ module data_mem_axi4_slave #(
     // ========================================================================
     // Write Data Channel
     // ========================================================================
+    // FIX BUG #2: S_AXI_WREADY bị delay 1 cycle vì chỉ được assert khi
+    // WR_BURST && WVALID (sequential), trong khi master có thể gửi WVALID
+    // ngay cùng cycle chuyển sang WR_BURST (AXI cho phép AWVALID và WVALID
+    // cùng lúc). Beat đầu bị miss nếu WREADY chưa lên.
+    //
+    // Fix: Assert WREADY ngay khi wr_state chuyển sang WR_BURST (wr_next==WR_BURST)
+    // thay vì chờ đến cycle sau khi đã ở WR_BURST.
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             S_AXI_WREADY <= 1'b0;
             wr_beat_count <= 8'd0;
         end else begin
             case (wr_state)
-                WR_BURST: begin
-                    if (S_AXI_WVALID && burst_wr_ready) begin
+                WR_IDLE: begin
+                    // Pre-assert WREADY nếu AWVALID đang handshake (chuẩn bị vào WR_BURST)
+                    // Điều này đảm bảo WREADY đã HIGH khi master gửi beat W đầu tiên
+                    if (S_AXI_AWVALID && S_AXI_AWREADY)
                         S_AXI_WREADY <= 1'b1;
-                        if (!S_AXI_WLAST) begin
-                            wr_beat_count <= wr_beat_count + 1'b1;
-                        end else begin
-                            wr_beat_count <= 8'd0;
-                        end
-                    end else begin
+                    else
                         S_AXI_WREADY <= 1'b0;
+                    wr_beat_count <= 8'd0;
+                end
+
+                WR_BURST: begin
+                    // Giữ WREADY HIGH miễn là memory còn sẵn sàng (burst_wr_ready luôn = 1)
+                    S_AXI_WREADY <= burst_wr_ready;
+                    if (S_AXI_WVALID && S_AXI_WREADY) begin
+                        if (!S_AXI_WLAST)
+                            wr_beat_count <= wr_beat_count + 1'b1;
+                        else
+                            wr_beat_count <= 8'd0;
                     end
                 end
                 
