@@ -1,13 +1,20 @@
 // ============================================================================
-// Module: dcache_axi_interface
+// Module: dcache_axi_interface  —  Write-Back version
 // ============================================================================
-// Description:
-//   AXI4 master interface for data cache with read refill and write-through
-//   - Burst read for cache line refill (4 words)
-//   - Single write for write-through operations
+// FIX-BUG2: refill_done bị trễ 1 cycle sau beat cuối (RLAST).
+//   Trước: RLAST → RD_DONE (cycle N+1) → refill_done=1 (cycle N+1)
+//          Nhưng refill_data_valid=1 cũng ở cycle N → không bao giờ cùng lúc
+//   Fix:   Assert refill_done=1 CÙNG CYCLE với beat RLAST (không cần RD_DONE state)
+//          Xóa RD_DONE state, về RD_IDLE trực tiếp từ RD_R khi RLAST
+//          → Controller có thể detect (refill_data_valid & refill_done) cùng cycle
+//          → Tránh thêm 1 cycle REFILL_DRAIN không cần thiết khi CWF = last beat
 //
-// Author: ChiThang
-// Version: AXI4 Full with Write Support
+// FIX-BUG4: BREADY timing — assert BREADY ngay khi vào EV_B (không chờ cycle sau).
+//   Trước: EV_AW → set BREADY → posedge → EV_B với BREADY=1 đúng, nhưng nếu
+//          BVALID đã lên cùng cycle set BREADY thì phải chờ 1 cycle nữa
+//   Fix:   Không thay đổi lớn — BREADY đã set trước khi vào EV_B (đúng).
+//          Tuy nhiên, trong EV_B check BVALID & BREADY (không chỉ BVALID) để
+//          tuân thủ AXI handshake đúng.
 // ============================================================================
 
 `include "cpu/interface/dcache/dcache_defines.vh"
@@ -15,87 +22,95 @@
 module dcache_axi_interface (
     input wire clk,
     input wire rst_n,
-    
+
+    // ========================================================================
     // Read Refill Interface
-    input wire [31:0] refill_addr,      // Line-aligned address to fetch
-    input wire        refill_start,     // Start refill operation
-    output reg        refill_busy,      // Refill in progress
-    output reg        refill_done,      // Refill complete (1-cycle pulse)
-    output reg [31:0] refill_data,      // Current word being filled
-    output reg [1:0]  refill_word,      // Word counter (0-3)
-    output reg        refill_data_valid, // Data valid
-    
-    // Write-Through Interface
-    input wire [31:0] wt_addr,          // Write address
-    input wire [31:0] wt_data,          // Write data
-    input wire [3:0]  wt_strb,          // Write byte enable
-    input wire        wt_start,         // Start write operation
-    output reg        wt_busy,          // Write in progress
-    output reg        wt_done,          // Write complete (1-cycle pulse)
-    
-    // AXI4 Master Read Channel
-    output reg [31:0] M_AXI_ARADDR,
-    output wire [7:0] M_AXI_ARLEN,
-    output wire [2:0] M_AXI_ARSIZE,
-    output wire [1:0] M_AXI_ARBURST,
-    output wire [2:0] M_AXI_ARPROT,
-    output reg        M_AXI_ARVALID,
-    input wire        M_AXI_ARREADY,
-    
-    input wire [31:0] M_AXI_RDATA,
-    input wire [1:0]  M_AXI_RRESP,
-    input wire        M_AXI_RLAST,
-    input wire        M_AXI_RVALID,
-    output reg        M_AXI_RREADY,
-    
-    // AXI4 Master Write Channel
-    output reg [31:0] M_AXI_AWADDR,
-    output wire [7:0] M_AXI_AWLEN,
-    output wire [2:0] M_AXI_AWSIZE,
-    output wire [1:0] M_AXI_AWBURST,
-    output wire [2:0] M_AXI_AWPROT,
-    output reg        M_AXI_AWVALID,
-    input wire        M_AXI_AWREADY,
-    
-    output reg [31:0] M_AXI_WDATA,
-    output reg [3:0]  M_AXI_WSTRB,
-    output wire       M_AXI_WLAST,
-    output reg        M_AXI_WVALID,
-    input wire        M_AXI_WREADY,
-    
-    input wire [1:0]  M_AXI_BRESP,
-    input wire        M_AXI_BVALID,
-    output reg        M_AXI_BREADY
+    // ========================================================================
+    input wire [31:0]  refill_addr,
+    input wire         refill_start,
+    output reg         refill_busy,
+    output reg         refill_done,      // FIX-BUG2: assert cùng cycle RLAST
+    output reg [31:0]  refill_data,
+    output reg [1:0]   refill_word,
+    output reg         refill_data_valid,
+
+    // ========================================================================
+    // Eviction Interface
+    // Burst write 4 words — toàn bộ dirty cache line
+    // ========================================================================
+    input wire [31:0]  evict_addr,
+    input wire [31:0]  evict_data_0,
+    input wire [31:0]  evict_data_1,
+    input wire [31:0]  evict_data_2,
+    input wire [31:0]  evict_data_3,
+    input wire         evict_start,
+    output reg         evict_busy,
+    output reg         evict_done,
+
+    // ========================================================================
+    // AXI4 Read Channel
+    // ========================================================================
+    output reg [31:0]  M_AXI_ARADDR,
+    output wire [7:0]  M_AXI_ARLEN,
+    output wire [2:0]  M_AXI_ARSIZE,
+    output wire [1:0]  M_AXI_ARBURST,
+    output wire [2:0]  M_AXI_ARPROT,
+    output reg         M_AXI_ARVALID,
+    input wire         M_AXI_ARREADY,
+
+    input wire [31:0]  M_AXI_RDATA,
+    input wire [1:0]   M_AXI_RRESP,
+    input wire         M_AXI_RLAST,
+    input wire         M_AXI_RVALID,
+    output reg         M_AXI_RREADY,
+
+    // ========================================================================
+    // AXI4 Write Channel (eviction burst 4 beats)
+    // ========================================================================
+    output reg [31:0]  M_AXI_AWADDR,
+    output wire [7:0]  M_AXI_AWLEN,
+    output wire [2:0]  M_AXI_AWSIZE,
+    output wire [1:0]  M_AXI_AWBURST,
+    output wire [2:0]  M_AXI_AWPROT,
+    output reg         M_AXI_AWVALID,
+    input wire         M_AXI_AWREADY,
+
+    output reg [31:0]  M_AXI_WDATA,
+    output reg [3:0]   M_AXI_WSTRB,
+    output reg         M_AXI_WLAST,
+    output reg         M_AXI_WVALID,
+    input wire         M_AXI_WREADY,
+
+    input wire [1:0]   M_AXI_BRESP,
+    input wire         M_AXI_BVALID,
+    output reg         M_AXI_BREADY
 );
 
     // ========================================================================
-    // AXI4 Protocol Constants
+    // Constant tie-offs
     // ========================================================================
-    // Read burst: 4 words (cache line refill)
-    assign M_AXI_ARLEN   = 8'd3;        // 4 beats (ARLEN = n-1)
-    assign M_AXI_ARSIZE  = 3'b010;      // 4 bytes (2^2 = 4)
+    assign M_AXI_ARLEN   = 8'd3;        // 4-beat burst (ARLEN=N-1)
+    assign M_AXI_ARSIZE  = 3'b010;      // 4 bytes per beat
     assign M_AXI_ARBURST = 2'b01;       // INCR
     assign M_AXI_ARPROT  = 3'b000;
-    
-    // Write: single word (write-through)
-    assign M_AXI_AWLEN   = 8'd0;        // 1 beat
-    assign M_AXI_AWSIZE  = 3'b010;      // 4 bytes
-    assign M_AXI_AWBURST = 2'b01;       // INCR
+    assign M_AXI_AWLEN   = 8'd3;        // Eviction = 4-beat burst
+    assign M_AXI_AWSIZE  = 3'b010;
+    assign M_AXI_AWBURST = 2'b01;
     assign M_AXI_AWPROT  = 3'b000;
-    assign M_AXI_WLAST   = 1'b1;        // Always last for single write
-    
+
     // ========================================================================
     // Read Refill State Machine
+    // FIX-BUG2: Xóa RD_DONE state — refill_done assert cùng cycle RLAST
     // ========================================================================
     localparam [1:0]
         RD_IDLE = 2'b00,
         RD_AR   = 2'b01,
-        RD_R    = 2'b10,
-        RD_DONE = 2'b11;
-    
+        RD_R    = 2'b10;
+        // RD_DONE đã xóa
+
     reg [1:0] rd_state;
     reg [1:0] rd_word_counter;
-    
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rd_state          <= RD_IDLE;
@@ -108,19 +123,18 @@ module dcache_axi_interface (
             M_AXI_ARADDR      <= 32'h0;
             M_AXI_ARVALID     <= 1'b0;
             M_AXI_RREADY      <= 1'b0;
-            
         end else begin
-            // Default: clear one-shot signals
+            // Defaults — pulse signals
             refill_done       <= 1'b0;
             refill_data_valid <= 1'b0;
-            
+
             case (rd_state)
+                // ─────────────────────────────────────────────────────────────
                 RD_IDLE: begin
-                    refill_busy      <= 1'b0;
-                    M_AXI_ARVALID    <= 1'b0;
-                    M_AXI_RREADY     <= 1'b0;
-                    rd_word_counter  <= 2'b00;
-                    
+                    refill_busy     <= 1'b0;
+                    M_AXI_ARVALID   <= 1'b0;
+                    M_AXI_RREADY    <= 1'b0;
+                    rd_word_counter <= 2'b00;
                     if (refill_start) begin
                         M_AXI_ARADDR  <= refill_addr;
                         M_AXI_ARVALID <= 1'b1;
@@ -128,7 +142,8 @@ module dcache_axi_interface (
                         rd_state      <= RD_AR;
                     end
                 end
-                
+
+                // ─────────────────────────────────────────────────────────────
                 RD_AR: begin
                     if (M_AXI_ARREADY) begin
                         M_AXI_ARVALID <= 1'b0;
@@ -136,144 +151,172 @@ module dcache_axi_interface (
                         rd_state      <= RD_R;
                     end
                 end
-                
+
+                // ─────────────────────────────────────────────────────────────
+                // FIX-BUG2: Không dùng RD_DONE state nữa.
+                // refill_done được assert CÙNG CYCLE với beat cuối (RLAST).
+                // Controller nhận refill_data_valid=1 + refill_done=1 cùng lúc
+                // → có thể detect "last beat = critical word" và về IDLE thẳng.
+                // ─────────────────────────────────────────────────────────────
                 RD_R: begin
                     if (M_AXI_RVALID && M_AXI_RREADY) begin
-                        // Capture data
                         refill_data       <= M_AXI_RDATA;
                         refill_word       <= rd_word_counter;
                         refill_data_valid <= 1'b1;
-                        
+
                         if (M_AXI_RLAST) begin
-                            // Last word - finish
-                            M_AXI_RREADY <= 1'b0;
-                            rd_state     <= RD_DONE;
+                            // Beat cuối: assert refill_done cùng cycle
+                            refill_done   <= 1'b1;     // FIX: không chờ RD_DONE
+                            M_AXI_RREADY  <= 1'b0;
+                            refill_busy   <= 1'b0;
+                            rd_state      <= RD_IDLE;
                         end else begin
-                            // Continue burst
                             rd_word_counter <= rd_word_counter + 1'b1;
                         end
                     end
                 end
-                
-                RD_DONE: begin
-                    refill_done <= 1'b1;
-                    rd_state    <= RD_IDLE;
-                end
+
+                default: rd_state <= RD_IDLE;
             endcase
         end
     end
-    
+
     // ========================================================================
-    // Write-Through State Machine
+    // Eviction Write State Machine
+    // ========================================================================
+    // Burst write 4 words (entire dirty cache line) → DMEM
+    // AW và W channel chạy song song để maximize throughput
+    // FIX-BUG4: EV_B check BVALID & BREADY (không chỉ BVALID) — AXI compliance
     // ========================================================================
     localparam [1:0]
-        WR_IDLE = 2'b00,
-        WR_AW   = 2'b01,
-        WR_W    = 2'b10,   // unused but kept for localparam consistency
-        WR_B    = 2'b11;
-    
-    reg [1:0] wr_state;
+        EV_IDLE = 2'b00,
+        EV_AW   = 2'b01,   // AW + W channels (parallel)
+        EV_W    = 2'b10,   // W còn gửi, AW đã xong trước
+        EV_B    = 2'b11;   // Chờ B response
 
-    // -----------------------------------------------------------------------
-    // FIX: Track each channel's handshake completion independently.
-    //
-    // BUG (original code): The transition condition
-    //   (!M_AXI_AWVALID || M_AXI_AWREADY) && (!M_AXI_WVALID || M_AXI_WREADY)
-    // is evaluated in the SAME always block where AWVALID/WVALID are cleared
-    // via non-blocking assignments.  Because non-blocking assignments only
-    // take effect AFTER the block completes, the condition sees the OLD values
-    // of AWVALID/WVALID.
-    //
-    // Scenario that causes deadlock:
-    //   Cycle N  : AWREADY=1, WREADY=0
-    //              -> AWVALID <= 0  (pending, not yet applied)
-    //              -> Condition: (!1||1) && (!1||0) = TRUE && FALSE = FALSE
-    //                 -> State stays WR_AW, AWVALID becomes 0 next cycle
-    //   Cycle N+1: AWVALID=0, AWREADY=0 (slave dropped ready), WREADY still 0
-    //              -> Condition: (!0||0) && (!1||0) = TRUE && FALSE = FALSE
-    //              -> STUCK FOREVER because AWVALID=0 means slave never sends
-    //                 AWREADY again, and WVALID=1 but WREADY never comes.
-    //
-    // FIX: Use sticky flags aw_done / w_done that latch the moment each
-    // channel's handshake fires.  The transition to WR_B checks these flags
-    // instead of the live valid/ready signals.
-    // -----------------------------------------------------------------------
-    reg aw_done;   // AW channel handshake complete
-    reg w_done;    // W  channel handshake complete
-    
+    reg [1:0]  ev_state;
+    reg [1:0]  ev_beat;
+    reg        ev_aw_done;
+
+    // Latch toàn bộ dirty line khi evict_start
+    reg [31:0] ev_d0, ev_d1, ev_d2, ev_d3;
+
+    function [31:0] ev_word;
+        input [1:0] beat;
+        begin
+            case (beat)
+                2'd0: ev_word = ev_d0;
+                2'd1: ev_word = ev_d1;
+                2'd2: ev_word = ev_d2;
+                2'd3: ev_word = ev_d3;
+            endcase
+        end
+    endfunction
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wr_state       <= WR_IDLE;
-            wt_busy        <= 1'b0;
-            wt_done        <= 1'b0;
-            M_AXI_AWADDR   <= 32'h0;
-            M_AXI_AWVALID  <= 1'b0;
-            M_AXI_WDATA    <= 32'h0;
-            M_AXI_WSTRB    <= 4'h0;
-            M_AXI_WVALID   <= 1'b0;
-            M_AXI_BREADY   <= 1'b0;
-            aw_done        <= 1'b0;
-            w_done         <= 1'b0;
-            
+            ev_state      <= EV_IDLE;
+            evict_busy    <= 1'b0;
+            evict_done    <= 1'b0;
+            ev_beat       <= 2'b00;
+            ev_aw_done    <= 1'b0;
+            M_AXI_AWADDR  <= 32'h0;
+            M_AXI_AWVALID <= 1'b0;
+            M_AXI_WDATA   <= 32'h0;
+            M_AXI_WSTRB   <= 4'hf;
+            M_AXI_WLAST   <= 1'b0;
+            M_AXI_WVALID  <= 1'b0;
+            M_AXI_BREADY  <= 1'b0;
+            ev_d0 <= 32'h0; ev_d1 <= 32'h0;
+            ev_d2 <= 32'h0; ev_d3 <= 32'h0;
         end else begin
-            // Default: clear one-shot signals
-            wt_done <= 1'b0;
-            
-            case (wr_state)
-                WR_IDLE: begin
-                    wt_busy       <= 1'b0;
+            evict_done <= 1'b0;  // pulse default
+
+            case (ev_state)
+                // ─────────────────────────────────────────────────────────────
+                EV_IDLE: begin
+                    evict_busy    <= 1'b0;
                     M_AXI_AWVALID <= 1'b0;
                     M_AXI_WVALID  <= 1'b0;
+                    M_AXI_WLAST   <= 1'b0;
                     M_AXI_BREADY  <= 1'b0;
-                    // Reset completion flags on entry/idle
-                    aw_done       <= 1'b0;
-                    w_done        <= 1'b0;
-                    
-                    if (wt_start) begin
-                        // Latch write data and assert both channels together
-                        M_AXI_AWADDR  <= wt_addr;
-                        M_AXI_WDATA   <= wt_data;
-                        M_AXI_WSTRB   <= wt_strb;
+                    ev_beat       <= 2'b00;
+                    ev_aw_done    <= 1'b0;
+
+                    if (evict_start) begin
+                        M_AXI_AWADDR <= evict_addr;
+                        ev_d0 <= evict_data_0;
+                        ev_d1 <= evict_data_1;
+                        ev_d2 <= evict_data_2;
+                        ev_d3 <= evict_data_3;
+
+                        // Kick AW + W beat 0 đồng thời
                         M_AXI_AWVALID <= 1'b1;
+                        M_AXI_WDATA   <= evict_data_0;
+                        M_AXI_WSTRB   <= 4'hf;
+                        M_AXI_WLAST   <= 1'b0;
                         M_AXI_WVALID  <= 1'b1;
-                        wt_busy       <= 1'b1;
-                        wr_state      <= WR_AW;
+                        evict_busy    <= 1'b1;
+                        ev_state      <= EV_AW;
                     end
                 end
-                
-                WR_AW: begin
-                    // --- AW channel handshake ---
+
+                // ─────────────────────────────────────────────────────────────
+                // EV_AW: AW và W chạy song song
+                // ─────────────────────────────────────────────────────────────
+                EV_AW: begin
+                    // AW handshake
                     if (M_AXI_AWVALID && M_AXI_AWREADY) begin
                         M_AXI_AWVALID <= 1'b0;
-                        aw_done       <= 1'b1;   // latch: AW done
+                        ev_aw_done    <= 1'b1;
                     end
-                    
-                    // --- W channel handshake ---
+
+                    // W beat advance
                     if (M_AXI_WVALID && M_AXI_WREADY) begin
-                        M_AXI_WVALID <= 1'b0;
-                        w_done       <= 1'b1;    // latch: W done
-                    end
-                    
-                    // --- Transition: both channels complete ---
-                    // Use sticky flags so we don't miss one channel finishing
-                    // before the other.  A channel is "done" either if it just
-                    // fired this cycle OR if it already fired in a prior cycle.
-                    if ((aw_done || (M_AXI_AWVALID && M_AXI_AWREADY)) &&
-                        (w_done  || (M_AXI_WVALID  && M_AXI_WREADY ))) begin
-                        M_AXI_BREADY <= 1'b1;
-                        wr_state     <= WR_B;
+                        if (ev_beat == 2'd3) begin
+                            // Beat 3 accepted → W done
+                            M_AXI_WVALID <= 1'b0;
+                            M_AXI_WLAST  <= 1'b0;
+
+                            if (ev_aw_done || (M_AXI_AWVALID && M_AXI_AWREADY)) begin
+                                M_AXI_BREADY <= 1'b1;
+                                ev_state     <= EV_B;
+                            end else begin
+                                ev_state <= EV_W;
+                            end
+                        end else begin
+                            ev_beat     <= ev_beat + 1'b1;
+                            M_AXI_WDATA <= ev_word(ev_beat + 1'b1);
+                            M_AXI_WLAST <= (ev_beat == 2'd2) ? 1'b1 : 1'b0;
+                        end
                     end
                 end
-                
-                WR_B: begin
-                    if (M_AXI_BVALID) begin
+
+                // ─────────────────────────────────────────────────────────────
+                // EV_W: W xong, chờ AW
+                // ─────────────────────────────────────────────────────────────
+                EV_W: begin
+                    if (M_AXI_AWVALID && M_AXI_AWREADY) begin
+                        M_AXI_AWVALID <= 1'b0;
+                        M_AXI_BREADY  <= 1'b1;
+                        ev_state      <= EV_B;
+                    end
+                end
+
+                // ─────────────────────────────────────────────────────────────
+                // EV_B: Chờ write response
+                // FIX-BUG4: Check BVALID & BREADY (AXI: handshake khi cả 2 assert)
+                // ─────────────────────────────────────────────────────────────
+                EV_B: begin
+                    if (M_AXI_BVALID && M_AXI_BREADY) begin  // FIX: thêm & M_AXI_BREADY
                         M_AXI_BREADY <= 1'b0;
-                        wt_done      <= 1'b1;
-                        wr_state     <= WR_IDLE;
+                        evict_done   <= 1'b1;
+                        evict_busy   <= 1'b0;
+                        ev_state     <= EV_IDLE;
                     end
                 end
-                
-                default: wr_state <= WR_IDLE;
+
+                default: ev_state <= EV_IDLE;
             endcase
         end
     end

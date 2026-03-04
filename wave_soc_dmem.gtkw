@@ -1,0 +1,90 @@
+[*]
+[*] GTKWave Analyzer v3.3.48 (w)1999-2013 BSI
+[*] Tue Mar 03 08:15:38 2026
+[*]
+[dumpfile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\waveform_soc.vcd"
+[dumpfile_mtime] "Tue Mar 03 07:56:00 2026"
+[dumpfile_size] 485927
+[savefile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\wave_soc_dmem.gtkw"
+[timestart] 0
+[size] 1920 1009
+[pos] -35 -9
+*-18.000000 869000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] run_soc.
+[treeopen] run_soc.soc.
+[treeopen] run_soc.soc.cpu.
+[treeopen] run_soc.soc.cpu.lsu_unit.
+[treeopen] run_soc.soc.dcache.
+[sst_width] 197
+[signals_width] 260
+[sst_expanded] 1
+[sst_vpaned_height] 297
+@28
+run_soc.soc.cpu.clk
+@24
+run_soc.soc.cpu.imem_addr[31:0]
+@22
+run_soc.soc.cpu.imem_rdata[31:0]
+@28
+run_soc.soc.cpu.imem_ready
+run_soc.soc.cpu.imem_valid
+@200
+-cpu
+@28
+run_soc.soc.cpu_dcache_req
+run_soc.soc.cpu_dcache_we
+run_soc.soc.cpu_dcache_ready
+@200
+-lsu
+@22
+run_soc.soc.cpu.lsu_unit.req_addr[31:0]
+run_soc.soc.cpu.lsu_unit.req_wdata[31:0]
+@28
+run_soc.soc.cpu.lsu_unit.do_store
+run_soc.soc.cpu.lsu_unit.sb_wr_ptr[2:0]
+run_soc.soc.cpu.lsu_unit.sb_empty
+run_soc.soc.cpu.lsu_unit.sb_full
+@24
+run_soc.soc.cpu.lsu_unit.sb_count[3:0]
+@29
+run_soc.soc.cpu.lsu_unit.req_ready
+run_soc.soc.cpu.lsu_unit.req_valid
+@24
+run_soc.soc.cpu.lsu_unit.sb_wr_ptr[2:0]
+@28
+run_soc.soc.cpu.lsu_unit.drain_state
+run_soc.soc.cpu.lsu_unit.result_valid
+@22
+run_soc.soc.cpu.lsu_unit.result_data[31:0]
+@200
+-stall
+@28
+run_soc.soc.cpu.stall
+run_soc.soc.cpu.stall_any
+run_soc.soc.cpu.memwrite_mem
+@200
+-dcache
+@28
+run_soc.soc.dcache.controller_inst.state[2:0]
+run_soc.soc.dcache.controller_inst.cpu_ready_int
+run_soc.soc.dcache.controller_inst.tag_hit
+run_soc.soc.dcache.controller_inst.data_write_enable
+run_soc.soc.cpu_dcache_req
+run_soc.soc.cpu.lsu_unit.req_valid
+@200
+-dcache_interface
+@24
+run_soc.soc.cpu.dcache_addr[31:0]
+@22
+run_soc.soc.cpu.dcache_rdata[31:0]
+@28
+run_soc.soc.cpu.dcache_ready
+run_soc.soc.cpu.dcache_req
+@22
+run_soc.soc.cpu.dcache_wdata[31:0]
+@28
+run_soc.soc.cpu.dcache_we
+@22
+run_soc.soc.cpu.dcache_wstrb[3:0]
+[pattern_trace] 1
+[pattern_trace] 0

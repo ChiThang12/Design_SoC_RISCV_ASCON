@@ -422,7 +422,7 @@ module riscv_cpu_core (
             rd_ex_mem         <= 5'b0;
             byte_size_ex_mem  <= 2'b0;
             funct3_ex_mem     <= 3'b0;
-        end else if (!stall) begin
+        end else if (!stall_any) begin
             regwrite_ex_mem   <= regwrite_ex;
             memread_ex_mem    <= memread_ex;
             memwrite_ex_mem   <= memwrite_ex;
@@ -488,7 +488,7 @@ module riscv_cpu_core (
         if (rst) begin
             lsu_req_sent <= 1'b0;
         end else begin
-            if (!stall) begin
+            if (!stall_any) begin
                 // Pipeline advance: instruction mới sẽ vào EX/MEM cycle tới
                 // Reset để sẵn sàng gửi instruction tiếp theo
                 lsu_req_sent <= 1'b0;
@@ -558,12 +558,13 @@ module riscv_cpu_core (
     //   result_valid=1 → ack=1 → LSU clear result_valid=0 → ack=0 (glitch)
     // Đúng: WB register latch result ở posedge, ack = 1 cycle sau khi capture
     // Tức là: ack assert vào cycle N+1 sau khi result_valid xuất hiện cycle N
-    reg lsu_result_ack_r;
-    always @(posedge clk or posedge rst) begin
-        if (rst) lsu_result_ack_r <= 1'b0;
-        else     lsu_result_ack_r <= lsu_result_valid;  // 1 cycle delayed
-    end
-    assign lsu_result_ack = lsu_result_ack_r;
+    // reg lsu_result_ack_r;
+    // always @(posedge clk or posedge rst) begin
+    //     if (rst) lsu_result_ack_r <= 1'b0;
+    //     else     lsu_result_ack_r <= lsu_result_valid;  // 1 cycle delayed
+    // end
+    // assign lsu_result_ack = lsu_result_ack_r;
+    assign lsu_result_ack = lsu_result_valid;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin

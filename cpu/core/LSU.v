@@ -3,17 +3,20 @@
 // ============================================================================
 // Architecture:
 //   - Store Buffer : 8 entry circular FIFO  → drain background xuống dCache
-//   - Load Queue   : 4 entry FIFO           → tăng từ 2→4 để chứa được load
-//                                              khi pipeline stall do scoreboard
+//   - Load Queue   : 4 entry FIFO
 //   - Store-to-Load Forwarding
 //   - Background Drain FSM (load priority > drain)
 //
-// Key design decisions:
-//   - req_ready cho load  = !lq_full  (không phụ thuộc load_state)
-//   - req_ready cho store = !sb_full
-//   - Pipeline chỉ stall khi queue/buffer THỰC SỰ đầy
-//   - Scoreboard stall được handle bởi hazard unit, không phải LSU
-//   - Load FSM xử lý tuần tự: lấy 1 entry → dCache → WB → lấy entry tiếp
+// FIX: Double-store bug
+//   Nguyên nhân: dcache_req=1 được assert cả DRAIN_REQ lẫn DRAIN_WAIT
+//   → DCache nhận 2 requests cho cùng 1 store entry
+//
+//   Fix:
+//   1. Bỏ DRAIN_WAIT state — FSM chỉ còn DRAIN_IDLE và DRAIN_REQ
+//   2. dcache_req=1 CHỈ khi drain_state == DRAIN_REQ
+//   3. FSM ở lại DRAIN_REQ cho đến khi dcache_ready=1 (kể cả miss/refill)
+//   4. do_drain_pop xảy ra tại DRAIN_REQ khi dcache_ready=1
+//   → Đảm bảo mỗi store entry chỉ gửi đúng 1 request xuống DCache
 // ============================================================================
 
 module LSU (
@@ -50,7 +53,7 @@ module LSU (
 );
 
     // ========================================================================
-    // STORE BUFFER — 8 entry
+    // STORE BUFFER — 8 entry circular FIFO
     // ========================================================================
     localparam SB_DEPTH = 8;
     localparam SB_BITS  = 3;
@@ -68,7 +71,7 @@ module LSU (
     wire sb_empty = (sb_count == 0);
 
     // ========================================================================
-    // LOAD QUEUE — 4 entry (tăng từ 2 để buffer được khi pipeline stall)
+    // LOAD QUEUE — 4 entry FIFO
     // ========================================================================
     localparam LQ_DEPTH = 4;
     localparam LQ_BITS  = 2;
@@ -92,7 +95,6 @@ module LSU (
     reg [31:0] scoreboard_reg;
     assign scoreboard = scoreboard_reg;
 
-    // req_ready: độc lập cho load và store
     assign req_ready = req_is_load ? !lq_full : !sb_full;
 
     // ========================================================================
@@ -131,32 +133,35 @@ module LSU (
         LOAD_DCACHE = 2'b01,
         LOAD_RESULT = 2'b10;
 
-    localparam [1:0]
-        DRAIN_IDLE = 2'b00,
-        DRAIN_REQ  = 2'b01,
-        DRAIN_WAIT = 2'b10;
+    // FIX: Bỏ DRAIN_WAIT — chỉ còn 2 states
+    localparam
+        DRAIN_IDLE = 1'b0,
+        DRAIN_REQ  = 1'b1;
 
     reg [1:0] load_state;
-    reg [1:0] drain_state;
+    reg       drain_state;  // FIX: 1-bit thay vì 2-bit
 
     wire load_using_dcache = (load_state == LOAD_DCACHE);
 
     // ========================================================================
-    // Registered current load — latch khi dequeue, dùng xuyên suốt DCACHE state
+    // Registered current load
     // ========================================================================
     reg [31:0] cur_load_addr;
     reg [4:0]  cur_load_rd;
     reg [2:0]  cur_load_funct3;
 
-    // Load FSM sẵn sàng nhận entry mới: IDLE và không giữ result
     wire load_fsm_ready = (load_state == LOAD_IDLE) && !result_valid;
-
-    // Dequeue: có entry trong LQ và Load FSM sẵn sàng
     wire do_load_dequeue = !lq_empty && load_fsm_ready;
 
-    wire do_drain_pop = (drain_state == DRAIN_WAIT)
-                     && dcache_ready
-                     && !load_using_dcache;
+    // do_drain_pop: pop store entry khi DCache THỰC SỰ serve STORE (không phải LOAD)
+    // Phải có !load_using_dcache vì khi load preempt, dcache_ready=1 là cho LOAD
+    // không phải cho STORE → KHÔNG được pop store entry
+    // DRAIN FSM xử lý edge case: nếu dcache_ready=1 cùng lúc load preempt
+    // → dcache đang serve load → drain_state về IDLE nhưng không pop
+    // → entry còn trong SB → cycle sau drain lại (không lost, không double)
+    wire do_drain_pop = (drain_state == DRAIN_REQ)
+                      && dcache_ready
+                      && !load_using_dcache;
 
     // ========================================================================
     // SIGN/ZERO EXTENSION
@@ -175,7 +180,7 @@ module LSU (
     endfunction
 
     // ========================================================================
-    // QUEUE MANAGEMENT — enqueue + dequeue + count update
+    // QUEUE MANAGEMENT
     // ========================================================================
     integer si;
     always @(posedge clk or posedge rst) begin
@@ -195,7 +200,7 @@ module LSU (
         end else begin
 
             // ----------------------------------------------------------------
-            // STORE: enqueue vào store buffer
+            // STORE: enqueue
             // ----------------------------------------------------------------
             if (do_store) begin
                 sb_addr  [sb_wr_ptr] <= req_addr;
@@ -205,13 +210,12 @@ module LSU (
                 sb_wr_ptr <= sb_wr_ptr + 1'b1;
             end
 
-            // STORE: drain pop
+            // STORE: drain pop — xảy ra tại DRAIN_REQ khi dcache accept
             if (do_drain_pop) begin
                 sb_valid[sb_rd_ptr] <= 1'b0;
                 sb_rd_ptr <= sb_rd_ptr + 1'b1;
             end
 
-            // sb_count
             case ({do_store, do_drain_pop})
                 2'b10:   sb_count <= sb_count + 1'b1;
                 2'b01:   sb_count <= sb_count - 1'b1;
@@ -219,7 +223,7 @@ module LSU (
             endcase
 
             // ----------------------------------------------------------------
-            // LOAD: enqueue vào load queue
+            // LOAD: enqueue
             // ----------------------------------------------------------------
             if (do_load) begin
                 lq_addr    [lq_wr_ptr] <= req_addr;
@@ -233,11 +237,7 @@ module LSU (
                     scoreboard_reg[req_rd] <= 1'b1;
             end
 
-            // ----------------------------------------------------------------
-            // LOAD: dequeue — latch entry DATA trước khi rd_ptr advance
-            // Verilog non-blocking: lq_rd_ptr chưa tăng tại thời điểm latch
-            // → cur_load_* nhận đúng entry hiện tại
-            // ----------------------------------------------------------------
+            // LOAD: dequeue
             if (do_load_dequeue) begin
                 cur_load_addr   <= lq_addr  [lq_rd_ptr];
                 cur_load_rd     <= lq_rd    [lq_rd_ptr];
@@ -245,7 +245,6 @@ module LSU (
                 lq_rd_ptr <= lq_rd_ptr + 1'b1;
             end
 
-            // lq_count
             case ({do_load, do_load_dequeue})
                 2'b10:   lq_count <= lq_count + 1'b1;
                 2'b01:   lq_count <= lq_count - 1'b1;
@@ -274,16 +273,9 @@ module LSU (
         end else begin
             case (load_state)
 
-                // ------------------------------------------------------------
-                // IDLE: Đợi do_load_dequeue
-                // cur_load_* được latch cùng cycle ở queue block (non-blocking)
-                // → cur_load_* hợp lệ từ cycle KẾ TIẾP (LOAD_DCACHE state)
-                // Forwarding: đọc trực tiếp lq_*[lq_rd_ptr] trước khi advance
-                // ------------------------------------------------------------
                 LOAD_IDLE: begin
                     if (do_load_dequeue) begin
                         if (lq_fwd[lq_rd_ptr]) begin
-                            // Forwarded: data từ store buffer, trả WB ngay
                             result_valid <= 1'b1;
                             result_rd    <= lq_rd[lq_rd_ptr];
                             result_data  <= apply_funct3(
@@ -291,18 +283,13 @@ module LSU (
                                                lq_funct3  [lq_rd_ptr]);
                             load_state   <= LOAD_RESULT;
                         end else begin
-                            // Không forward: chờ cur_load_* propagate 1 cycle
-                            // rồi gửi dCache ở LOAD_DCACHE
                             load_state <= LOAD_DCACHE;
                         end
                     end
                 end
 
-                // ------------------------------------------------------------
-                // DCACHE: Gửi load request xuống dCache bằng cur_load_addr
-                // dcache_req được assert ở combinational block bên dưới
-                // Chờ dcache_ready trả về
-                // ------------------------------------------------------------
+                // dcache_req được drive combinationally khi load_using_dcache=1
+                // FSM ở đây cho đến khi DCache trả ready (kể cả miss/refill)
                 LOAD_DCACHE: begin
                     if (dcache_ready) begin
                         result_valid <= 1'b1;
@@ -313,9 +300,6 @@ module LSU (
                     end
                 end
 
-                // ------------------------------------------------------------
-                // RESULT: Giữ result đến khi WB ack
-                // ------------------------------------------------------------
                 LOAD_RESULT: begin
                     if (result_ack) begin
                         result_valid <= 1'b0;
@@ -330,24 +314,37 @@ module LSU (
 
     // ========================================================================
     // DRAIN FSM
+    // FIX: Bỏ DRAIN_WAIT
+    // DRAIN_REQ: assert dcache_req=1, ở lại cho đến khi dcache_ready=1
+    //            → đảm bảo chỉ 1 request, không double-assert
     // ========================================================================
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             drain_state <= DRAIN_IDLE;
         end else begin
             case (drain_state)
+
                 DRAIN_IDLE: begin
+                    // Kick drain khi có entry và load không dùng DCache
                     if (!sb_empty && !load_using_dcache)
                         drain_state <= DRAIN_REQ;
                 end
+
                 DRAIN_REQ: begin
-                    if (load_using_dcache) drain_state <= DRAIN_IDLE;
-                    else                   drain_state <= DRAIN_WAIT;
+                    if (load_using_dcache) begin
+                        // Load preempt: nhường DCache cho load
+                        // Nếu dcache_ready=1 cùng lúc → ready đó là cho LOAD, không phải STORE
+                        // do_drain_pop=0 (vì !load_using_dcache=0) → entry vẫn an toàn trong SB
+                        // Về IDLE → cycle sau (khi load xong) sẽ drain lại
+                        drain_state <= DRAIN_IDLE;
+                    end else if (dcache_ready) begin
+                        // DCache accept STORE (không có load preempt)
+                        // do_drain_pop=1 → entry bị pop đúng cycle này
+                        drain_state <= DRAIN_IDLE;
+                    end
+                    // else: DCache chưa ready, không có load → giữ DRAIN_REQ chờ
                 end
-                DRAIN_WAIT: begin
-                    if      (load_using_dcache) drain_state <= DRAIN_IDLE;
-                    else if (dcache_ready)      drain_state <= DRAIN_IDLE;
-                end
+
                 default: drain_state <= DRAIN_IDLE;
             endcase
         end
@@ -355,7 +352,8 @@ module LSU (
 
     // ========================================================================
     // dCACHE DRIVE — Load priority > Drain
-    // Load dùng cur_load_addr (registered, không bị lq_rd_ptr advance)
+    // FIX: dcache_req=1 CHỈ khi DRAIN_REQ (không phải DRAIN_WAIT nữa)
+    //      → mỗi store entry chỉ trigger đúng 1 lần vào DCache
     // ========================================================================
     always @(*) begin
         dcache_req   = 1'b0;
@@ -365,10 +363,12 @@ module LSU (
         dcache_wstrb = 4'h0;
 
         if (load_using_dcache) begin
+            // LOAD: priority cao hơn drain
             dcache_req  = 1'b1;
             dcache_we   = 1'b0;
             dcache_addr = cur_load_addr;
-        end else if (drain_state == DRAIN_REQ || drain_state == DRAIN_WAIT) begin
+        end else if (drain_state == DRAIN_REQ) begin
+            // FIX: chỉ assert khi DRAIN_REQ, không assert khi DRAIN_WAIT
             dcache_req   = 1'b1;
             dcache_we    = 1'b1;
             dcache_addr  = sb_addr [sb_rd_ptr];
