@@ -26,7 +26,7 @@
 // ── Tuning knobs ─────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 0=quiet 1=summary 2=events 3=every-cycle
 `define TIMEOUT         15000   // cycles tối đa
-`define HALT_STABLE     20      // số cycles PC bất động → halt
+`define HALT_STABLE     60      // số cycles PC bất động → halt
 `define DMEM_BASE       32'h00001000   // đầu vùng RAM (theo linker)
 `define DMEM_DUMP_BASE  32'h00001100   // đầu vùng print
 `define DMEM_DUMP_WORDS 32             // số 32-bit words cần dump
@@ -108,6 +108,11 @@ wire [31:0] ram_wr_addr = soc.dmem.dmem.wr_effective_addr;
 wire [31:0] ram_wr_data = soc.dmem.dmem.burst_wr_data;
 wire [3:0]  ram_wr_strb = soc.dmem.dmem.burst_wr_strb;
 
+// ── Store Buffer drain tap (LSU internal) ────────────────────────────────────
+wire        lsu_sb_empty   = soc.cpu.lsu_unit.sb_empty;
+wire [2:0]  lsu_sb_count   = soc.cpu.lsu_unit.sb_count[2:0];
+wire        lsu_drain_idle = (soc.cpu.lsu_unit.drain_state == 1'b0);
+
 // ============================================================================
 // Counters & State
 // ============================================================================
@@ -120,6 +125,7 @@ integer dmem_wr_cnt;           // CPU stores
 integer axi_rd_burst_cnt;      // AXI read bursts (cache refill)
 integer axi_wr_burst_cnt;      // AXI write bursts (write-through)
 integer raw_hazard_cnt;        // RAW hazard count
+integer post_halt_stores;      // stores xảy ra SAU khi program_done=1 (SB drain)
 
 // Halt detection
 reg [31:0] prev_pc;
@@ -196,14 +202,25 @@ end
 
 // ============================================================================
 // ❸ DCache Load/Store Event Logger  (LOG_LEVEL >= 2)
+// FIX: Phân biệt store trước halt (dmem_wr_cnt) và sau halt (post_halt_stores)
+//      Store sau halt là SB drain — không count vào CPU stores
 // ============================================================================
 always @(posedge clk) begin
     if (rst_n && dc_req && dc_ready) begin
         if (dc_we) begin
-            dmem_wr_cnt = dmem_wr_cnt + 1;
-            sb_update(dc_addr, dc_wdata, dc_wstrb);
+            if (!program_done) begin
+                // Store trước halt: count vào CPU stores
+                dmem_wr_cnt = dmem_wr_cnt + 1;
+                sb_update(dc_addr, dc_wdata, dc_wstrb);
+            end else begin
+                // Store SAU halt: Store Buffer drain — log riêng, không count
+                post_halt_stores = post_halt_stores + 1;
+                if (`LOG_LEVEL >= 2)
+                    $display("[%6d] ▲ POST-HALT STORE (SB drain)  addr=0x%08h  data=0x%08h",
+                             cycle_count, dc_addr, dc_wdata);
+            end
 
-            if (`LOG_LEVEL >= 2)
+            if (`LOG_LEVEL >= 2 && !program_done)
                 $display("[%6d] ▲ STORE  addr=0x%08h  data=0x%08h  strb=%b",
                          cycle_count, dc_addr, dc_wdata, dc_wstrb);
         end else begin
@@ -347,6 +364,7 @@ initial begin
     wr_lat_sum       = 0;   wr_lat_cnt       = 0;
     rd_lat_sum       = 0;   rd_lat_cnt       = 0;
     raw_hazard_cnt   = 0;   sb_cnt           = 0;
+    post_halt_stores = 0;
     sb_errors        = 0;   max_stall_run    = 0;
     cur_stall_run    = 0;   program_done     = 0;
     prev_pc          = 0;   halt_cnt         = 0;
@@ -542,9 +560,11 @@ task print_report;
         $display("┌─── ④ MEMORY ACCESS SUMMARY ────────────────────────────────────┐");
         $display("│  CPU Loads  (lw/lh/lb) : %0d", dmem_rd_cnt);
         $display("│  CPU Stores (sw/sh/sb) : %0d", dmem_wr_cnt);
+        $display("│  Post-halt SB drain    : %0d stores (after program done)", post_halt_stores);
         $display("│  RAW hazard violations : %0d %s",
                  sb_errors, sb_errors == 0 ? "✓" : "✗ DATA ERRORS");
         $display("│  Scoreboard entries    : %0d", sb_cnt);
+        $display("│  LSU SB remaining      : %0d entries at halt", lsu_sb_count);
         $display("└────────────────────────────────────────────────────────────────┘");
 
         // ── ⑤ REGISTER FILE ──────────────────────────────────────────────────

@@ -1,50 +1,36 @@
 // ============================================================================
-// Module: dcache_controller
+// Module: dcache_controller  —  Write-Back + Write-Allocate + Optimized
 // ============================================================================
-// Description:
-//   Main data cache controller with read/write support
-//   - Write-through policy (all writes go to memory)
-//   - Read miss triggers cache line refill
-//   - Write hit:  update cache + write-through to DMEM
-//   - Write miss: update cache (write-allocate) + write-through to DMEM
 //
-// BUG FIXES (so với version cũ):
+// OPTIMIZATION:
+// [OPT-1] 1-CYCLE HIT LATENCY
+//   IDLE: check tag với cpu_addr trực tiếp → cpu_ready=1 ngay tại IDLE cycle
+//   Chỉ vào LOOKUP khi MISS (cần evict/refill)
 //
-//   FIX-A [CRITICAL] Write-miss không allocate cache line
-//     Nguyên nhân RAW-ERR trong log:
-//       store addr → write MISS → chỉ gửi AXI write-through, không update cache
-//       load  addr → read  MISS → refill từ DMEM (đôi khi chưa kịp commit)
-//                              → đọc data cũ = 0
-//     Fix: Khi write MISS, ghi ngay word đó vào cache data array và
-//          cập nhật tag array (write-allocate). Bước này xảy ra đồng thời
-//          với AXI write-through → sau đó load cùng địa chỉ sẽ HIT cache,
-//          không cần refill từ DMEM nữa.
+// [OPT-2] CRITICAL-WORD-FIRST trong REFILL
+//   Khi beat chứa word CPU cần về → trả cpu_ready=1 ngay
+//   FSM vào REFILL_DRAIN: drain nốt các beat còn lại
+//   CPU resume execute trong khi cache fill nốt phần còn lại
 //
-//   FIX-B [CRITICAL] Race condition: write-through chưa commit, read-miss
-//          refill đã bắt đầu
-//     Nguyên nhân: FSM trả cpu_ready sau wt_done, CPU issue LOAD ngay.
-//                  LOOKUP → read miss → REFILL khởi động NGAY KỲ ĐÓ.
-//                  Nhưng với FIX-A, write-miss đã cập nhật cache →
-//                  lần load sau sẽ HIT, không refill nữa → race biến mất.
+// FIX-BUG2 (axi_interface): refill_done bây giờ assert CÙNG CYCLE với beat cuối
+//   Controller phải update CWF logic: không cần check refill_done riêng nữa
+//   → nếu (refill_data_valid & refill_word==requested_offset & refill_done)
+//     đều true cùng lúc → về IDLE thẳng (không qua REFILL_DRAIN)
 //
-//   FIX-C [HIGH] LOOKUP: hủy read request giữa chừng
-//     Code cũ: if (!cpu_req && !cur_we) → về IDLE
-//     Nếu cpu_req deassert 1 cycle (pipeline stall), request bị drop
-//     → CPU nhận không bao giờ cpu_ready → treo.
-//     Fix: Xóa điều kiện hủy mid-flight. Một khi đã latch vào LOOKUP,
-//          FSM luôn xử lý đến khi complete.
+// FIX-BUG3 (tag_array): Write-allocate dirty_set phải được assert
+//   CÙNG CYCLE với tag_update_valid khi pending_write=1
+//   → dirty_set + dirty_index set khi refill_done & pending_write
 //
-//   FIX-D [MEDIUM] Write-hit: data_write_enable giữ 1 cycle thừa
-//     data_write_enable = 1 được set ở LOOKUP, nhưng đồng thời
-//     wt_start = 1 chuyển FSM sang WRITE_THRU.
-//     Ở WRITE_THRU, default clearing của data_write_enable sẽ tắt nó
-//     → chỉ 1 cycle → đúng cho data_array (sequential write)
-//     → Không cần thay đổi, nhưng đã verify đây là intentional.
-//
-//   FIX-1..4 từ version trước (latch cpu_*, expose current_*, dùng cur_*)
-//   giữ nguyên.
-//
-// Author: ChiThang
+// STATE MACHINE:
+//   IDLE         → IDLE           (hit: 1 cycle)
+//   IDLE         → LOOKUP         (miss)
+//   LOOKUP       → EVICT          (dirty victim)
+//   LOOKUP       → REFILL         (clean victim)
+//   EVICT        → WAIT
+//   WAIT         → REFILL
+//   REFILL       → IDLE           (CWF: critical word = last beat, hoặc write miss done)
+//   REFILL       → REFILL_DRAIN   (CWF: critical word arrived, burst chưa xong)
+//   REFILL_DRAIN → IDLE           (burst hoàn tất)
 // ============================================================================
 
 `include "cpu/interface/dcache/dcache_defines.vh"
@@ -54,16 +40,16 @@ module dcache_controller (
     input wire rst_n,
 
     // CPU Interface
-    input wire [31:0] cpu_addr,
-    input wire [31:0] cpu_wdata,
-    input wire [3:0]  cpu_wstrb,
-    input wire        cpu_req,
-    input wire        cpu_we,
+    input wire [31:0]  cpu_addr,
+    input wire [31:0]  cpu_wdata,
+    input wire [3:0]   cpu_wstrb,
+    input wire         cpu_req,
+    input wire         cpu_we,
     output wire [31:0] cpu_rdata,
     output wire        cpu_ready,
-    input wire        fence,
+    input wire         fence,
 
-    // Expose current request (debug / upstream visibility)
+    // Debug
     output wire [31:0] current_addr,
     output wire [31:0] current_data,
     output wire        current_valid,
@@ -72,10 +58,15 @@ module dcache_controller (
     output wire [5:0]  tag_lookup_index,
     output wire [21:0] tag_lookup_tag,
     input wire         tag_hit,
+    input wire         tag_dirty_out,
+    input wire [21:0]  tag_evict_tag_out,
     output reg         tag_update_valid,
     output reg [5:0]   tag_update_index,
     output reg [21:0]  tag_update_tag,
     output reg         tag_flush_all,
+    output reg         tag_dirty_set,
+    output reg         tag_dirty_clear,
+    output reg [5:0]   tag_dirty_index,
 
     // Data Array Interface
     output wire [5:0]  data_read_index,
@@ -87,7 +78,14 @@ module dcache_controller (
     output reg [31:0]  data_write_data,
     output reg [3:0]   data_write_strb,
 
-    // AXI Refill Interface (read misses)
+    // Read-All Interface (eviction)
+    output wire [5:0]  data_read_all_index,
+    input wire [31:0]  data_read_word_0,
+    input wire [31:0]  data_read_word_1,
+    input wire [31:0]  data_read_word_2,
+    input wire [31:0]  data_read_word_3,
+
+    // AXI Refill Interface
     output reg [31:0]  refill_addr,
     output reg         refill_start,
     input wire         refill_busy,
@@ -96,13 +94,15 @@ module dcache_controller (
     input wire [1:0]   refill_word,
     input wire         refill_data_valid,
 
-    // AXI Write-Through Interface (writes)
-    output reg [31:0]  wt_addr,
-    output reg [31:0]  wt_data,
-    output reg [3:0]   wt_strb,
-    output reg         wt_start,
-    input wire         wt_busy,
-    input wire         wt_done,
+    // AXI Eviction Interface
+    output reg [31:0]  evict_addr,
+    output reg [31:0]  evict_data_0,
+    output reg [31:0]  evict_data_1,
+    output reg [31:0]  evict_data_2,
+    output reg [31:0]  evict_data_3,
+    output reg         evict_start,
+    input wire         evict_busy,
+    input wire         evict_done,
 
     // Statistics
     output reg [31:0]  stat_hits,
@@ -111,8 +111,7 @@ module dcache_controller (
 );
 
     // =========================================================================
-    // Registered request — latch khi IDLE nhận cpu_req
-    // Dùng cur_* xuyên suốt FSM, tránh live signal thay đổi giữa chừng
+    // Registered request (dùng khi MISS — cần lưu qua nhiều cycles)
     // =========================================================================
     reg [31:0] cur_addr;
     reg [31:0] cur_wdata;
@@ -124,91 +123,107 @@ module dcache_controller (
     assign current_valid = (state != `DCACHE_STATE_IDLE);
 
     // =========================================================================
-    // Address Decomposition từ cur_addr (registered)
+    // OPT-1: Dual-mode address decomposition
+    // IDLE: dùng cpu_addr trực tiếp để check tag (1-cycle hit)
+    // Các state khác: dùng cur_addr (registered, stable)
     // =========================================================================
-    wire [21:0] cur_tag;
-    wire [5:0]  cur_index;
-    wire [1:0]  cur_offset;
+    reg [2:0] state, next_state;
 
-    assign cur_tag    = cur_addr[31:10];
-    assign cur_index  = cur_addr[9:4];
-    assign cur_offset = cur_addr[3:2];
+    wire idle_hit_check = (state == `DCACHE_STATE_IDLE) && cpu_req && !fence;
 
-    // Tag / Data array lookup dùng cur_addr
-    assign tag_lookup_index = cur_index;
-    assign tag_lookup_tag   = cur_tag;
-    assign data_read_index  = cur_index;
-    assign data_read_offset = cur_offset;
+    wire [31:0] lookup_addr   = idle_hit_check ? cpu_addr  : cur_addr;
+    wire [21:0] lookup_tag_w  = lookup_addr[31:10];
+    wire [5:0]  lookup_index  = lookup_addr[9:4];
+    wire [1:0]  lookup_offset = lookup_addr[3:2];
+
+    wire [21:0] cur_tag    = cur_addr[31:10];
+    wire [5:0]  cur_index  = cur_addr[9:4];
+    wire [1:0]  cur_offset = cur_addr[3:2];
+
+    assign tag_lookup_index    = lookup_index;
+    assign tag_lookup_tag      = lookup_tag_w;
+    assign data_read_index     = lookup_index;
+    assign data_read_offset    = lookup_offset;
+    assign data_read_all_index = cur_index;  // eviction dùng cur_addr
 
     // =========================================================================
     // State Machine
     // =========================================================================
-    reg [2:0] state, next_state;
-
-    // Refill tracking
     reg [5:0]  refill_index_r;
     reg [21:0] refill_tag_r;
     reg [1:0]  requested_offset;
     reg [31:0] requested_data;
     reg        requested_data_ready;
+    reg [5:0]  evict_index_r;
+    reg        pending_write;
 
-    // -------------------------------------------------------------------------
-    // Sequential: state register
-    // -------------------------------------------------------------------------
+    // ─── Sequential: state ───────────────────────────────────────────────────
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n)
-            state <= `DCACHE_STATE_IDLE;
-        else if (fence)
-            state <= `DCACHE_STATE_IDLE;
-        else
-            state <= next_state;
+        if (!rst_n)     state <= `DCACHE_STATE_IDLE;
+        else if (fence) state <= `DCACHE_STATE_IDLE;
+        else            state <= next_state;
     end
 
-    // -------------------------------------------------------------------------
-    // Combinational: next-state logic
-    // -------------------------------------------------------------------------
+    // ─── Combinational: next-state ───────────────────────────────────────────
     always @(*) begin
         next_state = state;
-
         case (state)
+
             `DCACHE_STATE_IDLE: begin
-                if (cpu_req)
-                    next_state = `DCACHE_STATE_LOOKUP;
+                if (cpu_req && !fence) begin
+                    if (tag_hit)
+                        next_state = `DCACHE_STATE_IDLE;
+                    else
+                        next_state = `DCACHE_STATE_LOOKUP;
+                end
             end
 
             `DCACHE_STATE_LOOKUP: begin
-                if (cur_we) begin
-                    // Write: luôn write-through, đồng thời update cache (FIX-A)
-                    next_state = `DCACHE_STATE_WRITE_THRU;
+                if (tag_hit) begin
+                    next_state = `DCACHE_STATE_IDLE;
                 end else begin
-                    // Read
-                    if (tag_hit) begin
-                        next_state = `DCACHE_STATE_IDLE;   // hit: done ngay
-                    end else begin
-                        next_state = `DCACHE_STATE_REFILL; // miss: refill
-                    end
+                    if (tag_dirty_out)
+                        next_state = `DCACHE_STATE_EVICT;
+                    else
+                        next_state = `DCACHE_STATE_REFILL;
                 end
-                // FIX-C: Không có điều kiện hủy !cpu_req
-                // Một khi đã vào LOOKUP, luôn xử lý đến complete.
             end
 
+            `DCACHE_STATE_EVICT: begin
+                if (evict_done) next_state = `DCACHE_STATE_WAIT;
+            end
+
+            `DCACHE_STATE_WAIT: begin
+                next_state = `DCACHE_STATE_REFILL;
+            end
+
+            // FIX-BUG2: refill_done bây giờ assert cùng cycle với beat cuối
+            // → check (refill_data_valid & refill_done & word==requested) cùng lúc possible
             `DCACHE_STATE_REFILL: begin
-                if (refill_done)
+                if (!cur_we && refill_data_valid && (refill_word == requested_offset)) begin
+                    // CWF: critical word arrived
+                    if (refill_done)
+                        next_state = `DCACHE_STATE_IDLE;        // last beat = critical word
+                    else
+                        next_state = `DCACHE_STATE_REFILL_DRAIN; // drain nốt
+                end else if (cur_we && refill_done) begin
+                    // Write miss: refill xong, write sẽ được apply
                     next_state = `DCACHE_STATE_IDLE;
+                end else if (!cur_we && refill_done && requested_data_ready) begin
+                    // Read miss fallback: critical word đã capture trước
+                    next_state = `DCACHE_STATE_IDLE;
+                end
             end
 
-            `DCACHE_STATE_WRITE_THRU: begin
-                if (wt_done)
-                    next_state = `DCACHE_STATE_IDLE;
+            `DCACHE_STATE_REFILL_DRAIN: begin
+                if (refill_done) next_state = `DCACHE_STATE_IDLE;
             end
 
             default: next_state = `DCACHE_STATE_IDLE;
         endcase
     end
 
-    // -------------------------------------------------------------------------
-    // Combinational: CPU output
-    // -------------------------------------------------------------------------
+    // ─── Combinational: CPU output ───────────────────────────────────────────
     reg        cpu_ready_int;
     reg [31:0] cpu_rdata_int;
 
@@ -217,27 +232,38 @@ module dcache_controller (
         cpu_rdata_int = 32'h0;
 
         case (state)
-            `DCACHE_STATE_LOOKUP: begin
-                if (!cur_we && tag_hit) begin
-                    // Read hit: data từ data array (combinational)
+
+            // OPT-1: HIT tại IDLE — 1 cycle latency
+            `DCACHE_STATE_IDLE: begin
+                if (cpu_req && tag_hit && !fence) begin
                     cpu_ready_int = 1'b1;
-                    cpu_rdata_int = data_read_data;
+                    cpu_rdata_int = cpu_we ? 32'h0 : data_read_data;
                 end
             end
 
+            // LOOKUP: chỉ đến đây khi MISS từ IDLE
+            `DCACHE_STATE_LOOKUP: begin
+                if (tag_hit) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = cur_we ? 32'h0 : data_read_data;
+                end
+            end
+
+            // OPT-2: REFILL — Critical-Word-First
             `DCACHE_STATE_REFILL: begin
-                if (refill_done) begin
+                if (!cur_we && refill_data_valid && (refill_word == requested_offset)) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = refill_data;  // directly from AXI bus
+                end else if (cur_we && refill_done) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = 32'h0;
+                end else if (!cur_we && refill_done && requested_data_ready) begin
                     cpu_ready_int = 1'b1;
                     cpu_rdata_int = requested_data;
                 end
             end
 
-            `DCACHE_STATE_WRITE_THRU: begin
-                if (wt_done) begin
-                    cpu_ready_int = 1'b1;
-                    cpu_rdata_int = 32'h0;
-                end
-            end
+            `DCACHE_STATE_REFILL_DRAIN: ;  // CPU không nhận thêm ready
 
             default: begin
                 cpu_ready_int = 1'b0;
@@ -254,147 +280,167 @@ module dcache_controller (
     // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            cur_addr              <= 32'h0;
-            cur_wdata             <= 32'h0;
-            cur_wstrb             <= 4'h0;
-            cur_we                <= 1'b0;
-
-            refill_addr           <= 32'h0;
-            refill_start          <= 1'b0;
-            refill_index_r        <= 6'h0;
-            refill_tag_r          <= 22'h0;
-            requested_offset      <= 2'b00;
-            requested_data        <= 32'h0;
-            requested_data_ready  <= 1'b0;
-
-            wt_addr               <= 32'h0;
-            wt_data               <= 32'h0;
-            wt_strb               <= 4'h0;
-            wt_start              <= 1'b0;
-
-            tag_update_valid      <= 1'b0;
-            tag_update_index      <= 6'h0;
-            tag_update_tag        <= 22'h0;
-            tag_flush_all         <= 1'b0;
-
-            data_write_enable     <= 1'b0;
-            data_write_index      <= 6'h0;
-            data_write_offset     <= 2'b00;
-            data_write_data       <= 32'h0;
-            data_write_strb       <= 4'h0;
-
-            stat_hits             <= 32'h0;
-            stat_misses           <= 32'h0;
-            stat_writes           <= 32'h0;
-
+            cur_addr             <= 32'h0;
+            cur_wdata            <= 32'h0;
+            cur_wstrb            <= 4'h0;
+            cur_we               <= 1'b0;
+            refill_addr          <= 32'h0;
+            refill_start         <= 1'b0;
+            refill_index_r       <= 6'h0;
+            refill_tag_r         <= 22'h0;
+            requested_offset     <= 2'b00;
+            requested_data       <= 32'h0;
+            requested_data_ready <= 1'b0;
+            evict_addr           <= 32'h0;
+            evict_data_0         <= 32'h0;
+            evict_data_1         <= 32'h0;
+            evict_data_2         <= 32'h0;
+            evict_data_3         <= 32'h0;
+            evict_start          <= 1'b0;
+            evict_index_r        <= 6'h0;
+            pending_write        <= 1'b0;
+            tag_update_valid     <= 1'b0;
+            tag_update_index     <= 6'h0;
+            tag_update_tag       <= 22'h0;
+            tag_flush_all        <= 1'b0;
+            tag_dirty_set        <= 1'b0;
+            tag_dirty_clear      <= 1'b0;
+            tag_dirty_index      <= 6'h0;
+            data_write_enable    <= 1'b0;
+            data_write_index     <= 6'h0;
+            data_write_offset    <= 2'b00;
+            data_write_data      <= 32'h0;
+            data_write_strb      <= 4'h0;
+            stat_hits            <= 32'h0;
+            stat_misses          <= 32'h0;
+            stat_writes          <= 32'h0;
         end else begin
-            // Default: clear one-shot signals
+            // Pulse defaults
             refill_start      <= 1'b0;
-            wt_start          <= 1'b0;
+            evict_start       <= 1'b0;
             tag_update_valid  <= 1'b0;
             tag_flush_all     <= 1'b0;
+            tag_dirty_set     <= 1'b0;
+            tag_dirty_clear   <= 1'b0;
             data_write_enable <= 1'b0;
 
-            if (fence) begin
-                tag_flush_all <= 1'b1;
-            end
+            if (fence) tag_flush_all <= 1'b1;
 
             case (state)
                 // =============================================================
-                // IDLE: Latch request mới
+                // IDLE: OPT-1 — serve hit ngay nếu có
                 // =============================================================
                 `DCACHE_STATE_IDLE: begin
                     requested_data_ready <= 1'b0;
+                    pending_write        <= 1'b0;
 
-                    if (cpu_req) begin
-                        cur_addr  <= cpu_addr;
-                        cur_wdata <= cpu_wdata;
-                        cur_wstrb <= cpu_wstrb;
-                        cur_we    <= cpu_we;
+                    if (cpu_req && !fence) begin
+                        if (tag_hit) begin
+                            // HIT tại IDLE
+                            if (cpu_we) begin
+                                stat_writes <= stat_writes + 1;
+                                stat_hits   <= stat_hits + 1;
+                                data_write_enable <= 1'b1;
+                                data_write_index  <= lookup_index;
+                                data_write_offset <= lookup_offset;
+                                data_write_data   <= cpu_wdata;
+                                data_write_strb   <= cpu_wstrb;
+                                tag_dirty_set     <= 1'b1;
+                                tag_dirty_index   <= lookup_index;
+                            end else begin
+                                stat_hits <= stat_hits + 1;
+                            end
+                        end else begin
+                            // MISS: latch và vào LOOKUP
+                            cur_addr  <= cpu_addr;
+                            cur_wdata <= cpu_wdata;
+                            cur_wstrb <= cpu_wstrb;
+                            cur_we    <= cpu_we;
+                        end
                     end
                 end
 
                 // =============================================================
-                // LOOKUP: Tag check — quyết định hit/miss/write
+                // LOOKUP: chỉ vào khi MISS từ IDLE (cur_addr đã latch)
                 // =============================================================
                 `DCACHE_STATE_LOOKUP: begin
-                    if (cur_we) begin
-                        // =====================================================
-                        // WRITE PATH
-                        // =====================================================
-                        stat_writes <= stat_writes + 1;
-
-                        // Bước 1: Gửi write-through xuống DMEM qua AXI
-                        wt_addr  <= cur_addr;
-                        wt_data  <= cur_wdata;
-                        wt_strb  <= cur_wstrb;
-                        wt_start <= 1'b1;
-
-                        // Bước 2: Update cache data array (hit hoặc miss)
-                        // ─────────────────────────────────────────────────────
-                        // FIX-A: Trước đây chỉ update khi write HIT.
-                        //        Nay update cả khi write MISS (write-allocate).
-                        //
-                        //   Write HIT:  line đã valid → chỉ cần merge byte-lane
-                        //   Write MISS: line chưa có → ghi word này vào đúng
-                        //               offset; các word khác trong line sẽ
-                        //               là giá trị cũ (don't care vì chưa valid).
-                        //               Sau đó đánh dấu tag valid.
-                        //
-                        //   Kết quả: load sau đó cùng địa chỉ → HIT → trả
-                        //   đúng data; không cần refill từ DMEM → RAW-ERR biến mất.
-                        // ─────────────────────────────────────────────────────
-                        data_write_enable <= 1'b1;
-                        data_write_index  <= cur_index;
-                        data_write_offset <= cur_offset;
-                        data_write_data   <= cur_wdata;
-                        data_write_strb   <= cur_wstrb;
-
-                        // FIX-A: Nếu write MISS → cập nhật tag array để line valid
-                        if (!tag_hit) begin
-                            tag_update_valid <= 1'b1;
-                            tag_update_index <= cur_index;
-                            tag_update_tag   <= cur_tag;
-                        end
-
-                        // Thống kê
-                        if (tag_hit)
+                    if (tag_hit) begin
+                        // Forwarding hit — handle safe
+                        if (cur_we) begin
+                            stat_writes <= stat_writes + 1;
                             stat_hits   <= stat_hits + 1;
-                        else
-                            stat_misses <= stat_misses + 1;
-
-                    end else begin
-                        // =====================================================
-                        // READ PATH
-                        // =====================================================
-                        if (tag_hit) begin
-                            stat_hits <= stat_hits + 1;
-                            // cpu_rdata trả combinationally từ data array
-                            // → cpu_ready = 1 ngay cycle này (từ comb output)
+                            data_write_enable <= 1'b1;
+                            data_write_index  <= cur_index;
+                            data_write_offset <= cur_offset;
+                            data_write_data   <= cur_wdata;
+                            data_write_strb   <= cur_wstrb;
+                            tag_dirty_set     <= 1'b1;
+                            tag_dirty_index   <= cur_index;
                         end else begin
-                            // Read miss: bắt đầu AXI burst refill
-                            stat_misses      <= stat_misses + 1;
-                            refill_addr      <= {cur_addr[31:4], 4'b0000};
-                            refill_index_r   <= cur_index;
-                            refill_tag_r     <= cur_tag;
-                            requested_offset <= cur_offset;
-                            refill_start     <= 1'b1;
+                            stat_hits <= stat_hits + 1;
+                        end
+                    end else begin
+                        // MISS — kick eviction hoặc refill
+                        stat_misses <= stat_misses + 1;
+                        if (cur_we) stat_writes <= stat_writes + 1;
+
+                        refill_index_r   <= cur_index;
+                        refill_tag_r     <= cur_tag;
+                        requested_offset <= cur_offset;
+                        pending_write    <= cur_we;
+
+                        if (tag_dirty_out) begin
+                            evict_addr    <= {tag_evict_tag_out, cur_index, 4'b0000};
+                            evict_data_0  <= data_read_word_0;
+                            evict_data_1  <= data_read_word_1;
+                            evict_data_2  <= data_read_word_2;
+                            evict_data_3  <= data_read_word_3;
+                            evict_index_r <= cur_index;
+                            evict_start   <= 1'b1;
+                        end else begin
+                            refill_addr  <= {cur_addr[31:4], 4'b0000};
+                            refill_start <= 1'b1;
                         end
                     end
                 end
 
                 // =============================================================
-                // REFILL: Nhận từng word từ AXI burst, ghi vào data array
+                // EVICT: chờ AXI burst write
+                // =============================================================
+                `DCACHE_STATE_EVICT: begin
+                    if (evict_done) begin
+                        tag_dirty_clear <= 1'b1;
+                        tag_dirty_index <= evict_index_r;
+                    end
+                end
+
+                // =============================================================
+                // WAIT: kick refill sau khi evict xong
+                // =============================================================
+                `DCACHE_STATE_WAIT: begin
+                    refill_addr  <= {cur_addr[31:4], 4'b0000};
+                    refill_start <= 1'b1;
+                end
+
+                // =============================================================
+                // REFILL: nhận burst, OPT-2 Critical-Word-First
+                // FIX-BUG2: refill_done có thể assert cùng cycle refill_data_valid
+                //           (khi critical word = beat cuối) — handle đúng
+                // FIX-BUG3: Write-allocate — tag_dirty_set phải được assert
+                //           CÙNG CYCLE với tag_update_valid khi pending_write=1
+                //           → tag_array sequential block sẽ set cả valid VÀ dirty
+                //           trong cùng posedge → không có window dirty=0
                 // =============================================================
                 `DCACHE_STATE_REFILL: begin
                     if (refill_data_valid) begin
+                        // Ghi từng word vào cache khi nhận từ AXI
                         data_write_enable <= 1'b1;
                         data_write_index  <= refill_index_r;
                         data_write_offset <= refill_word;
                         data_write_data   <= refill_data;
                         data_write_strb   <= 4'b1111;
 
-                        // Capture word CPU yêu cầu
+                        // Capture word CPU cần (cho fallback path)
                         if (refill_word == requested_offset && !requested_data_ready) begin
                             requested_data       <= refill_data;
                             requested_data_ready <= 1'b1;
@@ -402,22 +448,50 @@ module dcache_controller (
                     end
 
                     if (refill_done) begin
+                        // Burst xong: update tag
                         tag_update_valid <= 1'b1;
                         tag_update_index <= refill_index_r;
                         tag_update_tag   <= refill_tag_r;
+
+                        if (pending_write) begin
+                            // Write-allocate: apply store vào cache
+                            data_write_enable <= 1'b1;
+                            data_write_index  <= refill_index_r;
+                            data_write_offset <= requested_offset;
+                            data_write_data   <= cur_wdata;
+                            data_write_strb   <= cur_wstrb;
+                            // FIX-BUG3: dirty_set CÙNG CYCLE với tag_update_valid
+                            // → tag_array xử lý trong cùng always block posedge
+                            // → không có cycle nào line valid=1 nhưng dirty=0
+                            tag_dirty_set     <= 1'b1;
+                            tag_dirty_index   <= refill_index_r;
+                            pending_write     <= 1'b0;
+                        end
                     end
                 end
 
                 // =============================================================
-                // WRITE_THRU: Chờ AXI write response
-                // cpu_ready được assert combinationally khi wt_done = 1
+                // REFILL_DRAIN: CPU đã resume, drain nốt burst
                 // =============================================================
-                `DCACHE_STATE_WRITE_THRU: begin
-                    // Không cần làm gì thêm
-                    // wt_done → next_state = IDLE → cpu_ready = 1 (comb)
+                `DCACHE_STATE_REFILL_DRAIN: begin
+                    if (refill_data_valid) begin
+                        data_write_enable <= 1'b1;
+                        data_write_index  <= refill_index_r;
+                        data_write_offset <= refill_word;
+                        data_write_data   <= refill_data;
+                        data_write_strb   <= 4'b1111;
+                    end
+
+                    if (refill_done) begin
+                        // Tất cả words đã nhận → update tag
+                        tag_update_valid <= 1'b1;
+                        tag_update_index <= refill_index_r;
+                        tag_update_tag   <= refill_tag_r;
+                        // CWF chỉ cho read miss (cur_we=0), không có pending_write
+                    end
                 end
 
-                default: ; // No action
+                default: ;
             endcase
         end
     end
