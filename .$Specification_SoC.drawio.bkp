@@ -1,6 +1,6 @@
-<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.5.2 Chrome/142.0.7444.265 Electron/39.6.1 Safari/537.36" version="29.5.2" pages="8">
+<mxfile host="Electron" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/29.3.0 Chrome/140.0.7339.249 Electron/38.7.2 Safari/537.36" version="29.3.0" pages="8">
   <diagram id="zwgpRVymVraOsMyqO2xE" name="Architecture">
-    <mxGraphModel dx="4178" dy="1390" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="5033" dy="2317" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -3074,7 +3074,7 @@
     </mxGraphModel>
   </diagram>
   <diagram id="5tNNMXNemdL3j-PJIuoG" name="AXI4">
-    <mxGraphModel dx="708" dy="397" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="1856" dy="3520" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
@@ -3180,12 +3180,6 @@
         </mxCell>
         <mxCell id="l9BzlZGCTBzslpsVhpJj-9" parent="1" style="text;whiteSpace=wrap;html=1;" value="🔥 &lt;strong data-start=&quot;1751&quot; data-end=&quot;1779&quot;&gt;Address = “gõ cửa” slave&lt;/strong&gt;&lt;br data-start=&quot;1779&quot; data-end=&quot;1782&quot;&gt;&#xa;🔥 &lt;strong data-start=&quot;1787&quot; data-end=&quot;1828&quot;&gt;Offset = “chỉ tay vào ngăn bên trong”&lt;/strong&gt;&lt;br data-start=&quot;1828&quot; data-end=&quot;1831&quot;&gt;&#xa;🔥 &lt;strong data-start=&quot;1836&quot; data-end=&quot;1865&quot;&gt;Data = “thứ được đưa vào”&lt;/strong&gt;" vertex="1">
           <mxGeometry height="100" width="270" x="1450" y="800" as="geometry" />
-        </mxCell>
-        <mxCell id="WZzSWgy3L7st_AmSZeu6-1" parent="1" style="rounded=0;whiteSpace=wrap;html=1;fillColor=light-dark(#f0fdf4, #1f2f1e);strokeColor=#82b366;rotation=0;" value="" vertex="1">
-          <mxGeometry height="393" width="390" x="450" y="1090" as="geometry" />
-        </mxCell>
-        <mxCell id="WZzSWgy3L7st_AmSZeu6-2" parent="1" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=3;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;" value="&lt;b&gt;Address Decoder&lt;br&gt;&lt;/b&gt;&lt;pre style=&quot;font-variant-numeric: normal; font-variant-east-asian: normal; font-variant-alternates: normal; font-size-adjust: none; font-kerning: auto; font-optical-sizing: auto; font-feature-settings: normal; font-variation-settings: normal; font-variant-position: normal; font-variant-emoji: normal; font-stretch: normal; font-size: 13px; line-height: 22px; font-family: Menlo, Monaco, Consolas, &amp;quot;Cascadia Mono&amp;quot;, &amp;quot;Ubuntu Mono&amp;quot;, &amp;quot;DejaVu Sans Mono&amp;quot;, &amp;quot;Liberation Mono&amp;quot;, &amp;quot;JetBrains Mono&amp;quot;, &amp;quot;Fira Code&amp;quot;, Cousine, &amp;quot;Roboto Mono&amp;quot;, &amp;quot;Courier New&amp;quot;, Courier, sans-serif, system-ui; overflow: auto; text-wrap-mode: wrap; word-break: break-all; padding: 16px; color: rgb(15, 17, 21); text-align: start; margin: 0px !important;&quot;&gt;0x0000_0000-0x0000_FFFF: IMEM&lt;br/&gt;0x0001_0000-0x0001_FFFF: DMEM&lt;br/&gt;0x1000_0000-0x1000_00FF: ASCON&lt;br/&gt;0x2000_0000-0x2000_0FFF: DMA  &lt;/pre&gt;" vertex="1">
-          <mxGeometry height="160" width="280" x="520" y="1180" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>

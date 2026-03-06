@@ -553,18 +553,16 @@ module riscv_cpu_core (
     reg [31:0] pc_plus_4_mem_wb;
     reg [4:0]  rd_mem_wb;
 
-    // CHG-2: result_ack
-    // KHÔNG được assign lsu_result_ack = lsu_result_valid (combinational loop):
-    //   result_valid=1 → ack=1 → LSU clear result_valid=0 → ack=0 (glitch)
-    // Đúng: WB register latch result ở posedge, ack = 1 cycle sau khi capture
-    // Tức là: ack assert vào cycle N+1 sau khi result_valid xuất hiện cycle N
-    // reg lsu_result_ack_r;
-    // always @(posedge clk or posedge rst) begin
-    //     if (rst) lsu_result_ack_r <= 1'b0;
-    //     else     lsu_result_ack_r <= lsu_result_valid;  // 1 cycle delayed
-    // end
-    // assign lsu_result_ack = lsu_result_ack_r;
-    assign lsu_result_ack = lsu_result_valid;
+    // CHG-2: result_ack — delay 1 cycle so với result_valid
+    // Cycle N  : WB latch lsu_result_data tại posedge
+    // Cycle N+1: ack=1 → LSU clear result_valid, scoreboard clear
+    // Tránh race: WB latch và LSU clear không còn xảy ra cùng posedge
+    reg lsu_result_ack_r;
+    always @(posedge clk or posedge rst) begin
+        if (rst) lsu_result_ack_r <= 1'b0;
+        else     lsu_result_ack_r <= lsu_result_valid;
+    end
+    assign lsu_result_ack = lsu_result_ack_r;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin

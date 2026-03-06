@@ -1,0 +1,43 @@
+[*]
+[*] GTKWave Analyzer v3.3.48 (w)1999-2013 BSI
+[*] Fri Mar 06 08:25:56 2026
+[*]
+[dumpfile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\waveform_soc.vcd"
+[dumpfile_mtime] "Fri Mar 06 08:19:02 2026"
+[dumpfile_size] 651255
+[savefile] "D:\PROJECT_RISCV_ASCON\Design_SoC_RISCV_ASCON\waveform_dmem.gtkw"
+[timestart] 154000
+[size] 1493 862
+[pos] -1 -1
+*-18.000000 646000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] run_soc.
+[treeopen] run_soc.soc.
+[sst_width] 197
+[signals_width] 257
+[sst_expanded] 1
+[sst_vpaned_height] 245
+@200
+-cpu_data_interface
+@23
+run_soc.soc.cpu.dcache_addr[31:0]
+@22
+run_soc.soc.cpu.dcache_rdata[31:0]
+@28
+run_soc.soc.cpu.dcache_ready
+run_soc.soc.cpu.dcache_req
+@22
+run_soc.soc.cpu.dcache_wdata[31:0]
+@28
+run_soc.soc.cpu.dcache_we
+@22
+run_soc.soc.cpu.dcache_wstrb[3:0]
+@200
+-cpu_instr_interface
+@22
+run_soc.soc.cpu.imem_addr[31:0]
+run_soc.soc.cpu.imem_rdata[31:0]
+@28
+run_soc.soc.cpu.imem_ready
+run_soc.soc.cpu.imem_valid
+[pattern_trace] 1
+[pattern_trace] 0

@@ -1,12 +1,6 @@
 // ============================================================================
 // Module: dcache_top  —  Write-Back + Write-Allocate version
-// ============================================================================
-// Sub-modules đã được fix:
-//   dcache_defines.vh    : FIX NUM_LINES/NUM_SETS (512→64)
-//   dcache_tag_array.v   : FIX dirty forwarding khi write-allocate (BUG3)
-//   dcache_data_array.v  : Không thay đổi
-//   dcache_axi_interface : FIX refill_done timing (BUG2), BREADY AXI compliance (BUG4)
-//   dcache_controller.v  : FIX CWF last-beat detection (BUG2), write-allocate dirty (BUG3)
+// Thêm AXI4 ID signals để kết nối vào axi4_crossbar (M1)
 // ============================================================================
 
 `include "cpu/interface/dcache/dcache_defines.vh"
@@ -19,7 +13,8 @@ module dcache_top #(
     parameter CACHE_SIZE = `DCACHE_SIZE,
     parameter LINE_SIZE  = `DCACHE_LINE_SIZE,
     parameter ADDR_WIDTH = `DCACHE_ADDR_WIDTH,
-    parameter DATA_WIDTH = `DCACHE_DATA_WIDTH
+    parameter DATA_WIDTH = `DCACHE_DATA_WIDTH,
+    parameter ID_WIDTH   = 4
 )(
     input wire clk,
     input wire rst_n,
@@ -27,14 +22,14 @@ module dcache_top #(
     // ========================================================================
     // CPU Interface
     // ========================================================================
-    input wire [ADDR_WIDTH-1:0]  cpu_addr,
-    input wire [DATA_WIDTH-1:0]  cpu_wdata,
-    input wire [3:0]             cpu_wstrb,
-    input wire                   cpu_req,
-    input wire                   cpu_we,
+    input  wire [ADDR_WIDTH-1:0] cpu_addr,
+    input  wire [DATA_WIDTH-1:0] cpu_wdata,
+    input  wire [3:0]            cpu_wstrb,
+    input  wire                  cpu_req,
+    input  wire                  cpu_we,
     output wire [DATA_WIDTH-1:0] cpu_rdata,
     output wire                  cpu_ready,
-    input wire                   fence,
+    input  wire                  fence,
 
     // Debug
     output wire [ADDR_WIDTH-1:0] current_addr,
@@ -42,38 +37,48 @@ module dcache_top #(
     output wire                  current_valid,
 
     // ========================================================================
-    // AXI4 Full Memory Interface
+    // AXI4 Read Address Channel
     // ========================================================================
+    output wire [ID_WIDTH-1:0]   mem_arid,
     output wire [ADDR_WIDTH-1:0] mem_araddr,
     output wire [7:0]            mem_arlen,
     output wire [2:0]            mem_arsize,
     output wire [1:0]            mem_arburst,
     output wire [2:0]            mem_arprot,
     output wire                  mem_arvalid,
-    input wire                   mem_arready,
+    input  wire                  mem_arready,
 
-    input wire [DATA_WIDTH-1:0]  mem_rdata,
-    input wire [1:0]             mem_rresp,
-    input wire                   mem_rlast,
-    input wire                   mem_rvalid,
+    // AXI4 Read Data Channel
+    input  wire [ID_WIDTH-1:0]   mem_rid,
+    input  wire [DATA_WIDTH-1:0] mem_rdata,
+    input  wire [1:0]            mem_rresp,
+    input  wire                  mem_rlast,
+    input  wire                  mem_rvalid,
     output wire                  mem_rready,
 
+    // ========================================================================
+    // AXI4 Write Address Channel
+    // ========================================================================
+    output wire [ID_WIDTH-1:0]   mem_awid,
     output wire [ADDR_WIDTH-1:0] mem_awaddr,
     output wire [7:0]            mem_awlen,
     output wire [2:0]            mem_awsize,
     output wire [1:0]            mem_awburst,
     output wire [2:0]            mem_awprot,
     output wire                  mem_awvalid,
-    input wire                   mem_awready,
+    input  wire                  mem_awready,
 
+    // AXI4 Write Data Channel
     output wire [DATA_WIDTH-1:0] mem_wdata,
     output wire [3:0]            mem_wstrb,
     output wire                  mem_wlast,
     output wire                  mem_wvalid,
-    input wire                   mem_wready,
+    input  wire                  mem_wready,
 
-    input wire [1:0]             mem_bresp,
-    input wire                   mem_bvalid,
+    // AXI4 Write Response Channel
+    input  wire [ID_WIDTH-1:0]   mem_bid,
+    input  wire [1:0]            mem_bresp,
+    input  wire                  mem_bvalid,
     output wire                  mem_bready,
 
     // ========================================================================
@@ -118,7 +123,7 @@ module dcache_top #(
     wire [3:0]  data_write_strb;
 
     // ========================================================================
-    // Internal Signals — AXI Refill
+    // Internal Signals — AXI Refill / Eviction
     // ========================================================================
     wire [31:0] refill_addr;
     wire        refill_start;
@@ -128,9 +133,6 @@ module dcache_top #(
     wire [1:0]  refill_word;
     wire        refill_data_valid;
 
-    // ========================================================================
-    // Internal Signals — AXI Eviction
-    // ========================================================================
     wire [31:0] evict_addr;
     wire [31:0] evict_data_0;
     wire [31:0] evict_data_1;
@@ -179,7 +181,7 @@ module dcache_top #(
         .write_strb      (data_write_strb)
     );
 
-    dcache_axi_interface axi_interface_inst (
+    dcache_axi_interface #(.ID_WIDTH(ID_WIDTH)) axi_interface_inst (
         .clk               (clk),
         .rst_n             (rst_n),
 
@@ -200,6 +202,7 @@ module dcache_top #(
         .evict_busy        (evict_busy),
         .evict_done        (evict_done),
 
+        .M_AXI_ARID        (mem_arid),
         .M_AXI_ARADDR      (mem_araddr),
         .M_AXI_ARLEN       (mem_arlen),
         .M_AXI_ARSIZE      (mem_arsize),
@@ -207,12 +210,14 @@ module dcache_top #(
         .M_AXI_ARPROT      (mem_arprot),
         .M_AXI_ARVALID     (mem_arvalid),
         .M_AXI_ARREADY     (mem_arready),
+        .M_AXI_RID         (mem_rid),
         .M_AXI_RDATA       (mem_rdata),
         .M_AXI_RRESP       (mem_rresp),
         .M_AXI_RLAST       (mem_rlast),
         .M_AXI_RVALID      (mem_rvalid),
         .M_AXI_RREADY      (mem_rready),
 
+        .M_AXI_AWID        (mem_awid),
         .M_AXI_AWADDR      (mem_awaddr),
         .M_AXI_AWLEN       (mem_awlen),
         .M_AXI_AWSIZE      (mem_awsize),
@@ -225,6 +230,7 @@ module dcache_top #(
         .M_AXI_WLAST       (mem_wlast),
         .M_AXI_WVALID      (mem_wvalid),
         .M_AXI_WREADY      (mem_wready),
+        .M_AXI_BID         (mem_bid),
         .M_AXI_BRESP       (mem_bresp),
         .M_AXI_BVALID      (mem_bvalid),
         .M_AXI_BREADY      (mem_bready)
