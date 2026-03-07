@@ -19,9 +19,10 @@ module data_mem_burst #(
     //   test data: RAM_BASE=0x1100, test8_hi=0x17F0+8 → max 0x17F7
     // MEM_SIZE=1024 cũ (1KB) → tất cả addr >= 0x400 = OUT-OF-BOUNDS
     // 8KB (0x0000–0x1FFF) cover đủ, tiết kiệm hơn 64KB
-    parameter MEM_SIZE = 8192,        // Memory size in bytes (8KB)
+    parameter MEM_SIZE   = 8192,        // Memory size in bytes (8KB)
     parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32
+    parameter DATA_WIDTH = 32,
+    parameter BASE_ADDR  = 32'h10000000 // FIX: DMEM base address — dùng để tính local offset
 )(
     input wire clk,
     input wire rst_n,
@@ -212,12 +213,12 @@ module data_mem_burst #(
                         rd_total_beats  <= burst_rd_len;
                         rd_burst_state  <= RD_BURST_ACTIVE;
                         
-                        // Output first word
+                        // Output first word — FIX: dùng offset = burst_rd_addr - BASE_ADDR
                         burst_rd_data <= {
-                            memory[burst_rd_addr + 3],
-                            memory[burst_rd_addr + 2],
-                            memory[burst_rd_addr + 1],
-                            memory[burst_rd_addr + 0]
+                            memory[burst_rd_addr - BASE_ADDR + 3],
+                            memory[burst_rd_addr - BASE_ADDR + 2],
+                            memory[burst_rd_addr - BASE_ADDR + 1],
+                            memory[burst_rd_addr - BASE_ADDR + 0]
                         };
                         burst_rd_valid <= 1'b1;
                         burst_rd_last  <= (burst_rd_len == 8'd0);
@@ -237,12 +238,12 @@ module data_mem_burst #(
                             rd_beat_count   <= rd_beat_count + 1'b1;
                             rd_current_addr <= rd_current_addr + (DATA_WIDTH/8);
                             
-                            // Output next word
+                            // Output next word — FIX: dùng offset = rd_current_addr - BASE_ADDR
                             burst_rd_data <= {
-                                memory[rd_current_addr + 7],
-                                memory[rd_current_addr + 6],
-                                memory[rd_current_addr + 5],
-                                memory[rd_current_addr + 4]
+                                memory[rd_current_addr - BASE_ADDR + 7],
+                                memory[rd_current_addr - BASE_ADDR + 6],
+                                memory[rd_current_addr - BASE_ADDR + 5],
+                                memory[rd_current_addr - BASE_ADDR + 4]
                             };
                             burst_rd_valid <= 1'b1;
                             burst_rd_last  <= (rd_beat_count + 1 == rd_total_beats);
@@ -267,6 +268,11 @@ module data_mem_burst #(
     wire [ADDR_WIDTH-1:0] wr_effective_addr;
     assign wr_effective_addr = wr_first_beat ? burst_wr_addr : wr_current_addr;
 
+    // FIX: chuyển địa chỉ tuyệt đối → local offset trước khi index vào memory[]
+    // wr_effective_addr = 0x1000_xxxx → wr_local_addr = 0x0000_xxxx
+    wire [ADDR_WIDTH-1:0] wr_local_addr;
+    assign wr_local_addr = wr_effective_addr - BASE_ADDR;
+
     assign burst_wr_ready = 1'b1;  // memory luôn sẵn sàng nhận write
                                     // (không có back-pressure thực sự)
 
@@ -276,11 +282,11 @@ module data_mem_burst #(
             wr_first_beat   <= 1'b1;
         end else begin
             if (burst_wr_valid && burst_wr_ready) begin
-                // Ghi vào địa chỉ hiệu quả (burst_wr_addr nếu beat đầu, wr_current_addr nếu không)
-                if (burst_wr_strb[0]) memory[wr_effective_addr+0] <= burst_wr_data[7:0];
-                if (burst_wr_strb[1]) memory[wr_effective_addr+1] <= burst_wr_data[15:8];
-                if (burst_wr_strb[2]) memory[wr_effective_addr+2] <= burst_wr_data[23:16];
-                if (burst_wr_strb[3]) memory[wr_effective_addr+3] <= burst_wr_data[31:24];
+                // FIX: dùng wr_local_addr (offset) thay wr_effective_addr (absolute) để index memory[]
+                if (burst_wr_strb[0]) memory[wr_local_addr+0] <= burst_wr_data[7:0];
+                if (burst_wr_strb[1]) memory[wr_local_addr+1] <= burst_wr_data[15:8];
+                if (burst_wr_strb[2]) memory[wr_local_addr+2] <= burst_wr_data[23:16];
+                if (burst_wr_strb[3]) memory[wr_local_addr+3] <= burst_wr_data[31:24];
 
                 if (!burst_wr_last) begin
                     // Advance địa chỉ cho beat kế tiếp
