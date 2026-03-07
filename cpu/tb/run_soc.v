@@ -47,14 +47,18 @@ always  #(CLK_PERIOD/2) clk = ~clk;
 wire [31:0] icache_hits, icache_misses;
 wire [31:0] dcache_hits, dcache_misses, dcache_writes;
 
+// FIX: fence port để TB flush DCache trước khi đọc DMEM snapshot
+reg  soc_dcache_fence;
+wire soc_dcache_flush_done;
+
 riscv_soc_top_cached soc (
-    .clk           (clk),
-    .rst_n         (rst_n),
-    .icache_hits   (icache_hits),
-    .icache_misses (icache_misses),
-    .dcache_hits   (dcache_hits),
-    .dcache_misses (dcache_misses),
-    .dcache_writes (dcache_writes)
+    .clk                (clk),
+    .rst_n              (rst_n),
+    .icache_hits        (icache_hits),
+    .icache_misses      (icache_misses),
+    .dcache_hits        (dcache_hits),
+    .dcache_misses      (dcache_misses),
+    .dcache_writes      (dcache_writes)
 );
 
 // ============================================================================
@@ -620,6 +624,7 @@ initial begin
     cur_stall_run     = 0;   max_stall_run    = 0;
     program_done      = 0;   prev_pc          = 0;
     halt_cnt          = 0;   ring_ptr         = 0;
+    soc_dcache_fence  = 0;
     match2 = 0; match3 = 0; match4 = 0;
     // AXI
     m0_ar_burst_cnt   = 0;
@@ -853,6 +858,7 @@ task print_report;
         $display("+----------------------------------------------------------------+");
 
         // ── (7) DMEM SNAPSHOT ─────────────────────────────────────────────────
+        flush_dcache();
         print_dmem_snapshot();
 
         // ── (8) SCOREBOARD DUMP ───────────────────────────────────────────────
@@ -882,42 +888,85 @@ task print_report;
 endtask
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Task: flush_dcache
+//   Assert dcache_fence=1 qua SoC port, doi flush_done=1
+// ─────────────────────────────────────────────────────────────────────────────
+task flush_dcache;
+    integer timeout_cnt;
+    begin
+        if (`LOG_LEVEL >= 1)
+            $display("[%6d] [FLUSH] Asserting DCache fence to flush dirty lines...", cycle_count);
+        soc_dcache_fence = 1'b1;
+        @(posedge clk); #1;
+        soc_dcache_fence = 1'b0;
+        timeout_cnt = 0;
+        while (!soc_dcache_flush_done && timeout_cnt < 2000) begin
+            @(posedge clk);
+            timeout_cnt = timeout_cnt + 1;
+        end
+        repeat(10) @(posedge clk);
+        if (timeout_cnt >= 2000)
+            $display("[%6d] [WARN] DCache flush TIMEOUT!", cycle_count);
+        else if (`LOG_LEVEL >= 1)
+            $display("[%6d] [FLUSH] DCache flush done (%0d cycles)", cycle_count, timeout_cnt);
+    end
+endtask
+            reg [31:0] word_addr;
+            reg [7:0]  byte_val;
+            reg [1:0]  byte_off;
+            integer    k;
 task print_dmem_snapshot;
-    integer wi, col;
-    reg [31:0] base, addr;
-    reg [7:0]  b0, b1, b2, b3;
-    reg [31:0] wval;
+    integer wi, col, j;
+    reg [31:0] base, addr, wval;
+    reg        found;
     begin
         base = `DMEM_DUMP_BASE;
         $display("");
         $display("+--- (7) DMEM SNAPSHOT [0x%08h..0x%08h] (%0d words) -----------+",
                  base, base + `DMEM_DUMP_WORDS * 4 - 1, `DMEM_DUMP_WORDS);
-        // Canh bao neu S1 chua nhan duoc giao dich nao
-        if (s1_ar_cnt == 0 && s1_aw_cnt == 0)
-            $display("|  [WARN] S1(DMEM) chua nhan giao dich nao! Kiem tra dia chi trong hex file.");
+        $display("|  (source: TB Scoreboard — DCache not flushed)");
         $display("|  Address       +0          +4          +8          +C");
         $display("|  ---------------------------------------------------------");
+
         for (wi = 0; wi < `DMEM_DUMP_WORDS; wi = wi + `DMEM_ROW_WORDS) begin
             addr = base + wi * 4;
             $write("|  0x%08h  ", addr);
             for (col = 0; col < `DMEM_ROW_WORDS; col = col + 1) begin
-                b0 = soc.dmem.dmem.memory[base + (wi+col)*4 + 0];
-                b1 = soc.dmem.dmem.memory[base + (wi+col)*4 + 1];
-                b2 = soc.dmem.dmem.memory[base + (wi+col)*4 + 2];
-                b3 = soc.dmem.dmem.memory[base + (wi+col)*4 + 3];
-                wval = {b3, b2, b1, b0};
+                // Tìm trong scoreboard
+                wval = 32'h0; found = 0;
+                for (j = 0; j < sb_cnt; j = j + 1) begin
+                    if (sb_addr[j] === (base + (wi + col) * 4)) begin
+                        wval  = sb_data[j];
+                        found = 1;
+                    end
+                end
                 $write("0x%08h  ", wval);
             end
             $display("");
         end
+
+        // ASCII view từ scoreboard
         $display("|");
-        $display("|  ASCII view:");
+        $display("|  ASCII view (from scoreboard):");
         $write("|  ");
         for (wi = 0; wi < `DMEM_DUMP_WORDS * 4; wi = wi + 1) begin
-            b0 = soc.dmem.dmem.memory[base + wi];
-            if (b0 >= 8'h20 && b0 <= 8'h7E) $write("%s", b0);
-            else                              $write(".");
-            if ((wi & 15) == 15 && wi < `DMEM_DUMP_WORDS * 4 - 1) begin
+
+            word_addr = base + (wi / 4) * 4;
+            byte_off  = wi[1:0];
+            byte_val  = 8'h2E; // default '.'
+            for (k = 0; k < sb_cnt; k = k + 1) begin
+                if (sb_addr[k] === word_addr) begin
+                    case (byte_off)
+                        2'd0: byte_val = sb_data[k][ 7: 0];
+                        2'd1: byte_val = sb_data[k][15: 8];
+                        2'd2: byte_val = sb_data[k][23:16];
+                        2'd3: byte_val = sb_data[k][31:24];
+                    endcase
+                end
+            end
+            if (byte_val >= 8'h20 && byte_val <= 8'h7E) $write("%s", byte_val);
+            else                                          $write(".");
+            if ((wi & 15) == 15 && wi < `DMEM_DUMP_WORDS*4-1) begin
                 $display(""); $write("|  ");
             end
         end
