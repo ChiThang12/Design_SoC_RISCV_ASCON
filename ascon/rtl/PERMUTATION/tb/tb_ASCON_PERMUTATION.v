@@ -48,7 +48,7 @@ module tb_ASCON_PERMUTATION;
     // ========================================================================
     // Instantiate DUT
     // ========================================================================
-    ASCON_PERMUTATION dut (
+    ascon_PERMUTATION dut (
         .clk(clk),
         .rst_n(rst_n),
         .state_in(state_in),
@@ -281,7 +281,9 @@ module tb_ASCON_PERMUTATION;
         $display("TEST %0d: 12 Rounds Permutation (p^a)", test_num);
         $display("========================================");
         
-        state_in = 320'h0F0F0F0F0F0F0F0F_F0F0F0F0F0F0F0F0_A5A5A5A5A5A5A5A5_5A5A5A5A5A5A5A5A_FFFFFFFFFFFFFFFF;
+        // state_in = 320'h0F0F0F0F0F0F0F0F_F0F0F0F0F0F0F0F0_A5A5A5A5A5A5A5A5_5A5A5A5A5A5A5A5A_FFFFFFFFFFFFFFFF;
+        state_in = 320'hAAAAAAAAAAAAAAAA_BBBBBBBBBBBBBBBB_CCCCCCCCCCCCCCCC_DDDDDDDDDDDDDDDD_EEEEEEEEEEEEEEEE;
+
         rounds = 4'd12;
         start_perm = 1;
         
