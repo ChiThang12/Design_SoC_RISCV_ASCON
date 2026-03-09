@@ -13,7 +13,7 @@
 // Author: ChiThang
 // ============================================================================
 
-`include "dma/dma_defines.vh"
+`include "dma_defines_axi4.vh"
 
 module dma_arbiter #(
     parameter NUM_CHANNELS = `NUM_DMA_CHANNELS
