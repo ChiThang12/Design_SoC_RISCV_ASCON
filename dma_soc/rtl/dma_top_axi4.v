@@ -28,7 +28,8 @@ module dma_top_axi4 #(
     parameter NUM_CHANNELS = `NUM_DMA_CHANNELS,
     parameter ADDR_WIDTH   = `DMA_ADDR_WIDTH,
     parameter DATA_WIDTH   = `DMA_DATA_WIDTH,
-    parameter ID_WIDTH     = `DMA_ID_WIDTH
+    parameter ID_WIDTH     = `DMA_ID_WIDTH,
+    parameter FIFO_DEPTH   = `DMA_FIFO_DEPTH
 )(
     input wire clk,
     input wire rst_n,
@@ -334,9 +335,25 @@ module dma_top_axi4 #(
     );
     
     // ========================================================================
+    // Engine Start Pulse Generation
+    // Generate a 1-cycle pulse when arbiter first grants to avoid
+    // engine re-triggering while grant_valid stays HIGH
+    // ========================================================================
+    reg  grant_valid_prev;
+    wire engine_start;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            grant_valid_prev <= 1'b0;
+        else
+            grant_valid_prev <= grant_valid;
+    end
+
+    assign engine_start = grant_valid & ~grant_valid_prev;
+
+    // ========================================================================
     // Engine Parameter Multiplexing
     // ========================================================================
-    assign engine_start       = grant_valid;
     assign engine_src_mux     = engine_src_addr[active_channel];
     assign engine_dst_mux     = engine_dst_addr[active_channel];
     assign engine_size_mux    = engine_xfer_size[active_channel];

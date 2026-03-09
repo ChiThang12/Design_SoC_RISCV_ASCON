@@ -273,48 +273,27 @@ module dma_engine_axi4 #(
         end else begin
             case (state)
                 // ============================================================
-                // IDLE: Wait for start command
-                // ============================================================
-                `DMA_STATE_IDLE: begin
-                    if (start && transfer_size > 0) begin
-                        current_src_addr  <= src_addr;
-                        current_dst_addr  <= dst_addr;
-                        bytes_remaining   <= transfer_size;
-                        busy              <= 1'b1;
-                        done              <= 1'b0;
-                        error             <= 1'b0;
-                        error_type        <= 2'b00;
-                        fifo_wr_ptr       <= 6'h0;
-                        fifo_rd_ptr       <= 6'h0;
-                        fifo_count        <= 7'h0;
-                        outstanding_reads <= 3'h0;
-                        outstanding_writes<= 3'h0;
-                        state             <= `DMA_STATE_READ_ADDR;
-                    end
-                end
-                
-                // ============================================================
                 // READ_ADDR: Issue read address
                 // ============================================================
                 `DMA_STATE_READ_ADDR: begin
                     // Only issue read if FIFO has space
                     if (!fifo_almost_full && bytes_remaining > 0) begin
-                        current_burst_len <= calculated_burst_len;
-                        read_burst_beats  <= calculated_burst_len + 1;
-                        
-                        // Setup read address channel
-                        M_AXI_ARID    <= channel_id;
-                        M_AXI_ARADDR  <= current_src_addr;
-                        M_AXI_ARLEN   <= calculated_burst_len;
-                        M_AXI_ARSIZE  <= axi_size;
-                        M_AXI_ARBURST <= src_incr ? `AXI_BURST_INCR : `AXI_BURST_FIXED;
-                        M_AXI_ARLOCK  <= `AXI_LOCK_NORMAL;
-                        M_AXI_ARCACHE <= cache_type;
-                        M_AXI_ARPROT  <= prot_type;
-                        M_AXI_ARQOS   <= `AXI_QOS_DEFAULT;
-                        M_AXI_ARVALID <= 1'b1;
-                        
-                        if (M_AXI_ARREADY) begin
+                        if (!M_AXI_ARVALID) begin
+                            // Cycle 1: latch address signals and assert ARVALID
+                            current_burst_len <= calculated_burst_len;
+                            read_burst_beats  <= calculated_burst_len + 1;
+                            M_AXI_ARID    <= channel_id;
+                            M_AXI_ARADDR  <= current_src_addr;
+                            M_AXI_ARLEN   <= calculated_burst_len;
+                            M_AXI_ARSIZE  <= axi_size;
+                            M_AXI_ARBURST <= src_incr ? `AXI_BURST_INCR : `AXI_BURST_FIXED;
+                            M_AXI_ARLOCK  <= `AXI_LOCK_NORMAL;
+                            M_AXI_ARCACHE <= cache_type;
+                            M_AXI_ARPROT  <= prot_type;
+                            M_AXI_ARQOS   <= `AXI_QOS_DEFAULT;
+                            M_AXI_ARVALID <= 1'b1;
+                        end else if (M_AXI_ARREADY) begin
+                            // Cycle 2+: slave has accepted — deassert ARVALID
                             M_AXI_ARVALID     <= 1'b0;
                             M_AXI_RREADY      <= 1'b1;
                             beat_counter      <= 8'h0;
@@ -360,11 +339,11 @@ module dma_engine_axi4 #(
                             
                             // Update source address
                             if (src_incr) begin
-                                current_src_addr <= current_src_addr + (read_burst_beats * bytes_per_beat);
+                                current_src_addr <= current_src_addr + ({{24{1'b0}}, read_burst_beats} * {{28{1'b0}}, bytes_per_beat});
                             end
                             
                             // Update bytes remaining
-                            bytes_remaining <= bytes_remaining - (read_burst_beats * bytes_per_beat);
+                            bytes_remaining <= bytes_remaining - ({{24{1'b0}}, read_burst_beats} * {{28{1'b0}}, bytes_per_beat});
                             
                             // Move to write phase
                             state <= `DMA_STATE_WRITE_ADDR;
@@ -378,22 +357,21 @@ module dma_engine_axi4 #(
                 `DMA_STATE_WRITE_ADDR: begin
                     // Only issue write if we have data in FIFO
                     if (!fifo_empty && outstanding_writes < `MAX_OUTSTANDING_WRITES) begin
-                        // Use same burst length as last read
-                        write_burst_beats <= read_burst_beats;
-                        
-                        // Setup write address channel
-                        M_AXI_AWID    <= channel_id;
-                        M_AXI_AWADDR  <= current_dst_addr;
-                        M_AXI_AWLEN   <= current_burst_len;
-                        M_AXI_AWSIZE  <= axi_size;
-                        M_AXI_AWBURST <= dst_incr ? `AXI_BURST_INCR : `AXI_BURST_FIXED;
-                        M_AXI_AWLOCK  <= `AXI_LOCK_NORMAL;
-                        M_AXI_AWCACHE <= cache_type;
-                        M_AXI_AWPROT  <= prot_type;
-                        M_AXI_AWQOS   <= `AXI_QOS_DEFAULT;
-                        M_AXI_AWVALID <= 1'b1;
-                        
-                        if (M_AXI_AWREADY) begin
+                        if (!M_AXI_AWVALID) begin
+                            // Cycle 1: latch address signals and assert AWVALID
+                            write_burst_beats <= read_burst_beats;
+                            M_AXI_AWID    <= channel_id;
+                            M_AXI_AWADDR  <= current_dst_addr;
+                            M_AXI_AWLEN   <= current_burst_len;
+                            M_AXI_AWSIZE  <= axi_size;
+                            M_AXI_AWBURST <= dst_incr ? `AXI_BURST_INCR : `AXI_BURST_FIXED;
+                            M_AXI_AWLOCK  <= `AXI_LOCK_NORMAL;
+                            M_AXI_AWCACHE <= cache_type;
+                            M_AXI_AWPROT  <= prot_type;
+                            M_AXI_AWQOS   <= `AXI_QOS_DEFAULT;
+                            M_AXI_AWVALID <= 1'b1;
+                        end else if (M_AXI_AWREADY) begin
+                            // Cycle 2+: slave has accepted — deassert AWVALID
                             M_AXI_AWVALID      <= 1'b0;
                             beat_counter       <= 8'h0;
                             outstanding_writes <= outstanding_writes + 1;
@@ -451,7 +429,7 @@ module dma_engine_axi4 #(
                         end else begin
                             // Update destination address
                             if (dst_incr) begin
-                                current_dst_addr <= current_dst_addr + (write_burst_beats * bytes_per_beat);
+                                current_dst_addr <= current_dst_addr + ({{24{1'b0}}, write_burst_beats} * {{28{1'b0}}, bytes_per_beat});
                             end
                             
                             // Check if transfer complete or need more data
@@ -483,6 +461,31 @@ module dma_engine_axi4 #(
                     done  <= 1'b0;
                     error <= 1'b1;
                     state <= `DMA_STATE_IDLE;
+                end
+                
+                // ============================================================
+                // IDLE: clear done/error flags from previous transfer
+                // ============================================================
+                `DMA_STATE_IDLE: begin
+                    if (start && transfer_size > 0) begin
+                        current_src_addr  <= src_addr;
+                        current_dst_addr  <= dst_addr;
+                        bytes_remaining   <= transfer_size;
+                        busy              <= 1'b1;
+                        done              <= 1'b0;
+                        error             <= 1'b0;
+                        error_type        <= 2'b00;
+                        fifo_wr_ptr       <= 6'h0;
+                        fifo_rd_ptr       <= 6'h0;
+                        fifo_count        <= 7'h0;
+                        outstanding_reads <= 3'h0;
+                        outstanding_writes<= 3'h0;
+                        state             <= `DMA_STATE_READ_ADDR;
+                    end else begin
+                        // Auto-clear done/error one cycle after returning to IDLE
+                        done  <= 1'b0;
+                        error <= 1'b0;
+                    end
                 end
                 
                 default: state <= `DMA_STATE_IDLE;
