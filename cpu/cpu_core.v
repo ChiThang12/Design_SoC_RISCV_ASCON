@@ -1,22 +1,15 @@
 // ============================================================================
-// cpu_core.v (riscv_soc_top_cached) — v3.2
+// cpu_core.v (riscv_soc_top_cached) — v3.3
 //
-// Fix so voi v3.1:
+// Fix so voi v3.2:
+//   [UPDATE] Doi axi4_crossbar (2M) -> axi4_crossbar_3m4s (3M)
+//            M2 (DMA) duoc tie-off trong module nay vi day la CPU-only top.
+//            Khi tich hop vao riscv_ascon_soc_top_v2, M2 se duoc noi DMA that.
 //
-//   [BUG 1 - CRITICAL] S2/S3 stub: s2_bvalid / s3_bvalid = 1'b0 MAI MAI
-//     -> DCache gui write den ASCON/SoCCtrl: AW+W handshake OK,
-//        nhung B response KHONG BAO GIO den -> DCache DEADLOCK vinh vien
-//     -> Waveform: dcache_ready=0 tai addr=0x2000_0000 chinh la trieu chung nay
-//     Fix: Them FSM don gian cho write response trong stub S2 va S3
-//          AW+W -> BVALID=1 -> cho BREADY -> BVALID=0
-//
-//   [BUG 2] S2 stub: s2_rvalid = s2_arvalid (combinational pass-through)
-//     -> Neu crossbar co pipeline register, RVALID co the arrive sai cycle
-//     Fix: them 1-cycle register: arvalid_d -> rvalid
-//
-//   [BUG 3] S1 RID/BID assign tu wire hien tai, khong phai luc handshake
-//     assign s1_rid = s1_arid  -- neu s1_arid thay doi truoc RVALID -> RID sai
-//     Fix: latch s1_arid khi AR handshake, latch s1_awid khi AW handshake
+// Giu nguyen cac fix tu v3.2:
+//   [BUG 1] S2/S3 stub bvalid=0 mai mai -> deadlock DCache: da fix bang FSM
+//   [BUG 2] s2_rvalid combinational pass-through: da fix bang 1-cycle reg
+//   [BUG 3] S1 RID/BID lay wire hien tai: da fix bang latch tai handshake
 // ============================================================================
 
 `include "cpu/riscv_cpu_core_v2.v"
@@ -24,7 +17,7 @@
 `include "cpu/interface/dcache/dcache_top.v"
 `include "cpu/memory_axi4full/inst_mem_axi_slave.v"
 `include "cpu/memory_axi4full/data_mem_axi_slave.v"
-`include "cpu/interconnect/axi4_crossbar.v"
+`include "cpu/interconnect/axi4_crossbar_3m4s.v"
 
 module riscv_soc_top_cached (
     input wire clk,
@@ -81,6 +74,17 @@ module riscv_soc_top_cached (
     wire        m1_bvalid, m1_bready;
 
     // ========================================================================
+    // M2 (DMA) — tie-off trong module nay; crossbar xu ly DECERR tu dong
+    // Khi tich hop vao riscv_ascon_soc_top_v2, M2 se duoc noi DMA that
+    // ========================================================================
+    wire [ID_WIDTH-1:0] m2_rid,  m2_bid;
+    wire [31:0] m2_rdata;
+    wire [1:0]  m2_rresp, m2_bresp;
+    wire        m2_arready, m2_rvalid, m2_rlast;
+    wire        m2_awready, m2_wready;
+    wire        m2_bvalid;
+
+    // ========================================================================
     // S0 (IMEM) <-> Crossbar
     // ========================================================================
     wire [ID_WIDTH-1:0] s0_arid,  s0_rid,  s0_awid,  s0_bid;
@@ -134,17 +138,15 @@ module riscv_soc_top_cached (
 
     // ========================================================================
     // S2 Stub — ASCON placeholder
-    // FIX [BUG 1]: Them write FSM de tao B response dung AXI4 spec
-    // FIX [BUG 2]: 1-cycle register cho RVALID thay vi combinational pass
+    // [BUG 1 FIX] Write FSM: tao B response dung AXI4 spec (khong deadlock)
+    // [BUG 2 FIX] 1-cycle register cho RVALID (khong combinational pass)
     // ========================================================================
-    // ── Read path ────────────────────────────────────────────────────────────
     assign s2_arready = 1'b1;
     assign s2_rid     = s2_arid;
     assign s2_rdata   = 32'hDEAD_BEEF;
     assign s2_rresp   = 2'b10;   // SLVERR
     assign s2_rlast   = 1'b1;
 
-    // FIX: dung register 1 cycle thay vi s2_rvalid = s2_arvalid
     reg s2_rvalid_r;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) s2_rvalid_r <= 1'b0;
@@ -152,34 +154,20 @@ module riscv_soc_top_cached (
     end
     assign s2_rvalid = s2_rvalid_r;
 
-    // ── Write path — FSM cho B response ─────────────────────────────────────
-    // FIX [BUG 1]: truoc day s2_bvalid = 0 mai mai -> DCache deadlock
     localparam S2_WR_IDLE = 2'b00, S2_WR_DATA = 2'b01, S2_WR_RESP = 2'b10;
-    reg [1:0]        s2_wr_state;
+    reg [1:0]          s2_wr_state;
     reg [ID_WIDTH-1:0] s2_bid_r;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            s2_wr_state  <= S2_WR_IDLE;
-            s2_bid_r     <= {ID_WIDTH{1'b0}};
+            s2_wr_state <= S2_WR_IDLE;
+            s2_bid_r    <= {ID_WIDTH{1'b0}};
         end else begin
             case (s2_wr_state)
-                S2_WR_IDLE: begin
-                    if (s2_awvalid) begin
-                        s2_bid_r    <= s2_awid;
-                        s2_wr_state <= S2_WR_DATA;
-                    end
-                end
-                S2_WR_DATA: begin
-                    // Consume tat ca W beats, cho WLAST
-                    if (s2_wvalid && s2_wlast)
-                        s2_wr_state <= S2_WR_RESP;
-                end
-                S2_WR_RESP: begin
-                    if (s2_bready)
-                        s2_wr_state <= S2_WR_IDLE;
-                end
-                default: s2_wr_state <= S2_WR_IDLE;
+                S2_WR_IDLE: if (s2_awvalid)                    begin s2_bid_r <= s2_awid; s2_wr_state <= S2_WR_DATA; end
+                S2_WR_DATA: if (s2_wvalid && s2_wlast)         s2_wr_state <= S2_WR_RESP;
+                S2_WR_RESP: if (s2_bready)                     s2_wr_state <= S2_WR_IDLE;
+                default:    s2_wr_state <= S2_WR_IDLE;
             endcase
         end
     end
@@ -187,18 +175,17 @@ module riscv_soc_top_cached (
     assign s2_awready = (s2_wr_state == S2_WR_IDLE);
     assign s2_wready  = (s2_wr_state == S2_WR_DATA);
     assign s2_bid     = s2_bid_r;
-    assign s2_bresp   = 2'b10;   // SLVERR
+    assign s2_bresp   = 2'b10;
     assign s2_bvalid  = (s2_wr_state == S2_WR_RESP);
 
     // ========================================================================
     // S3 Stub — SoC Ctrl placeholder
-    // FIX [BUG 1]: Tuong tu S2, them write FSM
+    // [BUG 1 FIX] Write FSM tuong tu S2
     // ========================================================================
-    // ── Read path ────────────────────────────────────────────────────────────
     assign s3_arready = 1'b1;
     assign s3_rid     = s3_arid;
     assign s3_rdata   = 32'hDEAD_BEEF;
-    assign s3_rresp   = 2'b10;   // SLVERR
+    assign s3_rresp   = 2'b10;
     assign s3_rlast   = 1'b1;
 
     reg s3_rvalid_r;
@@ -208,32 +195,20 @@ module riscv_soc_top_cached (
     end
     assign s3_rvalid = s3_rvalid_r;
 
-    // ── Write path — FSM cho B response ─────────────────────────────────────
     localparam S3_WR_IDLE = 2'b00, S3_WR_DATA = 2'b01, S3_WR_RESP = 2'b10;
-    reg [1:0]        s3_wr_state;
+    reg [1:0]          s3_wr_state;
     reg [ID_WIDTH-1:0] s3_bid_r;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            s3_wr_state  <= S3_WR_IDLE;
-            s3_bid_r     <= {ID_WIDTH{1'b0}};
+            s3_wr_state <= S3_WR_IDLE;
+            s3_bid_r    <= {ID_WIDTH{1'b0}};
         end else begin
             case (s3_wr_state)
-                S3_WR_IDLE: begin
-                    if (s3_awvalid) begin
-                        s3_bid_r    <= s3_awid;
-                        s3_wr_state <= S3_WR_DATA;
-                    end
-                end
-                S3_WR_DATA: begin
-                    if (s3_wvalid && s3_wlast)
-                        s3_wr_state <= S3_WR_RESP;
-                end
-                S3_WR_RESP: begin
-                    if (s3_bready)
-                        s3_wr_state <= S3_WR_IDLE;
-                end
-                default: s3_wr_state <= S3_WR_IDLE;
+                S3_WR_IDLE: if (s3_awvalid)              begin s3_bid_r <= s3_awid; s3_wr_state <= S3_WR_DATA; end
+                S3_WR_DATA: if (s3_wvalid && s3_wlast)   s3_wr_state <= S3_WR_RESP;
+                S3_WR_RESP: if (s3_bready)               s3_wr_state <= S3_WR_IDLE;
+                default:    s3_wr_state <= S3_WR_IDLE;
             endcase
         end
     end
@@ -241,14 +216,12 @@ module riscv_soc_top_cached (
     assign s3_awready = (s3_wr_state == S3_WR_IDLE);
     assign s3_wready  = (s3_wr_state == S3_WR_DATA);
     assign s3_bid     = s3_bid_r;
-    assign s3_bresp   = 2'b10;   // SLVERR
+    assign s3_bresp   = 2'b10;
     assign s3_bvalid  = (s3_wr_state == S3_WR_RESP);
 
     // ========================================================================
-    // S1 RID/BID — FIX [BUG 3]: latch tai thoi diem handshake
+    // S1 RID/BID — [BUG 3 FIX] latch tai thoi diem handshake
     // ========================================================================
-    // FIX: s1_rid phai duoc latch khi AR handshake (arvalid & arready),
-    //      khong phai lay wire s1_arid hien tai (co the thay doi sau do)
     reg [ID_WIDTH-1:0] s1_rid_r, s1_bid_r;
 
     always @(posedge clk or negedge rst_n) begin
@@ -351,11 +324,12 @@ module riscv_soc_top_cached (
     );
 
     // ========================================================================
-    // 4. AXI4 Crossbar
+    // 4. AXI4 Crossbar 3M×4S
+    // M2 tie-off: arvalid/awvalid=0 -> crossbar khong gui request nao
     // ========================================================================
-    axi4_crossbar #(.ID_WIDTH(ID_WIDTH)) xbar (
+    axi4_crossbar_3m4s #(.ID_WIDTH(ID_WIDTH)) xbar (
         .clk            (clk),        .rst_n          (rst_n),
-        // M0
+        // M0 — ICache
         .M0_AXI_ARID    (m0_arid),    .M0_AXI_ARADDR  (m0_araddr),
         .M0_AXI_ARLEN   (m0_arlen),   .M0_AXI_ARSIZE  (m0_arsize),
         .M0_AXI_ARBURST (m0_arburst), .M0_AXI_ARPROT  (m0_arprot),
@@ -372,7 +346,7 @@ module riscv_soc_top_cached (
         .M0_AXI_WREADY  (m0_wready),
         .M0_AXI_BID     (m0_bid),     .M0_AXI_BRESP   (m0_bresp),
         .M0_AXI_BVALID  (m0_bvalid),  .M0_AXI_BREADY  (m0_bready),
-        // M1
+        // M1 — DCache
         .M1_AXI_ARID    (m1_arid),    .M1_AXI_ARADDR  (m1_araddr),
         .M1_AXI_ARLEN   (m1_arlen),   .M1_AXI_ARSIZE  (m1_arsize),
         .M1_AXI_ARBURST (m1_arburst), .M1_AXI_ARPROT  (m1_arprot),
@@ -389,7 +363,24 @@ module riscv_soc_top_cached (
         .M1_AXI_WREADY  (m1_wready),
         .M1_AXI_BID     (m1_bid),     .M1_AXI_BRESP   (m1_bresp),
         .M1_AXI_BVALID  (m1_bvalid),  .M1_AXI_BREADY  (m1_bready),
-        // S0
+        // M2 — DMA tie-off (khong co DMA trong module nay)
+        .M2_AXI_ARID    ({ID_WIDTH{1'b0}}), .M2_AXI_ARADDR  (32'h0),
+        .M2_AXI_ARLEN   (8'h0),             .M2_AXI_ARSIZE  (3'h0),
+        .M2_AXI_ARBURST (2'h0),             .M2_AXI_ARPROT  (3'h0),
+        .M2_AXI_ARVALID (1'b0),             .M2_AXI_ARREADY (m2_arready),
+        .M2_AXI_RID     (m2_rid),           .M2_AXI_RDATA   (m2_rdata),
+        .M2_AXI_RRESP   (m2_rresp),         .M2_AXI_RLAST   (m2_rlast),
+        .M2_AXI_RVALID  (m2_rvalid),        .M2_AXI_RREADY  (1'b1),
+        .M2_AXI_AWID    ({ID_WIDTH{1'b0}}), .M2_AXI_AWADDR  (32'h0),
+        .M2_AXI_AWLEN   (8'h0),             .M2_AXI_AWSIZE  (3'h0),
+        .M2_AXI_AWBURST (2'h0),             .M2_AXI_AWPROT  (3'h0),
+        .M2_AXI_AWVALID (1'b0),             .M2_AXI_AWREADY (m2_awready),
+        .M2_AXI_WDATA   (32'h0),            .M2_AXI_WSTRB   (4'h0),
+        .M2_AXI_WLAST   (1'b0),             .M2_AXI_WVALID  (1'b0),
+        .M2_AXI_WREADY  (m2_wready),
+        .M2_AXI_BID     (m2_bid),           .M2_AXI_BRESP   (m2_bresp),
+        .M2_AXI_BVALID  (m2_bvalid),        .M2_AXI_BREADY  (1'b1),
+        // S0 — IMEM
         .S0_AXI_ARID    (s0_arid),    .S0_AXI_ARADDR  (s0_araddr),
         .S0_AXI_ARLEN   (s0_arlen),   .S0_AXI_ARSIZE  (s0_arsize),
         .S0_AXI_ARBURST (s0_arburst), .S0_AXI_ARPROT  (s0_arprot),
@@ -406,7 +397,7 @@ module riscv_soc_top_cached (
         .S0_AXI_WREADY  (s0_wready),
         .S0_AXI_BID     (s0_bid),     .S0_AXI_BRESP   (s0_bresp),
         .S0_AXI_BVALID  (s0_bvalid),  .S0_AXI_BREADY  (s0_bready),
-        // S1
+        // S1 — DMEM
         .S1_AXI_ARID    (s1_arid),    .S1_AXI_ARADDR  (s1_araddr),
         .S1_AXI_ARLEN   (s1_arlen),   .S1_AXI_ARSIZE  (s1_arsize),
         .S1_AXI_ARBURST (s1_arburst), .S1_AXI_ARPROT  (s1_arprot),
@@ -423,7 +414,7 @@ module riscv_soc_top_cached (
         .S1_AXI_WREADY  (s1_wready),
         .S1_AXI_BID     (s1_bid),     .S1_AXI_BRESP   (s1_bresp),
         .S1_AXI_BVALID  (s1_bvalid),  .S1_AXI_BREADY  (s1_bready),
-        // S2
+        // S2 — ASCON stub
         .S2_AXI_ARID    (s2_arid),    .S2_AXI_ARADDR  (s2_araddr),
         .S2_AXI_ARLEN   (s2_arlen),   .S2_AXI_ARSIZE  (s2_arsize),
         .S2_AXI_ARBURST (s2_arburst), .S2_AXI_ARPROT  (s2_arprot),
@@ -440,7 +431,7 @@ module riscv_soc_top_cached (
         .S2_AXI_WREADY  (s2_wready),
         .S2_AXI_BID     (s2_bid),     .S2_AXI_BRESP   (s2_bresp),
         .S2_AXI_BVALID  (s2_bvalid),  .S2_AXI_BREADY  (s2_bready),
-        // S3
+        // S3 — SoC Ctrl stub
         .S3_AXI_ARID    (s3_arid),    .S3_AXI_ARADDR  (s3_araddr),
         .S3_AXI_ARLEN   (s3_arlen),   .S3_AXI_ARSIZE  (s3_arsize),
         .S3_AXI_ARBURST (s3_arburst), .S3_AXI_ARPROT  (s3_arprot),
