@@ -1,29 +1,35 @@
 // ============================================================================
-// axi4_crossbar.v  —  AXI4 Non-blocking Crossbar (2 Master × 4 Slave)
+// axi4_crossbar_3m4s.v  —  AXI4 Non-blocking Crossbar (3 Master × 4 Slave)
 //
-// Cấu trúc module con:
-//   axi4_addr_decoder  — decode địa chỉ → slave index (dùng cho AR và AW)
-//   axi4_master_mux    — arbitration + mux cho mỗi slave (×4)
-//   axi4_decerr_slave  — xử lý địa chỉ không ánh xạ (×1)
+// Mở rộng từ axi4_crossbar.v (2M×4S) thêm Master 2 = DMA controller.
+//
+// Module con:
+//   axi4_addr_decoder   — decode địa chỉ → slave index (dùng cho AR và AW)
+//   axi4_master_mux_3m  — arbitration + mux cho mỗi slave (×4)
+//   axi4_decerr_slave   — xử lý địa chỉ không ánh xạ (×3, một cho mỗi master)
 //
 // Bản đồ địa chỉ:
 //   S0: IMEM       0x0000_0000 – 0x0000_FFFF  (mask 0xFFFF_0000)
 //   S1: DMEM       0x1000_0000 – 0x1000_FFFF  (mask 0xFFFF_0000)
-//   S2: ASCON      0x2000_0000 – 0x2000_0FFF  (mask 0xFFFF_F000)
+//   S2: ASCON/DMA  0x2000_0000 – 0x2000_0FFF  (mask 0xFFFF_F000)
 //   S3: SoC Ctrl   0x3000_0000 – 0x3000_0FFF  (mask 0xFFFF_F000)
 //
-// Non-blocking: M0 và M1 có thể truy cập các slave khác nhau đồng thời.
-// Arbitration: Fixed priority — M0 (ICache) > M1 (DCache).
+// Non-blocking: M0, M1, M2 có thể truy cập các slave khác nhau đồng thời.
+// Arbitration:  Fixed priority — M0 (ICache) > M1 (DCache) > M2 (DMA).
+//
+// Lưu ý ID_WIDTH:
+//   axi4_master_mux_3m dùng 2 bit cao của ID để tag master index.
+//   → Yêu cầu ID_WIDTH >= 3. Với ID_WIDTH=4, còn 2 bit dùng cho transaction ID.
 // ============================================================================
 
 `include "cpu/interconnect/axi4_addr_decoder.v"
-`include "cpu/interconnect/axi4_master_mux.v"
+`include "cpu/interconnect/axi4_master_mux_3m.v"
 `include "cpu/interconnect/axi4_decerr_slave.v"
 
-module axi4_crossbar #(
+module axi4_crossbar_3m4s #(
     parameter DATA_WIDTH = 32,
     parameter ADDR_WIDTH = 32,
-    parameter ID_WIDTH   = 4,
+    parameter ID_WIDTH   = 4,   // Phải >= 3 (2 bit tag + ít nhất 1 bit ID)
     parameter STRB_WIDTH = DATA_WIDTH / 8,
 
     // Địa chỉ base/mask cho từng slave
@@ -40,7 +46,7 @@ module axi4_crossbar #(
     input wire rst_n,
 
     // ========================================================================
-    // Master 0 — ICache (đọc only; write channels được nhận và trả DECERR)
+    // Master 0 — ICache (chủ yếu đọc)
     // ========================================================================
     input  wire [ID_WIDTH-1:0]   M0_AXI_ARID,
     input  wire [ADDR_WIDTH-1:0] M0_AXI_ARADDR,
@@ -116,6 +122,45 @@ module axi4_crossbar #(
     output wire [1:0]            M1_AXI_BRESP,
     output wire                  M1_AXI_BVALID,
     input  wire                  M1_AXI_BREADY,
+
+    // ========================================================================
+    // Master 2 — DMA (đọc + ghi, ưu tiên thấp nhất)
+    // ========================================================================
+    input  wire [ID_WIDTH-1:0]   M2_AXI_ARID,
+    input  wire [ADDR_WIDTH-1:0] M2_AXI_ARADDR,
+    input  wire [7:0]            M2_AXI_ARLEN,
+    input  wire [2:0]            M2_AXI_ARSIZE,
+    input  wire [1:0]            M2_AXI_ARBURST,
+    input  wire [2:0]            M2_AXI_ARPROT,
+    input  wire                  M2_AXI_ARVALID,
+    output wire                  M2_AXI_ARREADY,
+
+    output wire [ID_WIDTH-1:0]   M2_AXI_RID,
+    output wire [DATA_WIDTH-1:0] M2_AXI_RDATA,
+    output wire [1:0]            M2_AXI_RRESP,
+    output wire                  M2_AXI_RLAST,
+    output wire                  M2_AXI_RVALID,
+    input  wire                  M2_AXI_RREADY,
+
+    input  wire [ID_WIDTH-1:0]   M2_AXI_AWID,
+    input  wire [ADDR_WIDTH-1:0] M2_AXI_AWADDR,
+    input  wire [7:0]            M2_AXI_AWLEN,
+    input  wire [2:0]            M2_AXI_AWSIZE,
+    input  wire [1:0]            M2_AXI_AWBURST,
+    input  wire [2:0]            M2_AXI_AWPROT,
+    input  wire                  M2_AXI_AWVALID,
+    output wire                  M2_AXI_AWREADY,
+
+    input  wire [DATA_WIDTH-1:0] M2_AXI_WDATA,
+    input  wire [STRB_WIDTH-1:0] M2_AXI_WSTRB,
+    input  wire                  M2_AXI_WLAST,
+    input  wire                  M2_AXI_WVALID,
+    output wire                  M2_AXI_WREADY,
+
+    output wire [ID_WIDTH-1:0]   M2_AXI_BID,
+    output wire [1:0]            M2_AXI_BRESP,
+    output wire                  M2_AXI_BVALID,
+    input  wire                  M2_AXI_BREADY,
 
     // ========================================================================
     // Slave 0 — IMEM
@@ -196,7 +241,7 @@ module axi4_crossbar #(
     output wire                  S1_AXI_BREADY,
 
     // ========================================================================
-    // Slave 2 — ASCON
+    // Slave 2 — ASCON / DMA Config
     // ========================================================================
     output wire [ID_WIDTH-1:0]   S2_AXI_ARID,
     output wire [ADDR_WIDTH-1:0] S2_AXI_ARADDR,
@@ -277,8 +322,7 @@ module axi4_crossbar #(
     // ========================================================================
     // Address Decode — M0 (AR + AW)
     // ========================================================================
-    wire [2:0] m0_ar_slave_sel;
-    wire [2:0] m0_aw_slave_sel;
+    wire [2:0] m0_ar_slave_sel, m0_aw_slave_sel;
 
     axi4_addr_decoder #(
         .S0_BASE(S0_BASE), .S0_MASK(S0_MASK),
@@ -297,8 +341,7 @@ module axi4_crossbar #(
     // ========================================================================
     // Address Decode — M1 (AR + AW)
     // ========================================================================
-    wire [2:0] m1_ar_slave_sel;
-    wire [2:0] m1_aw_slave_sel;
+    wire [2:0] m1_ar_slave_sel, m1_aw_slave_sel;
 
     axi4_addr_decoder #(
         .S0_BASE(S0_BASE), .S0_MASK(S0_MASK),
@@ -315,8 +358,27 @@ module axi4_crossbar #(
     ) dec_m1_aw (.addr(M1_AXI_AWADDR), .slave_sel(m1_aw_slave_sel));
 
     // ========================================================================
-    // Steer: Master AR/AW → qualified valid per slave + DECERR
-    // M0/M1 arvalid/awvalid chỉ forward tới đúng slave
+    // Address Decode — M2 / DMA (AR + AW) — CHỈ được truy cập S1 (DMEM)
+    // DMA không nên truy cập IMEM/S2/S3 → sẽ trả DECERR
+    // ========================================================================
+    wire [2:0] m2_ar_slave_sel, m2_aw_slave_sel;
+
+    axi4_addr_decoder #(
+        .S0_BASE(S0_BASE), .S0_MASK(S0_MASK),
+        .S1_BASE(S1_BASE), .S1_MASK(S1_MASK),
+        .S2_BASE(S2_BASE), .S2_MASK(S2_MASK),
+        .S3_BASE(S3_BASE), .S3_MASK(S3_MASK)
+    ) dec_m2_ar (.addr(M2_AXI_ARADDR), .slave_sel(m2_ar_slave_sel));
+
+    axi4_addr_decoder #(
+        .S0_BASE(S0_BASE), .S0_MASK(S0_MASK),
+        .S1_BASE(S1_BASE), .S1_MASK(S1_MASK),
+        .S2_BASE(S2_BASE), .S2_MASK(S2_MASK),
+        .S3_BASE(S3_BASE), .S3_MASK(S3_MASK)
+    ) dec_m2_aw (.addr(M2_AXI_AWADDR), .slave_sel(m2_aw_slave_sel));
+
+    // ========================================================================
+    // Steer: Master AR/AW → valid per slave
     // ========================================================================
 
     // M0 AR steered
@@ -347,127 +409,99 @@ module axi4_crossbar #(
     wire m1_aw_to_s3 = M1_AXI_AWVALID && (m1_aw_slave_sel == 3'd3);
     wire m1_aw_to_err= M1_AXI_AWVALID && (m1_aw_slave_sel == 3'd4);
 
+    // M2 AR steered — DMA chỉ truy cập S1 (DMEM); mọi địa chỉ khác → DECERR
+    wire m2_ar_to_s0 = M2_AXI_ARVALID && (m2_ar_slave_sel == 3'd0);
+    wire m2_ar_to_s1 = M2_AXI_ARVALID && (m2_ar_slave_sel == 3'd1);
+    wire m2_ar_to_s2 = M2_AXI_ARVALID && (m2_ar_slave_sel == 3'd2);
+    wire m2_ar_to_s3 = M2_AXI_ARVALID && (m2_ar_slave_sel == 3'd3);
+    wire m2_ar_to_err= M2_AXI_ARVALID && (m2_ar_slave_sel == 3'd4);
+
+    // M2 AW steered
+    wire m2_aw_to_s0 = M2_AXI_AWVALID && (m2_aw_slave_sel == 3'd0);
+    wire m2_aw_to_s1 = M2_AXI_AWVALID && (m2_aw_slave_sel == 3'd1);
+    wire m2_aw_to_s2 = M2_AXI_AWVALID && (m2_aw_slave_sel == 3'd2);
+    wire m2_aw_to_s3 = M2_AXI_AWVALID && (m2_aw_slave_sel == 3'd3);
+    wire m2_aw_to_err= M2_AXI_AWVALID && (m2_aw_slave_sel == 3'd4);
+
     // ========================================================================
-    // ARREADY / AWREADY mux back to masters
-    // Kết quả từ 4 slave mux + decerr, OR lại (chỉ 1 cái active)
+    // ARREADY / AWREADY mux back to masters (OR từ slave mux + decerr)
+    // Chỉ 1 slave active tại một thời điểm nên OR an toàn
     // ========================================================================
-    wire m0_arready_s [0:4];
-    wire m0_awready_s [0:4];
-    wire m1_arready_s [0:4];
-    wire m1_awready_s [0:4];
-    wire m0_wready_s  [0:4];
-    wire m1_wready_s  [0:4];
+    wire m0_arready_s [0:4], m1_arready_s [0:4], m2_arready_s [0:4];
+    wire m0_awready_s [0:4], m1_awready_s [0:4], m2_awready_s [0:4];
+    wire m0_wready_s  [0:4], m1_wready_s  [0:4], m2_wready_s  [0:4];
 
-    assign M0_AXI_ARREADY = m0_arready_s[0] | m0_arready_s[1] | m0_arready_s[2] | m0_arready_s[3] | m0_arready_s[4];
-    assign M0_AXI_AWREADY = m0_awready_s[0] | m0_awready_s[1] | m0_awready_s[2] | m0_awready_s[3] | m0_awready_s[4];
-    assign M1_AXI_ARREADY = m1_arready_s[0] | m1_arready_s[1] | m1_arready_s[2] | m1_arready_s[3] | m1_arready_s[4];
-    assign M1_AXI_AWREADY = m1_awready_s[0] | m1_awready_s[1] | m1_awready_s[2] | m1_awready_s[3] | m1_awready_s[4];
-    assign M0_AXI_WREADY  = m0_wready_s[0]  | m0_wready_s[1]  | m0_wready_s[2]  | m0_wready_s[3]  | m0_wready_s[4];
-    assign M1_AXI_WREADY  = m1_wready_s[0]  | m1_wready_s[1]  | m1_wready_s[2]  | m1_wready_s[3]  | m1_wready_s[4];
+    assign M0_AXI_ARREADY = |{m0_arready_s[4],m0_arready_s[3],m0_arready_s[2],m0_arready_s[1],m0_arready_s[0]};
+    assign M0_AXI_AWREADY = |{m0_awready_s[4],m0_awready_s[3],m0_awready_s[2],m0_awready_s[1],m0_awready_s[0]};
+    assign M0_AXI_WREADY  = |{m0_wready_s[4], m0_wready_s[3], m0_wready_s[2], m0_wready_s[1], m0_wready_s[0]};
 
-    // R channel — OR from 4 slave mux + decerr
-    wire [ID_WIDTH-1:0]   m0_rid_s   [0:4];
-    wire [DATA_WIDTH-1:0] m0_rdata_s [0:4];
-    wire [1:0]            m0_rresp_s [0:4];
-    wire                  m0_rlast_s [0:4];
-    wire                  m0_rvalid_s[0:4];
-    wire [ID_WIDTH-1:0]   m1_rid_s   [0:4];
-    wire [DATA_WIDTH-1:0] m1_rdata_s [0:4];
-    wire [1:0]            m1_rresp_s [0:4];
-    wire                  m1_rlast_s [0:4];
-    wire                  m1_rvalid_s[0:4];
+    assign M1_AXI_ARREADY = |{m1_arready_s[4],m1_arready_s[3],m1_arready_s[2],m1_arready_s[1],m1_arready_s[0]};
+    assign M1_AXI_AWREADY = |{m1_awready_s[4],m1_awready_s[3],m1_awready_s[2],m1_awready_s[1],m1_awready_s[0]};
+    assign M1_AXI_WREADY  = |{m1_wready_s[4], m1_wready_s[3], m1_wready_s[2], m1_wready_s[1], m1_wready_s[0]};
 
-    // OR mux gated by rvalid — chỉ forward data/resp khi slave đang active
-    // Tránh noise từ slave idle (rdata/rresp có thể là rác khi rvalid=0)
-    assign M0_AXI_RID    = ({ID_WIDTH{m0_rvalid_s[0]}} & m0_rid_s[0])   |
-                           ({ID_WIDTH{m0_rvalid_s[1]}} & m0_rid_s[1])   |
-                           ({ID_WIDTH{m0_rvalid_s[2]}} & m0_rid_s[2])   |
-                           ({ID_WIDTH{m0_rvalid_s[3]}} & m0_rid_s[3])   |
-                           ({ID_WIDTH{m0_rvalid_s[4]}} & m0_rid_s[4]);
-    assign M0_AXI_RDATA  = ({DATA_WIDTH{m0_rvalid_s[0]}} & m0_rdata_s[0]) |
-                           ({DATA_WIDTH{m0_rvalid_s[1]}} & m0_rdata_s[1]) |
-                           ({DATA_WIDTH{m0_rvalid_s[2]}} & m0_rdata_s[2]) |
-                           ({DATA_WIDTH{m0_rvalid_s[3]}} & m0_rdata_s[3]) |
-                           ({DATA_WIDTH{m0_rvalid_s[4]}} & m0_rdata_s[4]);
-    assign M0_AXI_RRESP  = ({2{m0_rvalid_s[0]}} & m0_rresp_s[0]) |
-                           ({2{m0_rvalid_s[1]}} & m0_rresp_s[1]) |
-                           ({2{m0_rvalid_s[2]}} & m0_rresp_s[2]) |
-                           ({2{m0_rvalid_s[3]}} & m0_rresp_s[3]) |
-                           ({2{m0_rvalid_s[4]}} & m0_rresp_s[4]);
-    // FIX 3: RLAST phải gate bằng RVALID — giống RID/RDATA/RRESP
-    // BUG CŨ: RLAST OR thô → slave idle có m0_rlast_s[x]=1 rác
-    //   OR bus bắt được → M0_AXI_RLAST=1 ngay beat đầu tiên của burst
-    assign M0_AXI_RLAST  = (m0_rvalid_s[0] & m0_rlast_s[0]) |
-                           (m0_rvalid_s[1] & m0_rlast_s[1]) |
-                           (m0_rvalid_s[2] & m0_rlast_s[2]) |
-                           (m0_rvalid_s[3] & m0_rlast_s[3]) |
-                           (m0_rvalid_s[4] & m0_rlast_s[4]);
+    assign M2_AXI_ARREADY = |{m2_arready_s[4],m2_arready_s[3],m2_arready_s[2],m2_arready_s[1],m2_arready_s[0]};
+    assign M2_AXI_AWREADY = |{m2_awready_s[4],m2_awready_s[3],m2_awready_s[2],m2_awready_s[1],m2_awready_s[0]};
+    assign M2_AXI_WREADY  = |{m2_wready_s[4], m2_wready_s[3], m2_wready_s[2], m2_wready_s[1], m2_wready_s[0]};
+
+    // ========================================================================
+    // R channel — gated OR bus (gate bằng rvalid để tránh noise từ slave idle)
+    // ========================================================================
+    wire [ID_WIDTH-1:0]   m0_rid_s   [0:4]; wire [ID_WIDTH-1:0]   m1_rid_s   [0:4]; wire [ID_WIDTH-1:0]   m2_rid_s   [0:4];
+    wire [DATA_WIDTH-1:0] m0_rdata_s [0:4]; wire [DATA_WIDTH-1:0] m1_rdata_s [0:4]; wire [DATA_WIDTH-1:0] m2_rdata_s [0:4];
+    wire [1:0]            m0_rresp_s [0:4]; wire [1:0]            m1_rresp_s [0:4]; wire [1:0]            m2_rresp_s [0:4];
+    wire                  m0_rlast_s [0:4]; wire                  m1_rlast_s [0:4]; wire                  m2_rlast_s [0:4];
+    wire                  m0_rvalid_s[0:4]; wire                  m1_rvalid_s[0:4]; wire                  m2_rvalid_s[0:4];
+
+    // R channel OR bus — viết thẳng (không dùng macro vì token pasting
+    // không work với lowercase wire name + array index trong IVerilog/Vivado)
+
+    // M0 R bus
+    assign M0_AXI_RID    = ({ID_WIDTH{m0_rvalid_s[0]}} & m0_rid_s[0])    | ({ID_WIDTH{m0_rvalid_s[1]}} & m0_rid_s[1])    | ({ID_WIDTH{m0_rvalid_s[2]}} & m0_rid_s[2])    | ({ID_WIDTH{m0_rvalid_s[3]}} & m0_rid_s[3])    | ({ID_WIDTH{m0_rvalid_s[4]}} & m0_rid_s[4]);
+    assign M0_AXI_RDATA  = ({DATA_WIDTH{m0_rvalid_s[0]}} & m0_rdata_s[0]) | ({DATA_WIDTH{m0_rvalid_s[1]}} & m0_rdata_s[1]) | ({DATA_WIDTH{m0_rvalid_s[2]}} & m0_rdata_s[2]) | ({DATA_WIDTH{m0_rvalid_s[3]}} & m0_rdata_s[3]) | ({DATA_WIDTH{m0_rvalid_s[4]}} & m0_rdata_s[4]);
+    assign M0_AXI_RRESP  = ({2{m0_rvalid_s[0]}} & m0_rresp_s[0]) | ({2{m0_rvalid_s[1]}} & m0_rresp_s[1]) | ({2{m0_rvalid_s[2]}} & m0_rresp_s[2]) | ({2{m0_rvalid_s[3]}} & m0_rresp_s[3]) | ({2{m0_rvalid_s[4]}} & m0_rresp_s[4]);
+    assign M0_AXI_RLAST  = (m0_rvalid_s[0] & m0_rlast_s[0]) | (m0_rvalid_s[1] & m0_rlast_s[1]) | (m0_rvalid_s[2] & m0_rlast_s[2]) | (m0_rvalid_s[3] & m0_rlast_s[3]) | (m0_rvalid_s[4] & m0_rlast_s[4]);
     assign M0_AXI_RVALID = m0_rvalid_s[0] | m0_rvalid_s[1] | m0_rvalid_s[2] | m0_rvalid_s[3] | m0_rvalid_s[4];
 
-    assign M1_AXI_RID    = ({ID_WIDTH{m1_rvalid_s[0]}} & m1_rid_s[0])   |
-                           ({ID_WIDTH{m1_rvalid_s[1]}} & m1_rid_s[1])   |
-                           ({ID_WIDTH{m1_rvalid_s[2]}} & m1_rid_s[2])   |
-                           ({ID_WIDTH{m1_rvalid_s[3]}} & m1_rid_s[3])   |
-                           ({ID_WIDTH{m1_rvalid_s[4]}} & m1_rid_s[4]);
-    assign M1_AXI_RDATA  = ({DATA_WIDTH{m1_rvalid_s[0]}} & m1_rdata_s[0]) |
-                           ({DATA_WIDTH{m1_rvalid_s[1]}} & m1_rdata_s[1]) |
-                           ({DATA_WIDTH{m1_rvalid_s[2]}} & m1_rdata_s[2]) |
-                           ({DATA_WIDTH{m1_rvalid_s[3]}} & m1_rdata_s[3]) |
-                           ({DATA_WIDTH{m1_rvalid_s[4]}} & m1_rdata_s[4]);
-    assign M1_AXI_RRESP  = ({2{m1_rvalid_s[0]}} & m1_rresp_s[0]) |
-                           ({2{m1_rvalid_s[1]}} & m1_rresp_s[1]) |
-                           ({2{m1_rvalid_s[2]}} & m1_rresp_s[2]) |
-                           ({2{m1_rvalid_s[3]}} & m1_rresp_s[3]) |
-                           ({2{m1_rvalid_s[4]}} & m1_rresp_s[4]);
-    assign M1_AXI_RLAST  = (m1_rvalid_s[0] & m1_rlast_s[0]) |
-                           (m1_rvalid_s[1] & m1_rlast_s[1]) |
-                           (m1_rvalid_s[2] & m1_rlast_s[2]) |
-                           (m1_rvalid_s[3] & m1_rlast_s[3]) |
-                           (m1_rvalid_s[4] & m1_rlast_s[4]);
+    // M1 R bus
+    assign M1_AXI_RID    = ({ID_WIDTH{m1_rvalid_s[0]}} & m1_rid_s[0])    | ({ID_WIDTH{m1_rvalid_s[1]}} & m1_rid_s[1])    | ({ID_WIDTH{m1_rvalid_s[2]}} & m1_rid_s[2])    | ({ID_WIDTH{m1_rvalid_s[3]}} & m1_rid_s[3])    | ({ID_WIDTH{m1_rvalid_s[4]}} & m1_rid_s[4]);
+    assign M1_AXI_RDATA  = ({DATA_WIDTH{m1_rvalid_s[0]}} & m1_rdata_s[0]) | ({DATA_WIDTH{m1_rvalid_s[1]}} & m1_rdata_s[1]) | ({DATA_WIDTH{m1_rvalid_s[2]}} & m1_rdata_s[2]) | ({DATA_WIDTH{m1_rvalid_s[3]}} & m1_rdata_s[3]) | ({DATA_WIDTH{m1_rvalid_s[4]}} & m1_rdata_s[4]);
+    assign M1_AXI_RRESP  = ({2{m1_rvalid_s[0]}} & m1_rresp_s[0]) | ({2{m1_rvalid_s[1]}} & m1_rresp_s[1]) | ({2{m1_rvalid_s[2]}} & m1_rresp_s[2]) | ({2{m1_rvalid_s[3]}} & m1_rresp_s[3]) | ({2{m1_rvalid_s[4]}} & m1_rresp_s[4]);
+    assign M1_AXI_RLAST  = (m1_rvalid_s[0] & m1_rlast_s[0]) | (m1_rvalid_s[1] & m1_rlast_s[1]) | (m1_rvalid_s[2] & m1_rlast_s[2]) | (m1_rvalid_s[3] & m1_rlast_s[3]) | (m1_rvalid_s[4] & m1_rlast_s[4]);
     assign M1_AXI_RVALID = m1_rvalid_s[0] | m1_rvalid_s[1] | m1_rvalid_s[2] | m1_rvalid_s[3] | m1_rvalid_s[4];
 
-    // B channel
-    wire [ID_WIDTH-1:0] m0_bid_s   [0:4];
-    wire [1:0]          m0_bresp_s [0:4];
-    wire                m0_bvalid_s[0:4];
-    wire [ID_WIDTH-1:0] m1_bid_s   [0:4];
-    wire [1:0]          m1_bresp_s [0:4];
-    wire                m1_bvalid_s[0:4];
+    // M2 R bus
+    assign M2_AXI_RID    = ({ID_WIDTH{m2_rvalid_s[0]}} & m2_rid_s[0])    | ({ID_WIDTH{m2_rvalid_s[1]}} & m2_rid_s[1])    | ({ID_WIDTH{m2_rvalid_s[2]}} & m2_rid_s[2])    | ({ID_WIDTH{m2_rvalid_s[3]}} & m2_rid_s[3])    | ({ID_WIDTH{m2_rvalid_s[4]}} & m2_rid_s[4]);
+    assign M2_AXI_RDATA  = ({DATA_WIDTH{m2_rvalid_s[0]}} & m2_rdata_s[0]) | ({DATA_WIDTH{m2_rvalid_s[1]}} & m2_rdata_s[1]) | ({DATA_WIDTH{m2_rvalid_s[2]}} & m2_rdata_s[2]) | ({DATA_WIDTH{m2_rvalid_s[3]}} & m2_rdata_s[3]) | ({DATA_WIDTH{m2_rvalid_s[4]}} & m2_rdata_s[4]);
+    assign M2_AXI_RRESP  = ({2{m2_rvalid_s[0]}} & m2_rresp_s[0]) | ({2{m2_rvalid_s[1]}} & m2_rresp_s[1]) | ({2{m2_rvalid_s[2]}} & m2_rresp_s[2]) | ({2{m2_rvalid_s[3]}} & m2_rresp_s[3]) | ({2{m2_rvalid_s[4]}} & m2_rresp_s[4]);
+    assign M2_AXI_RLAST  = (m2_rvalid_s[0] & m2_rlast_s[0]) | (m2_rvalid_s[1] & m2_rlast_s[1]) | (m2_rvalid_s[2] & m2_rlast_s[2]) | (m2_rvalid_s[3] & m2_rlast_s[3]) | (m2_rvalid_s[4] & m2_rlast_s[4]);
+    assign M2_AXI_RVALID = m2_rvalid_s[0] | m2_rvalid_s[1] | m2_rvalid_s[2] | m2_rvalid_s[3] | m2_rvalid_s[4];
 
-    assign M0_AXI_BID    = ({ID_WIDTH{m0_bvalid_s[0]}} & m0_bid_s[0])   |
-                           ({ID_WIDTH{m0_bvalid_s[1]}} & m0_bid_s[1])   |
-                           ({ID_WIDTH{m0_bvalid_s[2]}} & m0_bid_s[2])   |
-                           ({ID_WIDTH{m0_bvalid_s[3]}} & m0_bid_s[3])   |
-                           ({ID_WIDTH{m0_bvalid_s[4]}} & m0_bid_s[4]);
-    assign M0_AXI_BRESP  = ({2{m0_bvalid_s[0]}} & m0_bresp_s[0]) |
-                           ({2{m0_bvalid_s[1]}} & m0_bresp_s[1]) |
-                           ({2{m0_bvalid_s[2]}} & m0_bresp_s[2]) |
-                           ({2{m0_bvalid_s[3]}} & m0_bresp_s[3]) |
-                           ({2{m0_bvalid_s[4]}} & m0_bresp_s[4]);
+    // B channel
+    wire [ID_WIDTH-1:0] m0_bid_s [0:4], m1_bid_s [0:4], m2_bid_s [0:4];
+    wire [1:0]          m0_bresp_s[0:4], m1_bresp_s[0:4], m2_bresp_s[0:4];
+    wire                m0_bvalid_s[0:4], m1_bvalid_s[0:4], m2_bvalid_s[0:4];
+
+    // M0 B bus
+    assign M0_AXI_BID    = ({ID_WIDTH{m0_bvalid_s[0]}} & m0_bid_s[0]) | ({ID_WIDTH{m0_bvalid_s[1]}} & m0_bid_s[1]) | ({ID_WIDTH{m0_bvalid_s[2]}} & m0_bid_s[2]) | ({ID_WIDTH{m0_bvalid_s[3]}} & m0_bid_s[3]) | ({ID_WIDTH{m0_bvalid_s[4]}} & m0_bid_s[4]);
+    assign M0_AXI_BRESP  = ({2{m0_bvalid_s[0]}} & m0_bresp_s[0]) | ({2{m0_bvalid_s[1]}} & m0_bresp_s[1]) | ({2{m0_bvalid_s[2]}} & m0_bresp_s[2]) | ({2{m0_bvalid_s[3]}} & m0_bresp_s[3]) | ({2{m0_bvalid_s[4]}} & m0_bresp_s[4]);
     assign M0_AXI_BVALID = m0_bvalid_s[0] | m0_bvalid_s[1] | m0_bvalid_s[2] | m0_bvalid_s[3] | m0_bvalid_s[4];
-    assign M1_AXI_BID    = ({ID_WIDTH{m1_bvalid_s[0]}} & m1_bid_s[0])   |
-                           ({ID_WIDTH{m1_bvalid_s[1]}} & m1_bid_s[1])   |
-                           ({ID_WIDTH{m1_bvalid_s[2]}} & m1_bid_s[2])   |
-                           ({ID_WIDTH{m1_bvalid_s[3]}} & m1_bid_s[3])   |
-                           ({ID_WIDTH{m1_bvalid_s[4]}} & m1_bid_s[4]);
-    assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) |
-                           ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) |
-                           ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) |
-                           ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) |
-                           ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]);
+
+    // M1 B bus
+    assign M1_AXI_BID    = ({ID_WIDTH{m1_bvalid_s[0]}} & m1_bid_s[0]) | ({ID_WIDTH{m1_bvalid_s[1]}} & m1_bid_s[1]) | ({ID_WIDTH{m1_bvalid_s[2]}} & m1_bid_s[2]) | ({ID_WIDTH{m1_bvalid_s[3]}} & m1_bid_s[3]) | ({ID_WIDTH{m1_bvalid_s[4]}} & m1_bid_s[4]);
+    assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]);
     assign M1_AXI_BVALID = m1_bvalid_s[0] | m1_bvalid_s[1] | m1_bvalid_s[2] | m1_bvalid_s[3] | m1_bvalid_s[4];
 
+    // M2 B bus
+    assign M2_AXI_BID    = ({ID_WIDTH{m2_bvalid_s[0]}} & m2_bid_s[0]) | ({ID_WIDTH{m2_bvalid_s[1]}} & m2_bid_s[1]) | ({ID_WIDTH{m2_bvalid_s[2]}} & m2_bid_s[2]) | ({ID_WIDTH{m2_bvalid_s[3]}} & m2_bid_s[3]) | ({ID_WIDTH{m2_bvalid_s[4]}} & m2_bid_s[4]);
+    assign M2_AXI_BRESP  = ({2{m2_bvalid_s[0]}} & m2_bresp_s[0]) | ({2{m2_bvalid_s[1]}} & m2_bresp_s[1]) | ({2{m2_bvalid_s[2]}} & m2_bresp_s[2]) | ({2{m2_bvalid_s[3]}} & m2_bresp_s[3]) | ({2{m2_bvalid_s[4]}} & m2_bresp_s[4]);
+    assign M2_AXI_BVALID = m2_bvalid_s[0] | m2_bvalid_s[1] | m2_bvalid_s[2] | m2_bvalid_s[3] | m2_bvalid_s[4];
+
     // ========================================================================
-    // Slave Mux instances (S0–S3)
+    // Slave Mux instances — S0..S3 (dùng axi4_master_mux_3m)
     // ========================================================================
-    generate
-        genvar i;
-        // Macro để instantiate slave mux không được dùng trong generate/genvar
-        // → instantiate thủ công 4 lần
-    endgenerate
 
     // ── Slave 0 mux ──────────────────────────────────────────────────────────
-    axi4_master_mux #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s0 (
+    axi4_master_mux_3m #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s0 (
         .clk(clk), .rst_n(rst_n),
         // M0
         .m0_arid(M0_AXI_ARID),   .m0_araddr(M0_AXI_ARADDR), .m0_arlen(M0_AXI_ARLEN),
@@ -495,6 +529,19 @@ module axi4_crossbar #(
         .m1_wvalid(M1_AXI_WVALID),.m1_wready(m1_wready_s[0]),
         .m1_bid(m1_bid_s[0]),     .m1_bresp(m1_bresp_s[0]),  .m1_bvalid(m1_bvalid_s[0]),
         .m1_bready(M1_AXI_BREADY),
+        // M2 (DMA — S0=IMEM nên thường DECERR, nhưng vẫn cần kết nối)
+        .m2_arid(M2_AXI_ARID),   .m2_araddr(M2_AXI_ARADDR), .m2_arlen(M2_AXI_ARLEN),
+        .m2_arsize(M2_AXI_ARSIZE),.m2_arburst(M2_AXI_ARBURST),.m2_arprot(M2_AXI_ARPROT),
+        .m2_arvalid(m2_ar_to_s0), .m2_arready(m2_arready_s[0]),
+        .m2_rid(m2_rid_s[0]),     .m2_rdata(m2_rdata_s[0]),  .m2_rresp(m2_rresp_s[0]),
+        .m2_rlast(m2_rlast_s[0]), .m2_rvalid(m2_rvalid_s[0]),.m2_rready(M2_AXI_RREADY),
+        .m2_awid(M2_AXI_AWID),   .m2_awaddr(M2_AXI_AWADDR), .m2_awlen(M2_AXI_AWLEN),
+        .m2_awsize(M2_AXI_AWSIZE),.m2_awburst(M2_AXI_AWBURST),.m2_awprot(M2_AXI_AWPROT),
+        .m2_awvalid(m2_aw_to_s0), .m2_awready(m2_awready_s[0]),
+        .m2_wdata(M2_AXI_WDATA),  .m2_wstrb(M2_AXI_WSTRB),  .m2_wlast(M2_AXI_WLAST),
+        .m2_wvalid(M2_AXI_WVALID),.m2_wready(m2_wready_s[0]),
+        .m2_bid(m2_bid_s[0]),     .m2_bresp(m2_bresp_s[0]),  .m2_bvalid(m2_bvalid_s[0]),
+        .m2_bready(M2_AXI_BREADY),
         // Slave
         .s_arid(S0_AXI_ARID),    .s_araddr(S0_AXI_ARADDR),  .s_arlen(S0_AXI_ARLEN),
         .s_arsize(S0_AXI_ARSIZE),.s_arburst(S0_AXI_ARBURST),.s_arprot(S0_AXI_ARPROT),
@@ -510,8 +557,8 @@ module axi4_crossbar #(
         .s_bready(S0_AXI_BREADY)
     );
 
-    // ── Slave 1 mux ──────────────────────────────────────────────────────────
-    axi4_master_mux #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s1 (
+    // ── Slave 1 mux (DMEM — DMA sẽ thường chạy qua đây) ────────────────────
+    axi4_master_mux_3m #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s1 (
         .clk(clk), .rst_n(rst_n),
         .m0_arid(M0_AXI_ARID),   .m0_araddr(M0_AXI_ARADDR), .m0_arlen(M0_AXI_ARLEN),
         .m0_arsize(M0_AXI_ARSIZE),.m0_arburst(M0_AXI_ARBURST),.m0_arprot(M0_AXI_ARPROT),
@@ -537,6 +584,18 @@ module axi4_crossbar #(
         .m1_wvalid(M1_AXI_WVALID),.m1_wready(m1_wready_s[1]),
         .m1_bid(m1_bid_s[1]),     .m1_bresp(m1_bresp_s[1]),  .m1_bvalid(m1_bvalid_s[1]),
         .m1_bready(M1_AXI_BREADY),
+        .m2_arid(M2_AXI_ARID),   .m2_araddr(M2_AXI_ARADDR), .m2_arlen(M2_AXI_ARLEN),
+        .m2_arsize(M2_AXI_ARSIZE),.m2_arburst(M2_AXI_ARBURST),.m2_arprot(M2_AXI_ARPROT),
+        .m2_arvalid(m2_ar_to_s1), .m2_arready(m2_arready_s[1]),
+        .m2_rid(m2_rid_s[1]),     .m2_rdata(m2_rdata_s[1]),  .m2_rresp(m2_rresp_s[1]),
+        .m2_rlast(m2_rlast_s[1]), .m2_rvalid(m2_rvalid_s[1]),.m2_rready(M2_AXI_RREADY),
+        .m2_awid(M2_AXI_AWID),   .m2_awaddr(M2_AXI_AWADDR), .m2_awlen(M2_AXI_AWLEN),
+        .m2_awsize(M2_AXI_AWSIZE),.m2_awburst(M2_AXI_AWBURST),.m2_awprot(M2_AXI_AWPROT),
+        .m2_awvalid(m2_aw_to_s1), .m2_awready(m2_awready_s[1]),
+        .m2_wdata(M2_AXI_WDATA),  .m2_wstrb(M2_AXI_WSTRB),  .m2_wlast(M2_AXI_WLAST),
+        .m2_wvalid(M2_AXI_WVALID),.m2_wready(m2_wready_s[1]),
+        .m2_bid(m2_bid_s[1]),     .m2_bresp(m2_bresp_s[1]),  .m2_bvalid(m2_bvalid_s[1]),
+        .m2_bready(M2_AXI_BREADY),
         .s_arid(S1_AXI_ARID),    .s_araddr(S1_AXI_ARADDR),  .s_arlen(S1_AXI_ARLEN),
         .s_arsize(S1_AXI_ARSIZE),.s_arburst(S1_AXI_ARBURST),.s_arprot(S1_AXI_ARPROT),
         .s_arvalid(S1_AXI_ARVALID),.s_arready(S1_AXI_ARREADY),
@@ -551,8 +610,8 @@ module axi4_crossbar #(
         .s_bready(S1_AXI_BREADY)
     );
 
-    // ── Slave 2 mux ──────────────────────────────────────────────────────────
-    axi4_master_mux #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s2 (
+    // ── Slave 2 mux (ASCON/DMA config — CPU M0/M1 truy cập, DMA không cần)──
+    axi4_master_mux_3m #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s2 (
         .clk(clk), .rst_n(rst_n),
         .m0_arid(M0_AXI_ARID),   .m0_araddr(M0_AXI_ARADDR), .m0_arlen(M0_AXI_ARLEN),
         .m0_arsize(M0_AXI_ARSIZE),.m0_arburst(M0_AXI_ARBURST),.m0_arprot(M0_AXI_ARPROT),
@@ -578,6 +637,19 @@ module axi4_crossbar #(
         .m1_wvalid(M1_AXI_WVALID),.m1_wready(m1_wready_s[2]),
         .m1_bid(m1_bid_s[2]),     .m1_bresp(m1_bresp_s[2]),  .m1_bvalid(m1_bvalid_s[2]),
         .m1_bready(M1_AXI_BREADY),
+        // M2 → S2: thường DECERR (DMA không cấu hình ASCON trực tiếp)
+        .m2_arid(M2_AXI_ARID),   .m2_araddr(M2_AXI_ARADDR), .m2_arlen(M2_AXI_ARLEN),
+        .m2_arsize(M2_AXI_ARSIZE),.m2_arburst(M2_AXI_ARBURST),.m2_arprot(M2_AXI_ARPROT),
+        .m2_arvalid(m2_ar_to_s2), .m2_arready(m2_arready_s[2]),
+        .m2_rid(m2_rid_s[2]),     .m2_rdata(m2_rdata_s[2]),  .m2_rresp(m2_rresp_s[2]),
+        .m2_rlast(m2_rlast_s[2]), .m2_rvalid(m2_rvalid_s[2]),.m2_rready(M2_AXI_RREADY),
+        .m2_awid(M2_AXI_AWID),   .m2_awaddr(M2_AXI_AWADDR), .m2_awlen(M2_AXI_AWLEN),
+        .m2_awsize(M2_AXI_AWSIZE),.m2_awburst(M2_AXI_AWBURST),.m2_awprot(M2_AXI_AWPROT),
+        .m2_awvalid(m2_aw_to_s2), .m2_awready(m2_awready_s[2]),
+        .m2_wdata(M2_AXI_WDATA),  .m2_wstrb(M2_AXI_WSTRB),  .m2_wlast(M2_AXI_WLAST),
+        .m2_wvalid(M2_AXI_WVALID),.m2_wready(m2_wready_s[2]),
+        .m2_bid(m2_bid_s[2]),     .m2_bresp(m2_bresp_s[2]),  .m2_bvalid(m2_bvalid_s[2]),
+        .m2_bready(M2_AXI_BREADY),
         .s_arid(S2_AXI_ARID),    .s_araddr(S2_AXI_ARADDR),  .s_arlen(S2_AXI_ARLEN),
         .s_arsize(S2_AXI_ARSIZE),.s_arburst(S2_AXI_ARBURST),.s_arprot(S2_AXI_ARPROT),
         .s_arvalid(S2_AXI_ARVALID),.s_arready(S2_AXI_ARREADY),
@@ -592,8 +664,8 @@ module axi4_crossbar #(
         .s_bready(S2_AXI_BREADY)
     );
 
-    // ── Slave 3 mux ──────────────────────────────────────────────────────────
-    axi4_master_mux #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s3 (
+    // ── Slave 3 mux (SoC Ctrl) ───────────────────────────────────────────────
+    axi4_master_mux_3m #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH),.ADDR_WIDTH(ADDR_WIDTH)) mux_s3 (
         .clk(clk), .rst_n(rst_n),
         .m0_arid(M0_AXI_ARID),   .m0_araddr(M0_AXI_ARADDR), .m0_arlen(M0_AXI_ARLEN),
         .m0_arsize(M0_AXI_ARSIZE),.m0_arburst(M0_AXI_ARBURST),.m0_arprot(M0_AXI_ARPROT),
@@ -619,6 +691,18 @@ module axi4_crossbar #(
         .m1_wvalid(M1_AXI_WVALID),.m1_wready(m1_wready_s[3]),
         .m1_bid(m1_bid_s[3]),     .m1_bresp(m1_bresp_s[3]),  .m1_bvalid(m1_bvalid_s[3]),
         .m1_bready(M1_AXI_BREADY),
+        .m2_arid(M2_AXI_ARID),   .m2_araddr(M2_AXI_ARADDR), .m2_arlen(M2_AXI_ARLEN),
+        .m2_arsize(M2_AXI_ARSIZE),.m2_arburst(M2_AXI_ARBURST),.m2_arprot(M2_AXI_ARPROT),
+        .m2_arvalid(m2_ar_to_s3), .m2_arready(m2_arready_s[3]),
+        .m2_rid(m2_rid_s[3]),     .m2_rdata(m2_rdata_s[3]),  .m2_rresp(m2_rresp_s[3]),
+        .m2_rlast(m2_rlast_s[3]), .m2_rvalid(m2_rvalid_s[3]),.m2_rready(M2_AXI_RREADY),
+        .m2_awid(M2_AXI_AWID),   .m2_awaddr(M2_AXI_AWADDR), .m2_awlen(M2_AXI_AWLEN),
+        .m2_awsize(M2_AXI_AWSIZE),.m2_awburst(M2_AXI_AWBURST),.m2_awprot(M2_AXI_AWPROT),
+        .m2_awvalid(m2_aw_to_s3), .m2_awready(m2_awready_s[3]),
+        .m2_wdata(M2_AXI_WDATA),  .m2_wstrb(M2_AXI_WSTRB),  .m2_wlast(M2_AXI_WLAST),
+        .m2_wvalid(M2_AXI_WVALID),.m2_wready(m2_wready_s[3]),
+        .m2_bid(m2_bid_s[3]),     .m2_bresp(m2_bresp_s[3]),  .m2_bvalid(m2_bvalid_s[3]),
+        .m2_bready(M2_AXI_BREADY),
         .s_arid(S3_AXI_ARID),    .s_araddr(S3_AXI_ARADDR),  .s_arlen(S3_AXI_ARLEN),
         .s_arsize(S3_AXI_ARSIZE),.s_arburst(S3_AXI_ARBURST),.s_arprot(S3_AXI_ARPROT),
         .s_arvalid(S3_AXI_ARVALID),.s_arready(S3_AXI_ARREADY),
@@ -635,83 +719,49 @@ module axi4_crossbar #(
 
     // ========================================================================
     // DECERR slave — địa chỉ không ánh xạ (index 4)
-    // Nhận giao dịch từ cả M0 và M1 khi địa chỉ không hợp lệ
+    // Một instance cho mỗi master — M0, M1, M2
     // ========================================================================
-    // M0 → DECERR read
-    wire                  decerr_m0_arready;
-    wire [ID_WIDTH-1:0]   decerr_m0_rid;
-    wire [DATA_WIDTH-1:0] decerr_m0_rdata;
-    wire [1:0]            decerr_m0_rresp;
-    wire                  decerr_m0_rlast;
-    wire                  decerr_m0_rvalid;
-    wire                  decerr_m0_awready;
-    wire                  decerr_m0_wready;
-    wire [ID_WIDTH-1:0]   decerr_m0_bid;
-    wire [1:0]            decerr_m0_bresp;
-    wire                  decerr_m0_bvalid;
 
-    // M1 → DECERR read
-    wire                  decerr_m1_arready;
-    wire [ID_WIDTH-1:0]   decerr_m1_rid;
-    wire [DATA_WIDTH-1:0] decerr_m1_rdata;
-    wire [1:0]            decerr_m1_rresp;
-    wire                  decerr_m1_rlast;
-    wire                  decerr_m1_rvalid;
-    wire                  decerr_m1_awready;
-    wire                  decerr_m1_wready;
-    wire [ID_WIDTH-1:0]   decerr_m1_bid;
-    wire [1:0]            decerr_m1_bresp;
-    wire                  decerr_m1_bvalid;
-
+    // ── M0 DECERR ────────────────────────────────────────────────────────────
     axi4_decerr_slave #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH)) decerr_m0 (
         .clk(clk), .rst_n(rst_n),
         .s_arid(M0_AXI_ARID),     .s_araddr(M0_AXI_ARADDR), .s_arlen(M0_AXI_ARLEN),
-        .s_arvalid(m0_ar_to_err), .s_arready(decerr_m0_arready),
-        .s_rid(decerr_m0_rid),     .s_rdata(decerr_m0_rdata), .s_rresp(decerr_m0_rresp),
-        .s_rlast(decerr_m0_rlast), .s_rvalid(decerr_m0_rvalid),.s_rready(M0_AXI_RREADY),
+        .s_arvalid(m0_ar_to_err), .s_arready(m0_arready_s[4]),
+        .s_rid(m0_rid_s[4]),       .s_rdata(m0_rdata_s[4]),   .s_rresp(m0_rresp_s[4]),
+        .s_rlast(m0_rlast_s[4]),   .s_rvalid(m0_rvalid_s[4]), .s_rready(M0_AXI_RREADY),
         .s_awid(M0_AXI_AWID),     .s_awaddr(M0_AXI_AWADDR), .s_awlen(M0_AXI_AWLEN),
-        .s_awvalid(m0_aw_to_err), .s_awready(decerr_m0_awready),
-        .s_wlast(M0_AXI_WLAST),   .s_wvalid(M0_AXI_WVALID), .s_wready(decerr_m0_wready),
-        .s_bid(decerr_m0_bid),     .s_bresp(decerr_m0_bresp), .s_bvalid(decerr_m0_bvalid),
+        .s_awvalid(m0_aw_to_err), .s_awready(m0_awready_s[4]),
+        .s_wlast(M0_AXI_WLAST),   .s_wvalid(M0_AXI_WVALID), .s_wready(m0_wready_s[4]),
+        .s_bid(m0_bid_s[4]),       .s_bresp(m0_bresp_s[4]),   .s_bvalid(m0_bvalid_s[4]),
         .s_bready(M0_AXI_BREADY)
     );
 
+    // ── M1 DECERR ────────────────────────────────────────────────────────────
     axi4_decerr_slave #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH)) decerr_m1 (
         .clk(clk), .rst_n(rst_n),
         .s_arid(M1_AXI_ARID),     .s_araddr(M1_AXI_ARADDR), .s_arlen(M1_AXI_ARLEN),
-        .s_arvalid(m1_ar_to_err), .s_arready(decerr_m1_arready),
-        .s_rid(decerr_m1_rid),     .s_rdata(decerr_m1_rdata), .s_rresp(decerr_m1_rresp),
-        .s_rlast(decerr_m1_rlast), .s_rvalid(decerr_m1_rvalid),.s_rready(M1_AXI_RREADY),
+        .s_arvalid(m1_ar_to_err), .s_arready(m1_arready_s[4]),
+        .s_rid(m1_rid_s[4]),       .s_rdata(m1_rdata_s[4]),   .s_rresp(m1_rresp_s[4]),
+        .s_rlast(m1_rlast_s[4]),   .s_rvalid(m1_rvalid_s[4]), .s_rready(M1_AXI_RREADY),
         .s_awid(M1_AXI_AWID),     .s_awaddr(M1_AXI_AWADDR), .s_awlen(M1_AXI_AWLEN),
-        .s_awvalid(m1_aw_to_err), .s_awready(decerr_m1_awready),
-        .s_wlast(M1_AXI_WLAST),   .s_wvalid(M1_AXI_WVALID), .s_wready(decerr_m1_wready),
-        .s_bid(decerr_m1_bid),     .s_bresp(decerr_m1_bresp), .s_bvalid(decerr_m1_bvalid),
+        .s_awvalid(m1_aw_to_err), .s_awready(m1_awready_s[4]),
+        .s_wlast(M1_AXI_WLAST),   .s_wvalid(M1_AXI_WVALID), .s_wready(m1_wready_s[4]),
+        .s_bid(m1_bid_s[4]),       .s_bresp(m1_bresp_s[4]),   .s_bvalid(m1_bvalid_s[4]),
         .s_bready(M1_AXI_BREADY)
     );
 
-    // Wire DECERR responses vào OR bus
-    assign m0_arready_s[4] = decerr_m0_arready;
-    assign m0_awready_s[4] = decerr_m0_awready;
-    assign m0_wready_s[4]  = decerr_m0_wready;
-    assign m0_rid_s[4]     = decerr_m0_rid;
-    assign m0_rdata_s[4]   = decerr_m0_rdata;
-    assign m0_rresp_s[4]   = decerr_m0_rresp;
-    assign m0_rlast_s[4]   = decerr_m0_rlast;
-    assign m0_rvalid_s[4]  = decerr_m0_rvalid;
-    assign m0_bid_s[4]     = decerr_m0_bid;
-    assign m0_bresp_s[4]   = decerr_m0_bresp;
-    assign m0_bvalid_s[4]  = decerr_m0_bvalid;
-
-    assign m1_arready_s[4] = decerr_m1_arready;
-    assign m1_awready_s[4] = decerr_m1_awready;
-    assign m1_wready_s[4]  = decerr_m1_wready;
-    assign m1_rid_s[4]     = decerr_m1_rid;
-    assign m1_rdata_s[4]   = decerr_m1_rdata;
-    assign m1_rresp_s[4]   = decerr_m1_rresp;
-    assign m1_rlast_s[4]   = decerr_m1_rlast;
-    assign m1_rvalid_s[4]  = decerr_m1_rvalid;
-    assign m1_bid_s[4]     = decerr_m1_bid;
-    assign m1_bresp_s[4]   = decerr_m1_bresp;
-    assign m1_bvalid_s[4]  = decerr_m1_bvalid;
+    // ── M2 DECERR ────────────────────────────────────────────────────────────
+    axi4_decerr_slave #(.ID_WIDTH(ID_WIDTH),.DATA_WIDTH(DATA_WIDTH)) decerr_m2 (
+        .clk(clk), .rst_n(rst_n),
+        .s_arid(M2_AXI_ARID),     .s_araddr(M2_AXI_ARADDR), .s_arlen(M2_AXI_ARLEN),
+        .s_arvalid(m2_ar_to_err), .s_arready(m2_arready_s[4]),
+        .s_rid(m2_rid_s[4]),       .s_rdata(m2_rdata_s[4]),   .s_rresp(m2_rresp_s[4]),
+        .s_rlast(m2_rlast_s[4]),   .s_rvalid(m2_rvalid_s[4]), .s_rready(M2_AXI_RREADY),
+        .s_awid(M2_AXI_AWID),     .s_awaddr(M2_AXI_AWADDR), .s_awlen(M2_AXI_AWLEN),
+        .s_awvalid(m2_aw_to_err), .s_awready(m2_awready_s[4]),
+        .s_wlast(M2_AXI_WLAST),   .s_wvalid(M2_AXI_WVALID), .s_wready(m2_wready_s[4]),
+        .s_bid(m2_bid_s[4]),       .s_bresp(m2_bresp_s[4]),   .s_bvalid(m2_bvalid_s[4]),
+        .s_bready(M2_AXI_BREADY)
+    );
 
 endmodule
