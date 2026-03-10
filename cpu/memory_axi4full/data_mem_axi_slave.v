@@ -23,6 +23,7 @@
 module data_mem_axi4_slave #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
+    parameter ID_WIDTH   = 4,
     parameter MEM_SIZE   = 8192
 )(
     input wire clk,
@@ -33,6 +34,7 @@ module data_mem_axi4_slave #(
     // ========================================================================
 
     // Write Address Channel
+    input wire [ID_WIDTH-1:0]     S_AXI_AWID,
     input wire [ADDR_WIDTH-1:0]   S_AXI_AWADDR,
     input wire [7:0]              S_AXI_AWLEN,
     input wire [2:0]              S_AXI_AWSIZE,
@@ -49,11 +51,13 @@ module data_mem_axi4_slave #(
     output reg                    S_AXI_WREADY,
 
     // Write Response Channel
+    output reg  [ID_WIDTH-1:0]    S_AXI_BID,
     output reg [1:0]              S_AXI_BRESP,
     output reg                    S_AXI_BVALID,
     input wire                    S_AXI_BREADY,
 
     // Read Address Channel
+    input wire [ID_WIDTH-1:0]     S_AXI_ARID,
     input wire [ADDR_WIDTH-1:0]   S_AXI_ARADDR,
     input wire [7:0]              S_AXI_ARLEN,
     input wire [2:0]              S_AXI_ARSIZE,
@@ -63,6 +67,7 @@ module data_mem_axi4_slave #(
     output reg                    S_AXI_ARREADY,
 
     // Read Data Channel
+    output wire [ID_WIDTH-1:0]    S_AXI_RID,
     output wire [DATA_WIDTH-1:0]  S_AXI_RDATA,
     output wire [1:0]             S_AXI_RRESP,
     output wire                   S_AXI_RLAST,
@@ -71,6 +76,10 @@ module data_mem_axi4_slave #(
 );
 
     localparam [1:0] RESP_OKAY = 2'b00;
+
+    // ID latch registers: lưu AWID/ARID tại thời điểm handshake
+    reg [ID_WIDTH-1:0] wr_id_latch;
+    reg [ID_WIDTH-1:0] rd_id_latch;
 
     // ========================================================================
     // Read State Machine
@@ -139,6 +148,7 @@ module data_mem_axi4_slave #(
     assign burst_wr_valid = ((wr_state == WR_BURST) || (wr_next == WR_BURST)) && S_AXI_WVALID;
 
     // Read outputs
+    assign S_AXI_RID    = rd_id_latch;
     assign S_AXI_RDATA  = burst_rd_data;
     assign S_AXI_RRESP  = RESP_OKAY;
     assign S_AXI_RLAST  = burst_rd_last;
@@ -215,6 +225,7 @@ module data_mem_axi4_slave #(
             rd_burst_size    <= 3'd0;
             rd_burst_type    <= 2'd0;
             burst_rd_req     <= 1'b0;
+            rd_id_latch      <= {ID_WIDTH{1'b0}};
         end else begin
             case (rd_state)
                 RD_IDLE: begin
@@ -225,6 +236,7 @@ module data_mem_axi4_slave #(
                         rd_burst_length <= S_AXI_ARLEN;
                         rd_burst_size   <= S_AXI_ARSIZE;
                         rd_burst_type   <= S_AXI_ARBURST;
+                        rd_id_latch     <= S_AXI_ARID;
                         burst_rd_req    <= 1'b1;
                         S_AXI_ARREADY   <= 1'b0;
                     end
@@ -267,6 +279,7 @@ module data_mem_axi4_slave #(
             wr_burst_length  <= 8'd0;
             wr_burst_size    <= 3'd0;
             wr_burst_type    <= 2'd0;
+            wr_id_latch      <= {ID_WIDTH{1'b0}};
         end else begin
             case (wr_state)
                 WR_IDLE: begin
@@ -276,6 +289,7 @@ module data_mem_axi4_slave #(
                         wr_burst_length <= S_AXI_AWLEN;
                         wr_burst_size   <= S_AXI_AWSIZE;
                         wr_burst_type   <= S_AXI_AWBURST;
+                        wr_id_latch     <= S_AXI_AWID;
                         S_AXI_AWREADY   <= 1'b0;
                     end
                 end
@@ -325,6 +339,7 @@ module data_mem_axi4_slave #(
         if (!rst_n) begin
             S_AXI_BRESP  <= RESP_OKAY;
             S_AXI_BVALID <= 1'b0;
+            S_AXI_BID    <= {ID_WIDTH{1'b0}};
         end else begin
             case (wr_state)
                 WR_BURST: begin
@@ -332,6 +347,7 @@ module data_mem_axi4_slave #(
                     if (S_AXI_WVALID && S_AXI_WREADY && S_AXI_WLAST) begin
                         S_AXI_BRESP  <= RESP_OKAY;
                         S_AXI_BVALID <= 1'b1;
+                        S_AXI_BID    <= wr_id_latch;
                     end
                 end
                 WR_RESP: begin

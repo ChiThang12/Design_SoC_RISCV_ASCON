@@ -101,6 +101,9 @@ module ascon_ip_top #(
     // Write Address Channel
     input  wire [S_ID_WIDTH-1:0]     S_AXI_AWID,
     input  wire [S_ADDR_WIDTH-1:0]   S_AXI_AWADDR,
+    input  wire [7:0]                S_AXI_AWLEN,    // AXI4-Full compat (ignored internally)
+    input  wire [2:0]                S_AXI_AWSIZE,   // AXI4-Full compat (ignored internally)
+    input  wire [1:0]                S_AXI_AWBURST,  // AXI4-Full compat (ignored internally)
     input  wire [2:0]                S_AXI_AWPROT,
     input  wire                      S_AXI_AWVALID,
     output wire                      S_AXI_AWREADY,
@@ -108,6 +111,7 @@ module ascon_ip_top #(
     // Write Data Channel
     input  wire [S_DATA_WIDTH-1:0]   S_AXI_WDATA,
     input  wire [S_DATA_WIDTH/8-1:0] S_AXI_WSTRB,
+    input  wire                      S_AXI_WLAST,    // AXI4-Full compat (ignored internally)
     input  wire                      S_AXI_WVALID,
     output wire                      S_AXI_WREADY,
 
@@ -120,6 +124,9 @@ module ascon_ip_top #(
     // Read Address Channel
     input  wire [S_ID_WIDTH-1:0]     S_AXI_ARID,
     input  wire [S_ADDR_WIDTH-1:0]   S_AXI_ARADDR,
+    input  wire [7:0]                S_AXI_ARLEN,    // AXI4-Full compat (ignored internally)
+    input  wire [2:0]                S_AXI_ARSIZE,   // AXI4-Full compat (ignored internally)
+    input  wire [1:0]                S_AXI_ARBURST,  // AXI4-Full compat (ignored internally)
     input  wire [2:0]                S_AXI_ARPROT,
     input  wire                      S_AXI_ARVALID,
     output wire                      S_AXI_ARREADY,

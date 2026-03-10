@@ -17,7 +17,7 @@
 // `include "interconnect/axi4_addr_decoder.v"
 // `include "interconnect/axi4_master_mux.v"
 // `include "interconnect/axi4_decerr_slave.v"
-`include "cpu/interconnect/axi4_crossbar.v"
+`include "cpu/interconnect/axi4_crossbar_3m4s.v"
 
 module tb_axi4_crossbar;
 
@@ -226,7 +226,7 @@ module tb_axi4_crossbar;
     // ========================================================================
     // DUT
     // ========================================================================
-    axi4_crossbar #(.ID_WIDTH(ID_WIDTH)) dut (
+    axi4_crossbar_3m4s #(.ID_WIDTH(ID_WIDTH)) dut (
         .clk(clk), .rst_n(rst_n),
         .M0_AXI_ARID(m0_arid), .M0_AXI_ARADDR(m0_araddr), .M0_AXI_ARLEN(m0_arlen),
         .M0_AXI_ARSIZE(m0_arsize), .M0_AXI_ARBURST(m0_arburst), .M0_AXI_ARPROT(m0_arprot),
