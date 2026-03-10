@@ -69,12 +69,13 @@ module dma_read_engine #(
     assign M_AXI_ARPROT  = 3'b000;
 
     // FSM
-    localparam [1:0]
-        RD_IDLE = 2'd0,
-        RD_ADDR = 2'd1,
-        RD_DATA = 2'd2;
+    localparam [2:0]
+        RD_IDLE = 3'd0,
+        RD_ADDR = 3'd1,
+        RD_DATA = 3'd2,
+        RD_DONE = 3'd3;   // FIX: wait 1 cycle after fifo_push before rd_done
 
-    reg [1:0] state;
+    reg [2:0] state;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -139,13 +140,26 @@ module dma_read_engine #(
                         end
 
                         // RLAST = end of burst
+                        // FIX: do NOT assert rd_done here — fifo_push is nonblocking,
+                        // FIFO mem[] only latches data AFTER this posedge.
+                        // If FSM gets rd_done now, it will pop FIFO next cycle while
+                        // empty flag is still 1 (wr_ptr not yet incremented) → pop
+                        // ignored → dout stays 0 → ptext = 0.
+                        // Solution: go to RD_DONE and wait 1 cycle for FIFO to settle.
                         if (M_AXI_RLAST) begin
                             M_AXI_RREADY <= 1'b0;
-                            rd_done      <= 1'b1;
-                            rd_busy      <= 1'b0;
-                            state        <= RD_IDLE;
+                            state        <= RD_DONE;
                         end
                     end
+                end
+
+                // ----------------------------------------------------------------
+                // FIX: Wait 1 cycle after fifo_push so FIFO wr_ptr is updated
+                // and empty=0. Now rd_done is safe to assert — FSM can pop.
+                RD_DONE: begin
+                    rd_done <= 1'b1;
+                    rd_busy <= 1'b0;
+                    state   <= RD_IDLE;
                 end
 
                 default: state <= RD_IDLE;
