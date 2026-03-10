@@ -170,6 +170,7 @@ module ascon_dma #(
     wire [31:0] wr_fifo_dout;
     wire        wr_fifo_pop;
     wire        wr_fifo_empty;
+    wire [3:0]  wr_fifo_count;  // DEBUG: track occupancy
 
     // Read engine ↔ ctrl_fsm
     wire        rd_start_w;
@@ -229,8 +230,20 @@ module ascon_dma #(
         .dout  (wr_fifo_dout),
         .pop   (wr_fifo_pop),
         .empty (wr_fifo_empty),
-        .count ()
+        .count (wr_fifo_count)
     );
+
+    // DEBUG: Monitor WR FIFO occupancy when write engine starts
+    `ifdef SIMULATION
+    always @(posedge clk) begin
+        if (wr_fifo_pop)
+            $display("[WR_FIFO @%0t] POP: count_before=%0d dout=%08h empty=%b",
+                     $time, wr_fifo_count, wr_fifo_dout, wr_fifo_empty);
+        if (wr_fifo_push)
+            $display("[WR_FIFO @%0t] PUSH din=%08h count_before=%0d full=%b",
+                     $time, wr_fifo_din, wr_fifo_count, wr_fifo_full);
+    end
+    `endif
 
     // =========================================================================
     // DMA Control FSM

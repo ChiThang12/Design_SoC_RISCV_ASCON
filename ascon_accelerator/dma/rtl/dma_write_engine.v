@@ -86,13 +86,24 @@ module dma_write_engine #(
     assign M_AXI_WSTRB   = {(AXI_DATA_WIDTH/8){1'b1}};
 
     // ── FSM states ────────────────────────────────────────────────────────────
+    // Sync FIFO latency: pop tại posedge N → dout valid tại posedge N+1
+    // Mỗi lần pop cần 1 state idle để dout ổn định trước khi đọc.
+    //
+    // Timeline đúng cho mỗi beat:
+    //   WR_ADDR   : AW handshake, fifo_pop=1 (pop hi)
+    //   WR_WAIT_H : idle — dout = mem[hi] đang latch (KHÔNG đọc, KHÔNG pop)
+    //   WR_LATCH_H: dout = hi valid → latch wdata_hi, fifo_pop=1 (pop lo)
+    //   WR_WAIT_L : idle — dout = mem[lo] đang latch (KHÔNG đọc, KHÔNG pop)
+    //   WR_LATCH_L: dout = lo valid → compose WDATA, drive WVALID → WR_BEAT
     localparam [2:0]
-        WR_IDLE   = 3'd0,   // chờ wr_start
-        WR_ADDR   = 3'd1,   // gửi AW, chờ AWREADY, pop word_hi
-        WR_FIFO_W = 3'd2,   // FIX: đợi 1 cycle cho dout[hi] valid → latch, pop word_lo
-        WR_POP_L  = 3'd3,   // đợi 1 cycle cho dout[lo] valid → compose WDATA, drive WVALID
-        WR_BEAT   = 3'd4,   // giữ WVALID, chờ WREADY
-        WR_RESP   = 3'd5;   // chờ BVALID, pulse wr_done
+        WR_IDLE    = 3'd0,
+        WR_ADDR    = 3'd1,
+        WR_WAIT_H  = 3'd2,   // đợi dout[hi] settle (1 cycle sau pop hi)
+        WR_LATCH_H = 3'd3,   // dout[hi] valid → latch, pop lo
+        WR_WAIT_L  = 3'd4,   // đợi dout[lo] settle (1 cycle sau pop lo)
+        WR_LATCH_L = 3'd5,   // dout[lo] valid → compose WDATA, drive WVALID
+        WR_BEAT    = 3'd6,   // giữ WVALID, chờ WREADY
+        WR_RESP    = 3'd7;   // chờ BVALID, pulse wr_done
 
     reg [2:0]  state;
     reg [2:0]  beat_cnt;    // 0 .. WR_BEATS-1
@@ -144,29 +155,44 @@ module dma_write_engine #(
 
                 // ── Gửi AW channel, chờ AWREADY ──────────────────────────────
                 // Khi handshake: pop word[hi] của beat đầu tiên
-                // dout sẽ valid ở WR_FIFO_W (cycle tiếp)
+                // Chuyển WR_WAIT_H — KHÔNG đọc dout cycle này
                 WR_ADDR: begin
                     if (M_AXI_AWREADY && M_AXI_AWVALID) begin
                         M_AXI_AWVALID <= 1'b0;
                         fifo_pop      <= 1'b1;   // pop word[hi]
-                        state         <= WR_FIFO_W;
+                        state         <= WR_WAIT_H;
                     end
                 end
 
-                // ── FIX: Đợi 1 cycle cho dout[hi] valid (sync FIFO latency) ──
-                // Cycle này: dout = word[hi] đã valid
-                // → latch wdata_hi, pop word[lo]
-                // dout[lo] sẽ valid ở WR_POP_L (cycle tiếp)
-                WR_FIFO_W: begin
-                    wdata_hi <= fifo_dout;   // latch high word
-                    fifo_pop <= 1'b1;        // pop word[lo]
-                    state    <= WR_POP_L;
+                // ── Đợi 1 cycle — dout[hi] đang latch trong FIFO ─────────────
+                // fifo_pop=1 xảy ra tại posedge cycle trước.
+                // FIFO nonblocking: dout sẽ = mem[hi] SAU posedge ĐÓ.
+                // Cycle này dout đã valid — nhưng KHÔNG pop thêm.
+                // Sang WR_LATCH_H để đọc.
+                WR_WAIT_H: begin
+                    state <= WR_LATCH_H;
                 end
 
-                // ── Đợi 1 cycle cho dout[lo] valid ───────────────────────────
-                // Cycle này: dout = word[lo] đã valid
-                // → compose WDATA = {wdata_hi, fifo_dout}, drive WVALID
-                WR_POP_L: begin
+                // ── Latch dout[hi], pop word[lo] ──────────────────────────────
+                // dout = mem[hi] đã ổn định từ cycle trước.
+                // Latch vào wdata_hi, đồng thời pop word[lo].
+                // Chuyển WR_WAIT_L — dout[lo] sẽ valid cycle sau.
+                WR_LATCH_H: begin
+                    wdata_hi <= fifo_dout;   // latch hi word
+                    fifo_pop <= 1'b1;        // pop lo word
+                    state    <= WR_WAIT_L;
+                end
+
+                // ── Đợi 1 cycle — dout[lo] đang latch trong FIFO ─────────────
+                // Tương tự WR_WAIT_H nhưng cho lo word.
+                WR_WAIT_L: begin
+                    state <= WR_LATCH_L;
+                end
+
+                // ── Latch dout[lo], compose WDATA, drive WVALID ───────────────
+                // dout = mem[lo] đã ổn định.
+                // WDATA = {wdata_hi, fifo_dout}, assert WVALID.
+                WR_LATCH_L: begin
                     M_AXI_WDATA  <= {wdata_hi, fifo_dout};
                     M_AXI_WVALID <= 1'b1;
                     M_AXI_WLAST  <= (beat_cnt == LAST_BEAT);
@@ -174,21 +200,18 @@ module dma_write_engine #(
                 end
 
                 // ── Giữ WVALID, chờ WREADY handshake ─────────────────────────
-                // WVALID giữ nguyên nếu WREADY chưa đến (backpressure OK)
                 WR_BEAT: begin
                     if (M_AXI_WVALID && M_AXI_WREADY) begin
                         M_AXI_WVALID <= 1'b0;
                         M_AXI_WLAST  <= 1'b0;
 
                         if (beat_cnt == LAST_BEAT) begin
-                            // Beat cuối → chờ BRESP
                             M_AXI_BREADY <= 1'b1;
                             state        <= WR_RESP;
                         end else begin
-                            // Còn beat tiếp → pop word[hi] tiếp theo
                             beat_cnt <= beat_cnt + 1'b1;
                             fifo_pop <= 1'b1;      // pop word[hi] của beat kế
-                            state    <= WR_FIFO_W;
+                            state    <= WR_WAIT_H; // đợi dout settle
                         end
                     end
                 end
@@ -213,18 +236,20 @@ module dma_write_engine #(
         end
     end
 
-    // ── Simulation debug ─────────────────────────────────────────────────────
     `ifdef SIMULATION
     always @(posedge clk) begin
-        if (state == WR_FIFO_W)
-            $display("[WR_ENG @%0t] WR_FIFO_W beat%0d: latching hi=%08h",
+        if (state == WR_ADDR && M_AXI_AWREADY && M_AXI_AWVALID)
+            $display("[WR_ENG @%0t] WR_ADDR   handshake: fifo_pop=1 (pop hi), fifo_empty=%b",
+                     $time, fifo_empty);
+        if (state == WR_LATCH_H)
+            $display("[WR_ENG @%0t] WR_LATCH_H beat%0d: fifo_dout=%08h -> wdata_hi",
                      $time, beat_cnt, fifo_dout);
-        if (state == WR_POP_L)
-            $display("[WR_ENG @%0t] WR_POP_L  beat%0d: lo=%08h -> WDATA=%016h WLAST=%b",
-                     $time, beat_cnt, fifo_dout,
+        if (state == WR_LATCH_L)
+            $display("[WR_ENG @%0t] WR_LATCH_L beat%0d: fifo_dout=%08h wdata_hi=%08h -> WDATA=%016h WLAST=%b",
+                     $time, beat_cnt, fifo_dout, wdata_hi,
                      {wdata_hi, fifo_dout}, (beat_cnt == LAST_BEAT));
         if (state == WR_BEAT && M_AXI_WVALID && M_AXI_WREADY)
-            $display("[WR_ENG @%0t] WR_BEAT   beat%0d accepted: WDATA=%016h WLAST=%b",
+            $display("[WR_ENG @%0t] WR_BEAT    beat%0d accepted: WDATA=%016h WLAST=%b",
                      $time, beat_cnt, M_AXI_WDATA, M_AXI_WLAST);
         if (state == WR_RESP && M_AXI_BVALID)
             $display("[WR_ENG @%0t] WR_RESP: BRESP=%0d wr_error=%b",

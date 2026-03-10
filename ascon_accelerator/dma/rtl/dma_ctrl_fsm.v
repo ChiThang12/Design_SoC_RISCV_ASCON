@@ -2,32 +2,34 @@
 // Module  : dma_ctrl_fsm
 // Project : ASCON Crypto Accelerator IP
 // Parent  : ascon_dma
-// Version : 1.1  (fixed)
+// Version : 1.2  (fixed FIFO latency off-by-one)
 //
-// FIX-1: FIFO read latency (root cause of ptext=0)
-//   Vấn đề gốc: sync_fifo là synchronous FIFO — khi pop=1 ở cycle N,
-//   dout chỉ valid ở cycle N+1. Nhưng S_CORE_FEED cũ đọc dout NGAY cycle
-//   sau khi pop (vẫn là 0 vì chưa propagate qua flip-flop của FIFO).
+// FIX-1: FIFO read latency — off-by-one cycle (root cause of ptext=0 in TC2)
+//   Vấn đề gốc: sync_fifo là synchronous FIFO — khi pop=1 tại posedge N,
+//   FIFO thực hiện: dout <= mem[rd_idx] bằng nonblocking assignment tại posedge N.
+//   Do đó dout chỉ thực sự valid SAU posedge N, tức là từ posedge N+1 trở đi.
 //
-//   Thứ tự sai (cũ):
-//     Cycle N   : S_RD_WAIT → rd_fifo_pop=1, next=S_CORE_FEED
-//     Cycle N+1 : S_CORE_FEED: đọc rd_fifo_dout → vẫn = 0!
-//                              core_ptext_0/1 <= 0; core_start=1 → CORE bị sai
-//     Cycle N+2 : rd_fifo_dout mới = 0001020304050607 ← quá muộn
+//   Version 1.1 sai: S_FIFO_WAIT đọc rd_fifo_dout NGAY tại posedge N+1 —
+//   đây chính là posedge mà FIFO đang latch dout (nonblocking chưa commit).
+//   Kết quả: đọc được giá trị cũ = 0x0 thay vì plaintext thực sự.
 //
-//   Fix: thêm state S_FIFO_WAIT — đợi 1 cycle sau pop để dout ổn định,
-//   sau đó mới latch vào core_ptext_0/1 và assert core_start cycle tiếp theo.
+//   Thứ tự sai (v1.1):
+//     Cycle N   : S_RD_WAIT  → rd_fifo_pop=1
+//     Cycle N+1 : S_FIFO_WAIT: đọc rd_fifo_dout → vẫn = 0! (FIFO đang latch)
+//     Cycle N+2 : dout mới thực sự valid ← quá muộn
 //
-//   Thứ tự đúng (mới):
-//     Cycle N   : S_RD_WAIT → rd_fifo_pop=1, next=S_FIFO_WAIT
-//     Cycle N+1 : S_FIFO_WAIT: rd_fifo_dout valid → latch ptext_0/1, next=S_CORE_START
-//     Cycle N+2 : S_CORE_START: core_ptext_0/1 ổn định → core_start=1, next=S_CORE_WAIT
-//     Cycle N+3 : CORE latch data_in = {ptext_0, ptext_1, 64'h0} ← ĐÚNG!
+//   Fix (v1.2): tách thành 2 state:
+//     S_FIFO_WAIT  — chỉ đợi, KHÔNG đọc dout
+//     S_FIFO_LATCH — dout đã ổn định, latch vào core_ptext_0/1
 //
-// FIX-2: core_start và core_data_valid không xung đột
-//   core_data_valid chỉ cần thiết nếu CORE có handshake riêng.
-//   Trong ascon_CORE hiện tại, core_data_in được latch khi start=1.
-//   Tách state rõ ràng: S_CORE_FEED (latch) → S_CORE_START (pulse start).
+//   Thứ tự đúng (v1.2):
+//     Cycle N   : S_RD_WAIT   → rd_fifo_pop=1, next=S_FIFO_WAIT
+//     Cycle N+1 : S_FIFO_WAIT : FIFO latch dout tại posedge này → chỉ đợi
+//     Cycle N+2 : S_FIFO_LATCH: dout valid và ổn định → latch ptext_0/1
+//     Cycle N+3 : S_CORE_START: core_ptext ổn định → pulse core_start
+//     Cycle N+4 : CORE latch {ptext_0, ptext_1} ← ĐÚNG!
+//
+// FIX-2: core_start và core_data_valid không xung đột (giữ nguyên từ v1.1)
 // ============================================================================
 
 module dma_ctrl_fsm (
@@ -95,14 +97,15 @@ module dma_ctrl_fsm (
     localparam [3:0]
         S_IDLE        = 4'd0,
         S_RD_WAIT     = 4'd2,
-        S_FIFO_WAIT   = 4'd3,
-        S_CORE_FEED   = 4'd4,
-        S_CORE_START  = 4'd5,
+        S_FIFO_WAIT   = 4'd3,   // đợi 1 cycle sau pop — KHÔNG đọc dout
+        S_FIFO_LATCH  = 4'd4,   // dout ổn định — latch vào core_ptext_0/1
+        S_CORE_START  = 4'd5,   // core_ptext ổn định — pulse core_start
         S_CORE_WAIT   = 4'd6,
         S_WR_LOAD     = 4'd7,
-        S_WR_START    = 4'd8,
-        S_WR_WAIT     = 4'd9,
-        S_DONE        = 4'd10;
+        S_WR_SETTLE   = 4'd8,   // wait 1 cycle for last FIFO push to commit
+        S_WR_START    = 4'd9,   // assert wr_start pulse
+        S_WR_WAIT     = 4'd10,  // wait wr_done
+        S_DONE        = 4'd11;
 
     reg [3:0] state;
 
@@ -176,29 +179,35 @@ module dma_ctrl_fsm (
                     end
                 end
 
-                // ── FIX: Wait 1 cycle for synchronous FIFO output to settle ──
-                // rd_fifo_pop=1 was asserted last cycle.
-                // rd_fifo_dout is now valid and stable this cycle.
+                // ── FIX v1.2: Đợi 1 cycle sau pop — KHÔNG đọc dout ─────────
+                // rd_fifo_pop=1 được assert tại posedge cycle trước (S_RD_WAIT).
+                // Tại posedge cycle này, sync_fifo đang thực hiện:
+                //   dout <= mem[rd_idx]  (nonblocking — chưa commit)
+                // Vì vậy dout chưa ổn định — KHÔNG được đọc ở đây.
+                // Chuyển sang S_FIFO_LATCH để đọc ở cycle tiếp theo.
                 S_FIFO_WAIT: begin
-                    // rd_fifo_dout is valid here — latch into registers
+                    state <= S_FIFO_LATCH;
+                end
+
+                // ── FIX v1.2: dout đã ổn định — latch vào core_ptext ─────────
+                // Tại posedge cycle này, nonblocking của FIFO đã commit:
+                //   dout = mem[rd_idx] valid và ổn định.
+                // An toàn để latch vào core_ptext_0/1.
+                S_FIFO_LATCH: begin
                     core_ptext_0    <= rd_fifo_dout[63:32];
                     core_ptext_1    <= rd_fifo_dout[31:0];
                     core_data_valid <= 1'b1;
                     state           <= S_CORE_START;
                 end
 
-                // ── FIX: core_ptext regs are stable — now pulse core_start ───
-                // ascon_top muxes: core_data_in = {ptext_0, ptext_1, 64'h0}
-                // CORE samples data_in on the same cycle as start=1 → must be stable
+                // ── FIX: core_ptext regs ổn định — pulse core_start ──────────
+                // core_ptext_0/1 đã được latch từ cycle trước → ổn định.
+                // CORE samples data_in = {ptext_0, ptext_1} khi start=1.
                 S_CORE_START: begin
                     core_data_valid <= 1'b0;
                     core_start      <= 1'b1;   // 1-cycle pulse
                     state           <= S_CORE_WAIT;
                 end
-
-                // ── (removed S_CORE_FEED — merged into S_FIFO_WAIT) ──────────
-                // Old S_CORE_FEED tried to read dout and start in same cycle.
-                // Now split into S_FIFO_WAIT (latch) + S_CORE_START (pulse).
 
                 // ── Wait for ASCON core to finish ─────────────────────────────
                 S_CORE_WAIT: begin
@@ -230,11 +239,10 @@ module dma_ctrl_fsm (
                         endcase
 
                         if (wr_load_cnt == 3'd5) begin
-                            // FIX: KHÔNG assert wr_start cùng cycle push cuối.
-                            // sync_fifo: mem[wr_idx] <= din tại posedge này,
-                            // word[5]=tag_3 chỉ vào FIFO SAU posedge → phải
-                            // đợi 1 cycle (S_WR_START) trước khi trigger engine.
-                            state <= S_WR_START;
+                            // word[5]=tag_3 pushed this cycle via nonblocking assign.
+                            // FIFO mem[] latches it AFTER this posedge.
+                            // Must wait 1 extra cycle (S_WR_SETTLE) before wr_start.
+                            state <= S_WR_SETTLE;
                         end else begin
                             wr_load_cnt <= wr_load_cnt + 1'b1;
                         end
@@ -245,8 +253,16 @@ module dma_ctrl_fsm (
                     end
                 end
 
-                // ── Trigger write engine (1 cycle sau push cuối) ─────────────
-                // FIX: FIFO đã chứa đủ 6 words. Assert wr_start rồi sang S_WR_WAIT.
+                // ── Wait 1 cycle for last FIFO push to settle ────────────────
+                // word[5] nonblocking push was issued last cycle.
+                // After THIS posedge, FIFO wr_ptr is updated and all 6 words
+                // are readable. Safe to assert wr_start next cycle.
+                S_WR_SETTLE: begin
+                    state <= S_WR_START;
+                end
+
+                // ── Trigger write engine ──────────────────────────────────────
+                // All 6 words confirmed in FIFO. Assert wr_start pulse.
                 S_WR_START: begin
                     wr_start <= 1'b1;
                     state    <= S_WR_WAIT;
@@ -283,7 +299,10 @@ module dma_ctrl_fsm (
     // Read side
     always @(posedge clk) begin
         if (state == S_FIFO_WAIT)
-            $display("[DMA FSM @%0t] S_FIFO_WAIT: latching ptext_0=%08h ptext_1=%08h (from dout=%016h)",
+            $display("[DMA FSM @%0t] S_FIFO_WAIT: waiting for FIFO dout to settle (dout=%016h)",
+                $time, rd_fifo_dout);
+        if (state == S_FIFO_LATCH)
+            $display("[DMA FSM @%0t] S_FIFO_LATCH: latching ptext_0=%08h ptext_1=%08h (from dout=%016h)",
                 $time, rd_fifo_dout[63:32], rd_fifo_dout[31:0], rd_fifo_dout);
         if (state == S_CORE_START)
             $display("[DMA FSM @%0t] S_CORE_START: asserting core_start, ptext_0=%08h ptext_1=%08h",
