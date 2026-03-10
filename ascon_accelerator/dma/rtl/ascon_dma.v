@@ -185,13 +185,16 @@ module ascon_dma #(
     wire        wr_error_w;
     wire [ADDR_WIDTH-1:0] wr_err_addr_w;
 
+    // FSM internal error (e.g. FIFO overflow)
+    wire        fsm_dma_error_w;
+
     // Aggregate error address: whichever engine errored last
     assign dma_err_addr = rd_error_w ? rd_err_addr_w : wr_err_addr_w;
 
-    // Aggregate status flags
+    // Aggregate status flags — include FSM error (FIFO overflow, etc.)
     assign status_rd_error = rd_error_w;
     assign status_wr_error = wr_error_w;
-    assign dma_error       = rd_error_w | wr_error_w;
+    assign dma_error       = rd_error_w | wr_error_w | fsm_dma_error_w;
 
     // =========================================================================
     // RD FIFO — 64-bit × 4 deep
@@ -241,7 +244,7 @@ module ascon_dma #(
         // Status
         .dma_busy            (dma_busy),
         .dma_done            (dma_done),
-        .dma_error           (),           // driven via rd/wr error aggregation above
+        .dma_error           (fsm_dma_error_w),  // FIX: was floating ()
         // Read engine
         .rd_start            (rd_start_w),
         .rd_busy             (rd_busy_w),

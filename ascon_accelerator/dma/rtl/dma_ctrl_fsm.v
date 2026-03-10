@@ -94,16 +94,15 @@ module dma_ctrl_fsm (
     // -------------------------------------------------------------------------
     localparam [3:0]
         S_IDLE        = 4'd0,
-        S_RD_START    = 4'd1,
         S_RD_WAIT     = 4'd2,
         S_FIFO_WAIT   = 4'd3,
         S_CORE_FEED   = 4'd4,
         S_CORE_START  = 4'd5,
         S_CORE_WAIT   = 4'd6,
         S_WR_LOAD     = 4'd7,
-        S_WR_START    = 4'd8,   // FIX: assert wr_start 1 cycle sau push cuối
-        S_WR_WAIT     = 4'd10,  // FIX: chờ wr_done
-        S_DONE        = 4'd9;
+        S_WR_START    = 4'd8,
+        S_WR_WAIT     = 4'd9,
+        S_DONE        = 4'd10;
 
     reg [3:0] state;
 

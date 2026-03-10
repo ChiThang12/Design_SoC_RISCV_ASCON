@@ -33,7 +33,8 @@
 module dma_write_engine #(
     parameter ADDR_WIDTH     = 32,
     parameter AXI_DATA_WIDTH = 64,
-    parameter AXI_ID_WIDTH   = 4
+    parameter AXI_ID_WIDTH   = 4,
+    parameter WR_BEATS       = 3        // default 3 beats (ctext_0/1 + tag_0/1 + tag_2/3)
 ) (
     input  wire                        clk,
     input  wire                        rst_n,
@@ -77,7 +78,7 @@ module dma_write_engine #(
 );
 
     // ── Fixed AXI parameters ─────────────────────────────────────────────────
-    assign M_AXI_AWLEN   = 8'h02;          // 3 beats
+    assign M_AXI_AWLEN   = WR_BEATS - 1;       // e.g. WR_BEATS=3 → AWLEN=2 (3 beats)
     assign M_AXI_AWSIZE  = 3'b011;         // 8 bytes/beat
     assign M_AXI_AWBURST = 2'b01;          // INCR
     assign M_AXI_AWCACHE = 4'b0010;        // Normal Non-cacheable Bufferable
@@ -94,8 +95,10 @@ module dma_write_engine #(
         WR_RESP   = 3'd5;   // chờ BVALID, pulse wr_done
 
     reg [2:0]  state;
-    reg [1:0]  beat_cnt;    // 0, 1, 2
+    reg [2:0]  beat_cnt;    // 0 .. WR_BEATS-1
     reg [31:0] wdata_hi;    // latched high word
+
+    localparam [2:0] LAST_BEAT = WR_BEATS - 1;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -112,7 +115,7 @@ module dma_write_engine #(
             M_AXI_WLAST   <= 1'b0;
             M_AXI_BREADY  <= 1'b0;
             fifo_pop      <= 1'b0;
-            beat_cnt      <= 2'd0;
+            beat_cnt      <= 3'd0;
             wdata_hi      <= 32'h0;
         end else begin
             // Default: clear 1-cycle pulse signals
@@ -128,7 +131,7 @@ module dma_write_engine #(
                     M_AXI_WVALID  <= 1'b0;
                     M_AXI_BREADY  <= 1'b0;
                     M_AXI_WLAST   <= 1'b0;
-                    beat_cnt      <= 2'd0;
+                    beat_cnt      <= 3'd0;
                     if (wr_start) begin
                         wr_busy       <= 1'b1;
                         wr_error      <= 1'b0;
@@ -166,7 +169,7 @@ module dma_write_engine #(
                 WR_POP_L: begin
                     M_AXI_WDATA  <= {wdata_hi, fifo_dout};
                     M_AXI_WVALID <= 1'b1;
-                    M_AXI_WLAST  <= (beat_cnt == 2'd2);
+                    M_AXI_WLAST  <= (beat_cnt == LAST_BEAT);
                     state        <= WR_BEAT;
                 end
 
@@ -177,7 +180,7 @@ module dma_write_engine #(
                         M_AXI_WVALID <= 1'b0;
                         M_AXI_WLAST  <= 1'b0;
 
-                        if (beat_cnt == 2'd2) begin
+                        if (beat_cnt == LAST_BEAT) begin
                             // Beat cuối → chờ BRESP
                             M_AXI_BREADY <= 1'b1;
                             state        <= WR_RESP;
@@ -219,7 +222,7 @@ module dma_write_engine #(
         if (state == WR_POP_L)
             $display("[WR_ENG @%0t] WR_POP_L  beat%0d: lo=%08h -> WDATA=%016h WLAST=%b",
                      $time, beat_cnt, fifo_dout,
-                     {wdata_hi, fifo_dout}, (beat_cnt == 2'd2));
+                     {wdata_hi, fifo_dout}, (beat_cnt == LAST_BEAT));
         if (state == WR_BEAT && M_AXI_WVALID && M_AXI_WREADY)
             $display("[WR_ENG @%0t] WR_BEAT   beat%0d accepted: WDATA=%016h WLAST=%b",
                      $time, beat_cnt, M_AXI_WDATA, M_AXI_WLAST);

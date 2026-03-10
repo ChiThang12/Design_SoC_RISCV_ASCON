@@ -37,6 +37,14 @@ module sync_fifo #(
 
     localparam PTR_W = $clog2(DEPTH);
 
+    // Assertion: DEPTH must be a power of 2
+    initial begin
+        if ((DEPTH & (DEPTH - 1)) != 0) begin
+            $error("sync_fifo: DEPTH=%0d must be a power of 2", DEPTH);
+            $finish;
+        end
+    end
+
     reg [WIDTH-1:0] mem [0:DEPTH-1];
     reg [PTR_W:0]   wr_ptr;   // one extra bit for full/empty distinction
     reg [PTR_W:0]   rd_ptr;
