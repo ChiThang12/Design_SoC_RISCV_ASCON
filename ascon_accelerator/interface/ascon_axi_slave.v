@@ -57,6 +57,10 @@
 //   - Writing to WO registers: data captured; reads return 32'h0
 //   - START is ignored when BUSY=1
 // ============================================================================
+`include "ascon_accelerator/interface/rtl/axi_write_channel.v"
+`include "ascon_accelerator/interface/rtl/axi_read_channel.v"
+`include "ascon_accelerator/interface/rtl/ascon_reg_bank.v"
+`include "ascon_accelerator/interface/rtl/ascon_irq_ctrl.v"
 
 module ascon_axi_slave #(
     parameter ADDR_WIDTH = 32,
