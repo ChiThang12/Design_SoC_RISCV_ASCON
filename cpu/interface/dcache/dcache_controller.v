@@ -21,14 +21,23 @@
 //   CÙNG CYCLE với tag_update_valid khi pending_write=1
 //   → dirty_set + dirty_index set khi refill_done & pending_write
 //
+// FIX-BUG-LOOKUP (controller): LOOKUP state dùng tag_hit sai cycle
+//   Tag array là synchronous read: kết quả lookup_index/lookup_tag
+//   chỉ có sau 1 clock edge. Khi IDLE miss → state chuyển sang LOOKUP,
+//   nhưng tag array vẫn đang dùng cpu_addr (idle_hit_check=0 → cur_addr).
+//   Vấn đề: tại cycle đầu tiên của LOOKUP, tag_hit vẫn là kết quả
+//   từ cycle IDLE (dùng cpu_addr cũ hoặc cur_addr chưa stable).
+//   FIX: LOOKUP state bỏ qua tag_hit ở cycle đầu tiên (tag_lookup_stable),
+//        chờ 1 cycle để tag array trả kết quả đúng với cur_addr.
+//
 // STATE MACHINE:
 //   IDLE         → IDLE           (hit: 1 cycle)
-//   IDLE         → LOOKUP         (miss)
-//   LOOKUP       → EVICT          (dirty victim)
-//   LOOKUP       → REFILL         (clean victim)
+//   IDLE         → LOOKUP         (miss: latch cur_addr, chờ tag array)
+//   LOOKUP       → EVICT          (dirty victim, tag stable)
+//   LOOKUP       → REFILL         (clean victim, tag stable)
 //   EVICT        → WAIT
 //   WAIT         → REFILL
-//   REFILL       → IDLE           (CWF: critical word = last beat, hoặc write miss done)
+//   REFILL       → IDLE           (CWF hoặc write miss done)
 //   REFILL       → REFILL_DRAIN   (CWF: critical word arrived, burst chưa xong)
 //   REFILL_DRAIN → IDLE           (burst hoàn tất)
 // ============================================================================
@@ -147,6 +156,35 @@ module dcache_controller (
     assign data_read_all_index = cur_index;  // eviction dùng cur_addr
 
     // =========================================================================
+    // FIX-BUG-LOOKUP: Tag lookup stability tracking
+    // Tag array là synchronous: kết quả (tag_hit, tag_dirty_out, tag_evict_tag_out)
+    // chỉ valid SAU 1 clock edge kể từ khi lookup_index/lookup_tag được drive.
+    //
+    // Khi IDLE → LOOKUP transition xảy ra:
+    //   - Cycle IDLE cuối: idle_hit_check = 1 → tag array nhận cpu_addr
+    //   - Cycle LOOKUP đầu: idle_hit_check = 0 → tag array nhận cur_addr
+    //     Nhưng TAG_HIT lúc này vẫn là kết quả từ cpu_addr (IDLE cycle) → SAI
+    //   - Cycle LOOKUP thứ 2: tag_hit mới đúng với cur_addr
+    //
+    // tag_lookup_stable = 1 khi tag array đã có đủ 1 cycle để compute với cur_addr.
+    // LOOKUP state chỉ ra quyết định evict/refill khi tag_lookup_stable = 1.
+    // =========================================================================
+    reg tag_lookup_stable;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            tag_lookup_stable <= 1'b0;
+        else if (state == `DCACHE_STATE_IDLE)
+            // Reset khi về IDLE, sẵn sàng cho miss tiếp theo
+            tag_lookup_stable <= 1'b0;
+        else if (state == `DCACHE_STATE_LOOKUP)
+            // Sau 1 cycle trong LOOKUP, tag array đã stable
+            tag_lookup_stable <= 1'b1;
+        else
+            tag_lookup_stable <= 1'b0;
+    end
+
+    // =========================================================================
     // State Machine
     // =========================================================================
     reg [5:0]  refill_index_r;
@@ -178,15 +216,20 @@ module dcache_controller (
                 end
             end
 
+            // FIX-BUG-LOOKUP: Chỉ ra quyết định khi tag_lookup_stable = 1
+            // (tag array đã có 1 full cycle với cur_addr làm input)
             `DCACHE_STATE_LOOKUP: begin
-                if (tag_hit) begin
-                    next_state = `DCACHE_STATE_IDLE;
-                end else begin
-                    if (tag_dirty_out)
-                        next_state = `DCACHE_STATE_EVICT;
-                    else
-                        next_state = `DCACHE_STATE_REFILL;
+                if (tag_lookup_stable) begin
+                    if (tag_hit)
+                        next_state = `DCACHE_STATE_IDLE;
+                    else begin
+                        if (tag_dirty_out)
+                            next_state = `DCACHE_STATE_EVICT;
+                        else
+                            next_state = `DCACHE_STATE_REFILL;
+                    end
                 end
+                // Nếu !tag_lookup_stable: giữ nguyên LOOKUP, chờ thêm 1 cycle
             end
 
             `DCACHE_STATE_EVICT: begin
@@ -197,13 +240,13 @@ module dcache_controller (
                 next_state = `DCACHE_STATE_REFILL;
             end
 
-            // FIX-BUG2: refill_done bây giờ assert cùng cycle với beat cuối
+            // FIX-BUG2: refill_done assert cùng cycle với beat cuối
             // → check (refill_data_valid & refill_done & word==requested) cùng lúc possible
             `DCACHE_STATE_REFILL: begin
                 if (!cur_we && refill_data_valid && (refill_word == requested_offset)) begin
                     // CWF: critical word arrived
                     if (refill_done)
-                        next_state = `DCACHE_STATE_IDLE;        // last beat = critical word
+                        next_state = `DCACHE_STATE_IDLE;         // last beat = critical word
                     else
                         next_state = `DCACHE_STATE_REFILL_DRAIN; // drain nốt
                 end else if (cur_we && refill_done) begin
@@ -241,9 +284,9 @@ module dcache_controller (
                 end
             end
 
-            // LOOKUP: chỉ đến đây khi MISS từ IDLE
+            // FIX-BUG-LOOKUP: Chỉ serve hit khi tag_lookup_stable = 1
             `DCACHE_STATE_LOOKUP: begin
-                if (tag_hit) begin
+                if (tag_lookup_stable && tag_hit) begin
                     cpu_ready_int = 1'b1;
                     cpu_rdata_int = cur_we ? 32'h0 : data_read_data;
                 end
@@ -362,46 +405,56 @@ module dcache_controller (
 
                 // =============================================================
                 // LOOKUP: chỉ vào khi MISS từ IDLE (cur_addr đã latch)
+                // FIX-BUG-LOOKUP: Chỉ act khi tag_lookup_stable = 1
+                //   Cycle 1 trong LOOKUP: tag array đang compute với cur_addr
+                //                         → chờ, không làm gì
+                //   Cycle 2 trong LOOKUP: tag_lookup_stable = 1, tag_hit valid
+                //                         → ra quyết định evict hoặc refill
                 // =============================================================
                 `DCACHE_STATE_LOOKUP: begin
-                    if (tag_hit) begin
-                        // Forwarding hit — handle safe
-                        if (cur_we) begin
-                            stat_writes <= stat_writes + 1;
-                            stat_hits   <= stat_hits + 1;
-                            data_write_enable <= 1'b1;
-                            data_write_index  <= cur_index;
-                            data_write_offset <= cur_offset;
-                            data_write_data   <= cur_wdata;
-                            data_write_strb   <= cur_wstrb;
-                            tag_dirty_set     <= 1'b1;
-                            tag_dirty_index   <= cur_index;
+                    if (tag_lookup_stable) begin
+                        if (tag_hit) begin
+                            // Forwarding hit — handle safe
+                            if (cur_we) begin
+                                stat_writes <= stat_writes + 1;
+                                stat_hits   <= stat_hits + 1;
+                                data_write_enable <= 1'b1;
+                                data_write_index  <= cur_index;
+                                data_write_offset <= cur_offset;
+                                data_write_data   <= cur_wdata;
+                                data_write_strb   <= cur_wstrb;
+                                tag_dirty_set     <= 1'b1;
+                                tag_dirty_index   <= cur_index;
+                            end else begin
+                                stat_hits <= stat_hits + 1;
+                            end
                         end else begin
-                            stat_hits <= stat_hits + 1;
-                        end
-                    end else begin
-                        // MISS — kick eviction hoặc refill
-                        stat_misses <= stat_misses + 1;
-                        if (cur_we) stat_writes <= stat_writes + 1;
+                            // MISS — kick eviction hoặc refill
+                            stat_misses <= stat_misses + 1;
+                            if (cur_we) stat_writes <= stat_writes + 1;
 
-                        refill_index_r   <= cur_index;
-                        refill_tag_r     <= cur_tag;
-                        requested_offset <= cur_offset;
-                        pending_write    <= cur_we;
+                            refill_index_r   <= cur_index;
+                            refill_tag_r     <= cur_tag;
+                            requested_offset <= cur_offset;
+                            pending_write    <= cur_we;
 
-                        if (tag_dirty_out) begin
-                            evict_addr    <= {tag_evict_tag_out, cur_index, 4'b0000};
-                            evict_data_0  <= data_read_word_0;
-                            evict_data_1  <= data_read_word_1;
-                            evict_data_2  <= data_read_word_2;
-                            evict_data_3  <= data_read_word_3;
-                            evict_index_r <= cur_index;
-                            evict_start   <= 1'b1;
-                        end else begin
-                            refill_addr  <= {cur_addr[31:4], 4'b0000};
-                            refill_start <= 1'b1;
+                            if (tag_dirty_out) begin
+                                evict_addr    <= {tag_evict_tag_out, cur_index, 4'b0000};
+                                evict_data_0  <= data_read_word_0;
+                                evict_data_1  <= data_read_word_1;
+                                evict_data_2  <= data_read_word_2;
+                                evict_data_3  <= data_read_word_3;
+                                evict_index_r <= cur_index;
+                                evict_start   <= 1'b1;
+                            end else begin
+                                refill_addr  <= {cur_addr[31:4], 4'b0000};
+                                refill_start <= 1'b1;
+                                // NOTE: refill_addr được set ở đây (nonblocking).
+                                // axi_interface có RD_LATCH để đọc đúng cycle sau.
+                            end
                         end
                     end
+                    // Nếu !tag_lookup_stable: không làm gì, chờ cycle tiếp
                 end
 
                 // =============================================================
@@ -420,6 +473,7 @@ module dcache_controller (
                 `DCACHE_STATE_WAIT: begin
                     refill_addr  <= {cur_addr[31:4], 4'b0000};
                     refill_start <= 1'b1;
+                    // axi_interface RD_LATCH sẽ đọc refill_addr cycle tiếp
                 end
 
                 // =============================================================
@@ -428,8 +482,6 @@ module dcache_controller (
                 //           (khi critical word = beat cuối) — handle đúng
                 // FIX-BUG3: Write-allocate — tag_dirty_set phải được assert
                 //           CÙNG CYCLE với tag_update_valid khi pending_write=1
-                //           → tag_array sequential block sẽ set cả valid VÀ dirty
-                //           trong cùng posedge → không có window dirty=0
                 // =============================================================
                 `DCACHE_STATE_REFILL: begin
                     if (refill_data_valid) begin
@@ -461,8 +513,6 @@ module dcache_controller (
                             data_write_data   <= cur_wdata;
                             data_write_strb   <= cur_wstrb;
                             // FIX-BUG3: dirty_set CÙNG CYCLE với tag_update_valid
-                            // → tag_array xử lý trong cùng always block posedge
-                            // → không có cycle nào line valid=1 nhưng dirty=0
                             tag_dirty_set     <= 1'b1;
                             tag_dirty_index   <= refill_index_r;
                             pending_write     <= 1'b0;

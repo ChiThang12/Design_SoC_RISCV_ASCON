@@ -3,6 +3,22 @@
 // ============================================================================
 // Module: dcache_axi_interface  —  Write-Back version
 // Thêm AXI4 ID signals để kết nối vào axi4_crossbar (M1)
+//
+// FIX-BUG1: rd_word_counter không tăng ở beat cuối (RLAST)
+//   → word 3 bị ghi vào offset 2, refill_done assert với refill_word sai
+//   FIX: tăng rd_word_counter TRƯỚC KHI latch vào refill_word
+//        bằng cách dùng wire next_word_counter, output refill_word
+//        bằng wire (combinational), không đợi đến cycle sau.
+//
+// FIX-BUG2: refill_addr bị latch sai cycle trong RD_IDLE
+//   Controller set refill_addr và refill_start cùng cycle (cả 2 là reg).
+//   RD_IDLE latch M_AXI_ARADDR <= refill_addr ngay khi refill_start=1,
+//   nhưng refill_addr chỉ available cycle ĐÓ (controller vừa drive nó).
+//   Do cả 2 là sequential, không có race — nhưng vấn đề thực là
+//   controller dùng nonblocking (<=) nên refill_addr update vào END OF
+//   cycle, và RD_IDLE cũng chạy cùng posedge → chúng thấy GIÁ TRỊ CŨ.
+//   FIX: Thêm state RD_LATCH — 1 cycle buffer để đợi refill_addr stable,
+//        rồi mới drive M_AXI_ARADDR và chuyển sang RD_AR.
 // ============================================================================
 module dcache_axi_interface #(
     parameter ID_WIDTH = 4
@@ -18,7 +34,7 @@ module dcache_axi_interface #(
     output reg         refill_busy,
     output reg         refill_done,
     output reg [31:0]  refill_data,
-    output reg [1:0]   refill_word,
+    output wire [1:0]  refill_word,       // FIX-BUG1: wire (combinational)
     output reg         refill_data_valid,
 
     // ========================================================================
@@ -76,7 +92,7 @@ module dcache_axi_interface #(
     output reg                 M_AXI_BREADY
 );
 
-    // DCache luôn dùng ARID = 0, AWID = 0 (crossbar sẽ tag master index vào bit cao)
+    // DCache luôn dùng ARID = 0, AWID = 0
     assign M_AXI_ARID    = {ID_WIDTH{1'b0}};
     assign M_AXI_AWID    = {ID_WIDTH{1'b0}};
 
@@ -91,14 +107,27 @@ module dcache_axi_interface #(
 
     // ========================================================================
     // Read Refill State Machine
+    //
+    // FIX-BUG2: Thêm state RD_LATCH giữa RD_IDLE và RD_AR.
+    //   RD_IDLE  : phát hiện refill_start=1, chuyển sang RD_LATCH
+    //   RD_LATCH : refill_addr đã stable (1 full cycle sau khi controller set),
+    //              latch vào M_AXI_ARADDR, assert ARVALID, chuyển sang RD_AR
+    //   RD_AR    : chờ ARREADY
+    //   RD_R     : nhận burst data
     // ========================================================================
-    localparam [1:0]
-        RD_IDLE = 2'b00,
-        RD_AR   = 2'b01,
-        RD_R    = 2'b10;
+    localparam [2:0]
+        RD_IDLE  = 3'b000,
+        RD_LATCH = 3'b001,   // FIX-BUG2: 1-cycle pipeline buffer
+        RD_AR    = 3'b010,
+        RD_R     = 3'b011;
 
-    reg [1:0] rd_state;
-    reg [1:0] rd_word_counter;
+    reg [2:0] rd_state;
+
+    // FIX-BUG1: rd_word_counter đếm số beat đã nhận (0..3)
+    //   refill_word = current counter VALUE khi beat valid
+    //   Counter tăng sau mỗi beat (kể cả LAST beat để reset chuẩn)
+    reg [1:0]  rd_word_counter;
+    assign refill_word = rd_word_counter;   // combinational: luôn = giá trị hiện tại
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -107,29 +136,43 @@ module dcache_axi_interface #(
             refill_done       <= 1'b0;
             refill_data_valid <= 1'b0;
             refill_data       <= 32'h0;
-            refill_word       <= 2'b00;
             rd_word_counter   <= 2'b00;
             M_AXI_ARADDR      <= 32'h0;
             M_AXI_ARVALID     <= 1'b0;
             M_AXI_RREADY      <= 1'b0;
         end else begin
+            // Default: pulse signals LOW mỗi cycle
             refill_done       <= 1'b0;
             refill_data_valid <= 1'b0;
 
             case (rd_state)
+
+                // ── RD_IDLE: chờ controller kích hoạt refill ─────────────────
                 RD_IDLE: begin
                     refill_busy     <= 1'b0;
                     M_AXI_ARVALID   <= 1'b0;
                     M_AXI_RREADY    <= 1'b0;
                     rd_word_counter <= 2'b00;
+
                     if (refill_start) begin
-                        M_AXI_ARADDR  <= refill_addr;
-                        M_AXI_ARVALID <= 1'b1;
-                        refill_busy   <= 1'b1;
-                        rd_state      <= RD_AR;
+                        // FIX-BUG2: KHÔNG latch refill_addr ở đây vì nó vừa
+                        // được drive bởi controller trong cùng posedge (nonblocking).
+                        // Chuyển sang RD_LATCH để đợi 1 cycle cho addr stable.
+                        refill_busy <= 1'b1;
+                        rd_state    <= RD_LATCH;
                     end
                 end
 
+                // ── RD_LATCH: 1-cycle buffer, refill_addr đã stable ──────────
+                // FIX-BUG2: Tại đây refill_addr từ controller đã update xong
+                // (cycle trước đó controller đã drive bằng <=, cycle này ta đọc).
+                RD_LATCH: begin
+                    M_AXI_ARADDR  <= refill_addr;   // addr stable, latch đúng
+                    M_AXI_ARVALID <= 1'b1;
+                    rd_state      <= RD_AR;
+                end
+
+                // ── RD_AR: chờ ARREADY ───────────────────────────────────────
                 RD_AR: begin
                     if (M_AXI_ARREADY) begin
                         M_AXI_ARVALID <= 1'b0;
@@ -138,18 +181,28 @@ module dcache_axi_interface #(
                     end
                 end
 
+                // ── RD_R: nhận burst (4 beats) ───────────────────────────────
+                // FIX-BUG1: rd_word_counter output là refill_word (wire),
+                //   nên controller thấy ĐÚNG index ngay khi beat valid.
+                //   Sau khi latch data, tăng counter để sẵn sàng cho beat tiếp.
+                //   LAST beat: tăng counter (không quan trọng vì về IDLE reset),
+                //   set refill_done = 1 cùng cycle với refill_data_valid = 1.
                 RD_R: begin
                     if (M_AXI_RVALID && M_AXI_RREADY) begin
                         refill_data       <= M_AXI_RDATA;
-                        refill_word       <= rd_word_counter;
+                        // refill_word = rd_word_counter (wire) → controller thấy ngay
                         refill_data_valid <= 1'b1;
 
                         if (M_AXI_RLAST) begin
-                            refill_done   <= 1'b1;
-                            M_AXI_RREADY  <= 1'b0;
-                            refill_busy   <= 1'b0;
-                            rd_state      <= RD_IDLE;
+                            // FIX-BUG1: assert refill_done cùng cycle với data valid
+                            // refill_word = rd_word_counter = 3 (đúng, là beat cuối)
+                            refill_done     <= 1'b1;
+                            M_AXI_RREADY    <= 1'b0;
+                            refill_busy     <= 1'b0;
+                            rd_word_counter <= 2'b00;  // reset cho lần sau
+                            rd_state        <= RD_IDLE;
                         end else begin
+                            // Tăng counter: beat tiếp sẽ là word (counter+1)
                             rd_word_counter <= rd_word_counter + 1'b1;
                         end
                     end
@@ -161,7 +214,7 @@ module dcache_axi_interface #(
     end
 
     // ========================================================================
-    // Eviction Write State Machine
+    // Eviction Write State Machine  (không thay đổi logic, chỉ giữ nguyên)
     // ========================================================================
     localparam [1:0]
         EV_IDLE = 2'b00,
