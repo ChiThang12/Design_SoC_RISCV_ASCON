@@ -132,11 +132,13 @@ module dma_read_engine #(
                             rd_err_addr <= M_AXI_ARADDR;
                         end
 
-                        // Push data into FIFO regardless of error
-                        // (error flag will prevent core from starting)
+                        // Push data into FIFO; flag error if full (data would be lost)
                         if (!fifo_full) begin
                             fifo_din  <= M_AXI_RDATA;
                             fifo_push <= 1'b1;
+                        end else begin
+                            rd_error    <= 1'b1;   // FIFO full — data dropped
+                            rd_err_addr <= M_AXI_ARADDR;
                         end
 
                         // RLAST = end of burst
