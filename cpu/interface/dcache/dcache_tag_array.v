@@ -2,20 +2,23 @@
 // Module: dcache_tag_array  —  Write-Back version
 // ============================================================================
 // FIX-BUG3: Dirty forwarding thiếu khi update_fwd active cùng lúc với
-//           dirty_set_fwd. Trường hợp này xảy ra sau write-allocate:
-//           cycle N:   refill_done → tag_update_valid=1 + tag_dirty_set=1
-//           cycle N+1: CPU request mới đến cùng index → update_fwd=1
-//                      nhưng dirty_set_fwd có thể không active (one-shot pulse)
-//                      → dirty_out đọc từ dirty_array (chưa update) → 0 sai
+//           dirty_set_fwd. Trường hợp này xảy ra sau write-allocate.
+//   Fix: update dirty_array ĐỒNG THỜI với valid_array trong cùng always
+//        block, và forward cả dirty khi update_fwd active.
 //
-//   Fix: Thêm dirty_set_pending register — latch dirty_set khi update_valid
-//        active đồng thời, để dirty_out forward đúng trên cycle kế tiếp.
-//        Thực chất: dirty_array[index] update cùng cycle với valid_array,
-//        nên chỉ cần đảm bảo forwarding cover đúng cycle N+1.
+// FIX-BUG-FALSE-HIT: stored hit không được masked khi update_fwd=1.
+//   Scenario: index=N có tag=A (old). update_fwd=1, update_tag=B (new).
+//   Request với lookup_tag=A:
+//     stored_match = (tag[N]=A == lookup_tag=A) = TRUE → false hit!
+//   Nhưng data_array[N] đã chứa data của B (refill xong).
+//   → CPU nhận data của B với tag của A → SAI.
 //
-// FIX cách đơn giản hơn: update dirty_array ĐỒNG THỜI với valid_array
-// trong cùng always block (thay vì check dirty_set riêng biệt), và
-// forward cả dirty khi update_fwd active.
+//   Root cause: khi update_fwd=1, tag cũ đang bị thay thế bởi tag mới.
+//   Tag cũ không còn valid → phải bỏ qua stored hit, chỉ dùng forward.
+//
+//   FIX: Dùng MUX thay vì OR:
+//     hit = update_fwd ? (update_tag == lookup_tag)
+//                      : (stored_valid && stored_match);
 // ============================================================================
 
 `include "cpu/interface/dcache/dcache_defines.vh"
@@ -55,7 +58,6 @@ module dcache_tag_array (
     // ========================================================================
     // Lookup Logic — Write-First Forwarding
     // ========================================================================
-    // Forward: nếu update/dirty đang nhắm đúng lookup_index trong cycle này
     wire stored_valid = valid_array[lookup_index];
     wire stored_match = (tag_array[lookup_index] == lookup_tag);
 
@@ -63,23 +65,20 @@ module dcache_tag_array (
     wire dirty_set_fwd   = dirty_set    && (dirty_index  == lookup_index);
     wire dirty_clear_fwd = dirty_clear  && (dirty_index  == lookup_index);
 
-    // Hit: stored hit OR đang allocate line này với đúng tag
-    assign hit = (stored_valid && stored_match) ||
-                 (update_fwd  && (update_tag == lookup_tag));
+    // FIX-BUG-FALSE-HIT: Khi update_fwd=1, line đang được cấp phát lại
+    // với tag mới. Tag cũ không còn valid → dùng MUX, không dùng OR.
+    // update_fwd=1: chỉ hit nếu tag MỚI (update_tag) khớp lookup_tag.
+    // update_fwd=0: hit theo stored value bình thường.
+    assign hit = update_fwd ? (update_tag == lookup_tag)
+                            : (stored_valid && stored_match);
 
     // FIX-BUG3: Dirty forwarding phải cover cả trường hợp update_fwd active
-    // Khi update_fwd=1 và dirty_set_fwd=1 cùng lúc → new line = dirty (write-allocate)
-    // Khi update_fwd=1 và không có dirty_set → new line = clean (refill)
-    // Priority: dirty_set > dirty_clear > stored value
-    // Khi update_fwd active mà dirty_set không set → line mới là clean (refill)
     assign dirty_out = dirty_set_fwd   ? 1'b1 :
                        dirty_clear_fwd ? 1'b0 :
-                       (update_fwd && !dirty_set_fwd) ? 1'b0 :  // FIX: refill = clean
+                       (update_fwd && !dirty_set_fwd) ? 1'b0 :
                        dirty_array[lookup_index];
 
-    // Evict tag: nếu update đang set line này → forward tag mới (đây là tag sẽ được store)
-    // Thực ra khi evict, ta cần tag CŨ (trước khi allocate) để tính evict_addr
-    // update_fwd active chỉ SAU KHI evict đã xong → không conflict
+    // Evict tag: khi update_fwd active → forward tag mới
     assign evict_tag_out = update_fwd ? update_tag : tag_array[lookup_index];
 
     // ========================================================================
@@ -96,8 +95,6 @@ module dcache_tag_array (
             end
         end else begin
             if (flush_all) begin
-                // Flush: invalidate all, clear dirty
-                // NOTE: Flush không evict dirty lines — caller phải FENCE + drain SB trước
                 for (i = 0; i < 64; i = i + 1) begin
                     valid_array[i] <= 1'b0;
                     dirty_array[i] <= 1'b0;
@@ -107,24 +104,19 @@ module dcache_tag_array (
                 if (update_valid) begin
                     valid_array[update_index] <= 1'b1;
                     tag_array[update_index]   <= update_tag;
-                    // FIX-BUG3: dirty_array phải được clear khi allocate (refill = clean data)
-                    // dirty_set sẽ được assert riêng nếu cần (write-allocate path)
                     dirty_array[update_index] <= 1'b0;
                 end
 
-                // Set dirty khi write hit (hoặc write-allocate sau refill)
-                // Priority: dirty_set có thể active cùng cycle với update_valid
-                // (write-allocate: refill_done → update_valid=1 + dirty_set=1 đồng thời)
-                // Vì cả 2 trong cùng always block, dirty_set override dirty clear từ update
+                // Set dirty khi write hit hoặc write-allocate
+                // Priority: dirty_set override clear từ update (same always block)
                 if (dirty_set) begin
                     dirty_array[dirty_index] <= 1'b1;
                 end
 
                 // Clear dirty khi eviction hoàn thành
-                // dirty_clear và dirty_set không thể active cùng lúc (different states)
                 if (dirty_clear) begin
                     dirty_array[dirty_index] <= 1'b0;
-                    valid_array[dirty_index] <= 1'b0;  // invalidate sau evict
+                    valid_array[dirty_index] <= 1'b0;
                 end
             end
         end

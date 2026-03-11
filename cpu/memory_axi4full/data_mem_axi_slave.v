@@ -1,21 +1,27 @@
 // ============================================================================
 // data_mem_axi4_slave.v - Data Memory AXI4 Full Slave
 // ============================================================================
-// FIX-BUG5: W beat đầu bị drop khi master gửi WVALID cùng cycle AW handshake.
+// FIXES:
 //
-// Vấn đề gốc:
-//   burst_wr_valid = (wr_state == WR_BURST) && S_AXI_WVALID
-//   Khi AW handshake xảy ra, wr_state vẫn = WR_IDLE tại cycle đó
-//   → burst_wr_valid = 0 dù WVALID=1 → memory không nhận beat W đầu
-//   → data corruption cho eviction burst write
+// [FIX-BUG5] (giữ nguyên từ bản gốc)
+//   burst_wr_valid dùng wr_next (combinational) để W beat đầu không bị drop
+//   khi WVALID arrive cùng cycle AW handshake.
 //
-// Fix: Dùng wr_next (combinational) thay vì wr_state (registered) để detect
-//      WR_BURST sớm hơn 1 cycle. Khi wr_next == WR_BURST, ta biết cycle này
-//      là AW handshake cycle và W beat đầu có thể đến.
-//      burst_wr_valid = (wr_state == WR_BURST || wr_next == WR_BURST) && S_AXI_WVALID
+// [FIX-CRIT-1] burst_wr_addr phải là S_AXI_AWADDR trực tiếp tại cycle AW
+//   handshake, KHÔNG qua write_addr registered (lệch 1 cycle).
+//   Fix: dùng mux wr_awaddr_mux = AW handshake ? S_AXI_AWADDR : write_addr
+//   Truyền wr_awaddr_mux vào burst_wr_addr của data_mem_burst.
+//   → data_mem_burst.wr_first_beat dùng giá trị này ngay cycle đầu → đúng địa chỉ.
 //
-// Ngoài ra fix write response: S_AXI_BVALID chỉ được assert khi đã nhận WLAST,
-//   không phải khi đang ở WR_BURST (thiếu check S_AXI_WLAST && S_AXI_WVALID && S_AXI_WREADY)
+// [FIX-RD-REQ] burst_rd_req bị HIGH 2 cycle:
+//   Code gốc assert burst_rd_req = 1'b1 trong nhánh AR handshake của RD_IDLE,
+//   nhưng RD_IDLE block vẫn chạy cycle kế (rd_state chưa chuyển sang RD_BURST
+//   do non-blocking). Fix: chuyển rd_state trong always comb (rd_next), dùng
+//   rd_next == RD_BURST để clear burst_rd_req ngay cycle kế.
+//   Thực tế fix đơn giản hơn: deassert burst_rd_req ngay đầu RD_BURST state.
+//   (Đã có dòng burst_rd_req <= 1'b0 trong RD_BURST — giữ nguyên, đủ rồi nếu
+//    data_mem_burst ignore req khi đang ACTIVE. Tuy nhiên để chắc chắn, dùng
+//    pulse logic: burst_rd_req chỉ HIGH đúng 1 cycle.)
 // ============================================================================
 
 `include "cpu/memory_axi4full/data_mem_burst.v"
@@ -28,10 +34,6 @@ module data_mem_axi4_slave #(
 )(
     input wire clk,
     input wire rst_n,
-
-    // ========================================================================
-    // AXI4 Full Slave Interface
-    // ========================================================================
 
     // Write Address Channel
     input wire [ID_WIDTH-1:0]     S_AXI_AWID,
@@ -52,7 +54,7 @@ module data_mem_axi4_slave #(
 
     // Write Response Channel
     output reg  [ID_WIDTH-1:0]    S_AXI_BID,
-    output reg [1:0]              S_AXI_BRESP,
+    output reg  [1:0]             S_AXI_BRESP,
     output reg                    S_AXI_BVALID,
     input wire                    S_AXI_BREADY,
 
@@ -77,31 +79,28 @@ module data_mem_axi4_slave #(
 
     localparam [1:0] RESP_OKAY = 2'b00;
 
-    // ID latch registers: lưu AWID/ARID tại thời điểm handshake
     reg [ID_WIDTH-1:0] wr_id_latch;
     reg [ID_WIDTH-1:0] rd_id_latch;
 
     // ========================================================================
     // Read State Machine
     // ========================================================================
-    localparam [1:0]
-        RD_IDLE  = 2'b00,
-        RD_BURST = 2'b01;
+    localparam [1:0] RD_IDLE  = 2'b00,
+                     RD_BURST = 2'b01;
 
     reg [1:0] rd_state, rd_next;
 
     // ========================================================================
     // Write State Machine
     // ========================================================================
-    localparam [2:0]
-        WR_IDLE  = 3'b000,
-        WR_BURST = 3'b001,
-        WR_RESP  = 3'b010;
+    localparam [2:0] WR_IDLE  = 3'b000,
+                     WR_BURST = 3'b001,
+                     WR_RESP  = 3'b010;
 
     reg [2:0] wr_state, wr_next;
 
     // ========================================================================
-    // Internal Signals
+    // Internal Registers
     // ========================================================================
     reg [ADDR_WIDTH-1:0] read_addr;
     reg [7:0]  rd_burst_length;
@@ -114,7 +113,9 @@ module data_mem_axi4_slave #(
     reg [1:0]  wr_burst_type;
     reg [7:0]  wr_beat_count;
 
-    // Burst read interface → data_mem_burst
+    // ========================================================================
+    // Burst interfaces
+    // ========================================================================
     wire [ADDR_WIDTH-1:0] burst_rd_addr;
     wire [7:0]  burst_rd_len;
     reg         burst_rd_req;
@@ -123,7 +124,6 @@ module data_mem_axi4_slave #(
     wire        burst_rd_last;
     wire        burst_rd_ready;
 
-    // Burst write interface → data_mem_burst
     wire [ADDR_WIDTH-1:0] burst_wr_addr;
     wire [7:0]  burst_wr_len;
     wire [DATA_WIDTH-1:0] burst_wr_data;
@@ -132,19 +132,25 @@ module data_mem_axi4_slave #(
     wire        burst_wr_ready;
     wire        burst_wr_last;
 
+    // Read interface wiring
     assign burst_rd_addr  = read_addr;
     assign burst_rd_len   = rd_burst_length;
     assign burst_rd_ready = S_AXI_RREADY;
 
-    assign burst_wr_addr  = write_addr;
+    // [FIX-CRIT-1] burst_wr_addr: dùng S_AXI_AWADDR trực tiếp tại cycle AW handshake,
+    // các cycle sau dùng write_addr (đã latch). Đảm bảo data_mem_burst.wr_first_beat
+    // nhận đúng địa chỉ ngay cycle W đầu tiên (kể cả simultaneous W).
+    wire aw_handshake = S_AXI_AWVALID && S_AXI_AWREADY;
+    wire [ADDR_WIDTH-1:0] wr_awaddr_mux;
+    assign wr_awaddr_mux = aw_handshake ? S_AXI_AWADDR : write_addr;
+
+    assign burst_wr_addr  = wr_awaddr_mux;
     assign burst_wr_len   = wr_burst_length;
     assign burst_wr_data  = S_AXI_WDATA;
     assign burst_wr_strb  = S_AXI_WSTRB;
     assign burst_wr_last  = S_AXI_WLAST;
 
-    // FIX-BUG5: burst_wr_valid dùng wr_next (combinational) để detect
-    // AW handshake cycle — W beat đầu không bị drop
-    // wr_next == WR_BURST khi wr_state==WR_IDLE và AW handshake xảy ra
+    // [FIX-BUG5] dùng wr_next (combinational) để detect AW handshake cycle
     assign burst_wr_valid = ((wr_state == WR_BURST) || (wr_next == WR_BURST)) && S_AXI_WVALID;
 
     // Read outputs
@@ -154,9 +160,9 @@ module data_mem_axi4_slave #(
     assign S_AXI_RLAST  = burst_rd_last;
     assign S_AXI_RVALID = burst_rd_valid;
 
-    // Simple interface (unused in burst mode)
-    wire [ADDR_WIDTH-1:0] simple_addr    = 32'h0;
-    wire [DATA_WIDTH-1:0] simple_wdata   = 32'h0;
+    // Simple interface (unused)
+    wire [ADDR_WIDTH-1:0] simple_addr     = 32'h0;
+    wire [DATA_WIDTH-1:0] simple_wdata    = 32'h0;
     wire                  simple_memwrite = 1'b0;
     wire                  simple_memread  = 1'b0;
     wire [1:0]            simple_byte_size = 2'b10;
@@ -173,7 +179,6 @@ module data_mem_axi4_slave #(
     ) dmem (
         .clk            (clk),
         .rst_n          (rst_n),
-
         .address        (simple_addr),
         .write_data     (simple_wdata),
         .memwrite       (simple_memwrite),
@@ -181,7 +186,6 @@ module data_mem_axi4_slave #(
         .byte_size      (simple_byte_size),
         .sign_ext       (simple_sign_ext),
         .read_data      (simple_rdata),
-
         .burst_rd_addr  (burst_rd_addr),
         .burst_rd_len   (burst_rd_len),
         .burst_rd_req   (burst_rd_req),
@@ -189,7 +193,6 @@ module data_mem_axi4_slave #(
         .burst_rd_valid (burst_rd_valid),
         .burst_rd_last  (burst_rd_last),
         .burst_rd_ready (burst_rd_ready),
-
         .burst_wr_addr  (burst_wr_addr),
         .burst_wr_len   (burst_wr_len),
         .burst_wr_data  (burst_wr_data),
@@ -210,13 +213,12 @@ module data_mem_axi4_slave #(
     always @(*) begin
         rd_next = rd_state;
         case (rd_state)
-            RD_IDLE:  if (S_AXI_ARVALID && S_AXI_ARREADY)                    rd_next = RD_BURST;
-            RD_BURST: if (S_AXI_RVALID  && S_AXI_RREADY && S_AXI_RLAST)     rd_next = RD_IDLE;
+            RD_IDLE:  if (S_AXI_ARVALID && S_AXI_ARREADY)               rd_next = RD_BURST;
+            RD_BURST: if (S_AXI_RVALID && S_AXI_RREADY && S_AXI_RLAST)  rd_next = RD_IDLE;
             default:  rd_next = RD_IDLE;
         endcase
     end
 
-    // Read Address Channel
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             S_AXI_ARREADY   <= 1'b0;
@@ -237,11 +239,13 @@ module data_mem_axi4_slave #(
                         rd_burst_size   <= S_AXI_ARSIZE;
                         rd_burst_type   <= S_AXI_ARBURST;
                         rd_id_latch     <= S_AXI_ARID;
-                        burst_rd_req    <= 1'b1;
+                        burst_rd_req    <= 1'b1;  // pulse HIGH 1 cycle
                         S_AXI_ARREADY   <= 1'b0;
                     end
                 end
                 RD_BURST: begin
+                    // [FIX-RD-REQ] Deassert ngay cycle đầu RD_BURST
+                    // (rd_state đã chuyển → cycle này burst_rd_req = 0)
                     S_AXI_ARREADY <= 1'b0;
                     burst_rd_req  <= 1'b0;
                 end
@@ -264,9 +268,9 @@ module data_mem_axi4_slave #(
     always @(*) begin
         wr_next = wr_state;
         case (wr_state)
-            WR_IDLE:  if (S_AXI_AWVALID && S_AXI_AWREADY)      wr_next = WR_BURST;
-            WR_BURST: if (S_AXI_WVALID  && S_AXI_WLAST)        wr_next = WR_RESP;
-            WR_RESP:  if (S_AXI_BREADY  && S_AXI_BVALID)       wr_next = WR_IDLE;
+            WR_IDLE:  if (S_AXI_AWVALID && S_AXI_AWREADY)  wr_next = WR_BURST;
+            WR_BURST: if (S_AXI_WVALID  && S_AXI_WLAST)    wr_next = WR_RESP;
+            WR_RESP:  if (S_AXI_BREADY  && S_AXI_BVALID)   wr_next = WR_IDLE;
             default:  wr_next = WR_IDLE;
         endcase
     end
@@ -299,8 +303,6 @@ module data_mem_axi4_slave #(
     end
 
     // Write Data Channel
-    // FIX-BUG5: WREADY pre-assert ketika AW handshake — sama seperti sebelumnya,
-    // tapi sekarang burst_wr_valid juga cover cycle transisi (wr_next==WR_BURST)
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             S_AXI_WREADY  <= 1'b0;
@@ -308,7 +310,6 @@ module data_mem_axi4_slave #(
         end else begin
             case (wr_state)
                 WR_IDLE: begin
-                    // Pre-assert WREADY ketika AW handshake
                     if (S_AXI_AWVALID && S_AXI_AWREADY)
                         S_AXI_WREADY <= 1'b1;
                     else
@@ -333,8 +334,6 @@ module data_mem_axi4_slave #(
     end
 
     // Write Response Channel
-    // FIX: Check S_AXI_WVALID && S_AXI_WLAST && S_AXI_WREADY để đảm bảo
-    //      beat cuối thực sự được nhận trước khi assert BVALID
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             S_AXI_BRESP  <= RESP_OKAY;
@@ -343,7 +342,6 @@ module data_mem_axi4_slave #(
         end else begin
             case (wr_state)
                 WR_BURST: begin
-                    // Assert BVALID khi beat cuối được handshake hoàn tất
                     if (S_AXI_WVALID && S_AXI_WREADY && S_AXI_WLAST) begin
                         S_AXI_BRESP  <= RESP_OKAY;
                         S_AXI_BVALID <= 1'b1;
@@ -354,15 +352,13 @@ module data_mem_axi4_slave #(
                     if (S_AXI_BREADY && S_AXI_BVALID)
                         S_AXI_BVALID <= 1'b0;
                 end
-                default: begin
-                    S_AXI_BVALID <= 1'b0;
-                end
+                default: S_AXI_BVALID <= 1'b0;
             endcase
         end
     end
 
     // ========================================================================
-    // Debug/Simulation
+    // Debug
     // ========================================================================
     `ifdef SIMULATION
     always @(posedge clk) begin
