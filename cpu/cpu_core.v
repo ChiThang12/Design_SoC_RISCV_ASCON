@@ -17,7 +17,7 @@
 `include "cpu/interface/dcache/dcache_top.v"
 `include "cpu/memory_axi4full/inst_mem_axi_slave.v"
 `include "cpu/memory_axi4full/data_mem_axi_slave.v"
-`include "cpu/interconnect/axi4_crossbar_3m4s.v"
+`include "cpu/interconnect/axi4_crossbar_3m5s.v"
 
 module riscv_soc_top_cached (
     input wire clk,
@@ -327,7 +327,7 @@ module riscv_soc_top_cached (
     // 4. AXI4 Crossbar 3M×4S
     // M2 tie-off: arvalid/awvalid=0 -> crossbar khong gui request nao
     // ========================================================================
-    axi4_crossbar_3m4s #(.ID_WIDTH(ID_WIDTH)) xbar (
+    axi4_crossbar_3m5s #(.ID_WIDTH(ID_WIDTH)) xbar (
         .clk            (clk),        .rst_n          (rst_n),
         // M0 — ICache
         .M0_AXI_ARID    (m0_arid),    .M0_AXI_ARADDR  (m0_araddr),

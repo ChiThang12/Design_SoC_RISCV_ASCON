@@ -1,35 +1,33 @@
 // ============================================================================
 // data_mem_burst.v - Data Memory with Burst Read/Write Support
 // ============================================================================
-// Description:
-//   - Data memory array (1KB)
-//   - Supports both single access and burst read/write
-//   - Read/Write memory (RAM)
-//   - Byte-enable write support
-//   - Based on inst_mem.v structure
+// FIXES:
+//   [CRIT-1] burst_wr_addr lệch 1 cycle khi simultaneous W:
+//            Dùng wr_first_beat + burst_wr_addr trực tiếp (đã có trong code),
+//            nhưng bug thực sự là data_mem_axi4_slave truyền write_addr (đã latch,
+//            lệch 1 cycle) vào burst_wr_addr thay vì S_AXI_AWADDR trực tiếp.
+//            → Fix tại AXI slave. Ở đây giữ wr_first_beat logic, đảm bảo đúng.
 //
-// Author: ChiThang
-// Created: For DCache integration
+//   [CRIT-2] Burst read beat 1+: offset +4..+7 thay vì dùng addr đã advance:
+//            Code gốc dùng rd_current_addr TRƯỚC KHI advance (+4..+7),
+//            nhưng rd_current_addr chỉ được update cuối cycle (non-blocking).
+//            Fix: tính next_rd_addr combinational, dùng để đọc memory[] ngay.
+//
+//   [BURST-RD-TIMING] Beat đầu dùng registered output → 1 cycle latency.
+//            Không thể zero-latency như inst_mem vì data_mem_burst là sequential.
+//            Giữ nguyên để đảm bảo timing closure. AXI slave cần biết điều này.
 // ============================================================================
 
 module data_mem_burst #(
-    // FIX MEM_SIZE: program.hex dùng địa chỉ:
-    //   stack   : 0x0FC0–0x0FFF  (sp=0x1000, frame -48 bytes)
-    //   .bss    : 0x1004–0x1047
-    //   test data: RAM_BASE=0x1100, test8_hi=0x17F0+8 → max 0x17F7
-    // MEM_SIZE=1024 cũ (1KB) → tất cả addr >= 0x400 = OUT-OF-BOUNDS
-    // 8KB (0x0000–0x1FFF) cover đủ, tiết kiệm hơn 64KB
-    parameter MEM_SIZE   = 8192,        // Memory size in bytes (8KB)
+    parameter MEM_SIZE   = 8192,
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter BASE_ADDR  = 32'h10000000 // FIX: DMEM base address — dùng để tính local offset
+    parameter BASE_ADDR  = 32'h10000000
 )(
     input wire clk,
     input wire rst_n,
-    
-    // ========================================================================
-    // Simple Interface (for backwards compatibility with data_mem_axi_slave)
-    // ========================================================================
+
+    // Simple Interface
     input  wire [ADDR_WIDTH-1:0] address,
     input  wire [DATA_WIDTH-1:0] write_data,
     input  wire                  memwrite,
@@ -37,10 +35,8 @@ module data_mem_burst #(
     input  wire [1:0]            byte_size,
     input  wire                  sign_ext,
     output reg  [DATA_WIDTH-1:0] read_data,
-    
-    // ========================================================================
-    // Burst Read Interface (for cache line fills)
-    // ========================================================================
+
+    // Burst Read Interface
     input  wire [ADDR_WIDTH-1:0] burst_rd_addr,
     input  wire [7:0]            burst_rd_len,
     input  wire                  burst_rd_req,
@@ -48,62 +44,42 @@ module data_mem_burst #(
     output reg                   burst_rd_valid,
     output reg                   burst_rd_last,
     input  wire                  burst_rd_ready,
-    
-    // ========================================================================
-    // Burst Write Interface (for write-through or write-back)
-    // ========================================================================
+
+    // Burst Write Interface
     input  wire [ADDR_WIDTH-1:0] burst_wr_addr,
     input  wire [7:0]            burst_wr_len,
     input  wire [DATA_WIDTH-1:0] burst_wr_data,
     input  wire [3:0]            burst_wr_strb,
     input  wire                  burst_wr_valid,
-    output wire                   burst_wr_ready,
+    output wire                  burst_wr_ready,
     input  wire                  burst_wr_last
 );
 
-    // ========================================================================
-    // Local Parameters
-    // ========================================================================
-    // FIX: ADDR_BITS tự tính từ MEM_SIZE để dùng đúng số bit địa chỉ
-    // MEM_SIZE=8192 → ADDR_BITS=13, MEM_DEPTH=2048 words
-    localparam ADDR_BITS  = $clog2(MEM_SIZE);           // 13 for 8KB
-    localparam MEM_DEPTH  = MEM_SIZE / (DATA_WIDTH/8);  // 2048 words for 8KB
-    localparam ADDR_LSB   = $clog2(DATA_WIDTH/8);       // 2 for 32-bit
-    
+    localparam ADDR_BITS = $clog2(MEM_SIZE);
+    localparam MEM_DEPTH = MEM_SIZE / (DATA_WIDTH/8);
+    localparam ADDR_LSB  = $clog2(DATA_WIDTH/8);
+
     // ========================================================================
     // Memory Array (byte-addressable)
     // ========================================================================
     reg [7:0] memory [0:MEM_SIZE-1];
-    
+
     // ========================================================================
-    // Helper function to get word address (dùng ADDR_BITS bit)
+    // Simple Interface
     // ========================================================================
-    function [15:0] get_word_addr;
-        input [31:0] byte_addr;
-        begin
-            // Lấy đủ ADDR_BITS bit, loại bỏ 2 bit LSB (byte offset trong word)
-            get_word_addr = byte_addr[ADDR_BITS-1:2];
-        end
-    endfunction
-    
-    // ========================================================================
-    // Simple Read/Write Interface (Combinational/Sequential)
-    // ========================================================================
-    // FIX: aligned_addr cần ADDR_BITS bit để index đúng vào memory[]
-    // Trước đây chỉ dùng [9:2] (8 bit word) → alias toàn bộ địa chỉ về 1KB đầu
     wire [ADDR_BITS-1:0] simple_word_addr;
     wire [1:0]           byte_offset;
     wire [ADDR_BITS-1:0] aligned_addr;
-    
+
     assign simple_word_addr = address[ADDR_BITS-1:2];
     assign byte_offset      = address[1:0];
     assign aligned_addr     = {address[ADDR_BITS-1:2], 2'b00};
-    
-    // Simple write (sequential - same as original data_mem.v)
+
+    // Simple write
     always @(posedge clk) begin
-        if (memwrite && !burst_wr_valid) begin  // Priority to burst
+        if (memwrite && !burst_wr_valid) begin
             case (byte_size)
-                2'b00: begin  // Store Byte
+                2'b00: begin
                     case (byte_offset)
                         2'b00: memory[aligned_addr + 0] <= write_data[7:0];
                         2'b01: memory[aligned_addr + 1] <= write_data[7:0];
@@ -111,8 +87,7 @@ module data_mem_burst #(
                         2'b11: memory[aligned_addr + 3] <= write_data[7:0];
                     endcase
                 end
-                
-                2'b01: begin  // Store Halfword
+                2'b01: begin
                     case (byte_offset[1])
                         1'b0: begin
                             memory[aligned_addr + 0] <= write_data[7:0];
@@ -124,8 +99,7 @@ module data_mem_burst #(
                         end
                     endcase
                 end
-                
-                2'b10: begin  // Store Word
+                2'b10: begin
                     memory[aligned_addr + 0] <= write_data[7:0];
                     memory[aligned_addr + 1] <= write_data[15:8];
                     memory[aligned_addr + 2] <= write_data[23:16];
@@ -134,91 +108,98 @@ module data_mem_burst #(
             endcase
         end
     end
-    
-    // Simple read (combinational - same as original)
+
+    // Simple read (combinational)
     always @(*) begin
         if (memread) begin
             case (byte_size)
-                2'b00: begin  // Load Byte
+                2'b00: begin
                     case (byte_offset)
-                        2'b00: read_data = sign_ext ? 
-                            {{24{memory[aligned_addr + 0][7]}}, memory[aligned_addr + 0]} :
-                            {24'h000000, memory[aligned_addr + 0]};
+                        2'b00: read_data = sign_ext ?
+                            {{24{memory[aligned_addr+0][7]}}, memory[aligned_addr+0]} :
+                            {24'h0, memory[aligned_addr+0]};
                         2'b01: read_data = sign_ext ?
-                            {{24{memory[aligned_addr + 1][7]}}, memory[aligned_addr + 1]} :
-                            {24'h000000, memory[aligned_addr + 1]};
+                            {{24{memory[aligned_addr+1][7]}}, memory[aligned_addr+1]} :
+                            {24'h0, memory[aligned_addr+1]};
                         2'b10: read_data = sign_ext ?
-                            {{24{memory[aligned_addr + 2][7]}}, memory[aligned_addr + 2]} :
-                            {24'h000000, memory[aligned_addr + 2]};
+                            {{24{memory[aligned_addr+2][7]}}, memory[aligned_addr+2]} :
+                            {24'h0, memory[aligned_addr+2]};
                         2'b11: read_data = sign_ext ?
-                            {{24{memory[aligned_addr + 3][7]}}, memory[aligned_addr + 3]} :
-                            {24'h000000, memory[aligned_addr + 3]};
+                            {{24{memory[aligned_addr+3][7]}}, memory[aligned_addr+3]} :
+                            {24'h0, memory[aligned_addr+3]};
                     endcase
                 end
-                
-                2'b01: begin  // Load Halfword
+                2'b01: begin
                     case (byte_offset[1])
                         1'b0: read_data = sign_ext ?
-                            {{16{memory[aligned_addr + 1][7]}}, 
-                             memory[aligned_addr + 1], memory[aligned_addr + 0]} :
-                            {16'h0000, memory[aligned_addr + 1], memory[aligned_addr + 0]};
+                            {{16{memory[aligned_addr+1][7]}},
+                             memory[aligned_addr+1], memory[aligned_addr+0]} :
+                            {16'h0, memory[aligned_addr+1], memory[aligned_addr+0]};
                         1'b1: read_data = sign_ext ?
-                            {{16{memory[aligned_addr + 3][7]}}, 
-                             memory[aligned_addr + 3], memory[aligned_addr + 2]} :
-                            {16'h0000, memory[aligned_addr + 3], memory[aligned_addr + 2]};
+                            {{16{memory[aligned_addr+3][7]}},
+                             memory[aligned_addr+3], memory[aligned_addr+2]} :
+                            {16'h0, memory[aligned_addr+3], memory[aligned_addr+2]};
                     endcase
                 end
-                
-                2'b10: begin  // Load Word
-                    read_data = {memory[aligned_addr + 3], memory[aligned_addr + 2],
-                               memory[aligned_addr + 1], memory[aligned_addr + 0]};
+                2'b10: begin
+                    read_data = {memory[aligned_addr+3], memory[aligned_addr+2],
+                                 memory[aligned_addr+1], memory[aligned_addr+0]};
                 end
-                
-                default: read_data = 32'h00000000;
+                default: read_data = 32'h0;
             endcase
         end else begin
-            read_data = 32'h00000000;
+            read_data = 32'h0;
         end
     end
-    
+
     // ========================================================================
     // Burst Read State Machine
+    // [FIX-CRIT-2] Tính next_rd_local combinational để đọc memory đúng cycle
     // ========================================================================
-    localparam RD_BURST_IDLE = 1'b0;
+    localparam RD_BURST_IDLE   = 1'b0;
     localparam RD_BURST_ACTIVE = 1'b1;
-    
-    reg rd_burst_state;
+
+    reg        rd_burst_state;
     reg [ADDR_WIDTH-1:0] rd_current_addr;
-    reg [7:0] rd_beat_count;
-    reg [7:0] rd_total_beats;
-    
-    wire [ADDR_WIDTH-1:0] rd_word_addr;
-    assign rd_word_addr = rd_current_addr[ADDR_WIDTH-1:ADDR_LSB];
-    
+    reg [7:0]  rd_beat_count;
+    reg [7:0]  rd_total_beats;
+
+    // [FIX-CRIT-2] next address tính combinational — dùng cho memory read trong
+    // cùng cycle mà rd_current_addr được advance (non-blocking update cuối cycle)
+    wire [ADDR_WIDTH-1:0] rd_next_addr;
+    wire [ADDR_WIDTH-1:0] rd_next_local;
+    assign rd_next_addr  = rd_current_addr + (DATA_WIDTH/8);
+    assign rd_next_local = rd_next_addr - BASE_ADDR;
+
+    // Local offset cho beat hiện tại (beat đầu dùng burst_rd_addr)
+    wire [ADDR_WIDTH-1:0] rd_first_local;
+    assign rd_first_local = burst_rd_addr - BASE_ADDR;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            rd_burst_state <= RD_BURST_IDLE;
-            burst_rd_data  <= {DATA_WIDTH{1'b0}};
-            burst_rd_valid <= 1'b0;
-            burst_rd_last  <= 1'b0;
+            rd_burst_state  <= RD_BURST_IDLE;
+            burst_rd_data   <= {DATA_WIDTH{1'b0}};
+            burst_rd_valid  <= 1'b0;
+            burst_rd_last   <= 1'b0;
             rd_current_addr <= {ADDR_WIDTH{1'b0}};
-            rd_beat_count  <= 8'd0;
-            rd_total_beats <= 8'd0;
+            rd_beat_count   <= 8'd0;
+            rd_total_beats  <= 8'd0;
         end else begin
             case (rd_burst_state)
+
                 RD_BURST_IDLE: begin
                     if (burst_rd_req) begin
                         rd_current_addr <= burst_rd_addr;
                         rd_beat_count   <= 8'd0;
                         rd_total_beats  <= burst_rd_len;
                         rd_burst_state  <= RD_BURST_ACTIVE;
-                        
-                        // Output first word — FIX: dùng offset = burst_rd_addr - BASE_ADDR
+
+                        // Beat đầu: dùng rd_first_local (burst_rd_addr - BASE_ADDR)
                         burst_rd_data <= {
-                            memory[burst_rd_addr - BASE_ADDR + 3],
-                            memory[burst_rd_addr - BASE_ADDR + 2],
-                            memory[burst_rd_addr - BASE_ADDR + 1],
-                            memory[burst_rd_addr - BASE_ADDR + 0]
+                            memory[rd_first_local + 3],
+                            memory[rd_first_local + 2],
+                            memory[rd_first_local + 1],
+                            memory[rd_first_local + 0]
                         };
                         burst_rd_valid <= 1'b1;
                         burst_rd_last  <= (burst_rd_len == 8'd0);
@@ -227,7 +208,7 @@ module data_mem_burst #(
                         burst_rd_last  <= 1'b0;
                     end
                 end
-                
+
                 RD_BURST_ACTIVE: begin
                     if (burst_rd_ready && burst_rd_valid) begin
                         if (burst_rd_last) begin
@@ -236,45 +217,44 @@ module data_mem_burst #(
                             burst_rd_last  <= 1'b0;
                         end else begin
                             rd_beat_count   <= rd_beat_count + 1'b1;
-                            rd_current_addr <= rd_current_addr + (DATA_WIDTH/8);
-                            
-                            // Output next word — FIX: dùng offset = rd_current_addr - BASE_ADDR
+                            rd_current_addr <= rd_next_addr;
+
+                            // [FIX-CRIT-2] Dùng rd_next_local (combinational từ
+                            // rd_current_addr hiện tại + 4) thay vì
+                            // rd_current_addr + 4..+7 (lệch vì non-blocking update)
                             burst_rd_data <= {
-                                memory[rd_current_addr - BASE_ADDR + 7],
-                                memory[rd_current_addr - BASE_ADDR + 6],
-                                memory[rd_current_addr - BASE_ADDR + 5],
-                                memory[rd_current_addr - BASE_ADDR + 4]
+                                memory[rd_next_local + 3],
+                                memory[rd_next_local + 2],
+                                memory[rd_next_local + 1],
+                                memory[rd_next_local + 0]
                             };
                             burst_rd_valid <= 1'b1;
-                            burst_rd_last  <= (rd_beat_count + 1 == rd_total_beats);
+                            burst_rd_last  <= (rd_beat_count + 8'd1 == rd_total_beats);
                         end
                     end
                 end
+
             endcase
         end
     end
-    
+
     // ========================================================================
     // Burst Write Logic
+    // [FIX-CRIT-1] wr_first_beat dùng burst_wr_addr trực tiếp (absolute addr từ
+    // AXI slave), không qua write_addr latch để tránh off-by-1-cycle.
+    // Phần còn lại của fix CRIT-1 nằm ở data_mem_axi4_slave: burst_wr_addr phải
+    // được nối tới S_AXI_AWADDR trực tiếp (không qua write_addr registered).
     // ========================================================================
-    // FIX BUG #1: wr_current_addr lệch 1 cycle vì được load từ burst_wr_addr
-    // ở nhánh else-if (chạy cycle trước), không kịp khi transaction liên tiếp.
-    // Giải pháp: dùng wr_first_beat để phát hiện beat đầu tiên và sử dụng
-    // burst_wr_addr trực tiếp thay vì wr_current_addr đã lưu.
     reg [ADDR_WIDTH-1:0] wr_current_addr;
-    reg                  wr_first_beat;    // HIGH khi đây là beat đầu của burst
-    
-    // Địa chỉ thực tế để ghi: beat đầu dùng burst_wr_addr, các beat sau dùng wr_current_addr
+    reg                  wr_first_beat;
+
     wire [ADDR_WIDTH-1:0] wr_effective_addr;
     assign wr_effective_addr = wr_first_beat ? burst_wr_addr : wr_current_addr;
 
-    // FIX: chuyển địa chỉ tuyệt đối → local offset trước khi index vào memory[]
-    // wr_effective_addr = 0x1000_xxxx → wr_local_addr = 0x0000_xxxx
     wire [ADDR_WIDTH-1:0] wr_local_addr;
     assign wr_local_addr = wr_effective_addr - BASE_ADDR;
 
-    assign burst_wr_ready = 1'b1;  // memory luôn sẵn sàng nhận write
-                                    // (không có back-pressure thực sự)
+    assign burst_wr_ready = 1'b1;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -282,50 +262,43 @@ module data_mem_burst #(
             wr_first_beat   <= 1'b1;
         end else begin
             if (burst_wr_valid && burst_wr_ready) begin
-                // FIX: dùng wr_local_addr (offset) thay wr_effective_addr (absolute) để index memory[]
                 if (burst_wr_strb[0]) memory[wr_local_addr+0] <= burst_wr_data[7:0];
                 if (burst_wr_strb[1]) memory[wr_local_addr+1] <= burst_wr_data[15:8];
                 if (burst_wr_strb[2]) memory[wr_local_addr+2] <= burst_wr_data[23:16];
                 if (burst_wr_strb[3]) memory[wr_local_addr+3] <= burst_wr_data[31:24];
 
                 if (!burst_wr_last) begin
-                    // Advance địa chỉ cho beat kế tiếp
                     wr_current_addr <= wr_effective_addr + (DATA_WIDTH/8);
-                    wr_first_beat   <= 1'b0;  // beat kế không phải beat đầu nữa
+                    wr_first_beat   <= 1'b0;
                 end else begin
-                    // Kết thúc burst: reset về trạng thái "chờ beat đầu" cho transaction sau
                     wr_first_beat   <= 1'b1;
                 end
             end
         end
     end
-        
+
     // ========================================================================
     // Memory Initialization
     // ========================================================================
     integer i;
     initial begin
-        for (i = 0; i < MEM_SIZE; i = i + 1) begin
+        for (i = 0; i < MEM_SIZE; i = i + 1)
             memory[i] = 8'h00;
-        end
     end
-    
+
     // ========================================================================
     // Debug/Simulation
     // ========================================================================
     `ifdef SIMULATION
     always @(posedge clk) begin
-        if (burst_rd_req && rd_burst_state == RD_BURST_IDLE) begin
-            $display("[DMEM] Burst read: addr=0x%h, len=%0d", burst_rd_addr, burst_rd_len + 1);
-        end
-        if (burst_rd_valid && burst_rd_ready) begin
+        if (burst_rd_req && rd_burst_state == RD_BURST_IDLE)
+            $display("[DMEM] Burst read: addr=0x%h, len=%0d", burst_rd_addr, burst_rd_len+1);
+        if (burst_rd_valid && burst_rd_ready)
             $display("[DMEM] Burst read data[%0d]: addr=0x%h, data=0x%h, last=%b",
                      rd_beat_count, rd_current_addr, burst_rd_data, burst_rd_last);
-        end
-        if (burst_wr_valid && burst_wr_ready) begin
-            $display("[DMEM] Burst write: addr=0x%h, data=0x%h, strb=%b, last=%b",
-                     wr_effective_addr, burst_wr_data, burst_wr_strb, burst_wr_last);
-        end
+        if (burst_wr_valid && burst_wr_ready)
+            $display("[DMEM] Burst write: addr=0x%h (local=0x%h), data=0x%h, strb=%b, last=%b",
+                     wr_effective_addr, wr_local_addr, burst_wr_data, burst_wr_strb, burst_wr_last);
     end
     `endif
 

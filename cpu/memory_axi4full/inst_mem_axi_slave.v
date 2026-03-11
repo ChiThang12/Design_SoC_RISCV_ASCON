@@ -1,11 +1,20 @@
 // ============================================================================
-// inst_mem_axi_slave.v - AXI4 Full Slave (v4 - with AXI ID support)
+// inst_mem_axi_slave.v - AXI4 Full Slave (v5 - fixes)
 // ============================================================================
-// Thay đổi so với v3:
-//   - Thêm S_AXI_ARID / S_AXI_RID / S_AXI_AWID / S_AXI_BID (ID_WIDTH param)
-//   - RID được latch từ ARID tại thời điểm AR handshake
-//   - BID được latch từ AWID tại thời điểm AW handshake
-//   - Các tín hiệu khác giữ nguyên
+// FIXES:
+//
+// [FIX-CRIT-3] AWREADY delay 1 cycle:
+//   Gốc: S_AXI_AWREADY <= 1'b1 khi detect AWVALID (sequential → delay 1 cycle)
+//   → Master fire-and-forget sẽ miss handshake.
+//   Fix: S_AXI_AWREADY = combinational, HIGH khi wr_state == WR_IDLE.
+//   Tương tự cách S_AXI_ARREADY đã làm (combinational assign).
+//   SLVERR response vẫn đúng: AWREADY lên ngay, data được drain, BRESP=SLVERR.
+//
+// [FIX-WR-DATA-DRAIN] Khi AWREADY combinational, WREADY phải sẵn sàng ngay
+//   cycle WR_DATA (không cần pre-assert trong WR_IDLE nữa).
+//   Đơn giản hóa: WREADY = 1'b1 trong WR_DATA state.
+//
+// Các tính năng khác giữ nguyên từ v4.
 // ============================================================================
 
 `include "cpu/memory_axi4full/inst_mem.v"
@@ -20,7 +29,7 @@ module inst_mem_axi_slave #(
     input wire clk,
     input wire rst_n,
 
-    // Write channels (read-only memory, always SLVERR)
+    // Write channels (read-only memory → always SLVERR)
     input  wire [ID_WIDTH-1:0]     S_AXI_AWID,
     input  wire [ADDR_WIDTH-1:0]   S_AXI_AWADDR,
     input  wire [7:0]              S_AXI_AWLEN,
@@ -28,13 +37,13 @@ module inst_mem_axi_slave #(
     input  wire [1:0]              S_AXI_AWBURST,
     input  wire [2:0]              S_AXI_AWPROT,
     input  wire                    S_AXI_AWVALID,
-    output reg                     S_AXI_AWREADY,
+    output wire                    S_AXI_AWREADY,  // [FIX-CRIT-3] combinational
 
     input  wire [DATA_WIDTH-1:0]   S_AXI_WDATA,
     input  wire [DATA_WIDTH/8-1:0] S_AXI_WSTRB,
     input  wire                    S_AXI_WLAST,
     input  wire                    S_AXI_WVALID,
-    output reg                     S_AXI_WREADY,
+    output wire                    S_AXI_WREADY,   // [FIX] combinational trong WR_DATA
 
     output reg  [ID_WIDTH-1:0]     S_AXI_BID,
     output reg  [1:0]              S_AXI_BRESP,
@@ -49,7 +58,7 @@ module inst_mem_axi_slave #(
     input  wire [1:0]              S_AXI_ARBURST,
     input  wire [2:0]              S_AXI_ARPROT,
     input  wire                    S_AXI_ARVALID,
-    output wire                    S_AXI_ARREADY,  // combinational
+    output wire                    S_AXI_ARREADY,  // combinational (giữ nguyên)
 
     output wire [ID_WIDTH-1:0]     S_AXI_RID,
     output wire [DATA_WIDTH-1:0]   S_AXI_RDATA,
@@ -63,24 +72,16 @@ module inst_mem_axi_slave #(
     localparam [1:0] RESP_SLVERR = 2'b10;
 
     // =========================================================================
-    // Read state machine — 2 states
+    // Read State Machine
     // =========================================================================
     localparam RD_IDLE  = 1'b0;
     localparam RD_BURST = 1'b1;
     reg rd_state;
 
-    // ARREADY = combinational: sẵn sàng ngay khi IDLE
     assign S_AXI_ARREADY = (rd_state == RD_IDLE);
+    wire ar_handshake    = S_AXI_ARVALID && S_AXI_ARREADY;
+    wire burst_req       = ar_handshake;
 
-    // AR handshake
-    wire ar_handshake = S_AXI_ARVALID && S_AXI_ARREADY;
-
-    // burst_req = combinational: imem nhận lệnh ngay cycle handshake
-    wire burst_req = ar_handshake;
-
-    // =========================================================================
-    // Latch AR params + ARID khi handshake
-    // =========================================================================
     reg [ADDR_WIDTH-1:0] read_addr;
     reg [7:0]            burst_len_r;
     reg [ID_WIDTH-1:0]   rid_r;
@@ -97,13 +98,8 @@ module inst_mem_axi_slave #(
         end
     end
 
-    // RID: cycle đầu tiên dùng S_AXI_ARID trực tiếp (zero-latency),
-    // các cycle sau dùng giá trị đã latch
     assign S_AXI_RID = ar_handshake ? S_AXI_ARID : rid_r;
 
-    // =========================================================================
-    // Read state machine sequential
-    // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             rd_state <= RD_IDLE;
@@ -114,18 +110,13 @@ module inst_mem_axi_slave #(
         endcase
     end
 
-    // =========================================================================
-    // Instruction Memory instance
-    // burst_addr: dùng S_AXI_ARADDR trực tiếp khi handshake (zero-latency
-    //             first beat), sau đó dùng read_addr đã latch
-    // =========================================================================
     wire [ADDR_WIDTH-1:0] burst_addr = ar_handshake ? S_AXI_ARADDR : read_addr;
     wire [7:0]            burst_len  = ar_handshake ? S_AXI_ARLEN  : burst_len_r;
 
     wire [DATA_WIDTH-1:0] burst_data;
     wire                  burst_valid;
     wire                  burst_last;
-    wire [DATA_WIDTH-1:0] simple_inst; // unused
+    wire [DATA_WIDTH-1:0] simple_inst;
 
     inst_mem #(
         .MEM_SIZE      (MEM_SIZE),
@@ -152,32 +143,40 @@ module inst_mem_axi_slave #(
     assign S_AXI_RVALID = burst_valid;
 
     // =========================================================================
-    // Write channels — always SLVERR (read-only memory)
+    // Write channels — always SLVERR
+    // [FIX-CRIT-3] Dùng combinational AWREADY/WREADY
     // =========================================================================
-    localparam [1:0] WR_IDLE = 2'b00, WR_DATA = 2'b01, WR_RESP = 2'b10;
+    localparam [1:0] WR_IDLE = 2'b00,
+                     WR_DATA = 2'b01,
+                     WR_RESP = 2'b10;
     reg [1:0]        wr_state;
     reg [ID_WIDTH-1:0] bid_r;
 
+    // [FIX-CRIT-3] AWREADY combinational: HIGH khi WR_IDLE
+    assign S_AXI_AWREADY = (wr_state == WR_IDLE);
+
+    // [FIX] WREADY combinational: HIGH khi WR_DATA
+    assign S_AXI_WREADY  = (wr_state == WR_DATA);
+
+    wire aw_handshake = S_AXI_AWVALID && S_AXI_AWREADY;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wr_state      <= WR_IDLE;
-            S_AXI_AWREADY <= 1'b0;
-            S_AXI_WREADY  <= 1'b0;
-            S_AXI_BID     <= {ID_WIDTH{1'b0}};
-            S_AXI_BRESP   <= RESP_SLVERR;
-            S_AXI_BVALID  <= 1'b0;
-            bid_r         <= {ID_WIDTH{1'b0}};
+            wr_state     <= WR_IDLE;
+            S_AXI_BID    <= {ID_WIDTH{1'b0}};
+            S_AXI_BRESP  <= RESP_SLVERR;
+            S_AXI_BVALID <= 1'b0;
+            bid_r        <= {ID_WIDTH{1'b0}};
         end else begin
-            S_AXI_AWREADY <= 1'b0;
-            S_AXI_WREADY  <= 1'b0;
             case (wr_state)
-                WR_IDLE: if (S_AXI_AWVALID) begin
-                    S_AXI_AWREADY <= 1'b1;
-                    bid_r         <= S_AXI_AWID;
-                    wr_state      <= WR_DATA;
+                WR_IDLE: begin
+                    if (aw_handshake) begin
+                        bid_r    <= S_AXI_AWID;
+                        wr_state <= WR_DATA;
+                    end
                 end
                 WR_DATA: begin
-                    S_AXI_WREADY <= 1'b1;
+                    // WREADY = combinational (see assign above)
                     if (S_AXI_WVALID && S_AXI_WLAST) begin
                         S_AXI_BID    <= bid_r;
                         S_AXI_BRESP  <= RESP_SLVERR;
@@ -185,9 +184,11 @@ module inst_mem_axi_slave #(
                         wr_state     <= WR_RESP;
                     end
                 end
-                WR_RESP: if (S_AXI_BREADY) begin
-                    S_AXI_BVALID <= 1'b0;
-                    wr_state     <= WR_IDLE;
+                WR_RESP: begin
+                    if (S_AXI_BREADY) begin
+                        S_AXI_BVALID <= 1'b0;
+                        wr_state     <= WR_IDLE;
+                    end
                 end
                 default: wr_state <= WR_IDLE;
             endcase
@@ -205,6 +206,9 @@ module inst_mem_axi_slave #(
         if (S_AXI_RVALID && S_AXI_RREADY)
             $display("[IMEM] Beat: data=0x%h last=%b rid=0x%h @ %0t",
                      S_AXI_RDATA, S_AXI_RLAST, S_AXI_RID, $time);
+        if (aw_handshake)
+            $display("[IMEM] Write attempt (SLVERR): addr=0x%h @ %0t",
+                     S_AXI_AWADDR, $time);
     end
     `endif
 

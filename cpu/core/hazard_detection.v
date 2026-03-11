@@ -1,36 +1,41 @@
 // ============================================================================
-// hazard_detection.v - Fixed v2 (Correct imem_stall Handling)
+// hazard_detection.v - Fixed v3
 // ============================================================================
-// FIX LOG:
-//   BUG #3 FIX: imem_stall trước đây được merge vào signal `stall` chung,
-//               điều này freeze toàn bộ pipeline (PC, IF/ID, ID/EX, ...).
+// FIX LOG v3:
+//   BUG #4 FIX: mem_load_stall — 1-cycle gap giữa load_use_hazard và scoreboard
 //
-//   Vấn đề cũ:
-//     assign stall = load_use_hazard || lsu_dependency_stall || imem_stall;
-//     → Khi imem_stall=1: toàn pipeline đóng băng, kể cả ID/EX/MEM/WB
-//     → Khi imem_ready=1 trở lại: cần thêm 1 cycle để pipeline "thức dậy"
-//     → Mất 2 cycle tổng cộng xung quanh mỗi imem stall event
+//   Vấn đề:
+//     Cycle C:   LW ở EX → load_use_hazard=1 → stall=1, flush_id_ex=1
+//                ADDI ở ID → bị hold (stall=1)
+//                posedge C: ID/EX flushed (bubble), EX/MEM advances (LW captured)
 //
-//   FIX MỚI: Tách thành 2 tín hiệu độc lập:
-//     - `stall_pipeline`: stall TOÀN pipeline (PC + IF/ID + ID/EX)
-//       Dùng cho: load_use_hazard, lsu_dependency_stall
-//     - `stall_if`:       stall CHỈ IF stage (PC + IF/ID)
-//       Dùng cho: imem_stall (ICache chưa ready)
+//     Cycle C+1: LW ở MEM, bubble ở EX
+//                load_use_hazard=0 (bubble in EX), scoreboard[x2]=0 (not set yet!)
+//                → stall=0 → ADDI slips into EX with stale x2=0 !
+//                → lsu_req_valid=1 → scoreboard[x2]←1 at posedge C+1
+//                → Too late: ADDI already latched x2=0 into ID/EX
 //
-//   Tại sao điều này đúng?
-//     Khi ICache đang fetch instruction mới (imem_stall=1):
-//     - PC không nên cập nhật (chờ fetch xong)
-//     - IF/ID không nên nhận instruction mới (chưa có)
-//     - Nhưng ID/EX/MEM/WB KHÔNG CẦN STALL, chúng vẫn đang xử lý
-//       các instruction đã fetch trước đó một cách bình thường
+//   Nguyên nhân: scoreboard set tại posedge của cycle LW ở MEM,
+//                nhưng trước posedge đó stall đã=0 → ADDI vào EX.
+//                Có 1-cycle window không được bảo vệ bởi hazard nào.
 //
-//   Lưu ý về `stall` output:
-//     `stall` = stall_pipeline (cho IFU, IF/ID, ID/EX)
-//     `stall_if_only` = stall_if (chỉ cho IFU và IF/ID khi chỉ imem stall)
+//   FIX MỚI: Thêm mem_load_stall:
+//     Khi LW ở MEM stage (memread_mem=1) và rd_mem match rs1/rs2 ở ID
+//     → stall=1, giữ ADDI ở ID thêm 1 cycle
+//     → Cycle C+1: scoreboard[x2] được set tại posedge
+//     → Cycle C+2: lsu_dependency_stall=1 → tiếp tục stall cho đến khi
+//                  LSU hoàn thành và scoreboard clear
+//     → Không còn window hở
 //
-//   Trong IFU và PIPELINE_REG_IF_ID:
-//     Sử dụng (stall_pipeline || stall_if_only) để freeze IF stage
+//   Tại sao chỉ 1 cycle gap?
+//     - load_use_hazard (EX stage) → flush + stall → bubble vào EX
+//     - Cycle sau: bubble ở EX → load_use=0
+//     - scoreboard set cùng posedge LW gửi req → effective cycle sau
+//     - → Gap 1 cycle giữa load_use=0 và scoreboard=1
+//     - mem_load_stall lấp gap này bằng cách detect LW ở MEM stage trực tiếp
 //
+//   BUG #3 FIX (v2, giữ nguyên):
+//     Tách stall và stall_if để ICache miss không freeze toàn pipeline.
 // ============================================================================
 
 module hazard_detection (
@@ -39,77 +44,77 @@ module hazard_detection (
     input wire [4:0]  rd_id_ex,         // EX stage destination register
     input wire [4:0]  rs1_id,           // ID stage source 1
     input wire [4:0]  rs2_id,           // ID stage source 2
-    
+
+    // [FIX v3] MEM stage load info — để detect 1-cycle gap
+    input wire        memread_mem,      // MEM stage is a load (LW in MEM)
+    input wire [4:0]  rd_mem,           // MEM stage destination register
+
     // Branch/Jump flush
     input wire        branch_taken,     // Branch or jump taken in EX stage
-    
+
     // Memory interface
     input wire        imem_ready,       // Instruction memory ready
-    
+
     // LSU scoreboard
     input wire [31:0] lsu_scoreboard,   // Bitmask: registers đang chờ LSU
-    
+
     // ========================================================================
     // Control Outputs
     // ========================================================================
-    
-    // [FIX] stall: Chỉ dùng cho pipeline hazard (load-use, LSU dep)
-    //             KHÔNG bao gồm imem_stall nữa
-    //             → ID/EX vẫn chạy khi ICache đang fetch
-    output wire       stall,            // Pipeline stall (load-use + LSU)
-    
-    // [FIX MỚI] stall_if: Stall riêng cho IF stage khi imem chưa ready
-    //           Kết hợp với stall ở IFU và PIPELINE_REG_IF_ID
+    output wire       stall,            // Pipeline stall (load-use + LSU dep + mem_load)
     output wire       stall_if,         // IF stage stall (imem not ready)
-    
     output wire       flush_if_id,      // Flush IF/ID register
     output wire       flush_id_ex       // Flush ID/EX register (insert bubble)
 );
 
     // ========================================================================
-    // Load-Use Hazard Detection
+    // Load-Use Hazard Detection (EX stage)
+    // LW ở EX → instruction ở ID dùng kết quả → stall 1 cycle
     // ========================================================================
     wire load_use_hazard;
-    assign load_use_hazard = memread_id_ex && 
+    assign load_use_hazard = memread_id_ex &&
                              (rd_id_ex != 5'b0) &&
                              ((rd_id_ex == rs1_id) || (rd_id_ex == rs2_id));
-    
+
     // ========================================================================
-    // LSU Dependency Stall
+    // [FIX v3] MEM Load Stall (MEM stage)
+    // LW ở MEM (cycle sau load_use) → scoreboard chưa set → cần stall thêm
+    // Lấp 1-cycle gap giữa load_use_hazard=0 và lsu_dependency_stall=1
+    // ========================================================================
+    wire mem_load_stall;
+    assign mem_load_stall = memread_mem &&
+                            (rd_mem != 5'b0) &&
+                            ((rd_mem == rs1_id) || (rd_mem == rs2_id));
+
+    // ========================================================================
+    // LSU Dependency Stall (Scoreboard)
+    // Register đang chờ LSU hoàn thành → stall cho đến khi scoreboard clear
     // ========================================================================
     wire lsu_dependency_stall;
     assign lsu_dependency_stall = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
                                   (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
-    
+
     // ========================================================================
     // Instruction Fetch Stall
     // ========================================================================
     wire imem_stall;
     assign imem_stall = !imem_ready;
-    
+
     // ========================================================================
-    // [FIX] Combined Stall Signals - Tách biệt rõ ràng
+    // Combined Stall Signals
     // ========================================================================
-    
-    // stall: PIPELINE hazard stall
-    // Dùng để: freeze PC, freeze IF/ID, bubble ID/EX
-    // KHÔNG bao gồm imem_stall (ICache stall)
-    assign stall = load_use_hazard || lsu_dependency_stall;
-    
+
+    // stall: PIPELINE hazard stall (load-use + mem_load gap + LSU scoreboard)
+    // KHÔNG bao gồm imem_stall
+    assign stall = load_use_hazard || mem_load_stall || lsu_dependency_stall;
+
     // stall_if: IF-ONLY stall khi ICache chưa ready
-    // Dùng để: freeze PC và IF/ID khi waiting for ICache
-    // Không ảnh hưởng ID/EX/MEM/WB stages
     assign stall_if = imem_stall;
-    
+
     // ========================================================================
     // Flush Signals
     // ========================================================================
-    // Flush IF/ID khi branch/jump taken
     assign flush_if_id = branch_taken;
-    
-    // Flush ID/EX (insert bubble) khi:
-    //   1. Load-use hazard
-    //   2. Branch/jump taken
     assign flush_id_ex = load_use_hazard || branch_taken;
 
 endmodule

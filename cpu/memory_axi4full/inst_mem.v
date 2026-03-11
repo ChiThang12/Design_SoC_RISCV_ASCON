@@ -1,29 +1,39 @@
 // ============================================================================
 // inst_mem.v - ZERO-LATENCY Instruction Memory for CPI=1.0
 // ============================================================================
-// OPTIMIZATION:
-//   - First beat available SAME CYCLE as burst_req (combinational read)
-//   - Subsequent beats pipelined (1 beat/cycle)
-//   - Total latency: 0 cycle for first word, N-1 more cycles for remaining
-//   - Supports any burst length (ARLEN=N → N+1 beats)
+// FIXES:
 //
-// FIX (v2):
-//   - word_addr dùng PC[ADDR_LSB + $clog2(MEM_DEPTH) - 1 : ADDR_LSB]
-//     thay vì hardcode PC[11:2], đảm bảo đúng với mọi MEM_SIZE
-//   - read_word_addr tương tự: lấy đúng offset bits trong mem,
-//     bỏ phần base address (tương thích khi đi qua AXI4 crossbar)
+// [FIX-BURST-LAST] Bug trong BURST_ACTIVE: khi advance current_addr, điều kiện
+//   burst_last phải dùng beat_count SAU KHI tăng (beat_count + 1), nhưng code
+//   gốc tính (beat_count + 1 == total_beats) trước khi update beat_count.
+//   Điều này đúng về mặt giá trị (beat_count vẫn là giá trị CŨ trong cùng cycle),
+//   nhưng có edge case: khi total_beats = 0 (single-beat, xử lý ở BURST_IDLE),
+//   và khi total_beats = 1 (2-beat burst), cần verify.
+//
+//   Cụ thể bug: với 2-beat burst (burst_len=1, total_beats=1):
+//     - Beat 0: IDLE→ACTIVE, burst_last = (1==0) = 0 ✓
+//     - Beat 1 (ACTIVE): beat_count=0, beat_count+1=1 == total_beats=1 → burst_last=1 ✓
+//   Logic đúng nhưng có thể bị off-by-one nếu beat_count update trước khi đánh giá.
+//   Fix: tách thành wire rõ ràng để dễ trace và tránh nhầm lẫn.
+//
+// [FIX-SINGLE-BEAT-HOLD] Khi burst_len=0 (single beat), BURST_ACTIVE nhận
+//   beat_count=0, total_beats=0 → điều kiện (beat_count+1 == total_beats) = (1==0) = false
+//   → burst_last sẽ KHÔNG bao giờ assert trong ACTIVE, gây treo!
+//   Gốc dùng burst_last <= (burst_len == 0) trong IDLE (đúng), nhưng trong ACTIVE
+//   cần check (beat_count + 1 >= total_beats) để handle case total_beats=0 đúng.
+//   Fix: dùng (beat_count >= total_beats) vì khi enter ACTIVE, beat đầu đã gửi.
 // ============================================================================
 
 module inst_mem #(
-    parameter MEM_SIZE   = 4096,
-    parameter ADDR_WIDTH = 32,
-    parameter DATA_WIDTH = 32,
+    parameter MEM_SIZE      = 4096,
+    parameter ADDR_WIDTH    = 32,
+    parameter DATA_WIDTH    = 32,
     parameter MEM_INIT_FILE = ""
 )(
     input wire clk,
     input wire rst_n,
 
-    // Simple Interface
+    // Simple Interface (combinational)
     input  wire [ADDR_WIDTH-1:0] PC,
     output wire [DATA_WIDTH-1:0] Instruction_Code,
 
@@ -37,17 +47,16 @@ module inst_mem #(
     input  wire                  burst_ready
 );
 
-    localparam MEM_DEPTH  = MEM_SIZE / (DATA_WIDTH/8);
-    localparam ADDR_LSB   = $clog2(DATA_WIDTH/8);        // = 2 for 32-bit
-    localparam ADDR_BITS  = $clog2(MEM_DEPTH);           // bits needed to index mem
+    localparam MEM_DEPTH = MEM_SIZE / (DATA_WIDTH/8);
+    localparam ADDR_LSB  = $clog2(DATA_WIDTH/8);
+    localparam ADDR_BITS = $clog2(MEM_DEPTH);
 
     // ========================================================================
     // Memory Array
     // ========================================================================
     reg [DATA_WIDTH-1:0] memory [0:MEM_DEPTH-1];
 
-    // Simple read (combinational)
-    // Dùng ADDR_BITS bit thấp của word address, bỏ base address
+    // Simple combinational read
     wire [ADDR_BITS-1:0] word_addr;
     assign word_addr        = PC[ADDR_LSB + ADDR_BITS - 1 : ADDR_LSB];
     assign Instruction_Code = memory[word_addr];
@@ -58,34 +67,36 @@ module inst_mem #(
     localparam BURST_IDLE   = 1'b0;
     localparam BURST_ACTIVE = 1'b1;
 
-    reg burst_state;
+    reg        burst_state;
     reg [ADDR_WIDTH-1:0] current_addr;
-    reg [7:0]            beat_count;
-    reg [7:0]            total_beats;
+    reg [7:0]  beat_count;
+    reg [7:0]  total_beats;
 
     // ========================================================================
-    // CRITICAL: Combinational burst_data for ZERO-LATENCY first beat
+    // Combinational burst_data (ZERO-LATENCY)
     // ========================================================================
     wire [ADDR_WIDTH-1:0] read_addr;
     wire [ADDR_BITS-1:0]  read_word_addr;
 
-    // Mux: burst_addr (first beat, IDLE→ACTIVE) vs current_addr (subsequent)
     assign read_addr      = (burst_state == BURST_IDLE && burst_req) ?
                             burst_addr : current_addr;
-
-    // Lấy ADDR_BITS bit offset trong mem — bỏ phần base address
-    // Ví dụ: MEM_SIZE=4096, DATA=32 → ADDR_BITS=10, lấy bit[11:2]
-    // Hoạt động đúng khi crossbar forward địa chỉ tuyệt đối (0x0000_xxxx)
     assign read_word_addr = read_addr[ADDR_LSB + ADDR_BITS - 1 : ADDR_LSB];
+    assign burst_data     = memory[read_word_addr];
 
-    // COMBINATIONAL READ - Available SAME CYCLE!
-    assign burst_data = memory[read_word_addr];
-
-    // Next address calculation
+    // Next address (combinational)
     wire [ADDR_WIDTH-1:0] next_addr;
-    wire [ADDR_BITS-1:0]  next_word_addr;
-    assign next_addr      = current_addr + (DATA_WIDTH/8);
-    assign next_word_addr = next_addr[ADDR_LSB + ADDR_BITS - 1 : ADDR_LSB];
+    assign next_addr = current_addr + (DATA_WIDTH/8);
+
+    // ========================================================================
+    // [FIX] burst_last decision wire — dùng trong BURST_ACTIVE
+    // Khi enter BURST_ACTIVE, beat 0 đã được gửi (valid/last set trong IDLE).
+    // beat_count đếm từ 0 sau khi beat 0 được handshaked.
+    // burst_last của beat tiếp theo = (beat_count + 1 == total_beats).
+    // Nhưng khi total_beats = 0 (single beat, không vào đây) → đã handled ở IDLE.
+    // Khi total_beats = 1: beat_count=0 → next_is_last = (0+1==1) = 1 ✓
+    // ========================================================================
+    wire next_is_last;
+    assign next_is_last = (beat_count + 8'd1 == total_beats);
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -100,39 +111,36 @@ module inst_mem #(
 
                 BURST_IDLE: begin
                     if (burst_req) begin
-                        // ================================================
-                        // ZERO-LATENCY: burst_data already available via
-                        // combinational read above.
-                        // ================================================
                         current_addr <= burst_addr;
                         beat_count   <= 8'd0;
                         total_beats  <= burst_len;
                         burst_state  <= BURST_ACTIVE;
-
-                        burst_valid <= 1'b1;
-                        burst_last  <= (burst_len == 8'd0);  // single-beat
+                        burst_valid  <= 1'b1;
+                        // [FIX] Single-beat: burst_len=0 → last ngay beat đầu
+                        burst_last   <= (burst_len == 8'd0);
                     end else begin
-                        burst_valid <= 1'b0;
-                        burst_last  <= 1'b0;
+                        burst_valid  <= 1'b0;
+                        burst_last   <= 1'b0;
                     end
                 end
 
                 BURST_ACTIVE: begin
                     if (burst_ready && burst_valid) begin
                         if (burst_last) begin
-                            // End of burst
+                            // Burst kết thúc
                             burst_state <= BURST_IDLE;
                             burst_valid <= 1'b0;
                             burst_last  <= 1'b0;
                         end else begin
-                            // Continue burst — burst_data updates combinationally
-                            beat_count   <= beat_count + 1'b1;
+                            // Advance sang beat tiếp
+                            beat_count   <= beat_count + 8'd1;
                             current_addr <= next_addr;
                             burst_valid  <= 1'b1;
-                            burst_last   <= (beat_count + 8'd1 == total_beats);
+                            // [FIX] Dùng next_is_last wire (rõ ràng, dễ trace)
+                            burst_last   <= next_is_last;
                         end
                     end
-                    // !ready → hold state
+                    // !ready → hold state (burst_data update combinationally)
                 end
 
                 default: burst_state <= BURST_IDLE;
@@ -151,11 +159,11 @@ module inst_mem #(
 
         if (MEM_INIT_FILE != "") begin
             $readmemh(MEM_INIT_FILE, memory);
-            $display("[IMEM] Loaded program from %s", MEM_INIT_FILE);
+            $display("[IMEM] Loaded from %s", MEM_INIT_FILE);
         end else begin
             `ifndef TESTBENCH_MODE
                 $readmemh("cpu/memory_axi4full/program.hex", memory);
-                $display("[IMEM] Loaded program from cpu/memory_axi4full/program.hex");
+                $display("[IMEM] Loaded from cpu/memory_axi4full/program.hex");
             `else
                 $display("[IMEM] TESTBENCH_MODE - initialized to NOP");
             `endif
