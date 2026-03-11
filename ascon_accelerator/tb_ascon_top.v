@@ -1,104 +1,189 @@
 // ============================================================================
-// Testbench : tb_ascon_ip_top.v   Version 1.3
+// Testbench : ascon_top_tb_soc
+// DUT       : ascon_ip_top  (ascon_axi_slave + ascon_CORE + ascon_dma)
+// Version   : 2.0  — SoC-accurate scenario
 //
-// Root-cause fix vs v1.2:
-//   - axi_write task: Verilog-2001 tasks không cho phép khởi tạo local reg
-//     trong vòng lặp có @(posedge clk). Rewrite dùng state-machine đơn giản:
-//     drive AW+W cùng lúc, sau đó wait từng kênh bằng vòng lặp riêng.
-//   - Thêm timeout từng bước trong axi_write/axi_read để phát hiện deadlock
+// Mô phỏng đúng theo firmware SoC (main.c) đã debug trong Soc_ascon_11032026.md
+//
+// Kịch bản test:
+//   TEST 1 — CPU-Direct mode  (dma_en=0):
+//       Bước giống firmware:
+//         1. SOFT_RST
+//         2. Ghi KEY / NONCE vào slave registers (qua AXI4-Lite)
+//         3. Ghi PTEXT vào slave registers
+//         4. Ghi MODE = 0 (encrypt, ascon-128)
+//         5. Ghi CTRL = DMA_EN (bit2=0, giữ 0)  → latch reg_dma_en=0
+//         6. Ghi CTRL = START  (bit0=1)          → core_start pulse
+//         7. Poll STATUS.DONE
+//         8. Đọc CTEXT_0/1, TAG_0..3
+//         9. Verify kết quả so sánh với expected
+//        10. SOFT_RST cleanup
+//
+//   TEST 2 — DMA mode  (dma_en=1):
+//       Bước giống firmware:
+//         1. SOFT_RST
+//         2. Ghi KEY / NONCE vào slave registers
+//         3. Ghi DMA_SRC / DMA_DST / DMA_LEN
+//         4. AXI write barrier: đọc lại DMA_SRC (fence)
+//         5. Ghi MODE = 0
+//         6. Ghi IRQ_EN = 1 (enable done-IRQ)
+//         7. Ghi CTRL = DMA_EN (bit2=1) → latch reg_dma_en=1
+//         8. NOP delay (2 cycles)
+//         9. Ghi CTRL = DMA_EN|START (0x05) → dma_start pulse
+//        10. Poll STATUS.DMA_DONE hoặc chờ IRQ
+//        11. Đọc DMEM tại DST_ADDR (ctext + tag ghi ra bởi DMA)
+//        12. Verify
+//        13. SOFT_RST cleanup
+//
+// DMEM model  : bram 64KB tại 0x1000_0000
+//   0x1000_0000 : plaintext source (8 bytes)
+//   0x1000_0010 : ciphertext dest  (8 bytes)
+//   0x1000_0020 : auth tag dest    (16 bytes)
+//
+// AXI4-Lite slave base : 0x2000_0000
+//
+// Test vector (same key/nonce/ptext cho cả 2 mode để so sánh kết quả):
+//   KEY   = 128'h000102030405060708090A0B0C0D0E0F
+//   NONCE = 128'h000102030405060708090A0B0C0D0E0F
+//   PTEXT = 64'h4865_6C6C_6F21_0000  ("Hello!\x00\x00")
+//   data_len = 7'd8
+//   mode = 2'b00 (ASCON-128 encrypt)
 // ============================================================================
 
 `timescale 1ns/1ps
 `include "ascon_accelerator/ascon_top.v"
+module ascon_top_tb_soc;
 
-module tb_ascon_ip_top;
+    // =========================================================================
+    // Parameters
+    // =========================================================================
+    parameter CLK_PERIOD    = 10;   // 100 MHz
+    parameter S_ADDR_WIDTH  = 32;
+    parameter S_DATA_WIDTH  = 32;
+    parameter S_ID_WIDTH    = 4;
+    parameter M_ADDR_WIDTH  = 32;
+    parameter M_DATA_WIDTH  = 64;
+    parameter M_ID_WIDTH    = 4;
 
-    localparam CLK_PERIOD   = 10;
-    localparam S_ADDR_WIDTH = 32;
-    localparam S_DATA_WIDTH = 32;
-    localparam S_ID_WIDTH   = 4;
-    localparam M_ADDR_WIDTH = 32;
-    localparam M_DATA_WIDTH = 64;
-    localparam M_ID_WIDTH   = 4;
+    // AXI4-Lite Slave base address (CPU → ASCON registers)
+    parameter [31:0] ASCON_BASE  = 32'h2000_0000;
 
-    localparam BASE         = 32'h2000_0000;
-    localparam ADDR_CTRL    = BASE + 32'h000;
-    localparam ADDR_STATUS  = BASE + 32'h004;
-    localparam ADDR_MODE    = BASE + 32'h008;
-    localparam ADDR_IRQ_EN  = BASE + 32'h00C;
-    localparam ADDR_KEY_0   = BASE + 32'h010;
-    localparam ADDR_KEY_1   = BASE + 32'h014;
-    localparam ADDR_KEY_2   = BASE + 32'h018;
-    localparam ADDR_KEY_3   = BASE + 32'h01C;
-    localparam ADDR_NON_0   = BASE + 32'h020;
-    localparam ADDR_NON_1   = BASE + 32'h024;
-    localparam ADDR_NON_2   = BASE + 32'h028;
-    localparam ADDR_NON_3   = BASE + 32'h02C;
-    localparam ADDR_PTX_0   = BASE + 32'h030;
-    localparam ADDR_PTX_1   = BASE + 32'h034;
-    localparam ADDR_CTX_0   = BASE + 32'h040;
-    localparam ADDR_CTX_1   = BASE + 32'h044;
-    localparam ADDR_TAG_0   = BASE + 32'h048;
-    localparam ADDR_TAG_1   = BASE + 32'h04C;
-    localparam ADDR_TAG_2   = BASE + 32'h050;
-    localparam ADDR_TAG_3   = BASE + 32'h054;
-    localparam ADDR_DMA_SRC = BASE + 32'h100;
-    localparam ADDR_DMA_DST = BASE + 32'h104;
-    localparam ADDR_DMA_LEN = BASE + 32'h108;
+    // DMEM base (AXI4-Full Master DMA read/write)
+    parameter [31:0] DMEM_BASE   = 32'h1000_0000;
 
-    localparam CTRL_START    = 32'h1;
-    localparam CTRL_SOFT_RST = 32'h2;
-    localparam CTRL_DMA_EN   = 32'h4;
-    localparam CTRL_DMA_START= 32'h5;
+    // DMEM offsets
+    parameter [31:0] DMEM_PTEXT_OFF = 32'h00;
+    parameter [31:0] DMEM_CTEXT_OFF = 32'h10;
+    // TAG bắt đầu ngay sau CTEXT: DST_ADDR+8 (CTEXT=8B, sau đó TAG=16B)
+    // DMA ghi: beat[0]=0x10→CTEXT(8B), beat[1]=0x18→TAG[127:64], beat[2]=0x20→TAG[63:0]
+    parameter [31:0] DMEM_TAG_OFF   = 32'h18;
 
-    localparam STATUS_BUSY      = 0;
-    localparam STATUS_DONE      = 1;
-    localparam STATUS_DMA_BUSY  = 2;
-    localparam STATUS_DMA_DONE  = 3;
-    localparam STATUS_ERROR     = 4;
-    localparam STATUS_DMA_ERROR = 5;
+    // DMA total bytes: 8 ptext
+    parameter [31:0] DMA_LEN     = 32'h00000008;
+
+    // Poll timeout (cycles)
+    parameter integer POLL_TIMEOUT = 500000;
+
+    // ASCON register offsets
+    localparam [11:0]
+        OFF_CTRL     = 12'h000,
+        OFF_STATUS   = 12'h004,
+        OFF_MODE     = 12'h008,
+        OFF_IRQ_EN   = 12'h00C,
+        OFF_KEY_0    = 12'h010,
+        OFF_KEY_1    = 12'h014,
+        OFF_KEY_2    = 12'h018,
+        OFF_KEY_3    = 12'h01C,
+        OFF_NONCE_0  = 12'h020,
+        OFF_NONCE_1  = 12'h024,
+        OFF_NONCE_2  = 12'h028,
+        OFF_NONCE_3  = 12'h02C,
+        OFF_PTEXT_0  = 12'h030,
+        OFF_PTEXT_1  = 12'h034,
+        OFF_CTEXT_0  = 12'h040,
+        OFF_CTEXT_1  = 12'h044,
+        OFF_TAG_0    = 12'h048,
+        OFF_TAG_1    = 12'h04C,
+        OFF_TAG_2    = 12'h050,
+        OFF_TAG_3    = 12'h054,
+        OFF_DMA_SRC  = 12'h100,
+        OFF_DMA_DST  = 12'h104,
+        OFF_DMA_LEN  = 12'h108;
+
+    // CTRL bits
+    localparam CTRL_START   = 32'h1;
+    localparam CTRL_SOFT_RST= 32'h2;
+    localparam CTRL_DMA_EN  = 32'h4;
+
+    // STATUS bits
+    localparam STATUS_BUSY      = 32'h01;
+    localparam STATUS_DONE      = 32'h02;
+    localparam STATUS_DMA_BUSY  = 32'h04;
+    localparam STATUS_DMA_DONE  = 32'h08;
+
+    // =========================================================================
+    // Test vector
+    // =========================================================================
+    localparam [127:0] TEST_KEY   = 128'h000102030405060708090A0B0C0D0E0F;
+    localparam [127:0] TEST_NONCE = 128'h000102030405060708090A0B0C0D0E0F;
+    // Plaintext: "Hello!\x00\x00" = 8 bytes
+    localparam [63:0]  TEST_PTEXT = 64'h48656C6C6F210000;
+    localparam [6:0]   TEST_DLEN  = 7'd8;
 
     // =========================================================================
     // Clock / Reset
     // =========================================================================
     reg clk   = 0;
     reg rst_n = 0;
+
     always #(CLK_PERIOD/2) clk = ~clk;
 
     // =========================================================================
-    // AXI4-Lite Slave signals
+    // AXI4-Lite Slave signals (CPU → ASCON)
     // =========================================================================
+    // Write Address
     reg  [S_ID_WIDTH-1:0]     s_awid    = 0;
     reg  [S_ADDR_WIDTH-1:0]   s_awaddr  = 0;
+    reg  [7:0]                s_awlen   = 0;
+    reg  [2:0]                s_awsize  = 3'b010;
+    reg  [1:0]                s_awburst = 2'b01;
     reg  [2:0]                s_awprot  = 0;
     reg                       s_awvalid = 0;
     wire                      s_awready;
 
-    reg  [S_DATA_WIDTH-1:0]   s_wdata  = 0;
-    reg  [S_DATA_WIDTH/8-1:0] s_wstrb  = 4'hF;
-    reg                       s_wvalid = 0;
+    // Write Data
+    reg  [S_DATA_WIDTH-1:0]   s_wdata   = 0;
+    reg  [S_DATA_WIDTH/8-1:0] s_wstrb   = 4'hF;
+    reg                       s_wlast   = 1;
+    reg                       s_wvalid  = 0;
     wire                      s_wready;
 
+    // Write Response
     wire [S_ID_WIDTH-1:0]     s_bid;
     wire [1:0]                s_bresp;
     wire                      s_bvalid;
-    reg                       s_bready = 1;
+    reg                       s_bready  = 1;
 
+    // Read Address
     reg  [S_ID_WIDTH-1:0]     s_arid    = 0;
     reg  [S_ADDR_WIDTH-1:0]   s_araddr  = 0;
+    reg  [7:0]                s_arlen   = 0;
+    reg  [2:0]                s_arsize  = 3'b010;
+    reg  [1:0]                s_arburst = 2'b01;
     reg  [2:0]                s_arprot  = 0;
     reg                       s_arvalid = 0;
     wire                      s_arready;
 
+    // Read Data
     wire [S_ID_WIDTH-1:0]     s_rid;
     wire [S_DATA_WIDTH-1:0]   s_rdata;
     wire [1:0]                s_rresp;
     wire                      s_rlast;
     wire                      s_rvalid;
-    reg                       s_rready = 1;
+    reg                       s_rready  = 1;
 
     // =========================================================================
-    // AXI4-Full Master signals
+    // AXI4-Full Master signals (DMA → DMEM model)
     // =========================================================================
     wire [M_ID_WIDTH-1:0]     m_awid;
     wire [M_ADDR_WIDTH-1:0]   m_awaddr;
@@ -106,7 +191,7 @@ module tb_ascon_ip_top;
     wire [2:0]                m_awsize;
     wire [1:0]                m_awburst;
     wire [3:0]                m_awcache;
-    wire [2:0]                m_awprot_w;
+    wire [2:0]                m_awprot;
     wire                      m_awvalid;
     reg                       m_awready = 0;
 
@@ -116,9 +201,9 @@ module tb_ascon_ip_top;
     wire                      m_wvalid;
     reg                       m_wready  = 0;
 
-    reg  [M_ID_WIDTH-1:0]     m_bid    = 0;
-    reg  [1:0]                m_bresp  = 0;
-    reg                       m_bvalid = 0;
+    reg  [M_ID_WIDTH-1:0]     m_bid     = 0;
+    reg  [1:0]                m_bresp   = 0;
+    reg                       m_bvalid  = 0;
     wire                      m_bready;
 
     wire [M_ID_WIDTH-1:0]     m_arid;
@@ -127,17 +212,18 @@ module tb_ascon_ip_top;
     wire [2:0]                m_arsize;
     wire [1:0]                m_arburst;
     wire [3:0]                m_arcache;
-    wire [2:0]                m_arprot_w;
+    wire [2:0]                m_arprot;
     wire                      m_arvalid;
     reg                       m_arready = 0;
 
-    reg  [M_ID_WIDTH-1:0]     m_rid    = 0;
-    reg  [M_DATA_WIDTH-1:0]   m_rdata  = 0;
-    reg  [1:0]                m_rresp  = 0;
-    reg                       m_rlast  = 0;
-    reg                       m_rvalid = 0;
+    reg  [M_ID_WIDTH-1:0]     m_rid     = 0;
+    reg  [M_DATA_WIDTH-1:0]   m_rdata   = 0;
+    reg  [1:0]                m_rresp   = 0;
+    reg                       m_rlast   = 0;
+    reg                       m_rvalid  = 0;
     wire                      m_rready;
 
+    // IRQ
     wire irq;
 
     // =========================================================================
@@ -149,714 +235,660 @@ module tb_ascon_ip_top;
         .S_ID_WIDTH   (S_ID_WIDTH),
         .M_ADDR_WIDTH (M_ADDR_WIDTH),
         .M_DATA_WIDTH (M_DATA_WIDTH),
-        .M_ID_WIDTH   (M_ID_WIDTH)
+        .M_ID_WIDTH   (M_ID_WIDTH),
+        .RD_FIFO_DEPTH(4),
+        .WR_FIFO_DEPTH(8)
     ) dut (
-        .clk              (clk),       .rst_n            (rst_n),
-        .S_AXI_AWID       (s_awid),    .S_AXI_AWADDR     (s_awaddr),
-        .S_AXI_AWPROT     (s_awprot),  .S_AXI_AWVALID    (s_awvalid),
-        .S_AXI_AWREADY    (s_awready),
-        .S_AXI_WDATA      (s_wdata),   .S_AXI_WSTRB      (s_wstrb),
-        .S_AXI_WVALID     (s_wvalid),  .S_AXI_WREADY     (s_wready),
-        .S_AXI_BID        (s_bid),     .S_AXI_BRESP      (s_bresp),
-        .S_AXI_BVALID     (s_bvalid),  .S_AXI_BREADY     (s_bready),
-        .S_AXI_ARID       (s_arid),    .S_AXI_ARADDR     (s_araddr),
-        .S_AXI_ARPROT     (s_arprot),  .S_AXI_ARVALID    (s_arvalid),
-        .S_AXI_ARREADY    (s_arready),
-        .S_AXI_RID        (s_rid),     .S_AXI_RDATA      (s_rdata),
-        .S_AXI_RRESP      (s_rresp),   .S_AXI_RLAST      (s_rlast),
-        .S_AXI_RVALID     (s_rvalid),  .S_AXI_RREADY     (s_rready),
-        .M_AXI_AWID       (m_awid),    .M_AXI_AWADDR     (m_awaddr),
-        .M_AXI_AWLEN      (m_awlen),   .M_AXI_AWSIZE     (m_awsize),
-        .M_AXI_AWBURST    (m_awburst), .M_AXI_AWCACHE    (m_awcache),
-        .M_AXI_AWPROT     (m_awprot_w),.M_AXI_AWVALID    (m_awvalid),
-        .M_AXI_AWREADY    (m_awready),
-        .M_AXI_WDATA      (m_wdata),   .M_AXI_WSTRB      (m_wstrb),
-        .M_AXI_WLAST      (m_wlast),   .M_AXI_WVALID     (m_wvalid),
-        .M_AXI_WREADY     (m_wready),
-        .M_AXI_BID        (m_bid),     .M_AXI_BRESP      (m_bresp),
-        .M_AXI_BVALID     (m_bvalid),  .M_AXI_BREADY     (m_bready),
-        .M_AXI_ARID       (m_arid),    .M_AXI_ARADDR     (m_araddr),
-        .M_AXI_ARLEN      (m_arlen),   .M_AXI_ARSIZE     (m_arsize),
-        .M_AXI_ARBURST    (m_arburst), .M_AXI_ARCACHE    (m_arcache),
-        .M_AXI_ARPROT     (m_arprot_w),.M_AXI_ARVALID    (m_arvalid),
-        .M_AXI_ARREADY    (m_arready),
-        .M_AXI_RID        (m_rid),     .M_AXI_RDATA      (m_rdata),
-        .M_AXI_RRESP      (m_rresp),   .M_AXI_RLAST      (m_rlast),
-        .M_AXI_RVALID     (m_rvalid),  .M_AXI_RREADY     (m_rready),
-        .irq              (irq)
+        .clk            (clk),
+        .rst_n          (rst_n),
+
+        // AXI4-Lite Slave
+        .S_AXI_AWID     (s_awid),
+        .S_AXI_AWADDR   (s_awaddr),
+        .S_AXI_AWLEN    (s_awlen),
+        .S_AXI_AWSIZE   (s_awsize),
+        .S_AXI_AWBURST  (s_awburst),
+        .S_AXI_AWPROT   (s_awprot),
+        .S_AXI_AWVALID  (s_awvalid),
+        .S_AXI_AWREADY  (s_awready),
+
+        .S_AXI_WDATA    (s_wdata),
+        .S_AXI_WSTRB    (s_wstrb),
+        .S_AXI_WLAST    (s_wlast),
+        .S_AXI_WVALID   (s_wvalid),
+        .S_AXI_WREADY   (s_wready),
+
+        .S_AXI_BID      (s_bid),
+        .S_AXI_BRESP    (s_bresp),
+        .S_AXI_BVALID   (s_bvalid),
+        .S_AXI_BREADY   (s_bready),
+
+        .S_AXI_ARID     (s_arid),
+        .S_AXI_ARADDR   (s_araddr),
+        .S_AXI_ARLEN    (s_arlen),
+        .S_AXI_ARSIZE   (s_arsize),
+        .S_AXI_ARBURST  (s_arburst),
+        .S_AXI_ARPROT   (s_arprot),
+        .S_AXI_ARVALID  (s_arvalid),
+        .S_AXI_ARREADY  (s_arready),
+
+        .S_AXI_RID      (s_rid),
+        .S_AXI_RDATA    (s_rdata),
+        .S_AXI_RRESP    (s_rresp),
+        .S_AXI_RLAST    (s_rlast),
+        .S_AXI_RVALID   (s_rvalid),
+        .S_AXI_RREADY   (s_rready),
+
+        // AXI4-Full Master (DMA)
+        .M_AXI_AWID     (m_awid),
+        .M_AXI_AWADDR   (m_awaddr),
+        .M_AXI_AWLEN    (m_awlen),
+        .M_AXI_AWSIZE   (m_awsize),
+        .M_AXI_AWBURST  (m_awburst),
+        .M_AXI_AWCACHE  (m_awcache),
+        .M_AXI_AWPROT   (m_awprot),
+        .M_AXI_AWVALID  (m_awvalid),
+        .M_AXI_AWREADY  (m_awready),
+
+        .M_AXI_WDATA    (m_wdata),
+        .M_AXI_WSTRB    (m_wstrb),
+        .M_AXI_WLAST    (m_wlast),
+        .M_AXI_WVALID   (m_wvalid),
+        .M_AXI_WREADY   (m_wready),
+
+        .M_AXI_BID      (m_bid),
+        .M_AXI_BRESP    (m_bresp),
+        .M_AXI_BVALID   (m_bvalid),
+        .M_AXI_BREADY   (m_bready),
+
+        .M_AXI_ARID     (m_arid),
+        .M_AXI_ARADDR   (m_araddr),
+        .M_AXI_ARLEN    (m_arlen),
+        .M_AXI_ARSIZE   (m_arsize),
+        .M_AXI_ARBURST  (m_arburst),
+        .M_AXI_ARCACHE  (m_arcache),
+        .M_AXI_ARPROT   (m_arprot),
+        .M_AXI_ARVALID  (m_arvalid),
+        .M_AXI_ARREADY  (m_arready),
+
+        .M_AXI_RID      (m_rid),
+        .M_AXI_RDATA    (m_rdata),
+        .M_AXI_RRESP    (m_rresp),
+        .M_AXI_RLAST    (m_rlast),
+        .M_AXI_RVALID   (m_rvalid),
+        .M_AXI_RREADY   (m_rready),
+
+        .irq            (irq)
     );
 
     // =========================================================================
-    // DDR memory model  (1 KB)
+    // DMEM model — 64KB BRAM cho DMA master
+    // Address range: 0x1000_0000 ~ 0x1000_FFFF
+    // Data width: 64-bit (AXI4-Full)
     // =========================================================================
-    reg [7:0] ddr_mem [0:1023];
-    integer mi;
-    initial for (mi = 0; mi < 1024; mi = mi+1) ddr_mem[mi] = 8'h00;
+    reg [63:0] dmem [0:8191];   // 8192 × 64-bit = 64KB
 
-    `define DDR_IDX(a) ((a) & 10'h3FF)
+    integer i;
+    initial begin
+        for (i = 0; i < 8192; i = i + 1)
+            dmem[i] = 64'h0;
+        // Pre-load plaintext tại 0x1000_0000 (offset 0, word index 0)
+        // TEST_PTEXT = 64'h48656C6C_6F210000
+        dmem[0] = {TEST_PTEXT[7:0],   TEST_PTEXT[15:8],
+                   TEST_PTEXT[23:16], TEST_PTEXT[31:24],
+                   TEST_PTEXT[39:32], TEST_PTEXT[47:40],
+                   TEST_PTEXT[55:48], TEST_PTEXT[63:56]};
+        // Byte-swap vì DMA đọc big-endian từ memory:
+        // ptext[63:56] = byte 0 (địa chỉ thấp nhất) → AXI RDATA[63:56]
+        // Giả sử DMA dùng little-endian host byte order, không swap:
+        // => store raw value
+        dmem[0] = TEST_PTEXT;  // 64'h48656C6C6F210000
+    end
 
-    reg tc9_err = 0;
+    // DMEM read port — AXI4-Full Master Read
+    // Handshake: ARVALID/ARREADY → RVALID/RREADY
+    // Phase 1: 1-beat burst (ARLEN=0), RLAST=1
+    reg [M_ADDR_WIDTH-1:0] dmem_ar_addr_lat;
+    reg [M_ID_WIDTH-1:0]   dmem_ar_id_lat;
+    reg [1:0]              dmem_rd_state;
 
-    // M_AXI Read responder
-    reg [M_ADDR_WIDTH-1:0] rd_addr;
-    reg [7:0]              rd_beats;
-    reg [M_ID_WIDTH-1:0]   rd_id;
-    reg                    mem_rd_st = 0;
+    localparam DMRD_IDLE = 2'b00, DMRD_DATA = 2'b01, DMRD_WAIT = 2'b10;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            m_arready <= 0; m_rvalid <= 0; m_rlast <= 0;
-            m_rdata   <= 0; m_rid    <= 0; mem_rd_st <= 0;
-        end else if (mem_rd_st == 0) begin
-            m_arready <= 1;
-            if (m_arvalid && m_arready) begin
-                rd_addr   <= m_araddr; rd_beats <= m_arlen;
-                rd_id     <= m_arid;   m_arready <= 0;
-                mem_rd_st <= 1;
-            end
+            m_arready       <= 1'b1;
+            m_rvalid        <= 1'b0;
+            m_rdata         <= 64'h0;
+            m_rresp         <= 2'b00;
+            m_rlast         <= 1'b0;
+            m_rid           <= {M_ID_WIDTH{1'b0}};
+            dmem_rd_state   <= DMRD_IDLE;
         end else begin
-            m_rvalid <= 1;
-            m_rid    <= rd_id;
-            m_rresp  <= tc9_err ? 2'b10 : 2'b00;
-            m_rdata  <= { ddr_mem[`DDR_IDX(rd_addr+0)], ddr_mem[`DDR_IDX(rd_addr+1)],
-                          ddr_mem[`DDR_IDX(rd_addr+2)], ddr_mem[`DDR_IDX(rd_addr+3)],
-                          ddr_mem[`DDR_IDX(rd_addr+4)], ddr_mem[`DDR_IDX(rd_addr+5)],
-                          ddr_mem[`DDR_IDX(rd_addr+6)], ddr_mem[`DDR_IDX(rd_addr+7)] };
-            m_rlast  <= (rd_beats == 0);
-            if (m_rvalid && m_rready) begin
-                if (rd_beats == 0) begin
-                    m_rvalid <= 0; m_rlast <= 0; mem_rd_st <= 0;
-                end else begin
-                    rd_addr  <= rd_addr + (M_DATA_WIDTH/8);
-                    rd_beats <= rd_beats - 1;
+            case (dmem_rd_state)
+                DMRD_IDLE: begin
+                    if (m_arvalid && m_arready) begin
+                        dmem_ar_addr_lat <= m_araddr;
+                        dmem_ar_id_lat   <= m_arid;
+                        m_arready        <= 1'b0;
+                        dmem_rd_state    <= DMRD_DATA;
+                    end
                 end
-            end
+                DMRD_DATA: begin
+                    // Serve read data (1-beat)
+                    m_rvalid <= 1'b1;
+                    m_rid    <= dmem_ar_id_lat;
+                    m_rresp  <= 2'b00;
+                    m_rlast  <= 1'b1;
+                    if (dmem_ar_addr_lat >= DMEM_BASE &&
+                        dmem_ar_addr_lat < (DMEM_BASE + 32'h10000)) begin
+                        m_rdata <= dmem[(dmem_ar_addr_lat - DMEM_BASE) >> 3];
+                        $display("[DMEM-RD] addr=0x%08X  data=0x%016X  (t=%0t)",
+                                 dmem_ar_addr_lat,
+                                 dmem[(dmem_ar_addr_lat - DMEM_BASE) >> 3],
+                                 $time);
+                    end else begin
+                        m_rdata <= 64'hDEAD_BEEF_DEAD_BEEF;
+                        $display("[DMEM-RD][WARN] addr=0x%08X OUT OF RANGE  (t=%0t)",
+                                 dmem_ar_addr_lat, $time);
+                    end
+                    dmem_rd_state <= DMRD_WAIT;
+                end
+                DMRD_WAIT: begin
+                    if (m_rvalid && m_rready) begin
+                        m_rvalid      <= 1'b0;
+                        m_rlast       <= 1'b0;
+                        m_arready     <= 1'b1;
+                        dmem_rd_state <= DMRD_IDLE;
+                    end
+                end
+                default: dmem_rd_state <= DMRD_IDLE;
+            endcase
         end
     end
 
-    // M_AXI Write responder
-    reg [M_ADDR_WIDTH-1:0] wr_addr;
-    reg [7:0]              wr_beats;
-    reg [M_ID_WIDTH-1:0]   wr_id;
-    reg [1:0]              mem_wr_st = 0;
-    integer bi;
+    // DMEM write port — AXI4-Full Master Write
+    // DMA ghi ctext + tag ra DMEM
+    // Burst: AWLEN tùy DMA (Phase 1: AWLEN=2, 3 beats × 64-bit = 24 bytes)
+    reg [M_ADDR_WIDTH-1:0] dmem_aw_addr_lat;
+    reg [M_ID_WIDTH-1:0]   dmem_aw_id_lat;
+    reg [7:0]              dmem_aw_len_lat;
+    reg [7:0]              dmem_wr_beat_cnt;
+    reg [2:0]              dmem_wr_state;
+    reg [M_ADDR_WIDTH-1:0] dmem_wr_cur_addr;
+
+    localparam DMWR_IDLE = 3'b000, DMWR_ADDR = 3'b001,
+               DMWR_DATA = 3'b010, DMWR_RESP = 3'b011, DMWR_DONE = 3'b100;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            m_awready <= 0; m_wready <= 0; m_bvalid <= 0;
-            m_bid <= 0; m_bresp <= 0; mem_wr_st <= 0;
-        end else case (mem_wr_st)
-            2'd0: begin
-                m_awready <= 1;
-                if (m_awvalid && m_awready) begin
-                    wr_addr   <= m_awaddr; wr_beats <= m_awlen;
-                    wr_id     <= m_awid;   m_awready <= 0;
-                    m_wready  <= 1;        mem_wr_st <= 1;
-                end
-            end
-            2'd1: begin
-                if (m_wvalid && m_wready) begin
-                    for (bi=0; bi < M_DATA_WIDTH/8; bi=bi+1)
-                        if (m_wstrb[bi]) ddr_mem[`DDR_IDX(wr_addr+bi)] <= m_wdata[bi*8 +: 8];
-                    if (m_wlast) begin
-                        m_wready <= 0; m_bvalid <= 1;
-                        m_bid    <= wr_id; m_bresp <= 0; mem_wr_st <= 2;
-                    end else begin
-                        wr_addr  <= wr_addr + (M_DATA_WIDTH/8);
-                        wr_beats <= wr_beats - 1;
+            m_awready       <= 1'b1;
+            m_wready        <= 1'b0;
+            m_bvalid        <= 1'b0;
+            m_bresp         <= 2'b00;
+            m_bid           <= {M_ID_WIDTH{1'b0}};
+            dmem_wr_state   <= DMWR_IDLE;
+            dmem_wr_beat_cnt<= 8'h0;
+        end else begin
+            case (dmem_wr_state)
+                DMWR_IDLE: begin
+                    m_wready <= 1'b0;
+                    if (m_awvalid && m_awready) begin
+                        dmem_aw_addr_lat  <= m_awaddr;
+                        dmem_aw_id_lat    <= m_awid;
+                        dmem_aw_len_lat   <= m_awlen;
+                        dmem_wr_cur_addr  <= m_awaddr;
+                        dmem_wr_beat_cnt  <= 8'h0;
+                        m_awready         <= 1'b0;
+                        m_wready          <= 1'b1;
+                        dmem_wr_state     <= DMWR_DATA;
+                        $display("[DMEM-WR] AW accepted: addr=0x%08X len=%0d  (t=%0t)",
+                                 m_awaddr, m_awlen, $time);
                     end
                 end
-            end
-            2'd2: begin
-                if (m_bvalid && m_bready) begin
-                    m_bvalid <= 0; mem_wr_st <= 0;
+                DMWR_DATA: begin
+                    if (m_wvalid && m_wready) begin
+                        // Write to DMEM
+                        if (dmem_wr_cur_addr >= DMEM_BASE &&
+                            dmem_wr_cur_addr < (DMEM_BASE + 32'h10000)) begin
+                            dmem[(dmem_wr_cur_addr - DMEM_BASE) >> 3] <= m_wdata;
+                            $display("[DMEM-WR]   beat[%0d] addr=0x%08X data=0x%016X strb=0x%02X  (t=%0t)",
+                                     dmem_wr_beat_cnt, dmem_wr_cur_addr,
+                                     m_wdata, m_wstrb, $time);
+                        end else begin
+                            $display("[DMEM-WR][WARN] addr=0x%08X OUT OF RANGE  (t=%0t)",
+                                     dmem_wr_cur_addr, $time);
+                        end
+                        dmem_wr_cur_addr  <= dmem_wr_cur_addr + 8;
+                        dmem_wr_beat_cnt  <= dmem_wr_beat_cnt + 1;
+                        if (m_wlast) begin
+                            m_wready      <= 1'b0;
+                            dmem_wr_state <= DMWR_RESP;
+                        end
+                    end
                 end
-            end
-            default: mem_wr_st <= 0;
-        endcase
+                DMWR_RESP: begin
+                    m_bvalid      <= 1'b1;
+                    m_bid         <= dmem_aw_id_lat;
+                    m_bresp       <= 2'b00;
+                    dmem_wr_state <= DMWR_DONE;
+                end
+                DMWR_DONE: begin
+                    if (m_bvalid && m_bready) begin
+                        m_bvalid      <= 1'b0;
+                        m_awready     <= 1'b1;
+                        dmem_wr_state <= DMWR_IDLE;
+                    end
+                end
+                default: dmem_wr_state <= DMWR_IDLE;
+            endcase
+        end
     end
 
     // =========================================================================
-    // Shared task state vars (module-level — Verilog-2001 safe)
+    // AXI4-Lite helper tasks
     // =========================================================================
-    reg [31:0] rdata_buf  = 0;
-    integer    pass_count = 0;
-    integer    fail_count = 0;
 
-    // =========================================================================
-    // AXI4-Lite Write task
-    // -  Drive AW+W đồng thời trên cùng posedge đầu tiên
-    // -  Dùng hai vòng lặp riêng để deassert từng kênh khi ready
-    // -  KHÔNG dùng local reg  (Verilog-2001 task local reg + @clk = unreliable)
-    // =========================================================================
+    // axi_write: CPU ghi 1 word vào ASCON slave
+    // addr: địa chỉ đầy đủ (ví dụ: ASCON_BASE + OFF_KEY_0)
     task axi_write;
         input [31:0] addr;
         input [31:0] data;
         input [3:0]  strb;
-        integer tw;
+        integer timeout_cnt;
         begin
-            // --- Phase 1: present AW + W trên cùng clock edge ---
             @(posedge clk); #1;
-            s_awid    = 4'h1;  s_awaddr  = addr;
+            // Phase 1: drive AW
+            s_awaddr  = addr;
             s_awvalid = 1'b1;
-            s_wdata   = data;  s_wstrb   = strb;
+            s_awid    = 4'h1;
+            // Phase 2: drive W (same cycle — matches SoC behavior)
+            s_wdata   = data;
+            s_wstrb   = strb;
             s_wvalid  = 1'b1;
+            s_wlast   = 1'b1;
 
-            // --- Phase 2: wait AW accepted (deassert sau khi accepted) ---
-            tw = 0;
-            @(posedge clk);
-            while (!(s_awready && s_awvalid)) begin
-                @(posedge clk);
-                tw = tw + 1;
-                if (tw > 200) begin
-                    $display("  [ERR] axi_write AW timeout! awready=%b awvalid=%b addr=%08h",
-                             s_awready, s_awvalid, addr);
-                    tw = 0; // reset to avoid infinite loop — slave bug
-                    s_awvalid = 0;
-                end
+            // Wait for AW handshake
+            timeout_cnt = 0;
+            @(posedge clk); #1;
+            while (!s_awready && timeout_cnt < 100) begin
+                @(posedge clk); #1;
+                timeout_cnt = timeout_cnt + 1;
             end
-            #1; s_awvalid = 1'b0;
+            s_awvalid = 1'b0;
 
-            // --- Phase 3: wait W accepted (deassert sau khi accepted) ---
-            // W có thể đã được accepted cùng cycle với AW — kiểm tra ngay
-            tw = 0;
-            if (!(s_wready && s_wvalid)) begin
-                @(posedge clk);
-                while (!(s_wready && s_wvalid)) begin
-                    @(posedge clk);
-                    tw = tw + 1;
-                    if (tw > 200) begin
-                        $display("  [ERR] axi_write W timeout! wready=%b wvalid=%b addr=%08h",
-                                 s_wready, s_wvalid, addr);
-                        tw = 0;
-                        s_wvalid = 0;
-                    end
-                end
+            // Wait for W handshake
+            timeout_cnt = 0;
+            while (!s_wready && timeout_cnt < 100) begin
+                @(posedge clk); #1;
+                timeout_cnt = timeout_cnt + 1;
             end
-            #1; s_wvalid = 1'b0;
+            s_wvalid = 1'b0;
 
-            // --- Phase 4: wait B response ---
-            tw = 0;
-            while (!s_bvalid) begin
-                @(posedge clk);
-                tw = tw + 1;
-                if (tw > 200) begin
-                    $display("  [ERR] axi_write B timeout! bvalid=%b addr=%08h",
-                             s_bvalid, addr);
-                    tw = 0;
-                    disable axi_write;
-                end
+            // Wait for B (write response)
+            timeout_cnt = 0;
+            while (!s_bvalid && timeout_cnt < 100) begin
+                @(posedge clk); #1;
+                timeout_cnt = timeout_cnt + 1;
             end
-            @(posedge clk);
+            @(posedge clk); #1;
         end
     endtask
 
-    task axi_wr;
-        input [31:0] addr;
-        input [31:0] data;
-        begin axi_write(addr, data, 4'hF); end
-    endtask
-
-    // =========================================================================
-    // AXI4-Lite Read task
-    // =========================================================================
+    // axi_read: CPU đọc 1 word từ ASCON slave
     task axi_read;
-        input [31:0] addr;
-        integer tr;
+        input  [31:0] addr;
+        output [31:0] data;
+        integer timeout_cnt;
         begin
             @(posedge clk); #1;
-            s_arid    = 4'h2;
             s_araddr  = addr;
+            s_arid    = 4'h2;
             s_arvalid = 1'b1;
 
-            // wait AR accepted
-            tr = 0;
-            @(posedge clk);
-            while (!(s_arready && s_arvalid)) begin
-                @(posedge clk);
-                tr = tr + 1;
-                if (tr > 200) begin
-                    $display("  [ERR] axi_read AR timeout! addr=%08h", addr);
-                    tr = 0;
-                    s_arvalid = 0;
-                end
+            // Wait AR handshake
+            timeout_cnt = 0;
+            @(posedge clk); #1;
+            while (!s_arready && timeout_cnt < 100) begin
+                @(posedge clk); #1;
+                timeout_cnt = timeout_cnt + 1;
             end
-            #1; s_arvalid = 1'b0;
+            s_arvalid = 1'b0;
 
-            // wait R response
-            tr = 0;
-            while (!s_rvalid) begin
-                @(posedge clk);
-                tr = tr + 1;
-                if (tr > 200) begin
-                    $display("  [ERR] axi_read R timeout! addr=%08h", addr);
-                    tr = 0;
-                    disable axi_read;
-                end
+            // Wait R data
+            s_rready  = 1'b1;
+            timeout_cnt = 0;
+            while (!s_rvalid && timeout_cnt < 100) begin
+                @(posedge clk); #1;
+                timeout_cnt = timeout_cnt + 1;
             end
-            rdata_buf = s_rdata;
-            @(posedge clk);
+            data = s_rdata;
+            @(posedge clk); #1;
+        end
+    endtask
+
+    // nop_delay: 2 NOP cycles (giống firmware)
+    task nop_delay;
+        begin
+            @(posedge clk); #1;
+            @(posedge clk); #1;
         end
     endtask
 
     // =========================================================================
-    // wait_done  (poll STATUS với delay giữa các lần)
+    // Poll STATUS register (giống step6_wait_done trong firmware)
+    // mask: bit cần check (STATUS_DONE hoặc STATUS_DMA_DONE)
     // =========================================================================
-    task wait_done;
+    task poll_status_done;
         input [31:0] mask;
-        input integer max_polls;
-        integer p;
+        input [63:0] timeout_cycles;
+        output       timed_out;
+        reg  [31:0]  status_val;
+        integer      cnt;
         begin
-            p = 0;
-            begin : wdone
-                forever begin
-                    repeat(5) @(posedge clk);
-                    axi_read(ADDR_STATUS);
-                    if (rdata_buf & mask) disable wdone;
-                    p = p + 1;
-                    if (p >= max_polls) begin
-                        $display("  [TIMEOUT] wait_done: STATUS=0x%08h  core_busy=%b  core_done=%b",
-                                 rdata_buf, dut.core_busy_w, dut.core_done_w);
-                        disable wdone;
-                    end
-                end
+            timed_out = 1'b0;
+            cnt = 0;
+            status_val = 32'h0;
+            while (!(status_val & mask) && cnt < timeout_cycles) begin
+                axi_read(ASCON_BASE + OFF_STATUS, status_val);
+                cnt = cnt + 1;
             end
-        end
-    endtask
-
-    // =========================================================================
-    // check / check_bit
-    // =========================================================================
-    task check;
-        input [127:0] unused;
-        input [31:0]  got;
-        input [31:0]  exp;
-        input [639:0] lbl;
-        begin
-            if (got === exp) begin
-                $display("  [PASS] %s  got=0x%08h", lbl, got);
-                pass_count = pass_count + 1;
+            if (cnt >= timeout_cycles) begin
+                $display("[POLL][TIMEOUT] mask=0x%08X status=0x%08X after %0d reads",
+                         mask, status_val, cnt);
+                timed_out = 1'b1;
             end else begin
-                $display("  [FAIL] %s  got=0x%08h  exp=0x%08h  (@%0t)",
-                         lbl, got, exp, $time);
-                fail_count = fail_count + 1;
-            end
-        end
-    endtask
-
-    task check_bit;
-        input [31:0]  val;
-        input integer bpos;
-        input integer expv;
-        input [639:0] lbl;
-        begin
-            if (((val >> bpos) & 1) === expv[0:0]) begin
-                $display("  [PASS] %s  bit[%0d]=%0d", lbl, bpos, expv);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("  [FAIL] %s  bit[%0d] got=%0d exp=%0d  (@%0t)",
-                         lbl, bpos, (val>>bpos)&1, expv, $time);
-                fail_count = fail_count + 1;
+                $display("[POLL][DONE]    mask=0x%08X status=0x%08X after %0d reads  (t=%0t)",
+                         mask, status_val, cnt, $time);
             end
         end
     endtask
 
     // =========================================================================
-    // wait_irq
+    // Result registers
     // =========================================================================
-    task wait_irq;
-        input integer tmax;
-        integer ci;
-        begin
-            ci = 0;
-            begin : wIRQ
-                forever begin
-                    @(posedge clk);
-                    if (irq) disable wIRQ;
-                    ci = ci + 1;
-                    if (ci >= tmax) begin
-                        $display("  [TIMEOUT] wait_irq: no irq after %0d cycles", tmax);
-                        disable wIRQ;
-                    end
-                end
-            end
-        end
-    endtask
+    reg [31:0] r_ctext_0, r_ctext_1;
+    reg [31:0] r_tag_0, r_tag_1, r_tag_2, r_tag_3;
+    reg [63:0] dma_ctext;
+    reg [127:0] dma_tag;
+    reg         test_timed_out;
 
     // =========================================================================
-    // DDR helpers
+    // MAIN TEST
     // =========================================================================
-    task seed_ddr;
-        input [31:0] base;
-        input [63:0] d64;
-        integer k;
-        begin
-            for (k=0; k<8; k=k+1)
-                ddr_mem[(base+k) & 10'h3FF] = d64[63 - k*8 -: 8];
-        end
-    endtask
-
-    function [63:0] read_ddr64;
-        input [31:0] base;
-        integer k;
-        reg [63:0] v;
-        begin
-            v = 0;
-            for (k=0; k<8; k=k+1)
-                v[63 - k*8 -: 8] = ddr_mem[(base+k) & 10'h3FF];
-            read_ddr64 = v;
-        end
-    endfunction
-
-    // =========================================================================
-    // VCD
-    // =========================================================================
+    integer pass_count, fail_count;
+reg [31:0] fence_val;
     initial begin
-        $dumpfile("tb_ascon_ip_top.vcd");
-        $dumpvars(0, tb_ascon_ip_top);
-    end
+        pass_count = 0;
+        fail_count = 0;
 
-    // =========================================================================
-    // Realtime monitor
-    // =========================================================================
-    always @(posedge clk) begin
-        if (rst_n && dut.u_core.start)
-            $display("  [MON @%0t] core.start  busy=%b  done=%b",
-                     $time, dut.core_busy_w, dut.core_done_w);
-    end
-    always @(posedge dut.core_done_w)
-        $display("  [MON @%0t] core.DONE asserted!", $time);
-    always @(posedge dut.core_busy_w)
-        $display("  [MON @%0t] core.BUSY asserted!", $time);
-    always @(negedge dut.core_busy_w)
-        $display("  [MON @%0t] core.BUSY deasserted  done=%b", $time, dut.core_done_w);
-
-    // =========================================================================
-    // Module-level temporaries
-    // =========================================================================
-    reg [31:0] golden_ctx_0 = 0, golden_ctx_1 = 0;
-    reg [31:0] golden_tag_0 = 0, golden_tag_1 = 0;
-    reg [31:0] golden_tag_2 = 0, golden_tag_3 = 0;
-    reg [63:0] ddr_result;
-    integer    b2b_i;
-
-    // =========================================================================
-    // Main test
-    // =========================================================================
-    initial begin
-        $display("================================================================");
-        $display("   ASCON IP Top Testbench v1.3");
-        $display("================================================================");
-
-        rst_n = 0;
-        repeat(5) @(posedge clk);
-        @(negedge clk); rst_n = 1;
-        repeat(3) @(posedge clk);
-
-        // =====================================================================
-        // TC1
-        // =====================================================================
-        $display("\n[TC1] Reset and idle state");
-        check(0, s_awready, 1, "TC1 -- AWREADY=1");
-        check(0, s_wready,  1, "TC1 -- WREADY=1");
-        check(0, s_bvalid,  0, "TC1 -- BVALID=0");
-        check(0, s_arready, 1, "TC1 -- ARREADY=1");
-        check(0, s_rvalid,  0, "TC1 -- RVALID=0");
-        check(0, irq,       0, "TC1 -- irq=0");
-        check(0, m_awvalid, 0, "TC1 -- M_AWVALID=0");
-        check(0, m_arvalid, 0, "TC1 -- M_ARVALID=0");
-        axi_read(ADDR_STATUS);
-        check(0, rdata_buf, 0, "TC1 -- STATUS=0");
-        axi_read(ADDR_DMA_LEN);
-        check(0, rdata_buf, 32'd8, "TC1 -- DMA_LEN=8");
-
-        // =====================================================================
-        // TC2: CPU-Direct encrypt
-        // =====================================================================
-        $display("\n[TC2] CPU-Direct mode: encrypt");
-
-        $display("  [DBG] awready=%b wready=%b", s_awready, s_wready);
-
-        axi_wr(ADDR_KEY_0, 32'h00010203); $display("  [DBG] KEY_0 written");
-        axi_wr(ADDR_KEY_1, 32'h04050607); $display("  [DBG] KEY_1 written");
-        axi_wr(ADDR_KEY_2, 32'h08090A0B); $display("  [DBG] KEY_2 written");
-        axi_wr(ADDR_KEY_3, 32'h0C0D0E0F); $display("  [DBG] KEY_3 written");
-
-        axi_wr(ADDR_NON_0, 32'h0F0E0D0C);
-        axi_wr(ADDR_NON_1, 32'h0B0A0908);
-        axi_wr(ADDR_NON_2, 32'h07060504);
-        axi_wr(ADDR_NON_3, 32'h03020100);
-        $display("  [DBG] NONCE written");
-
-        axi_wr(ADDR_PTX_0, 32'hDEADBEEF);
-        axi_wr(ADDR_PTX_1, 32'hCAFEBABE);
-        $display("  [DBG] PTEXT written");
-
-        axi_wr(ADDR_MODE, 32'h0);
-
-        axi_read(ADDR_STATUS);
-        $display("  [DBG] STATUS before START = 0x%08h  awready=%b wready=%b",
-                 rdata_buf, s_awready, s_wready);
-
-        $display("  [DBG] Firing CTRL.START...");
-        axi_wr(ADDR_CTRL, CTRL_START);
-        $display("  [DBG] CTRL.START done. core_start_mux=%b core_busy=%b core_done=%b",
-                 dut.core_start_mux, dut.core_busy_w, dut.core_done_w);
-
-        repeat(2)  @(posedge clk);
-        $display("  [DBG] +2cy: core_start_mux=%b core_busy=%b core_done=%b",
-                 dut.core_start_mux, dut.core_busy_w, dut.core_done_w);
-
+        // -----------------------------------------------------------------
+        // RESET
+        // -----------------------------------------------------------------
+        rst_n = 1'b0;
         repeat(10) @(posedge clk);
-        $display("  [DBG] +10cy: core_busy=%b core_done=%b",
-                 dut.core_busy_w, dut.core_done_w);
-        axi_read(ADDR_STATUS);
-        $display("  [DBG] +10cy: STATUS=0x%08h", rdata_buf);
+        rst_n = 1'b1;
+        repeat(5)  @(posedge clk);
 
-        repeat(50) @(posedge clk);
-        $display("  [DBG] +50cy: core_busy=%b core_done=%b",
-                 dut.core_busy_w, dut.core_done_w);
+        $display("============================================================");
+        $display(" ascon_ip_top SoC Testbench — START");
+        $display(" KEY   = %032X", TEST_KEY);
+        $display(" NONCE = %032X", TEST_NONCE);
+        $display(" PTEXT = %016X  (%0d bytes)", TEST_PTEXT, 8);
+        $display("============================================================");
 
-        repeat(200) @(posedge clk);
-        $display("  [DBG] +200cy: core_busy=%b core_done=%b",
-                 dut.core_busy_w, dut.core_done_w);
-        axi_read(ADDR_STATUS);
-        $display("  [DBG] +200cy: STATUS=0x%08h", rdata_buf);
+        // =================================================================
+        // TEST 1 — CPU-Direct mode  (dma_en = 0)
+        // =================================================================
+        $display("\n--- TEST 1: CPU-Direct mode ---");
 
-        wait_done(32'h2, 500);
+        // Step 1: SOFT_RST (CTRL[1] = 1)
+        $display("[T1-S1] SOFT_RST");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_SOFT_RST, 4'hF);
+        nop_delay();
 
-        axi_read(ADDR_STATUS);
-        $display("  [DBG] Final STATUS = 0x%08h", rdata_buf);
-        check_bit(rdata_buf, STATUS_DONE, 1, "TC2 -- STATUS.DONE=1");
-        check_bit(rdata_buf, STATUS_BUSY, 0, "TC2 -- STATUS.BUSY=0");
+        // Step 2: Write KEY
+        $display("[T1-S2] Write KEY");
+        axi_write(ASCON_BASE + OFF_KEY_0, TEST_KEY[127:96], 4'hF);
+        axi_write(ASCON_BASE + OFF_KEY_1, TEST_KEY[95:64],  4'hF);
+        axi_write(ASCON_BASE + OFF_KEY_2, TEST_KEY[63:32],  4'hF);
+        axi_write(ASCON_BASE + OFF_KEY_3, TEST_KEY[31:0],   4'hF);
 
-        axi_read(ADDR_CTX_0); golden_ctx_0 = rdata_buf;
-        axi_read(ADDR_CTX_1); golden_ctx_1 = rdata_buf;
-        axi_read(ADDR_TAG_0); golden_tag_0 = rdata_buf;
-        axi_read(ADDR_TAG_1); golden_tag_1 = rdata_buf;
-        axi_read(ADDR_TAG_2); golden_tag_2 = rdata_buf;
-        axi_read(ADDR_TAG_3); golden_tag_3 = rdata_buf;
+        // Step 3: Write NONCE
+        $display("[T1-S3] Write NONCE");
+        axi_write(ASCON_BASE + OFF_NONCE_0, TEST_NONCE[127:96], 4'hF);
+        axi_write(ASCON_BASE + OFF_NONCE_1, TEST_NONCE[95:64],  4'hF);
+        axi_write(ASCON_BASE + OFF_NONCE_2, TEST_NONCE[63:32],  4'hF);
+        axi_write(ASCON_BASE + OFF_NONCE_3, TEST_NONCE[31:0],   4'hF);
 
-        $display("  [INFO] CTEXT: %08h_%08h", golden_ctx_0, golden_ctx_1);
-        $display("  [INFO] TAG  : %08h_%08h_%08h_%08h",
-                 golden_tag_0, golden_tag_1, golden_tag_2, golden_tag_3);
+        // Step 4: Write PTEXT
+        $display("[T1-S4] Write PTEXT");
+        axi_write(ASCON_BASE + OFF_PTEXT_0, TEST_PTEXT[63:32], 4'hF);
+        axi_write(ASCON_BASE + OFF_PTEXT_1, TEST_PTEXT[31:0],  4'hF);
 
-        if (golden_ctx_0 !== 0 || golden_ctx_1 !== 0) begin
-            $display("  [PASS] TC2 -- CTEXT non-zero"); pass_count = pass_count+1;
-        end else begin
-            $display("  [FAIL] TC2 -- CTEXT is zero");  fail_count = fail_count+1;
-        end
-        if (golden_tag_0 !== 0 || golden_tag_1 !== 0 ||
-            golden_tag_2 !== 0 || golden_tag_3 !== 0) begin
-            $display("  [PASS] TC2 -- TAG non-zero"); pass_count = pass_count+1;
-        end else begin
-            $display("  [FAIL] TC2 -- TAG is zero");  fail_count = fail_count+1;
-        end
+        // Step 5: Write MODE = 0 (encrypt, ascon-128)
+        $display("[T1-S5] Write MODE=0x00");
+        axi_write(ASCON_BASE + OFF_MODE, 32'h00000000, 4'hF);
 
-        // =====================================================================
-        // TC3
-        // =====================================================================
-        $display("\n[TC3] irq on DONE");
-        axi_wr(ADDR_CTRL,   CTRL_SOFT_RST);
-        repeat(3) @(posedge clk);
-        axi_wr(ADDR_IRQ_EN, 32'h1);
-        axi_wr(ADDR_CTRL,   CTRL_START);
-        wait_irq(2000);
-        check(0, irq, 1, "TC3 -- irq=1 after DONE");
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DONE, 1, "TC3 -- STATUS.DONE=1");
-        axi_wr(ADDR_IRQ_EN, 32'h0);
-        repeat(3) @(posedge clk);
-        check(0, irq, 0, "TC3 -- irq=0 after clear");
+        // Step 6: DMA_EN=0 (latch reg_dma_en trước)
+        $display("[T1-S6] CTRL = 0x00 (clear DMA_EN)");
+        axi_write(ASCON_BASE + OFF_CTRL, 32'h00000000, 4'hF);
+        nop_delay();
 
-        // =====================================================================
-        // TC4
-        // =====================================================================
-        $display("\n[TC4] SOFT_RST");
-        axi_wr(ADDR_IRQ_EN, 32'h1);
-        repeat(2) @(posedge clk);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DONE, 1, "TC4 -- DONE=1 before RST");
-        check(0, irq, 1, "TC4 -- irq=1 before RST");
-        axi_wr(ADDR_CTRL, CTRL_SOFT_RST);
-        repeat(3) @(posedge clk);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DONE, 0, "TC4 -- DONE=0 after RST");
-        check_bit(rdata_buf, STATUS_BUSY, 0, "TC4 -- BUSY=0 after RST");
-        check(0, irq, 0, "TC4 -- irq=0 after RST");
-        axi_wr(ADDR_IRQ_EN, 32'h0);
+        // Step 7: START (core_start pulse)
+        $display("[T1-S7] CTRL = START (0x01)");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_START, 4'hF);
 
-        // =====================================================================
-        // TC5
-        // =====================================================================
-        $display("\n[TC5] START blocked while busy");
-        axi_wr(ADDR_CTRL, CTRL_START);
-        @(posedge clk); @(posedge clk);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_BUSY, 1, "TC5 -- BUSY=1 after START");
-        axi_wr(ADDR_CTRL, CTRL_START);   // second start — should be ignored
-        wait_done(32'h2, 500);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DONE, 1, "TC5 -- DONE=1 after 2nd START ignored");
-        axi_read(ADDR_CTX_0);
-        check(0, rdata_buf, golden_ctx_0, "TC5 -- CTEXT_0 not corrupted");
-        axi_read(ADDR_CTX_1);
-        check(0, rdata_buf, golden_ctx_1, "TC5 -- CTEXT_1 not corrupted");
-
-        // =====================================================================
-        // TC6
-        // =====================================================================
-        $display("\n[TC6] DMA mode: full pipeline");
-        axi_wr(ADDR_CTRL, CTRL_SOFT_RST);
-        repeat(3) @(posedge clk);
-        seed_ddr(32'h100, {32'hDEADBEEF, 32'hCAFEBABE});
-        axi_wr(ADDR_DMA_SRC, 32'h100);
-        axi_wr(ADDR_DMA_DST, 32'h200);
-        axi_wr(ADDR_DMA_LEN, 32'd8);
-        axi_wr(ADDR_IRQ_EN,  32'h2);
-        axi_wr(ADDR_CTRL,    CTRL_DMA_START);
-        wait_done(32'h8, 1000);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DMA_DONE,  1, "TC6 -- DMA_DONE=1");
-        check_bit(rdata_buf, STATUS_DMA_BUSY,  0, "TC6 -- DMA_BUSY=0");
-        check_bit(rdata_buf, STATUS_DMA_ERROR, 0, "TC6 -- DMA_ERROR=0");
-        axi_read(ADDR_CTX_0);
-        check(0, rdata_buf, golden_ctx_0, "TC6 -- CTEXT_0 after DMA");
-        axi_read(ADDR_CTX_1);
-        check(0, rdata_buf, golden_ctx_1, "TC6 -- CTEXT_1 after DMA");
-        axi_read(ADDR_TAG_0);
-        check(0, rdata_buf, golden_tag_0, "TC6 -- TAG_0 after DMA");
-        axi_read(ADDR_TAG_3);
-        check(0, rdata_buf, golden_tag_3, "TC6 -- TAG_3 after DMA");
-        ddr_result = read_ddr64(32'h200);
-        $display("  [INFO] DDR[0x200]=%016h", ddr_result);
-        if (ddr_result !== 0) begin
-            $display("  [PASS] TC6 -- DDR dst non-zero"); pass_count=pass_count+1;
-        end else begin
-            $display("  [FAIL] TC6 -- DDR dst zero");    fail_count=fail_count+1;
+        // Step 8: Poll STATUS.DONE (bit1)
+        $display("[T1-S8] Poll STATUS.DONE ...");
+        poll_status_done(STATUS_DONE, POLL_TIMEOUT, test_timed_out);
+        if (test_timed_out) begin
+            $display("[T1][FAIL] Timed out waiting for DONE");
+            fail_count = fail_count + 1;
         end
 
-        // =====================================================================
-        // TC7
-        // =====================================================================
-        $display("\n[TC7] DMA IRQ");
-        check(0, irq, 1, "TC7 -- irq=1 on DMA_DONE");
-        axi_wr(ADDR_IRQ_EN, 32'h0);
-        repeat(3) @(posedge clk);
-        check(0, irq, 0, "TC7 -- irq=0 after clear");
+        // Step 9: Read CTEXT + TAG
+        $display("[T1-S9] Read CTEXT / TAG from slave registers");
+        axi_read(ASCON_BASE + OFF_CTEXT_0, r_ctext_0);
+        axi_read(ASCON_BASE + OFF_CTEXT_1, r_ctext_1);
+        axi_read(ASCON_BASE + OFF_TAG_0,   r_tag_0);
+        axi_read(ASCON_BASE + OFF_TAG_1,   r_tag_1);
+        axi_read(ASCON_BASE + OFF_TAG_2,   r_tag_2);
+        axi_read(ASCON_BASE + OFF_TAG_3,   r_tag_3);
 
-        // =====================================================================
-        // TC8
-        // =====================================================================
-        $display("\n[TC8] DMA SOFT_RST");
-        axi_wr(ADDR_CTRL, CTRL_SOFT_RST);
+        $display("[T1] CTEXT = %08X_%08X", r_ctext_0, r_ctext_1);
+        $display("[T1] TAG   = %08X_%08X_%08X_%08X",
+                 r_tag_0, r_tag_1, r_tag_2, r_tag_3);
+
+        // Verify: kết quả phải khác 0 (core đã chạy)
+        if ({r_ctext_0, r_ctext_1} == 64'h0) begin
+            $display("[T1][FAIL] CTEXT = 0 — core did not produce output");
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T1][PASS] CTEXT non-zero");
+            pass_count = pass_count + 1;
+        end
+
+        if ({r_tag_0, r_tag_1, r_tag_2, r_tag_3} == 128'h0) begin
+            $display("[T1][FAIL] TAG = 0 — tag not generated");
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T1][PASS] TAG non-zero");
+            pass_count = pass_count + 1;
+        end
+
+        // Step 10: SOFT_RST cleanup
+        $display("[T1-S10] SOFT_RST cleanup");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_SOFT_RST, 4'hF);
+        nop_delay();
         repeat(5) @(posedge clk);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DONE,     0, "TC8 -- DONE=0 after RST");
-        check_bit(rdata_buf, STATUS_DMA_DONE, 0, "TC8 -- DMA_DONE=0 after RST");
-        check_bit(rdata_buf, STATUS_DMA_BUSY, 0, "TC8 -- DMA_BUSY=0 after RST");
-        check(0, irq, 0, "TC8 -- irq=0 after RST");
 
-        // =====================================================================
-        // TC9: DMA error
-        // =====================================================================
-        $display("\n[TC9] DMA error injection");
-        axi_wr(ADDR_IRQ_EN,  32'h4);
-        tc9_err = 0;
-        axi_wr(ADDR_DMA_SRC, 32'h100);
-        axi_wr(ADDR_DMA_DST, 32'h300);
-        axi_wr(ADDR_DMA_LEN, 32'd8);
-        axi_wr(ADDR_CTRL,    CTRL_DMA_START);
-        begin : wAR
-            integer tc;
-            tc = 0;
-            forever begin
-                @(posedge clk);
-                if (m_arvalid) disable wAR;
-                tc = tc + 1;
-                if (tc > 500) disable wAR;
+        // =================================================================
+        // TEST 2 — DMA mode  (dma_en = 1)
+        // =================================================================
+        $display("\n--- TEST 2: DMA mode ---");
+
+        // Step 1: SOFT_RST
+        $display("[T2-S1] SOFT_RST");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_SOFT_RST, 4'hF);
+        nop_delay();
+
+        // Step 2: Write KEY
+        $display("[T2-S2] Write KEY");
+        axi_write(ASCON_BASE + OFF_KEY_0, TEST_KEY[127:96], 4'hF);
+        axi_write(ASCON_BASE + OFF_KEY_1, TEST_KEY[95:64],  4'hF);
+        axi_write(ASCON_BASE + OFF_KEY_2, TEST_KEY[63:32],  4'hF);
+        axi_write(ASCON_BASE + OFF_KEY_3, TEST_KEY[31:0],   4'hF);
+
+        // Step 3: Write NONCE
+        $display("[T2-S3] Write NONCE");
+        axi_write(ASCON_BASE + OFF_NONCE_0, TEST_NONCE[127:96], 4'hF);
+        axi_write(ASCON_BASE + OFF_NONCE_1, TEST_NONCE[95:64],  4'hF);
+        axi_write(ASCON_BASE + OFF_NONCE_2, TEST_NONCE[63:32],  4'hF);
+        axi_write(ASCON_BASE + OFF_NONCE_3, TEST_NONCE[31:0],   4'hF);
+
+        // Step 4: Write DMA_SRC / DMA_DST / DMA_LEN
+        $display("[T2-S4] Write DMA config");
+        axi_write(ASCON_BASE + OFF_DMA_SRC, DMEM_BASE + DMEM_PTEXT_OFF, 4'hF);
+        axi_write(ASCON_BASE + OFF_DMA_DST, DMEM_BASE + DMEM_CTEXT_OFF, 4'hF);
+        axi_write(ASCON_BASE + OFF_DMA_LEN, DMA_LEN, 4'hF);
+
+        // Step 4b: AXI write barrier — đọc lại DMA_SRC để flush AXI pipeline
+        // (Fix Lỗi #5 từ debug log)
+        begin
+            
+            axi_read(ASCON_BASE + OFF_DMA_SRC, fence_val);
+            $display("[T2-S4] AXI fence: DMA_SRC readback = 0x%08X (expected 0x%08X)",
+                     fence_val, (DMEM_BASE + DMEM_PTEXT_OFF) & 32'hFFFFFFFF);
+            if (fence_val !== ((DMEM_BASE + DMEM_PTEXT_OFF) & 32'hFFFFFFFF)) begin
+                $display("[T2][WARN] DMA_SRC readback mismatch! Possible AXI pipeline issue.");
             end
         end
-        tc9_err = 1;
-        repeat(4) @(posedge clk);
-        tc9_err = 0;
-        wait_done(32'h20, 1000);
-        axi_read(ADDR_STATUS);
-        check_bit(rdata_buf, STATUS_DMA_ERROR, 1, "TC9 -- DMA_ERROR=1");
-        check(0, irq, 1, "TC9 -- irq=1 on error");
-        axi_wr(ADDR_IRQ_EN, 32'h0);
-        axi_wr(ADDR_CTRL,   CTRL_SOFT_RST);
-        repeat(3) @(posedge clk);
 
-        // =====================================================================
-        // TC10
-        // =====================================================================
-        $display("\n[TC10] CTEXT/TAG preserved");
-        axi_wr(ADDR_CTRL, CTRL_START);
-        wait_done(32'h2, 500);
-        axi_read(ADDR_CTX_0); check(0, rdata_buf, golden_ctx_0, "TC10 -- CTEXT_0");
-        axi_read(ADDR_CTX_1); check(0, rdata_buf, golden_ctx_1, "TC10 -- CTEXT_1");
-        axi_read(ADDR_TAG_0); check(0, rdata_buf, golden_tag_0, "TC10 -- TAG_0");
-        axi_read(ADDR_TAG_1); check(0, rdata_buf, golden_tag_1, "TC10 -- TAG_1");
-        axi_read(ADDR_TAG_2); check(0, rdata_buf, golden_tag_2, "TC10 -- TAG_2");
-        axi_read(ADDR_TAG_3); check(0, rdata_buf, golden_tag_3, "TC10 -- TAG_3");
+        // Step 5: Write MODE = 0
+        $display("[T2-S5] Write MODE=0x00");
+        axi_write(ASCON_BASE + OFF_MODE, 32'h00000000, 4'hF);
 
-        // =====================================================================
-        // TC11
-        // =====================================================================
-        $display("\n[TC11] Back-to-back encrypts");
-        for (b2b_i=0; b2b_i<3; b2b_i=b2b_i+1) begin
-            axi_wr(ADDR_CTRL, CTRL_SOFT_RST);
-            repeat(2) @(posedge clk);
-            axi_wr(ADDR_CTRL, CTRL_START);
-            wait_done(32'h2, 500);
-            axi_read(ADDR_CTX_0);
-            if      (b2b_i==0) check(0, rdata_buf, golden_ctx_0, "TC11 -- B2B[0] CTX0");
-            else if (b2b_i==1) check(0, rdata_buf, golden_ctx_0, "TC11 -- B2B[1] CTX0");
-            else               check(0, rdata_buf, golden_ctx_0, "TC11 -- B2B[2] CTX0");
-            axi_read(ADDR_CTX_1);
-            if      (b2b_i==0) check(0, rdata_buf, golden_ctx_1, "TC11 -- B2B[0] CTX1");
-            else if (b2b_i==1) check(0, rdata_buf, golden_ctx_1, "TC11 -- B2B[1] CTX1");
-            else               check(0, rdata_buf, golden_ctx_1, "TC11 -- B2B[2] CTX1");
+        // Step 6: Write IRQ_EN = 0x01 (enable core done IRQ)
+        $display("[T2-S6] Write IRQ_EN=0x01");
+        axi_write(ASCON_BASE + OFF_IRQ_EN, 32'h00000003, 4'hF);
+
+        // Step 7: CTRL = DMA_EN (latch reg_dma_en=1, NO start yet)
+        // Fix Lỗi #3 + #4: tách 2 lần ghi
+        $display("[T2-S7] CTRL = DMA_EN (0x04) — latch reg_dma_en=1");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_DMA_EN, 4'hF);
+
+        // Step 8: NOP delay (2 cycles — cho DMA_EN ổn định)
+        nop_delay();
+
+        // Step 9: CTRL = DMA_EN | START (0x05) → dma_start pulse
+        $display("[T2-S9] CTRL = DMA_EN|START (0x05) — dma_start");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_DMA_EN | CTRL_START, 4'hF);
+
+        // Step 10: Poll STATUS.DMA_DONE (bit3)
+        $display("[T2-S10] Poll STATUS.DMA_DONE ...");
+        poll_status_done(STATUS_DMA_DONE, POLL_TIMEOUT, test_timed_out);
+        if (test_timed_out) begin
+            $display("[T2][FAIL] Timed out waiting for DMA_DONE");
+            fail_count = fail_count + 1;
         end
 
-        // =====================================================================
-        // TC12
-        // =====================================================================
-        $display("\n[TC12] Register readback");
-        axi_wr(ADDR_MODE,   32'h3);
-        axi_wr(ADDR_IRQ_EN, 32'h7);
-        axi_read(ADDR_MODE);   check(0, rdata_buf, 32'h3, "TC12 -- MODE=0x3");
-        axi_read(ADDR_IRQ_EN); check(0, rdata_buf, 32'h7, "TC12 -- IRQ_EN=0x7");
-        axi_wr(ADDR_MODE,   32'h0);
-        axi_wr(ADDR_IRQ_EN, 32'h0);
-        axi_read(ADDR_MODE);   check(0, rdata_buf, 32'h0, "TC12 -- MODE=0 cleared");
-        axi_read(ADDR_IRQ_EN); check(0, rdata_buf, 32'h0, "TC12 -- IRQ_EN=0 cleared");
-
-        // =====================================================================
-        // Summary
-        // =====================================================================
+        // Wait 1 extra cycle cho DMA write hoàn tất
         repeat(5) @(posedge clk);
-        $display("\n================================================================");
-        $display("   TEST RESULTS SUMMARY");
-        $display("================================================================");
-        $display("   PASS : %0d", pass_count);
-        $display("   FAIL : %0d", fail_count);
+
+        // Step 11: Đọc kết quả từ DMEM (DMA đã ghi ra)
+        $display("[T2-S11] Read CTEXT+TAG from DMEM");
+        // CTEXT tại 0x1000_0010 (word index 2 của 64-bit dmem)
+        dma_ctext = dmem[(DMEM_CTEXT_OFF) >> 3];
+        // TAG tại 0x1000_0020 và 0x1000_0028
+        dma_tag[127:64] = dmem[(DMEM_TAG_OFF) >> 3];
+        dma_tag[63:0]   = dmem[(DMEM_TAG_OFF + 8) >> 3];
+
+        $display("[T2] DMEM CTEXT [0x%08X] = %016X",
+                 (DMEM_BASE + DMEM_CTEXT_OFF) & 32'hFFFFFFFF, dma_ctext);
+        $display("[T2] DMEM TAG   [0x%08X] = %016X_%016X",
+                 (DMEM_BASE + DMEM_TAG_OFF) & 32'hFFFFFFFF, dma_tag[127:64], dma_tag[63:0]);
+
+        // Step 12: Verify
+        // DMA ctext phải khác 0
+        if (dma_ctext == 64'h0) begin
+            $display("[T2][FAIL] DMEM CTEXT = 0 — DMA did not write output");
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T2][PASS] DMEM CTEXT non-zero");
+            pass_count = pass_count + 1;
+        end
+
+        if (dma_tag == 128'h0) begin
+            $display("[T2][FAIL] DMEM TAG = 0 — DMA did not write tag");
+            fail_count = fail_count + 1;
+        end else begin
+            $display("[T2][PASS] DMEM TAG non-zero");
+            pass_count = pass_count + 1;
+        end
+
+        // Cross-check: T1 và T2 phải cho cùng kết quả (same key/nonce/ptext)
+        $display("\n--- Cross-check T1 vs T2 (same vector) ---");
+        if ({r_ctext_0, r_ctext_1} === dma_ctext) begin
+            $display("[XCHECK][PASS] CTEXT T1 == T2 : %016X", dma_ctext);
+            pass_count = pass_count + 1;
+        end else begin
+            $display("[XCHECK][FAIL] CTEXT MISMATCH:");
+            $display("  T1 (CPU-Direct) = %08X_%08X", r_ctext_0, r_ctext_1);
+            $display("  T2 (DMA)        = %016X", dma_ctext);
+            fail_count = fail_count + 1;
+        end
+
+        if ({r_tag_0, r_tag_1, r_tag_2, r_tag_3} === dma_tag) begin
+            $display("[XCHECK][PASS] TAG   T1 == T2 : %032X", dma_tag);
+            pass_count = pass_count + 1;
+        end else begin
+            $display("[XCHECK][FAIL] TAG MISMATCH:");
+            $display("  T1 (CPU-Direct) = %08X_%08X_%08X_%08X",
+                     r_tag_0, r_tag_1, r_tag_2, r_tag_3);
+            $display("  T2 (DMA)        = %032X", dma_tag);
+            fail_count = fail_count + 1;
+        end
+
+        // Step 13: SOFT_RST cleanup
+        $display("[T2-S13] SOFT_RST cleanup");
+        axi_write(ASCON_BASE + OFF_CTRL, CTRL_SOFT_RST, 4'hF);
+        nop_delay();
+        repeat(5) @(posedge clk);
+
+        // =================================================================
+        // SUMMARY
+        // =================================================================
+        $display("\n============================================================");
+        $display(" SUMMARY: PASS=%0d  FAIL=%0d", pass_count, fail_count);
         if (fail_count == 0)
-            $display("   *** ALL TESTS PASSED ***");
+            $display(" ALL TESTS PASSED");
         else
-            $display("   *** %0d TEST(S) FAILED ***", fail_count);
-        $display("================================================================");
+            $display(" *** SOME TESTS FAILED ***");
+        $display("============================================================");
         $finish;
     end
 
     // =========================================================================
-    // Watchdog
+    // IRQ monitor
     // =========================================================================
+    always @(posedge irq) begin
+        $display("[IRQ] Interrupt received at t=%0t", $time);
+    end
+
+    // =========================================================================
+    // DMA activity monitor (probe internal DUT signals for debug)
+    // =========================================================================
+    `ifdef SIMULATION
     initial begin
-        #20_000_000;
-        $display("[WATCHDOG] Timeout!  core_busy=%b  core_done=%b  awready=%b  wready=%b",
-                 dut.core_busy_w, dut.core_done_w, s_awready, s_wready);
+        $dumpfile("ascon_top_soc.vcd");
+        $dumpvars(0, ascon_top_tb_soc);
+    end
+    `endif
+
+    // Safety watchdog — prevent infinite loop
+    initial begin
+        #(CLK_PERIOD * 2000000);
+        $display("[WATCHDOG] Simulation timeout at t=%0t", $time);
         $finish;
     end
 

@@ -127,6 +127,7 @@ module dcache_top #(
     // ========================================================================
     wire [31:0] refill_addr;
     wire        refill_start;
+    wire        refill_nc;       // [NC-BYPASS]
     wire        refill_busy;
     wire        refill_done;
     wire [31:0] refill_data;
@@ -139,6 +140,8 @@ module dcache_top #(
     wire [31:0] evict_data_2;
     wire [31:0] evict_data_3;
     wire        evict_start;
+    wire        evict_nc;        // [NC-BYPASS]
+    wire [3:0]  evict_wstrb_nc;  // [NC-BYPASS]
     wire        evict_busy;
     wire        evict_done;
 
@@ -187,6 +190,7 @@ module dcache_top #(
 
         .refill_addr       (refill_addr),
         .refill_start      (refill_start),
+        .refill_nc         (refill_nc),
         .refill_busy       (refill_busy),
         .refill_done       (refill_done),
         .refill_data       (refill_data),
@@ -199,6 +203,8 @@ module dcache_top #(
         .evict_data_2      (evict_data_2),
         .evict_data_3      (evict_data_3),
         .evict_start       (evict_start),
+        .evict_nc          (evict_nc),
+        .evict_wstrb_nc    (evict_wstrb_nc),
         .evict_busy        (evict_busy),
         .evict_done        (evict_done),
 
@@ -283,6 +289,7 @@ module dcache_top #(
 
         .refill_addr        (refill_addr),
         .refill_start       (refill_start),
+        .refill_nc          (refill_nc),
         .refill_busy        (refill_busy),
         .refill_done        (refill_done),
         .refill_data        (refill_data),
@@ -295,6 +302,8 @@ module dcache_top #(
         .evict_data_2       (evict_data_2),
         .evict_data_3       (evict_data_3),
         .evict_start        (evict_start),
+        .evict_nc           (evict_nc),
+        .evict_wstrb_nc     (evict_wstrb_nc),
         .evict_busy         (evict_busy),
         .evict_done         (evict_done),
 
