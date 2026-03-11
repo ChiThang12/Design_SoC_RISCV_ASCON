@@ -2,6 +2,23 @@
 // Module: dcache_controller  —  Write-Back + Write-Allocate + Optimized
 // ============================================================================
 //
+// [NC-BYPASS] NON-CACHEABLE ADDRESS BYPASS  (thêm để fix MMIO / ASCON bug)
+// ----------------------------------------------------------------------------
+// Địa chỉ MMIO (ASCON, SoCCtrl, CLINT) KHÔNG được cache:
+//   Cacheable    : 0x0000_0000 – 0x1FFF_FFFF  (RAM / IMEM / DMEM)
+//   Non-cacheable: 0x2000_0000 – 0xFFFF_FFFF  (ASCON, SoCCtrl, CLINT, v.v.)
+//
+// Khi addr là non-cacheable:
+//   READ  → bypass cache: gửi single-beat AXI AR trực tiếp ra bus, trả data về CPU
+//   WRITE → bypass cache: gửi single-beat AXI AW/W trực tiếp ra bus, đợi BRESP
+//   Cache arrays (tag, data) KHÔNG được đọc/ghi.
+//   stat_misses KHÔNG tăng (không phải miss, là bypass).
+//
+// FSM thêm 2 state mới:
+//   NC_READ  : non-cacheable single-beat AXI read
+//   NC_WRITE : non-cacheable single-beat AXI write
+// ----------------------------------------------------------------------------
+//
 // OPTIMIZATION:
 // [OPT-1] 1-CYCLE HIT LATENCY
 //   IDLE: check tag với cpu_addr trực tiếp → cpu_ready=1 ngay tại IDLE cycle
@@ -43,6 +60,11 @@
 // ============================================================================
 
 `include "cpu/interface/dcache/dcache_defines.vh"
+
+// Non-cacheable bypass states (dùng thêm 2 bit trong state[2:0])
+// Tận dụng 3'b110 và 3'b111 — không xung đột với states hiện có (max 3'b101)
+`define DCACHE_STATE_NC_READ   3'b110
+`define DCACHE_STATE_NC_WRITE  3'b111
 
 module dcache_controller (
     input wire clk,
@@ -97,6 +119,7 @@ module dcache_controller (
     // AXI Refill Interface
     output reg [31:0]  refill_addr,
     output reg         refill_start,
+    output reg         refill_nc,       // [NC-BYPASS] 1 = single-beat NC read
     input wire         refill_busy,
     input wire         refill_done,
     input wire [31:0]  refill_data,
@@ -110,6 +133,8 @@ module dcache_controller (
     output reg [31:0]  evict_data_2,
     output reg [31:0]  evict_data_3,
     output reg         evict_start,
+    output reg         evict_nc,        // [NC-BYPASS] 1 = single-beat NC write
+    output reg [3:0]   evict_wstrb_nc,  // [NC-BYPASS] byte strobe cho NC write
     input wire         evict_busy,
     input wire         evict_done,
 
@@ -139,6 +164,15 @@ module dcache_controller (
     reg [2:0] state, next_state;
 
     wire idle_hit_check = (state == `DCACHE_STATE_IDLE) && cpu_req && !fence;
+
+    // =========================================================================
+    // [NC-BYPASS] Non-cacheable address detection
+    // Cacheable   : 0x0000_0000 – 0x1FFF_FFFF  (RAM / DMEM region)
+    // Non-cacheable: 0x2000_0000 trở lên (ASCON 0x2000_xxxx, SoCCtrl 0x3000_xxxx,
+    //                CLINT 0x4000_xxxx, và tất cả MMIO khác)
+    // Dùng bit[31:29]: >= 3'b001 với addr >= 0x2000_0000
+    // =========================================================================
+    wire addr_is_nc = (cpu_addr[31:29] != 3'b000);  // addr >= 0x2000_0000
 
     wire [31:0] lookup_addr   = idle_hit_check ? cpu_addr  : cur_addr;
     wire [21:0] lookup_tag_w  = lookup_addr[31:10];
@@ -209,7 +243,13 @@ module dcache_controller (
 
             `DCACHE_STATE_IDLE: begin
                 if (cpu_req && !fence) begin
-                    if (tag_hit)
+                    if (addr_is_nc) begin
+                        // [NC-BYPASS] MMIO address → không đụng cache
+                        if (cpu_we)
+                            next_state = `DCACHE_STATE_NC_WRITE;
+                        else
+                            next_state = `DCACHE_STATE_NC_READ;
+                    end else if (tag_hit)
                         next_state = `DCACHE_STATE_IDLE;
                     else
                         next_state = `DCACHE_STATE_LOOKUP;
@@ -262,6 +302,24 @@ module dcache_controller (
                 if (refill_done) next_state = `DCACHE_STATE_IDLE;
             end
 
+            // ─────────────────────────────────────────────────────────────────
+            // [NC-BYPASS] NC_READ: chờ single-beat AXI read hoàn thành
+            //   axi_interface dùng refill path với ARLEN=0 (1 beat)
+            //   Khi refill_done (= refill_data_valid && RLAST) → về IDLE
+            // ─────────────────────────────────────────────────────────────────
+            `DCACHE_STATE_NC_READ: begin
+                if (refill_done) next_state = `DCACHE_STATE_IDLE;
+            end
+
+            // ─────────────────────────────────────────────────────────────────
+            // [NC-BYPASS] NC_WRITE: chờ single-beat AXI write BRESP
+            //   axi_interface dùng evict path với AWLEN=0 (1 beat)
+            //   Khi evict_done → về IDLE
+            // ─────────────────────────────────────────────────────────────────
+            `DCACHE_STATE_NC_WRITE: begin
+                if (evict_done) next_state = `DCACHE_STATE_IDLE;
+            end
+
             default: next_state = `DCACHE_STATE_IDLE;
         endcase
     end
@@ -308,6 +366,22 @@ module dcache_controller (
 
             `DCACHE_STATE_REFILL_DRAIN: ;  // CPU không nhận thêm ready
 
+            // [NC-BYPASS] NC_READ: trả data ngay khi AXI beat về
+            `DCACHE_STATE_NC_READ: begin
+                if (refill_done) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = refill_data;  // từ AXI bus trực tiếp
+                end
+            end
+
+            // [NC-BYPASS] NC_WRITE: trả ready khi BRESP nhận được
+            `DCACHE_STATE_NC_WRITE: begin
+                if (evict_done) begin
+                    cpu_ready_int = 1'b1;
+                    cpu_rdata_int = 32'h0;
+                end
+            end
+
             default: begin
                 cpu_ready_int = 1'b0;
                 cpu_rdata_int = 32'h0;
@@ -329,6 +403,7 @@ module dcache_controller (
             cur_we               <= 1'b0;
             refill_addr          <= 32'h0;
             refill_start         <= 1'b0;
+            refill_nc            <= 1'b0;
             refill_index_r       <= 6'h0;
             refill_tag_r         <= 22'h0;
             requested_offset     <= 2'b00;
@@ -341,6 +416,8 @@ module dcache_controller (
             evict_data_3         <= 32'h0;
             evict_start          <= 1'b0;
             evict_index_r        <= 6'h0;
+            evict_nc             <= 1'b0;
+            evict_wstrb_nc       <= 4'h0;
             pending_write        <= 1'b0;
             tag_update_valid     <= 1'b0;
             tag_update_index     <= 6'h0;
@@ -360,7 +437,9 @@ module dcache_controller (
         end else begin
             // Pulse defaults
             refill_start      <= 1'b0;
+            refill_nc         <= 1'b0;
             evict_start       <= 1'b0;
+            evict_nc          <= 1'b0;
             tag_update_valid  <= 1'b0;
             tag_flush_all     <= 1'b0;
             tag_dirty_set     <= 1'b0;
@@ -378,7 +457,32 @@ module dcache_controller (
                     pending_write        <= 1'b0;
 
                     if (cpu_req && !fence) begin
-                        if (tag_hit) begin
+                        // Latch addr trước (dùng cho cả NC và cacheable miss)
+                        cur_addr  <= cpu_addr;
+                        cur_wdata <= cpu_wdata;
+                        cur_wstrb <= cpu_wstrb;
+                        cur_we    <= cpu_we;
+
+                        if (addr_is_nc) begin
+                            // ─── [NC-BYPASS] MMIO: không đụng cache ──────────
+                            if (cpu_we) begin
+                                // NC Write: dùng evict path, AWLEN=0 (1 beat)
+                                evict_addr      <= cpu_addr;
+                                evict_data_0    <= cpu_wdata;
+                                evict_data_1    <= 32'h0;
+                                evict_data_2    <= 32'h0;
+                                evict_data_3    <= 32'h0;
+                                evict_nc        <= 1'b1;
+                                evict_wstrb_nc  <= cpu_wstrb;
+                                evict_start     <= 1'b1;
+                                stat_writes     <= stat_writes + 1;
+                            end else begin
+                                // NC Read: dùng refill path, ARLEN=0 (1 beat)
+                                refill_addr  <= cpu_addr;
+                                refill_nc    <= 1'b1;
+                                refill_start <= 1'b1;
+                            end
+                        end else if (tag_hit) begin
                             // HIT tại IDLE
                             if (cpu_we) begin
                                 stat_writes <= stat_writes + 1;
@@ -394,11 +498,8 @@ module dcache_controller (
                                 stat_hits <= stat_hits + 1;
                             end
                         end else begin
-                            // MISS: latch và vào LOOKUP
-                            cur_addr  <= cpu_addr;
-                            cur_wdata <= cpu_wdata;
-                            cur_wstrb <= cpu_wstrb;
-                            cur_we    <= cpu_we;
+                            // MISS: addr đã latch ở trên, vào LOOKUP
+                            // (không cần latch lại ở đây)
                         end
                     end
                 end
@@ -539,6 +640,28 @@ module dcache_controller (
                         tag_update_tag   <= refill_tag_r;
                         // CWF chỉ cho read miss (cur_we=0), không có pending_write
                     end
+                end
+
+                // =============================================================
+                // [NC-BYPASS] NC_READ: chờ single-beat AXI read
+                //   refill_addr đã set tại IDLE, refill_start đã pulse.
+                //   axi_interface trả refill_done khi beat về.
+                //   KHÔNG ghi gì vào cache arrays.
+                // =============================================================
+                `DCACHE_STATE_NC_READ: begin
+                    // Không làm gì — cpu_ready được drive bởi combinational block
+                    // khi refill_done. axi_interface tự quản lý AXI AR/R.
+                end
+
+                // =============================================================
+                // [NC-BYPASS] NC_WRITE: chờ single-beat AXI write BRESP
+                //   evict_addr/data đã set tại IDLE, evict_start đã pulse.
+                //   axi_interface trả evict_done khi BRESP nhận được.
+                //   KHÔNG ghi gì vào cache arrays.
+                // =============================================================
+                `DCACHE_STATE_NC_WRITE: begin
+                    // Không làm gì — cpu_ready được drive bởi combinational block
+                    // khi evict_done. axi_interface tự quản lý AXI AW/W/B.
                 end
 
                 default: ;

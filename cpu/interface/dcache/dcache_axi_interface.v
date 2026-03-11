@@ -35,6 +35,7 @@ module dcache_axi_interface #(
     // ========================================================================
     input wire [31:0]  refill_addr,
     input wire         refill_start,
+    input wire         refill_nc,       // [NC-BYPASS] 1 = single-beat (ARLEN=0)
     output reg         refill_busy,
     output wire        refill_done,        // combinational: valid && RLAST
     output wire [31:0] refill_data,        // combinational MUX
@@ -50,6 +51,8 @@ module dcache_axi_interface #(
     input wire [31:0]  evict_data_2,
     input wire [31:0]  evict_data_3,
     input wire         evict_start,
+    input wire         evict_nc,        // [NC-BYPASS] 1 = single-beat (AWLEN=0)
+    input wire [3:0]   evict_wstrb_nc,  // [NC-BYPASS] byte strobe cho NC write
     output reg         evict_busy,
     output reg         evict_done,
 
@@ -102,14 +105,31 @@ module dcache_axi_interface #(
     assign M_AXI_ARID    = {ID_WIDTH{1'b0}};
     assign M_AXI_AWID    = {ID_WIDTH{1'b0}};
 
-    assign M_AXI_ARLEN   = 8'd3;
+    // [NC-BYPASS] ARLEN/AWLEN: bình thường = 3 (4-beat cache refill/evict)
+    // Khi NC bypass được kích hoạt: = 0 (1-beat single transaction)
+    // nc_beat_mode được set bởi controller thông qua refill_nc / evict_nc flags.
+    // Giải pháp đơn giản: controller set refill_addr[0]=1 để báo NC mode
+    // → NHƯNG điều này sẽ làm địa chỉ sai.
+    //
+    // Giải pháp đúng: thêm port nc_read / nc_write vào axi_interface.
+    // Controller set các port này khi kick NC transaction.
+    assign M_AXI_ARLEN   = rd_burst_len;
     assign M_AXI_ARSIZE  = 3'b010;
     assign M_AXI_ARBURST = 2'b01;
     assign M_AXI_ARPROT  = 3'b000;
-    assign M_AXI_AWLEN   = 8'd3;
+    assign M_AXI_AWLEN   = ev_burst_len;
     assign M_AXI_AWSIZE  = 3'b010;
     assign M_AXI_AWBURST = 2'b01;
     assign M_AXI_AWPROT  = 3'b000;
+
+    // ========================================================================
+    // [NC-BYPASS] Burst length registers
+    // Normal cache: ARLEN=3 (4-beat), NC bypass: ARLEN=0 (1-beat)
+    // ========================================================================
+    reg [7:0] rd_burst_len;
+    reg [7:0] ev_burst_len;
+    reg       rd_nc_mode;    // latch NC mode khi bắt đầu transaction
+    reg       ev_nc_mode;
 
     // ========================================================================
     // Read Refill FSM
@@ -147,6 +167,8 @@ module dcache_axi_interface #(
             M_AXI_ARADDR    <= 32'h0;
             M_AXI_ARVALID   <= 1'b0;
             M_AXI_RREADY    <= 1'b0;
+            rd_burst_len    <= 8'd3;
+            rd_nc_mode      <= 1'b0;
         end else begin
             case (rd_state)
 
@@ -158,8 +180,10 @@ module dcache_axi_interface #(
                     rd_word_counter <= 2'b00;
 
                     if (refill_start) begin
-                        refill_busy <= 1'b1;
-                        rd_state    <= RD_LATCH;
+                        refill_busy  <= 1'b1;
+                        rd_burst_len <= refill_nc ? 8'd0 : 8'd3;
+                        rd_nc_mode   <= refill_nc;
+                        rd_state     <= RD_LATCH;
                     end
                 end
 
@@ -179,7 +203,7 @@ module dcache_axi_interface #(
                     end
                 end
 
-                // ── RD_R: nhận burst (4 beats) ───────────────────────────────
+                // ── RD_R: nhận burst (4 beats bình thường, 1 beat NC mode) ──
                 // refill_data_valid/done/data/word là COMBO → controller thấy
                 // ngay trong cycle RVALID. Chỉ cần latch vào _r để giữ giá trị
                 // ổn định sau khi RVALID về 0.
@@ -194,8 +218,11 @@ module dcache_axi_interface #(
                             M_AXI_RREADY    <= 1'b0;
                             refill_busy     <= 1'b0;
                             rd_word_counter <= 2'b00;
+                            rd_nc_mode      <= 1'b0;
                             rd_state        <= RD_IDLE;
                         end else begin
+                            // NC mode không nên có non-LAST beats, nhưng nếu
+                            // slave gửi thêm thì bỏ qua (defensive)
                             rd_word_counter <= rd_word_counter + 1'b1;
                         end
                     end
@@ -248,6 +275,8 @@ module dcache_axi_interface #(
             M_AXI_BREADY  <= 1'b0;
             ev_d0 <= 32'h0; ev_d1 <= 32'h0;
             ev_d2 <= 32'h0; ev_d3 <= 32'h0;
+            ev_burst_len  <= 8'd3;
+            ev_nc_mode    <= 1'b0;
         end else begin
             evict_done <= 1'b0;
 
@@ -268,10 +297,14 @@ module dcache_axi_interface #(
                         ev_d2 <= evict_data_2;
                         ev_d3 <= evict_data_3;
 
+                        ev_burst_len  <= evict_nc ? 8'd0 : 8'd3;
+                        ev_nc_mode    <= evict_nc;
+
                         M_AXI_AWVALID <= 1'b1;
                         M_AXI_WDATA   <= evict_data_0;
-                        M_AXI_WSTRB   <= 4'hf;
-                        M_AXI_WLAST   <= 1'b0;
+                        M_AXI_WSTRB   <= evict_nc ? evict_wstrb_nc : 4'hf;
+                        // [NC-BYPASS] 1-beat write: WLAST=1 ngay từ đầu
+                        M_AXI_WLAST   <= evict_nc ? 1'b1 : 1'b0;
                         M_AXI_WVALID  <= 1'b1;
                         evict_busy    <= 1'b1;
                         ev_state      <= EV_AW;
@@ -285,7 +318,9 @@ module dcache_axi_interface #(
                     end
 
                     if (M_AXI_WVALID && M_AXI_WREADY) begin
-                        if (ev_beat == 2'd3) begin
+                        // [NC-BYPASS] NC mode: 1-beat, WLAST đã =1 từ EV_IDLE
+                        // Normal mode: 4-beat, tăng beat counter
+                        if (ev_nc_mode || ev_beat == 2'd3) begin
                             M_AXI_WVALID <= 1'b0;
                             M_AXI_WLAST  <= 1'b0;
 

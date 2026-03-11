@@ -482,7 +482,21 @@ always @(posedge clk) begin
 end
 
 // ============================================================================
-// (4) M0 (ICache) AXI Logger
+// (3b) DMA (M2) Direct DMEM Write Tracker
+// ─────────────────────────────────────────────────────────────────────────────
+// Vấn đề: DMA ghi CTEXT+TAG trực tiếp vào DMEM qua M2, bypass DCache.
+// Scoreboard chỉ track M1 (DCache) stores -> DMEM snapshot không thấy CTEXT/TAG.
+// Fix: track ram_wr_en (wire vào u_dmem) để bắt mọi write vào DMEM,
+//      bao gồm cả DMA write (M2) không qua DCache.
+// ============================================================================
+always @(posedge clk) begin
+    if (rst_n_r && ram_wr_en && !program_done) begin
+        sb_update(ram_wr_addr, ram_wr_data, ram_wr_strb);
+        if (`LOG_LEVEL >= 2)
+            $display("[%6d] [DMEM-W] addr=0x%08h  data=0x%08h  strb=%b  (direct/DMA)",
+                     cycle_count, ram_wr_addr, ram_wr_data, ram_wr_strb);
+    end
+end
 // ============================================================================
 reg [31:0] m0_ar_addr_saved;
 always @(posedge clk) begin
@@ -1036,6 +1050,21 @@ task print_report;
         $display("+=================================================================+");
         $display("|  STOP: %-57s|", reason);
         $display("+=================================================================+");
+
+        // ── Diagnostic khi loop detected ────────────────────────────────────
+        if (reason == "2-CYCLE LOOP DETECTED" || reason == "4-CYCLE LOOP DETECTED"
+            || reason == "LE LOOP DETECTED") begin
+            $display("|  [DIAG] Final PC = 0x%08h", pc_if);
+            if (pc_if >= 32'h00001000) begin
+                $display("|  [DIAG] PC > 0x1000 -> loop co the do IMEM bi cat (inst_mem qua nho)");
+                $display("|         CPU fetch NOP (0x00000013) lien tuc -> loop vo han.");
+                $display("|         Fix: tang IMEM_SIZE trong soc_top.v va inst_mem.v");
+                $display("|              run.sh se tu dong patch inst_mem [0:1023]->[0:2047]");
+            end else if (pc_if >= 32'h00000400) begin
+                $display("|  [DIAG] PC trong vung code -> co the la while(1) halt binh thuong");
+                $display("|         Kiem tra a0: neu a0==0 thi firmware da chay xong thanh cong");
+            end
+        end
 
         // ── (1) Result ───────────────────────────────────────────────────────
         $display("");
