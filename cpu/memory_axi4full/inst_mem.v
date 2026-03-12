@@ -57,8 +57,14 @@ module inst_mem #(
     reg [DATA_WIDTH-1:0] memory [0:MEM_DEPTH-1];
 
     // Simple combinational read
-    wire [ADDR_BITS-1:0] word_addr;
-    assign word_addr        = PC[ADDR_LSB + ADDR_BITS - 1 : ADDR_LSB];
+    // [FIX-ADDR-WRAP] Dùng modulo thay vì bit-slice cứng ADDR_BITS bits.
+    // Vấn đề gốc: ADDR_BITS=$clog2(1024)=10 → PC[11:2] chỉ 10 bits
+    // → PC=0x1000 wrap về index 0 → CPU loop vô tận.
+    // Fix: (PC >> ADDR_LSB) % MEM_DEPTH → index luôn trong [0,MEM_DEPTH-1].
+    wire [ADDR_WIDTH-1:0] word_addr_full;
+    wire [ADDR_BITS-1:0]  word_addr;
+    assign word_addr_full   = (PC >> ADDR_LSB) % MEM_DEPTH;
+    assign word_addr        = word_addr_full[ADDR_BITS-1:0];
     assign Instruction_Code = memory[word_addr];
 
     // ========================================================================
@@ -76,12 +82,15 @@ module inst_mem #(
     // Combinational burst_data (ZERO-LATENCY)
     // ========================================================================
     wire [ADDR_WIDTH-1:0] read_addr;
+    wire [ADDR_WIDTH-1:0] read_word_addr_full;
     wire [ADDR_BITS-1:0]  read_word_addr;
 
-    assign read_addr      = (burst_state == BURST_IDLE && burst_req) ?
-                            burst_addr : current_addr;
-    assign read_word_addr = read_addr[ADDR_LSB + ADDR_BITS - 1 : ADDR_LSB];
-    assign burst_data     = memory[read_word_addr];
+    assign read_addr           = (burst_state == BURST_IDLE && burst_req) ?
+                                 burst_addr : current_addr;
+    // [FIX-ADDR-WRAP] Dùng modulo giống PC path, tránh truncate bit cao
+    assign read_word_addr_full = (read_addr >> ADDR_LSB) % MEM_DEPTH;
+    assign read_word_addr      = read_word_addr_full[ADDR_BITS-1:0];
+    assign burst_data          = memory[read_word_addr];
 
     // Next address (combinational)
     wire [ADDR_WIDTH-1:0] next_addr;

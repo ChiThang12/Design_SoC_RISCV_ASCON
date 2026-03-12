@@ -43,7 +43,7 @@ module axi4_crossbar_3m5s #(
 
     // Địa chỉ base/mask cho từng slave
     parameter [ADDR_WIDTH-1:0] S0_BASE = 32'h0000_0000,
-    parameter [ADDR_WIDTH-1:0] S0_MASK = 32'hFFFF_0000,
+    parameter [ADDR_WIDTH-1:0] S0_MASK = 32'hFFFF_E000,
     parameter [ADDR_WIDTH-1:0] S1_BASE = 32'h1000_0000,
     parameter [ADDR_WIDTH-1:0] S1_MASK = 32'hFFFF_0000,
     parameter [ADDR_WIDTH-1:0] S2_BASE = 32'h2000_0000,
