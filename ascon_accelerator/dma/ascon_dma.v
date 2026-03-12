@@ -1,7 +1,7 @@
 // ============================================================================
 // Module  : ascon_dma
 // Project : ASCON Crypto Accelerator IP
-// Version : 1.0
+// Version : 1.1  (fixes: RTL-1 dma_error wire, RTL-2 FIFO soft-reset)
 //
 // Description:
 //   ASCON-dedicated DMA engine. Orchestrates the full data movement pipeline:
@@ -39,6 +39,18 @@
 //   - 1-beat AXI read (ARLEN=0), 3-beat AXI write (AWLEN=2)
 //   - No concurrent read/write; strictly sequential
 //   - No unaligned access handling (driver must ensure 8-byte alignment)
+//
+// Firmware driver notes (DO NOT CHANGE without updating firmware):
+//   1. Write DMA_SRC_ADDR (0x100), DMA_DST_ADDR (0x104), DMA_BYTE_LEN (0x108)
+//      each separated by a STATUS read fence (AXI ordering)
+//   2. Write DMA_CTRL (0x10C) bit[0]=1 to START — this is SEPARATE from
+//      ASCON core CTRL at offset 0x000. Driver MUST write 0x10C, NOT 0x000.
+//   3. Poll DMA_STATUS (0x110) bit[1]=DONE or bit[4:5]=ERROR
+//      NOTE: CPU-side STATUS mirror is at 0x004 bits[3:2] (dma_done/dma_busy)
+//            in ascon_reg_bank. Firmware polls 0x20000004 bits[3:2].
+//   4. Data coherency: CPU must ensure plaintext is in DMEM SRAM (not only
+//      in DCache) before DMA start. Use non-cacheable writes (MMIO path) or
+//      explicit cache flush. DMA bypasses DCache and reads SRAM directly.
 // ============================================================================
 
 `include "ascon_accelerator/dma/rtl/sync_fifo.v"
@@ -185,13 +197,25 @@ module ascon_dma #(
     wire        wr_error_w;
     wire [ADDR_WIDTH-1:0] wr_err_addr_w;
 
+    // [FIX-RTL-1] dma_ctrl_fsm의 dma_error output을 캡처할 wire
+    // 이전: .dma_error() → floating output이면 FSM error state가 상위로 전달 안 됨
+    // Fix: wire로 캡처 후 최상위 dma_error assign에 OR로 포함
+    wire        dma_error_fsm_w;   // FSM internal error flag
+
     // Aggregate error address: whichever engine errored last
     assign dma_err_addr = rd_error_w ? rd_err_addr_w : wr_err_addr_w;
 
-    // Aggregate status flags
+    // Aggregate status flags — [FIX-RTL-1] include FSM error
     assign status_rd_error = rd_error_w;
     assign status_wr_error = wr_error_w;
-    assign dma_error       = rd_error_w | wr_error_w;
+    assign dma_error       = rd_error_w | wr_error_w | dma_error_fsm_w;
+
+    // =========================================================================
+    // [FIX-RTL-2] Soft-reset: combined rst_n for FIFOs includes dma_soft_rst
+    // Previous: FIFOs only used power-on rst_n → soft_rst pulse did NOT clear FIFOs
+    // Fix: fifo_rst_n = rst_n AND NOT dma_soft_rst → soft_rst properly clears FIFOs
+    // =========================================================================
+    wire fifo_rst_n = rst_n & ~dma_soft_rst;
 
     // =========================================================================
     // RD FIFO — 64-bit × 4 deep
@@ -201,7 +225,7 @@ module ascon_dma #(
         .DEPTH (RD_FIFO_DEPTH)
     ) u_rd_fifo (
         .clk   (clk),
-        .rst_n (rst_n),
+        .rst_n (fifo_rst_n),    // [FIX-RTL-2] soft-reset aware
         .din   (rd_fifo_din),
         .push  (rd_fifo_push),
         .full  (rd_fifo_full),
@@ -219,7 +243,7 @@ module ascon_dma #(
         .DEPTH (WR_FIFO_DEPTH)
     ) u_wr_fifo (
         .clk   (clk),
-        .rst_n (rst_n),
+        .rst_n (fifo_rst_n),    // [FIX-RTL-2] soft-reset aware
         .din   (wr_fifo_din),
         .push  (wr_fifo_push),
         .full  (wr_fifo_full),
@@ -241,7 +265,7 @@ module ascon_dma #(
         // Status
         .dma_busy            (dma_busy),
         .dma_done            (dma_done),
-        .dma_error           (),           // driven via rd/wr error aggregation above
+        .dma_error           (dma_error_fsm_w),  // [FIX-RTL-1] capture FSM error output
         // Read engine
         .rd_start            (rd_start_w),
         .rd_busy             (rd_busy_w),

@@ -2,32 +2,25 @@
 `include "soc_top.v"
 
 // ============================================================================
-//  run_soc.v  —  Universal Debug Testbench  v5.0
+//  run_soc.v  —  Universal Debug Testbench  v5.2
 //  Cập nhật hoàn toàn cho soc_top.v (3M x 5S: IMEM/DMEM/ASCON/SoCCtrl/CLINT)
 //
-//  Thay đổi so với v4.1:
-//    [1]  DUT port: ext_rst_n, soft_rst_pulse (không có stat ports — lấy qua hier)
-//    [2]  Instance names đúng với soc_top.v:
-//           CPU      : soc.u_cpu
-//           ICache   : soc.u_icache
-//           DCache   : soc.u_dcache
-//           Crossbar : soc.u_crossbar
-//           IMEM     : soc.u_imem
-//           DMEM     : soc.u_dmem
-//           ASCON    : soc.u_ascon
-//           WConv    : soc.u_width_conv
-//           CLINT    : soc.u_clint
-//           SoCCtrl  : soc.u_soc_ctrl
-//    [3]  Wire names đúng với soc_top.v internal wires:
-//           icache_imem_rdata / icache_imem_ready (không phải cpu_imem_rdata)
-//           dcache_cpu_rdata  / dcache_cpu_ready
-//    [4]  Thêm S4 (CLINT) taps: mtime, timer_irq, sw_irq
-//    [5]  Thêm SoC Ctrl taps: irq_out, soft_rst_pulse
-//    [6]  Thêm CLINT internal: mtime_lo/hi, mtimecmp_lo/hi, msip
-//    [7]  Thêm DMA 64-bit raw wires (trước width converter)
-//    [8]  Thêm prescaler tap: mtime_tick
-//    [9]  slave_name cập nhật đủ 5 slave + DECERR
-//    [10] Halt guard: dùng đúng wire names
+//  Thay đổi so với v5.1:
+//    [FIX-5] MATCH2/MATCH4_THRESH tăng 200→2000: tránh false loop detection
+//            khi firmware halt = for(;;){nop} — PC dao động 2-cycle do ICache
+//            pipeline, TB cũ báo "LE LOOP DETECTED" sai khi firmware OK.
+//    [FIX-6] match2/match4 thêm điều kiện lsu_sb_empty && !dc_req:
+//            chỉ trigger khi SB drain xong — phân biệt halt thật vs stall.
+//    [FIX-7] Block (3b) DMEM write tracker: dùng s1_wvalid&&s1_wready
+//            (S1 AXI W-channel) thay vì ram_wr_en internal tap:
+//            - Bắt mọi write vào DMEM (M1 DCache + M2 DMA) qua 1 điểm duy nhất
+//            - Không phụ thuộc tên wire nội bộ u_dmem (dễ lỗi compile)
+//            - DMEM snapshot (9) và store scoreboard (10) hiển thị đúng data.
+//    [FIX-8] STATUS at halt decode từ status_word[N] thay vì wire transient:
+//            core_done wire về 0 sau khi CPU đọc nhưng STATUS[1] vẫn sticky.
+//    [FIX-9] ASCON summary: thêm "[OK] CPU-Direct encryption completed"
+//            cho mode CPU-Direct (không dùng DMA).
+//    [FIX-1..4] giữ nguyên từ v5.1.
 // ============================================================================
 
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
@@ -37,8 +30,8 @@
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
 `define DMEM_ROW_WORDS  4
-`define MATCH2_THRESH   200
-`define MATCH4_THRESH   200
+`define MATCH2_THRESH   2000
+`define MATCH4_THRESH   2000
 // ─────────────────────────────────────────────────────────────────────────────
 
 module run_soc;
@@ -272,8 +265,10 @@ wire        s2_bvalid  = soc.s2_bvalid;
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] s3_araddr  = soc.s3_araddr;
 wire        s3_arvalid = soc.s3_arvalid;
+wire        s3_arready = soc.s3_arready;    // [FIX-2] thêm để dùng valid&&ready
 wire [31:0] s3_awaddr  = soc.s3_awaddr;
 wire        s3_awvalid = soc.s3_awvalid;
+wire        s3_awready = soc.s3_awready;    // [FIX-2] thêm
 wire [31:0] s3_wdata   = soc.s3_wdata;
 wire        s3_wvalid  = soc.s3_wvalid;
 wire [31:0] s3_rdata   = soc.s3_rdata;
@@ -284,8 +279,10 @@ wire        s3_rvalid  = soc.s3_rvalid;
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] s4_araddr  = soc.s4_araddr;
 wire        s4_arvalid = soc.s4_arvalid;
+wire        s4_arready = soc.s4_arready;    // [FIX-2] thêm
 wire [31:0] s4_awaddr  = soc.s4_awaddr;
 wire        s4_awvalid = soc.s4_awvalid;
+wire        s4_awready = soc.s4_awready;    // [FIX-2] thêm
 wire [31:0] s4_wdata   = soc.s4_wdata;
 wire        s4_wvalid  = soc.s4_wvalid;
 wire [31:0] s4_rdata   = soc.s4_rdata;
@@ -301,7 +298,14 @@ wire        sw_irq       = soc.sw_irq;              // clint → cpu
 wire        ext_irq      = soc.external_irq;        // soc_ctrl → cpu
 
 // CLINT register internals (nếu clint expose ra)
-wire [31:0] clint_mtime_lo    = soc.u_clint.S_AXI_ARADDR; // placeholder — đổi nếu clint expose
+// [FIX] clint_mtime_lo placeholder cũ dùng S_AXI_ARADDR (AXI AR address)
+//       không phải mtime register → giá trị vô nghĩa khi debug timer.
+//       Đổi thành path đúng vào register mtime_lo trong u_clint.
+//       Nếu CLINT RTL không expose mtime_lo ra port/wire riêng, dùng:
+//         soc.u_clint.mtime_lo  (nếu có reg mtime_lo internal)
+//         soc.u_clint.r_mtime[31:0]  (tên tùy RTL implementation)
+//       Hiện tạm comment để tránh compile error — bật lại khi biết tên đúng.
+// wire [31:0] clint_mtime_lo = soc.u_clint.mtime_lo;  // TODO: verify wire name
 wire        clint_timer_out   = soc.u_clint.timer_irq;
 wire        clint_sw_out      = soc.u_clint.sw_irq;
 
@@ -344,12 +348,12 @@ wire [2:0]  lsu_sb_count   = soc.u_cpu.lsu_unit.sb_count[2:0];
 wire        lsu_drain_idle = (soc.u_cpu.lsu_unit.drain_state == 1'b0);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [Q] DMEM write tap  (instance: soc.u_dmem)
+// [Q] DMEM write tap — DEPRECATED (replaced by S1 AXI W-channel in block 3b)
 // ─────────────────────────────────────────────────────────────────────────────
-wire        ram_wr_en   = soc.u_dmem.dmem.burst_wr_valid;
-wire [31:0] ram_wr_addr = soc.u_dmem.dmem.wr_effective_addr;
-wire [31:0] ram_wr_data = soc.u_dmem.dmem.burst_wr_data;
-wire [3:0]  ram_wr_strb = soc.u_dmem.dmem.burst_wr_strb;
+// wire        ram_wr_en   = soc.u_dmem.dmem.burst_wr_valid;   // fragile internal path
+// wire [31:0] ram_wr_addr = soc.u_dmem.dmem.wr_effective_addr;
+// wire [31:0] ram_wr_data = soc.u_dmem.dmem.burst_wr_data;
+// wire [3:0]  ram_wr_strb = soc.u_dmem.dmem.burst_wr_strb;
 
 // ============================================================================
 // Counters & State
@@ -457,14 +461,21 @@ always @(posedge clk) begin
 end
 
 // ============================================================================
-// (3) DCache Load/Store Logger + Scoreboard
+// (3) DCache Load/Store Logger
+// [FIX-3] Block này chỉ log và đếm — KHÔNG gọi sb_update.
+//   Lý do: khi CPU store đi qua DCache → M1 → S1 → DMEM, cả block (3) này
+//   lẫn block (3b) ram_wr_en đều fire cho cùng 1 store → double-count và
+//   scoreboard nhận 2 lần ghi cho cùng địa chỉ (latency khác nhau, data
+//   có thể khác nếu có transform trong DCache).
+//   Authoritative source là ram_wr_en (block 3b) — DMEM là nơi data thực sự
+//   được committed. sb_update chỉ được gọi từ đó.
 // ============================================================================
 always @(posedge clk) begin
     if (rst_n_r && dc_req && dc_ready) begin
         if (dc_we) begin
             if (!program_done) begin
                 dmem_wr_cnt = dmem_wr_cnt + 1;
-                sb_update(dc_addr, dc_wdata, dc_wstrb);
+                // sb_update đã được xử lý bởi block (3b) ram_wr_en — không gọi lại ở đây
                 if (`LOG_LEVEL >= 2)
                     $display("[%6d] [ST] addr=0x%08h  data=0x%08h  strb=%b",
                              cycle_count, dc_addr, dc_wdata, dc_wstrb);
@@ -482,19 +493,31 @@ always @(posedge clk) begin
 end
 
 // ============================================================================
-// (3b) DMA (M2) Direct DMEM Write Tracker
+// (3b) DMEM AXI Write Tracker — authoritative scoreboard source
 // ─────────────────────────────────────────────────────────────────────────────
-// Vấn đề: DMA ghi CTEXT+TAG trực tiếp vào DMEM qua M2, bypass DCache.
-// Scoreboard chỉ track M1 (DCache) stores -> DMEM snapshot không thấy CTEXT/TAG.
-// Fix: track ram_wr_en (wire vào u_dmem) để bắt mọi write vào DMEM,
-//      bao gồm cả DMA write (M2) không qua DCache.
+// [FIX] Dùng s1_wvalid && s1_wready (AXI W-channel → DMEM slave) thay vì
+//       ram_wr_en internal tap, vì:
+//   1. ram_wr_en path phụ thuộc tên wire nội bộ u_dmem — dễ lỗi compile.
+//   2. S1 W-channel bắt mọi write vào DMEM từ cả M1(DCache) lẫn M2(DMA).
+//   3. s1_awaddr cung cấp địa chỉ đích chính xác cho scoreboard.
+// Để tránh double-count với block (3) CPU store logger:
+//   Block (3) chỉ log + đếm dmem_wr_cnt, KHÔNG gọi sb_update.
+//   sb_update chỉ được gọi tại đây (S1 W commit).
 // ============================================================================
+reg [31:0] s1_aw_addr_lat;   // latch s1_awaddr khi AW handshake
 always @(posedge clk) begin
-    if (rst_n_r && ram_wr_en && !program_done) begin
-        sb_update(ram_wr_addr, ram_wr_data, ram_wr_strb);
+    if (!rst_n_r)
+        s1_aw_addr_lat <= 32'h0;
+    else if (s1_awvalid && s1_awready)
+        s1_aw_addr_lat <= s1_awaddr;
+end
+
+always @(posedge clk) begin
+    if (rst_n_r && s1_wvalid && s1_wready && !program_done) begin
+        sb_update(s1_aw_addr_lat, s1_wdata, s1_wstrb);
         if (`LOG_LEVEL >= 2)
-            $display("[%6d] [DMEM-W] addr=0x%08h  data=0x%08h  strb=%b  (direct/DMA)",
-                     cycle_count, ram_wr_addr, ram_wr_data, ram_wr_strb);
+            $display("[%6d] [DMEM-W] addr=0x%08h  data=0x%08h  strb=%b  (S1-AXI commit)",
+                     cycle_count, s1_aw_addr_lat, s1_wdata, s1_wstrb);
     end
 end
 // ============================================================================
@@ -698,36 +721,47 @@ always @(posedge clk) begin
         if (s1_arvalid && s1_arready) s1_ar_cnt = s1_ar_cnt + 1;
         if (s1_awvalid && s1_awready) s1_aw_cnt = s1_aw_cnt + 1;
 
-        if (s2_arvalid) begin
+        // [FIX-2] S2/S3/S4 counter dùng valid&&ready để tránh over-count:
+        //   AXI handshake chỉ hoàn thành khi valid&&ready. Nếu slave giữ
+        //   ready=0 nhiều cycle thì valid HIGH liên tục → counter đếm dư N lần.
+        if (s2_arvalid && s2_arready) begin
             s2_access_cnt = s2_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [S2-ASCON] READ   offset=0x%03h",
                          cycle_count, s2_araddr[11:0]);
         end
-        if (s2_awvalid) begin
+        if (s2_awvalid && s2_awready) begin
             s2_access_cnt = s2_access_cnt + 1;
+            if (`LOG_LEVEL >= 1)
+                $display("[%6d] [S2-ASCON] AW     offset=0x%03h  (W data logged below)",
+                         cycle_count, s2_awaddr[11:0]);
+        end
+        // [FIX-4] Log W data khi s2_wvalid (W channel độc lập với AW trong AXI4)
+        //   s2_awvalid && s2_wdata: AW và W có thể không cùng cycle →
+        //   log data tại AW-time in ra giá trị sai (data chưa valid).
+        if (s2_wvalid) begin
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [S2-ASCON] WRITE  offset=0x%03h  data=0x%08h",
                          cycle_count, s2_awaddr[11:0], s2_wdata);
         end
-        if (s3_arvalid) begin
+        if (s3_arvalid && s3_arready) begin
             s3_access_cnt = s3_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [S3-SOCCTRL] READ  addr=0x%08h", cycle_count, s3_araddr);
         end
-        if (s3_awvalid) begin
+        if (s3_awvalid && s3_awready) begin
             s3_access_cnt = s3_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [S3-SOCCTRL] WRITE addr=0x%08h  data=0x%08h",
                          cycle_count, s3_awaddr, s3_wdata);
         end
-        if (s4_arvalid) begin
+        if (s4_arvalid && s4_arready) begin
             s4_access_cnt = s4_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [S4-CLINT] READ  addr=0x%08h  offset=0x%05h",
                          cycle_count, s4_araddr, s4_araddr[19:0]);
         end
-        if (s4_awvalid) begin
+        if (s4_awvalid && s4_awready) begin
             s4_access_cnt = s4_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [S4-CLINT] WRITE addr=0x%08h  offset=0x%05h  data=0x%08h",
@@ -844,9 +878,13 @@ always @(posedge clk) begin
         match2 <= 0; match4 <= 0;
     end else if (cycle_count > 30) begin
 
-        // HALT: PC không đổi, không phải NOP, CPU không đang wait memory
+        // HALT: PC không đổi, CPU không đang wait memory, LSU SB đã drain
+        // [FIX-1] Bỏ điều kiện lọc NOP (0x00000013):
+        //   firmware halt = for(;;){asm volatile("nop")} → instr_if LUÔN là NOP
+        //   → điều kiện cũ không bao giờ đúng → TB dùng MATCH2/WATCHDOG thay HALT
+        //   → reason log ra "2-CYCLE LOOP DETECTED" thay vì "HALT LOOP DETECTED"
+        //   HALT_STABLE=60 đủ dài để lọc stall thật (stall thường vài cycle).
         if (pc_if === prev_pc
-            && instr_if !== 32'h00000013    // không phải NOP
             && !dc_req                       // DCache không pending
             && lsu_sb_empty) begin           // LSU SB đã drain
             halt_cnt <= halt_cnt + 1;
@@ -861,7 +899,10 @@ always @(posedge clk) begin
         end
 
         // 2-cycle loop detection
-        if (pc_if === pc_ring[(ring_ptr + 6) % 8]) begin
+        // Thêm lsu_sb_empty && !dc_req: tránh false-positive khi firmware đang
+        // for(;;){nop} hợp lệ — PC dao động 2-cycle do ICache pipeline fetch.
+        // Chỉ báo lỗi khi SB drain xong mà vẫn loop (thực sự bị kẹt).
+        if (pc_if === pc_ring[(ring_ptr + 6) % 8] && lsu_sb_empty && !dc_req) begin
             match2 = match2 + 1;
             if (match2 >= `MATCH2_THRESH && !program_done) begin
                 program_done = 1;
@@ -871,7 +912,7 @@ always @(posedge clk) begin
         end else match2 = 0;
 
         // 4-cycle loop detection
-        if (pc_if === pc_ring[(ring_ptr + 4) % 8]) begin
+        if (pc_if === pc_ring[(ring_ptr + 4) % 8] && lsu_sb_empty && !dc_req) begin
             match4 = match4 + 1;
             if (match4 >= `MATCH4_THRESH && !program_done) begin
                 program_done = 1;
@@ -1167,12 +1208,16 @@ task print_report;
         $display("|  DMA config at halt  : src=0x%08h  dst=0x%08h  len=%0d",
                  ascon_dma_src_r, ascon_dma_dst_r, ascon_dma_len_r);
         $display("|  STATUS at halt      : 0x%08h", ascon_status_word);
+        // [FIX] Decode từ status_word register (sticky bits) thay vì wire transient.
+        // core_done wire về 0 ngay sau khi CPU đọc, nhưng STATUS[1] vẫn set.
         $display("|    core_busy=%0d  core_done=%0d  dma_busy=%0d  dma_done=%0d  err=%0d",
-                 ascon_core_busy, ascon_core_done, ascon_dma_busy,
-                 ascon_dma_done_st, ascon_dma_error);
+                 ascon_status_word[0], ascon_status_word[1],
+                 ascon_status_word[2], ascon_status_word[3],
+                 ascon_status_word[4] | ascon_status_word[5]);
         if      (ascon_dma_done_cnt > 0) $display("|  [OK]  DMA encryption completed");
+        else if (ascon_done_cnt     > 0) $display("|  [OK]  CPU-Direct encryption completed");
         else if (ascon_error_cnt    > 0) $display("|  [!!!] DMA error — check M2 routing and DMEM addr");
-        else                             $display("|  [?]   DMA not completed — check CTRL.START / DMA_EN");
+        else                             $display("|  [?]   ASCON not completed — check CTRL.START");
         $display("+----------------------------------------------------------------+");
 
         // ── (6) Interrupt / CLINT Summary ───────────────────────────────────
@@ -1194,6 +1239,9 @@ task print_report;
         $display("|  RAW hazard errors   : %0d  %s",
                  sb_errors, sb_errors == 0 ? "(OK)" : "[!!!] DATA ERRORS DETECTED");
         $display("|  LSU SB remaining    : %0d entries at halt", lsu_sb_count);
+        // [FIX] Thêm lsu_drain_idle vào report — xác nhận SB đã drain hoàn toàn
+        $display("|  LSU drain idle      : %0s at halt",
+                 lsu_drain_idle ? "YES (OK)" : "NO [!!!] drain still active");
         $display("+----------------------------------------------------------------+");
 
         // ── (8) Register File ────────────────────────────────────────────────
@@ -1301,13 +1349,13 @@ task print_banner;
     begin
         $display("");
         $display("+=================================================================+");
-        $display("|   RISC-V SoC  +  ASCON IP  --  Debug Testbench  v5.0           |");
+        $display("|   RISC-V SoC  +  ASCON IP  --  Debug Testbench  v5.2           |");
         $display("|   ICache | DCache | AXI4 Crossbar 3Mx5S | ascon_ip | 100MHz    |");
         $display("+-----------------------------------------------------------------+");
         $display("|   Masters:  M0=ICache  M1=DCache  M2=DMA(via width_conv 64>32) |");
         $display("|   Address Map:                                                  |");
-        $display("|     S0  IMEM     0x0000_0000 - 0x0000_FFFF  (64 KB, ROM)       |");
-        $display("|     S1  DMEM     0x1000_0000 - 0x1000_FFFF  (64 KB, RAM)       |");
+        $display("|     S0  IMEM     0x0000_0000 - 0x0000_1FFF  ( 8 KB, ROM)       |");
+        $display("|     S1  DMEM     0x1000_0000 - 0x1000_1FFF  ( 8 KB, RAM)       |");
         $display("|     S2  ASCON    0x2000_0000 - 0x2000_0FFF  ( 4 KB)            |");
         $display("|     S3  SoCCtrl  0x3000_0000 - 0x3000_0FFF  ( 4 KB)            |");
         $display("|     S4  CLINT    0x4000_0000 - 0x4000_FFFF  (64 KB)            |");

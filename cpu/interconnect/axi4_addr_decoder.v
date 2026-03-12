@@ -13,7 +13,7 @@ module axi4_addr_decoder #(
     parameter ADDR_WIDTH  = 32,
     // Địa chỉ base và mask cho mỗi slave
     parameter [ADDR_WIDTH-1:0] S0_BASE = 32'h0000_0000,
-    parameter [ADDR_WIDTH-1:0] S0_MASK = 32'hFFFF_0000,
+    parameter [ADDR_WIDTH-1:0] S0_MASK = 32'hFFFF_E000,
     parameter [ADDR_WIDTH-1:0] S1_BASE = 32'h1000_0000,
     parameter [ADDR_WIDTH-1:0] S1_MASK = 32'hFFFF_0000,
     parameter [ADDR_WIDTH-1:0] S2_BASE = 32'h2000_0000,
