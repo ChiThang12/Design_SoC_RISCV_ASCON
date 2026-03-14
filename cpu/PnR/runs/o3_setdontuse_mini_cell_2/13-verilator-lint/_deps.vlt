@@ -1,0 +1,5 @@
+`verilator_config
+lint_off -rule DECLFILENAME
+lint_off -rule EOFNEWLINE
+lint_off -rule UNDRIVEN -file "/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/runs/o3_setdontuse_mini_cell_2/tmp/ead406e369ff4c5e8dd460db81418891.bb.v"
+lint_off -rule UNUSEDSIGNAL -file "/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/runs/o3_setdontuse_mini_cell_2/tmp/ead406e369ff4c5e8dd460db81418891.bb.v"

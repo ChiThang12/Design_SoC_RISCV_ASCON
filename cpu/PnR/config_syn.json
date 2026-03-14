@@ -1,0 +1,57 @@
+{
+  "DESIGN_NAME": "riscv_cpu_core_v2",
+  "VERILOG_FILES": ["dir::rtl/*.v"],
+  "CLOCK_PERIOD": 10.0,
+  "CLOCK_PORT": "clk",
+  
+  "MAX_FANOUT_CONSTRAINT": 20,
+  "FP_CORE_UTIL": 55,
+  "PL_TARGET_DENSITY_PCT": "expr::($FP_CORE_UTIL + 10.0)",
+  "PDK": "sky130B",
+  "GPL_CELL_PADDING": 0,
+  
+  "SYNTH_STRATEGY": "DELAY 3",
+  
+  
+  "PNR_SDC_FILE": "dir::rtl/top.sdc",
+  "SIGNOFF_SDC_FILE": "dir::rtl/top.sdc",
+  
+  "MACROS": {
+        "sky130_sram_1kbyte_1rw1r_8x1024_8": {
+            "instances": {
+                "dmem.dmem.sram_byte0": {
+                    "location": [50, 50],
+                    "orientation": "N"
+                },
+                "dmem.dmem.sram_byte1": {
+                    "location": [550, 50],
+                    "orientation": "N"
+                },
+                "dmem.dmem.sram_byte2": {
+                    "location": [50, 550],
+                    "orientation": "N"
+                },
+                "dmem.dmem.sram_byte3": {
+                    "location": [550, 550],
+                    "orientation": "N"
+                }
+            },
+            "gds": ["dir::./macros/gds/sky130_sram_1kbyte_1rw1r_8x1024_8.gds"],
+            "lef": ["dir::./macros/lef/sky130_sram_1kbyte_1rw1r_8x1024_8.lef"],
+            "lib": {
+                "nom_*": ["dir::./macros/lib/sky130_sram_1kbyte_1rw1r_8x1024_8_tt.lib"],
+                "max_*": ["dir::./macros/lib/sky130_sram_1kbyte_1rw1r_8x1024_8_ss.lib"],
+                "min_*": ["dir::./macros/lib/sky130_sram_1kbyte_1rw1r_8x1024_8_ff.lib"]
+            }
+        }
+    },
+  "meta": {
+    "flow": "Classic"
+  },
+  
+  "RUN_POST_GRT_RESIZER_TIMING" : true,
+  "RUN_POST_GRT_DESIGN_REPAIR" : true
+  
+}
+
+

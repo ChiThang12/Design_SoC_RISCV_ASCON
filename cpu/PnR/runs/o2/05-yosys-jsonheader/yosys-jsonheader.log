@@ -1,0 +1,1544 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2024  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)
+Loaded SDC plugin
+
+1. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/runs/o2/tmp/30463453dfab489989319e4b54f40a9e.bb.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/runs/o2/tmp/30463453dfab489989319e4b54f40a9e.bb.v' to AST representation.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__decap_12'.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__fill_12'.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__fill_4'.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__fill_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21bo_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21bo_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21bo_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a222oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufbuf_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufbuf_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufinv_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufinv_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s15_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s15_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s18_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s18_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s25_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s25_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s50_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s50_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinvlp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinvlp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__conb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_3'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfbbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfbbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfbbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfsbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfsbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfstp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfstp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfstp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__diode_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlclkp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlclkp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlclkp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlygate4sd1_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlygate4sd2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlygate4sd3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlymetal6s2s_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlymetal6s4s_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlymetal6s6s_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__edfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__edfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fa_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fa_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fa_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fah_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fahcin_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fahcon_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ha_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ha_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ha_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_bleeder_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_3'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso0n_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso0p_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso1n_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso1p_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputisolatch_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrckapwr_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_hl_isowell_tap_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_hl_isowell_tap_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_hl_isowell_tap_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_tap_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_tap_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_tap_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__macro_sparecell'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__maj3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__maj3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__maj3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2i_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2i_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2i_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ba_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ba_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ba_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21bai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21bai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21bai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__probe_p_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__probec_p_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfbbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfbbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfbbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfsbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfsbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfstp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfstp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfstp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdlclkp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdlclkp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdlclkp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tap_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tap_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tapvgnd2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tapvgnd_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tapvpwrvgnd_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor3_4'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v' to AST representation.
+Storing AST representation for module `$abstract\IFU'.
+Successfully finished Verilog frontend.
+
+3. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v' to AST representation.
+Storing AST representation for module `$abstract\LSU'.
+Successfully finished Verilog frontend.
+
+4. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_EX_WB.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_EX_WB.v' to AST representation.
+Storing AST representation for module `$abstract\PIPELINE_REG_EX_WB'.
+Successfully finished Verilog frontend.
+
+5. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_ID_EX.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_ID_EX.v' to AST representation.
+Storing AST representation for module `$abstract\PIPELINE_REG_ID_EX'.
+Successfully finished Verilog frontend.
+
+6. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v' to AST representation.
+Storing AST representation for module `$abstract\PIPELINE_REG_IF_ID'.
+Successfully finished Verilog frontend.
+
+7. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v' to AST representation.
+Storing AST representation for module `$abstract\alu'.
+Successfully finished Verilog frontend.
+
+8. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v' to AST representation.
+Storing AST representation for module `$abstract\branch_logic'.
+Successfully finished Verilog frontend.
+
+9. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v' to AST representation.
+Storing AST representation for module `$abstract\control'.
+Successfully finished Verilog frontend.
+
+10. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v' to AST representation.
+Storing AST representation for module `$abstract\forwarding_unit'.
+Successfully finished Verilog frontend.
+
+11. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/hazard_detection.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/hazard_detection.v' to AST representation.
+Storing AST representation for module `$abstract\hazard_detection'.
+Successfully finished Verilog frontend.
+
+12. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v' to AST representation.
+Storing AST representation for module `$abstract\imm_gen'.
+Successfully finished Verilog frontend.
+
+13. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v' to AST representation.
+Storing AST representation for module `$abstract\reg_file'.
+Successfully finished Verilog frontend.
+
+14. Executing Verilog-2005 frontend: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v
+Parsing SystemVerilog input from `/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v' to AST representation.
+Storing AST representation for module `$abstract\riscv_cpu_core'.
+Successfully finished Verilog frontend.
+
+15. Executing HIERARCHY pass (managing design hierarchy).
+
+16. Executing AST frontend in derive mode using pre-parsed AST for module `\riscv_cpu_core'.
+Generating RTLIL representation for module `\riscv_cpu_core'.
+
+16.1. Analyzing design hierarchy..
+Top module:  \riscv_cpu_core
+
+16.2. Executing AST frontend in derive mode using pre-parsed AST for module `\hazard_detection'.
+Generating RTLIL representation for module `\hazard_detection'.
+
+16.3. Executing AST frontend in derive mode using pre-parsed AST for module `\LSU'.
+Generating RTLIL representation for module `\LSU'.
+Warning: Replacing memory \lq_fwd_data with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233
+Warning: Replacing memory \lq_fwd with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232
+Warning: Replacing memory \lq_funct3 with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231
+Warning: Replacing memory \lq_rd with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230
+Warning: Replacing memory \lq_addr with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229
+Warning: Replacing memory \sb_wstrb with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208
+Warning: Replacing memory \sb_wdata with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207
+Warning: Replacing memory \sb_addr with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206
+Warning: Replacing memory \sb_valid with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:199
+
+16.4. Executing AST frontend in derive mode using pre-parsed AST for module `\branch_logic'.
+Generating RTLIL representation for module `\branch_logic'.
+
+16.5. Executing AST frontend in derive mode using pre-parsed AST for module `\alu'.
+Generating RTLIL representation for module `\alu'.
+
+16.6. Executing AST frontend in derive mode using pre-parsed AST for module `\forwarding_unit'.
+Generating RTLIL representation for module `\forwarding_unit'.
+
+16.7. Executing AST frontend in derive mode using pre-parsed AST for module `\imm_gen'.
+Generating RTLIL representation for module `\imm_gen'.
+
+16.8. Executing AST frontend in derive mode using pre-parsed AST for module `\reg_file'.
+Generating RTLIL representation for module `\reg_file'.
+Warning: Replacing memory \registers with list of registers. See /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:29
+
+16.9. Executing AST frontend in derive mode using pre-parsed AST for module `\control'.
+Generating RTLIL representation for module `\control'.
+
+16.10. Executing AST frontend in derive mode using pre-parsed AST for module `\PIPELINE_REG_IF_ID'.
+Generating RTLIL representation for module `\PIPELINE_REG_IF_ID'.
+
+16.11. Executing AST frontend in derive mode using pre-parsed AST for module `\IFU'.
+Generating RTLIL representation for module `\IFU'.
+
+16.12. Analyzing design hierarchy..
+Top module:  \riscv_cpu_core
+Used module:     \hazard_detection
+Used module:     \LSU
+Used module:     \branch_logic
+Used module:     \alu
+Used module:     \forwarding_unit
+Used module:     \imm_gen
+Used module:     \reg_file
+Used module:     \control
+Used module:     \PIPELINE_REG_IF_ID
+Used module:     \IFU
+
+16.13. Analyzing design hierarchy..
+Top module:  \riscv_cpu_core
+Used module:     \hazard_detection
+Used module:     \LSU
+Used module:     \branch_logic
+Used module:     \alu
+Used module:     \forwarding_unit
+Used module:     \imm_gen
+Used module:     \reg_file
+Used module:     \control
+Used module:     \PIPELINE_REG_IF_ID
+Used module:     \IFU
+Removing unused module `$abstract\riscv_cpu_core'.
+Removing unused module `$abstract\reg_file'.
+Removing unused module `$abstract\imm_gen'.
+Removing unused module `$abstract\hazard_detection'.
+Removing unused module `$abstract\forwarding_unit'.
+Removing unused module `$abstract\control'.
+Removing unused module `$abstract\branch_logic'.
+Removing unused module `$abstract\alu'.
+Removing unused module `$abstract\PIPELINE_REG_IF_ID'.
+Removing unused module `$abstract\PIPELINE_REG_ID_EX'.
+Removing unused module `$abstract\PIPELINE_REG_EX_WB'.
+Removing unused module `$abstract\LSU'.
+Removing unused module `$abstract\IFU'.
+Removed 13 unused modules.
+Renaming module riscv_cpu_core to riscv_cpu_core.
+
+17. Executing PROC pass (convert processes to netlists).
+
+17.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+17.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 3 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49 in module riscv_cpu_core.
+Marked 3 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:318$43 in module riscv_cpu_core.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:307$40 in module riscv_cpu_core.
+Marked 2 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38 in module riscv_cpu_core.
+Marked 3 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15 in module riscv_cpu_core.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:61$7 in module riscv_cpu_core.
+Marked 3 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:47$6 in module riscv_cpu_core.
+Removed 1 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$434 in module reg_file.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$434 in module reg_file.
+Removed 1 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$431 in module reg_file.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$431 in module reg_file.
+Marked 3 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408 in module reg_file.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v:25$404 in module imm_gen.
+Marked 4 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v:24$387 in module forwarding_unit.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:61$371 in module alu.
+Marked 2 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v:71$365 in module branch_logic.
+Removed 3 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342 in module LSU.
+Marked 5 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342 in module LSU.
+Removed 1 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338 in module LSU.
+Marked 3 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338 in module LSU.
+Removed 4 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266 in module LSU.
+Marked 11 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266 in module LSU.
+Removed 3 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144 in module LSU.
+Marked 21 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144 in module LSU.
+Marked 8 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111 in module LSU.
+Removed 2 dead cases from process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437 in module control.
+Marked 10 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437 in module control.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:93$449 in module IFU.
+Marked 1 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:63$446 in module IFU.
+Marked 2 switch rules as full_case in process $proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442 in module PIPELINE_REG_IF_ID.
+Removed a total of 15 dead cases.
+
+17.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 23 redundant assignments.
+Promoted 80 assignments to connections.
+
+17.4. Executing PROC_INIT pass (extract init attributes).
+
+17.5. Executing PROC_ARST pass (detect async resets in processes).
+Found async reset \rst in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+Found async reset \rst in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:318$43'.
+Found async reset \rst in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+Found async reset \rst in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+Found async reset \rst in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:61$7'.
+Found async reset \rst in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:47$6'.
+Found async reset \reset in `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+Found async reset \rst in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338'.
+Found async reset \rst in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+Found async reset \rst in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+Found async reset \reset in `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:93$449'.
+Found async reset \reset in `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:63$446'.
+Found async reset \reset in `\PIPELINE_REG_IF_ID.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442'.
+
+17.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~86 debug messages>
+
+17.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+     1/7: $0\pc_plus_4_mem_wb[31:0]
+     2/7: $0\alu_result_mem_wb[31:0]
+     3/7: $0\jump_mem_wb[0:0]
+     4/7: $0\memtoreg_mem_wb[0:0]
+     5/7: $0\regwrite_mem_wb[0:0]
+     6/7: $0\rd_mem_wb[4:0]
+     7/7: $0\mem_data_mem_wb[31:0]
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:318$43'.
+     1/1: $0\lsu_req_sent[0:0]
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:307$40'.
+     1/1: $1\wstrb_comb[3:0]
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+     1/11: $0\funct3_ex_mem[2:0]
+     2/11: $0\byte_size_ex_mem[1:0]
+     3/11: $0\rd_ex_mem[4:0]
+     4/11: $0\pc_plus_4_ex_mem[31:0]
+     5/11: $0\write_data_ex_mem[31:0]
+     6/11: $0\alu_result_ex_mem[31:0]
+     7/11: $0\jump_ex_mem[0:0]
+     8/11: $0\memtoreg_ex_mem[0:0]
+     9/11: $0\memwrite_ex_mem[0:0]
+    10/11: $0\memread_ex_mem[0:0]
+    11/11: $0\regwrite_ex_mem[0:0]
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+     1/19: $0\regwrite_id_ex[0:0]
+     2/19: $0\opcode_id_ex[6:0]
+     3/19: $0\byte_size_id_ex[1:0]
+     4/19: $0\alu_control_id_ex[3:0]
+     5/19: $0\funct7_id_ex[6:0]
+     6/19: $0\funct3_id_ex[2:0]
+     7/19: $0\rd_id_ex[4:0]
+     8/19: $0\rs2_id_ex[4:0]
+     9/19: $0\rs1_id_ex[4:0]
+    10/19: $0\pc_id_ex[31:0]
+    11/19: $0\imm_id_ex[31:0]
+    12/19: $0\read_data2_id_ex[31:0]
+    13/19: $0\read_data1_id_ex[31:0]
+    14/19: $0\jump_id_ex[0:0]
+    15/19: $0\branch_id_ex[0:0]
+    16/19: $0\memtoreg_id_ex[0:0]
+    17/19: $0\memwrite_id_ex[0:0]
+    18/19: $0\memread_id_ex[0:0]
+    19/19: $0\alusrc_id_ex[0:0]
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:61$7'.
+     1/1: $0\irq_flush_done_r[0:0]
+Creating decoders for process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:47$6'.
+     1/1: $0\irq_pending_lat[0:0]
+Creating decoders for process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$434'.
+     1/1: $1$mem2reg_rd$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:55$407_DATA[31:0]$436
+Creating decoders for process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$431'.
+     1/1: $1$mem2reg_rd$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:51$406_DATA[31:0]$433
+Creating decoders for process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+     1/37: $2$mem2reg_wr$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:33$405_ADDR[4:0]$415
+     2/37: $2$mem2reg_wr$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:33$405_DATA[31:0]$416
+     3/37: $0\registers[0][31:0]
+     4/37: $1$mem2reg_wr$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:33$405_DATA[31:0]$412
+     5/37: $1$mem2reg_wr$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:33$405_ADDR[4:0]$411
+     6/37: $1\i[31:0]
+     7/37: $0\registers[31][31:0]
+     8/37: $0\registers[30][31:0]
+     9/37: $0\registers[29][31:0]
+    10/37: $0\registers[28][31:0]
+    11/37: $0\registers[27][31:0]
+    12/37: $0\registers[26][31:0]
+    13/37: $0\registers[25][31:0]
+    14/37: $0\registers[24][31:0]
+    15/37: $0\registers[23][31:0]
+    16/37: $0\registers[22][31:0]
+    17/37: $0\registers[21][31:0]
+    18/37: $0\registers[20][31:0]
+    19/37: $0\registers[19][31:0]
+    20/37: $0\registers[18][31:0]
+    21/37: $0\registers[17][31:0]
+    22/37: $0\registers[16][31:0]
+    23/37: $0\registers[15][31:0]
+    24/37: $0\registers[14][31:0]
+    25/37: $0\registers[13][31:0]
+    26/37: $0\registers[12][31:0]
+    27/37: $0\registers[11][31:0]
+    28/37: $0\registers[10][31:0]
+    29/37: $0\registers[9][31:0]
+    30/37: $0\registers[8][31:0]
+    31/37: $0\registers[7][31:0]
+    32/37: $0\registers[6][31:0]
+    33/37: $0\registers[5][31:0]
+    34/37: $0\registers[4][31:0]
+    35/37: $0\registers[3][31:0]
+    36/37: $0\registers[2][31:0]
+    37/37: $0\registers[1][31:0]
+Creating decoders for process `\imm_gen.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v:25$404'.
+     1/1: $1\imm[31:0]
+Creating decoders for process `\forwarding_unit.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v:24$387'.
+     1/4: $2\forward_b[1:0]
+     2/4: $1\forward_b[1:0]
+     3/4: $2\forward_a[1:0]
+     4/4: $1\forward_a[1:0]
+Creating decoders for process `\alu.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:61$371'.
+     1/1: $1\alu_result[31:0]
+Creating decoders for process `\branch_logic.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v:71$365'.
+     1/2: $2\taken[0:0]
+     2/2: $1\taken[0:0]
+Creating decoders for process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+     1/25: $3$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_DATA[3:0]$364
+     2/25: $3$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_DATA[31:0]$363
+     3/25: $3$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_DATA[31:0]$362
+     4/25: $2\dcache_wstrb[3:0]
+     5/25: $2$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_DATA[3:0]$361
+     6/25: $2$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_ADDR[2:0]$360
+     7/25: $2\dcache_wdata[31:0]
+     8/25: $2$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_DATA[31:0]$359
+     9/25: $2$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_ADDR[2:0]$358
+    10/25: $2\dcache_addr[31:0]
+    11/25: $2$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_DATA[31:0]$357
+    12/25: $2$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_ADDR[2:0]$356
+    13/25: $2\dcache_we[0:0]
+    14/25: $2\dcache_req[0:0]
+    15/25: $1\dcache_addr[31:0]
+    16/25: $1\dcache_we[0:0]
+    17/25: $1\dcache_req[0:0]
+    18/25: $1$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_DATA[3:0]$354
+    19/25: $1$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_ADDR[2:0]$353
+    20/25: $1$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_DATA[31:0]$352
+    21/25: $1$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_ADDR[2:0]$351
+    22/25: $1$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_DATA[31:0]$350
+    23/25: $1$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_ADDR[2:0]$349
+    24/25: $1\dcache_wstrb[3:0]
+    25/25: $1\dcache_wdata[31:0]
+Creating decoders for process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338'.
+     1/1: $0\drain_state[0:0]
+Creating decoders for process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+     1/61: $4\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.$result[31:0]$337
+     2/61: $3\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.$result[31:0]$334
+     3/61: $3\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.f3[2:0]$336
+     4/61: $3\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.raw[31:0]$335
+     5/61: $5\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.$result[31:0]$333
+     6/61: $5$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_DATA[2:0]$332
+     7/61: $5$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_DATA[31:0]$331
+     8/61: $5$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_DATA[4:0]$330
+     9/61: $4\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.$result[31:0]$321
+    10/61: $4\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.f3[2:0]$323
+    11/61: $4$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_DATA[2:0]$329
+    12/61: $4$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_ADDR[1:0]$328
+    13/61: $4\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.raw[31:0]$322
+    14/61: $4$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_DATA[31:0]$327
+    15/61: $4$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_ADDR[1:0]$326
+    16/61: $4$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_DATA[4:0]$325
+    17/61: $4$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_ADDR[1:0]$324
+    18/61: $4$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_DATA[0:0]$320
+    19/61: $3$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_DATA[2:0]$319
+    20/61: $3$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_ADDR[1:0]$318
+    21/61: $3$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_DATA[31:0]$317
+    22/61: $3$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_ADDR[1:0]$316
+    23/61: $3$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_DATA[4:0]$315
+    24/61: $3$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_ADDR[1:0]$314
+    25/61: $3\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.f3[2:0]$311
+    26/61: $3\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.raw[31:0]$310
+    27/61: $3\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.$result[31:0]$309
+    28/61: $3$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_DATA[0:0]$313
+    29/61: $3$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_ADDR[1:0]$312
+    30/61: $2$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_DATA[2:0]$308
+    31/61: $2$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_ADDR[1:0]$307
+    32/61: $2$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_DATA[31:0]$306
+    33/61: $2$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_ADDR[1:0]$305
+    34/61: $2$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_DATA[4:0]$304
+    35/61: $2$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_ADDR[1:0]$303
+    36/61: $2$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_DATA[0:0]$302
+    37/61: $2$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_ADDR[1:0]$301
+    38/61: $2\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.f3[2:0]$297
+    39/61: $2\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.raw[31:0]$296
+    40/61: $2\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.$result[31:0]$295
+    41/61: $2\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.f3[2:0]$300
+    42/61: $2\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.raw[31:0]$299
+    43/61: $2\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.$result[31:0]$298
+    44/61: $1$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_DATA[2:0]$294
+    45/61: $1$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_ADDR[1:0]$293
+    46/61: $1$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_DATA[31:0]$292
+    47/61: $1$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_ADDR[1:0]$291
+    48/61: $1$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_DATA[4:0]$290
+    49/61: $1$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_ADDR[1:0]$289
+    50/61: $1$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_DATA[0:0]$288
+    51/61: $1$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_ADDR[1:0]$287
+    52/61: $1\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.f3[2:0]$286
+    53/61: $1\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.raw[31:0]$285
+    54/61: $1\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.$result[31:0]$284
+    55/61: $1\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.f3[2:0]$283
+    56/61: $1\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.raw[31:0]$282
+    57/61: $1\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.$result[31:0]$281
+    58/61: $0\load_state[1:0]
+    59/61: $0\result_rd[4:0]
+    60/61: $0\result_data[31:0]
+    61/61: $0\result_valid[0:0]
+Creating decoders for process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+     1/128: $5$lookahead\scoreboard_reg$143[31:0]$258
+     2/128: $3$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:259$81[4:0]$257
+     3/128: $4$lookahead\scoreboard_reg$143[31:0]$255
+     4/128: $2$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:259$81[4:0]$254
+     5/128: $3$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_DATA[2:0]$249
+     6/128: $3$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_DATA[4:0]$248
+     7/128: $3$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_DATA[31:0]$247
+     8/128: $2$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_DATA[2:0]$246
+     9/128: $2$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_ADDR[1:0]$245
+    10/128: $2$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_DATA[4:0]$244
+    11/128: $2$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_ADDR[1:0]$243
+    12/128: $2$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_DATA[31:0]$242
+    13/128: $2$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_ADDR[1:0]$241
+    14/128: $3$lookahead\scoreboard_reg$143[31:0]$233
+    15/128: $3$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:237$80[4:0]$232
+    16/128: $2$lookahead\scoreboard_reg$143[31:0]$228
+    17/128: $2$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:237$80[4:0]$217
+    18/128: $2$mem2reg_wr$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233$93_ADDR[1:0]$226
+    19/128: $2$mem2reg_wr$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233$93_DATA[31:0]$227
+    20/128: $2$mem2reg_wr$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232$92_ADDR[1:0]$224
+    21/128: $2$mem2reg_wr$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232$92_DATA[0:0]$225
+    22/128: $2$mem2reg_wr$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231$91_ADDR[1:0]$222
+    23/128: $2$mem2reg_wr$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231$91_DATA[2:0]$223
+    24/128: $2$mem2reg_wr$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230$90_ADDR[1:0]$220
+    25/128: $2$mem2reg_wr$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230$90_DATA[4:0]$221
+    26/128: $2$mem2reg_wr$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229$89_ADDR[1:0]$218
+    27/128: $2$mem2reg_wr$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229$89_DATA[31:0]$219
+    28/128: $2$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:215$88_ADDR[2:0]$212
+    29/128: $2$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:215$88_DATA[0:0]$213
+    30/128: $2$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:209$87_ADDR[2:0]$209
+    31/128: $2$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:209$87_DATA[0:0]$210
+    32/128: $2$mem2reg_wr$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208$86_ADDR[2:0]$207
+    33/128: $2$mem2reg_wr$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208$86_DATA[3:0]$208
+    34/128: $2$mem2reg_wr$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207$85_ADDR[2:0]$205
+    35/128: $2$mem2reg_wr$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207$85_DATA[31:0]$206
+    36/128: $2$mem2reg_wr$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206$84_ADDR[2:0]$203
+    37/128: $2$mem2reg_wr$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206$84_DATA[31:0]$204
+    38/128: $1$lookahead\scoreboard_reg$143[31:0]$202
+    39/128: $1$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:259$81[4:0]$175
+    40/128: $1$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_DATA[2:0]$201
+    41/128: $1$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_ADDR[1:0]$200
+    42/128: $1$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_DATA[4:0]$199
+    43/128: $1$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_ADDR[1:0]$198
+    44/128: $1$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_DATA[31:0]$197
+    45/128: $1$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_ADDR[1:0]$196
+    46/128: $1$mem2reg_wr$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233$93_DATA[31:0]$195
+    47/128: $1$mem2reg_wr$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233$93_ADDR[1:0]$194
+    48/128: $1$mem2reg_wr$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232$92_DATA[0:0]$193
+    49/128: $1$mem2reg_wr$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232$92_ADDR[1:0]$192
+    50/128: $1$mem2reg_wr$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231$91_DATA[2:0]$191
+    51/128: $1$mem2reg_wr$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231$91_ADDR[1:0]$190
+    52/128: $1$mem2reg_wr$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230$90_DATA[4:0]$189
+    53/128: $1$mem2reg_wr$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230$90_ADDR[1:0]$188
+    54/128: $1$mem2reg_wr$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229$89_DATA[31:0]$187
+    55/128: $1$mem2reg_wr$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229$89_ADDR[1:0]$186
+    56/128: $1$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:237$80[4:0]$174
+    57/128: $1$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:215$88_DATA[0:0]$185
+    58/128: $1$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:215$88_ADDR[2:0]$184
+    59/128: $1$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:209$87_DATA[0:0]$183
+    60/128: $1$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:209$87_ADDR[2:0]$182
+    61/128: $1$mem2reg_wr$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208$86_DATA[3:0]$181
+    62/128: $1$mem2reg_wr$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208$86_ADDR[2:0]$180
+    63/128: $1$mem2reg_wr$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207$85_DATA[31:0]$179
+    64/128: $1$mem2reg_wr$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207$85_ADDR[2:0]$178
+    65/128: $1$mem2reg_wr$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206$84_DATA[31:0]$177
+    66/128: $1$mem2reg_wr$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206$84_ADDR[2:0]$176
+    67/128: $1\si[31:0]
+    68/128: $0\lq_fwd_data[3][31:0]
+    69/128: $0\lq_fwd_data[2][31:0]
+    70/128: $0\lq_fwd_data[1][31:0]
+    71/128: $0\lq_fwd_data[0][31:0]
+    72/128: $0\lq_fwd[3][0:0]
+    73/128: $0\lq_fwd[2][0:0]
+    74/128: $0\lq_fwd[1][0:0]
+    75/128: $0\lq_fwd[0][0:0]
+    76/128: $0\lq_funct3[3][2:0]
+    77/128: $0\lq_funct3[2][2:0]
+    78/128: $0\lq_funct3[1][2:0]
+    79/128: $0\lq_funct3[0][2:0]
+    80/128: $0\lq_rd[3][4:0]
+    81/128: $0\lq_rd[2][4:0]
+    82/128: $0\lq_rd[1][4:0]
+    83/128: $0\lq_rd[0][4:0]
+    84/128: $0\lq_addr[3][31:0]
+    85/128: $0\lq_addr[2][31:0]
+    86/128: $0\lq_addr[1][31:0]
+    87/128: $0\lq_addr[0][31:0]
+    88/128: $0\sb_wstrb[7][3:0]
+    89/128: $0\sb_wstrb[6][3:0]
+    90/128: $0\sb_wstrb[5][3:0]
+    91/128: $0\sb_wstrb[4][3:0]
+    92/128: $0\sb_wstrb[3][3:0]
+    93/128: $0\sb_wstrb[2][3:0]
+    94/128: $0\sb_wstrb[1][3:0]
+    95/128: $0\sb_wstrb[0][3:0]
+    96/128: $0\sb_wdata[7][31:0]
+    97/128: $0\sb_wdata[6][31:0]
+    98/128: $0\sb_wdata[5][31:0]
+    99/128: $0\sb_wdata[4][31:0]
+   100/128: $0\sb_wdata[3][31:0]
+   101/128: $0\sb_wdata[2][31:0]
+   102/128: $0\sb_wdata[1][31:0]
+   103/128: $0\sb_wdata[0][31:0]
+   104/128: $0\sb_addr[7][31:0]
+   105/128: $0\sb_addr[6][31:0]
+   106/128: $0\sb_addr[5][31:0]
+   107/128: $0\sb_addr[4][31:0]
+   108/128: $0\sb_addr[3][31:0]
+   109/128: $0\sb_addr[2][31:0]
+   110/128: $0\sb_addr[1][31:0]
+   111/128: $0\sb_addr[0][31:0]
+   112/128: $0\sb_valid[7][0:0]
+   113/128: $0\sb_valid[6][0:0]
+   114/128: $0\sb_valid[5][0:0]
+   115/128: $0\sb_valid[4][0:0]
+   116/128: $0\sb_valid[3][0:0]
+   117/128: $0\sb_valid[2][0:0]
+   118/128: $0\sb_valid[1][0:0]
+   119/128: $0\sb_valid[0][0:0]
+   120/128: $0\cur_load_funct3[2:0]
+   121/128: $0\cur_load_rd[4:0]
+   122/128: $0\cur_load_addr[31:0]
+   123/128: $0\lq_count[2:0]
+   124/128: $0\lq_rd_ptr[1:0]
+   125/128: $0\lq_wr_ptr[1:0]
+   126/128: $0\sb_count[3:0]
+   127/128: $0\sb_rd_ptr[2:0]
+   128/128: $0\sb_wr_ptr[2:0]
+Creating decoders for process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111'.
+     1/16: $8\fwd_data_r[31:0]
+     2/16: $8\fwd_hit_r[0:0]
+     3/16: $7\fwd_data_r[31:0]
+     4/16: $7\fwd_hit_r[0:0]
+     5/16: $6\fwd_data_r[31:0]
+     6/16: $6\fwd_hit_r[0:0]
+     7/16: $5\fwd_data_r[31:0]
+     8/16: $5\fwd_hit_r[0:0]
+     9/16: $4\fwd_data_r[31:0]
+    10/16: $4\fwd_hit_r[0:0]
+    11/16: $3\fwd_data_r[31:0]
+    12/16: $3\fwd_hit_r[0:0]
+    13/16: $2\fwd_data_r[31:0]
+    14/16: $2\fwd_hit_r[0:0]
+    15/16: $1\fwd_data_r[31:0]
+    16/16: $1\fwd_hit_r[0:0]
+Creating decoders for process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+     1/19: $3\byte_size[1:0]
+     2/19: $2\byte_size[1:0]
+     3/19: $8\alu_control[3:0]
+     4/19: $7\alu_control[3:0]
+     5/19: $6\alu_control[3:0]
+     6/19: $5\alu_control[3:0]
+     7/19: $4\alu_control[3:0]
+     8/19: $3\alu_control[3:0]
+     9/19: $2\alu_control[3:0]
+    10/19: $1\alu_control[3:0]
+    11/19: $1\aluop[1:0]
+    12/19: $1\alusrc[0:0]
+    13/19: $1\regwrite[0:0]
+    14/19: $1\byte_size[1:0]
+    15/19: $1\jump[0:0]
+    16/19: $1\branch[0:0]
+    17/19: $1\memtoreg[0:0]
+    18/19: $1\memwrite[0:0]
+    19/19: $1\memread[0:0]
+Creating decoders for process `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:93$449'.
+     1/1: $0\instr_hold[31:0]
+Creating decoders for process `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:63$446'.
+     1/1: $0\PC[31:0]
+Creating decoders for process `\PIPELINE_REG_IF_ID.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442'.
+     1/2: $0\pc_out[31:0]
+     2/2: $0\instr_out[31:0]
+
+17.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\riscv_cpu_core.\wstrb_comb' from process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:307$40'.
+No latch inferred for signal `\reg_file.$mem2reg_rd$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:55$407_DATA' from process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$434'.
+No latch inferred for signal `\reg_file.$mem2reg_rd$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:51$406_DATA' from process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$431'.
+No latch inferred for signal `\imm_gen.\imm' from process `\imm_gen.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v:25$404'.
+No latch inferred for signal `\forwarding_unit.\forward_a' from process `\forwarding_unit.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v:24$387'.
+No latch inferred for signal `\forwarding_unit.\forward_b' from process `\forwarding_unit.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v:24$387'.
+No latch inferred for signal `\alu.\alu_result' from process `\alu.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:61$371'.
+No latch inferred for signal `\branch_logic.\taken' from process `\branch_logic.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v:71$365'.
+No latch inferred for signal `\LSU.\dcache_addr' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.\dcache_wdata' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.\dcache_wstrb' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.\dcache_req' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.\dcache_we' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_ADDR' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.$mem2reg_rd$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:374$101_DATA' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_ADDR' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.$mem2reg_rd$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:375$102_DATA' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_ADDR' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.$mem2reg_rd$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:376$103_DATA' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+No latch inferred for signal `\LSU.\fwd_hit_r' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111'.
+No latch inferred for signal `\LSU.\fwd_data_r' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111'.
+No latch inferred for signal `\LSU.\fi' from process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111'.
+No latch inferred for signal `\control.\alu_control' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\regwrite' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\alusrc' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\memread' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\memwrite' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\memtoreg' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\branch' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\jump' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\aluop' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+No latch inferred for signal `\control.\byte_size' from process `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+
+17.9. Executing PROC_DFF pass (convert process syncs to FFs).
+Creating register for signal `\riscv_cpu_core.\regwrite_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2939' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memtoreg_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2942' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\jump_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2945' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\alu_result_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2948' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\mem_data_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2951' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\pc_plus_4_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2954' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\rd_mem_wb' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+  created $adff cell `$procdff$2957' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\lsu_req_sent' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:318$43'.
+  created $adff cell `$procdff$2960' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\regwrite_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2963' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memread_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2966' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memwrite_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2969' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memtoreg_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2972' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\jump_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2975' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\alu_result_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2978' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\write_data_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2981' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\pc_plus_4_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2984' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\rd_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2987' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\byte_size_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2990' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\funct3_ex_mem' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+  created $adff cell `$procdff$2993' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\regwrite_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$2996' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\alusrc_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$2999' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memread_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3002' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memwrite_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3005' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\memtoreg_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3008' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\branch_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3011' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\jump_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3014' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\read_data1_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3017' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\read_data2_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3020' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\imm_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3023' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\pc_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3026' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\rs1_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3029' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\rs2_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3032' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\rd_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3035' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\funct3_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3038' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\funct7_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3041' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\alu_control_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3044' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\byte_size_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3047' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\opcode_id_ex' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+  created $adff cell `$procdff$3050' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\irq_flush_done_r' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:61$7'.
+  created $adff cell `$procdff$3053' with positive edge clock and positive level reset.
+Creating register for signal `\riscv_cpu_core.\irq_pending_lat' using process `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:47$6'.
+  created $adff cell `$procdff$3056' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\i' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3059' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[0]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3062' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[1]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3065' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[2]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3068' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[3]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3071' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[4]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3074' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[5]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3077' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[6]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3080' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[7]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3083' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[8]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3086' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[9]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3089' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[10]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3092' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[11]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3095' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[12]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3098' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[13]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3101' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[14]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3104' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[15]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3107' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[16]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3110' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[17]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3113' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[18]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3116' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[19]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3119' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[20]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3122' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[21]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3125' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[22]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3128' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[23]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3131' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[24]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3134' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[25]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3137' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[26]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3140' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[27]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3143' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[28]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3146' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[29]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3149' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[30]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3152' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.\registers[31]' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3155' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.$mem2reg_wr$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:33$405_ADDR' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3158' with positive edge clock and positive level reset.
+Creating register for signal `\reg_file.$mem2reg_wr$\registers$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:33$405_DATA' using process `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+  created $adff cell `$procdff$3161' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\drain_state' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338'.
+  created $adff cell `$procdff$3164' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\result_valid' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3167' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\result_data' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3170' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\result_rd' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3173' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\load_state' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3176' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.$result' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3179' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.raw' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3182' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:281$82.f3' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3185' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.$result' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3188' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.raw' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3191' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\apply_funct3$func$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:297$83.f3' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3194' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3197' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:278$97_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3200' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3203' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:280$98_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3206' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3209' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:282$99_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3212' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3215' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:283$100_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+  created $adff cell `$procdff$3218' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_wr_ptr' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3221' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_rd_ptr' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3224' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_count' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3227' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\lq_wr_ptr' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3230' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\lq_rd_ptr' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3233' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\lq_count' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3236' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\scoreboard_reg' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3239' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\cur_load_addr' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3242' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\cur_load_rd' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3245' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\cur_load_funct3' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3248' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\si' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3251' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:237$80' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3254' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$bitselwrite$pos$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:259$81' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3257' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3260' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3263' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3266' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3269' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[4]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3272' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[5]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3275' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[6]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3278' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_valid[7]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3281' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.\sb_addr[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3286' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3291' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3296' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3301' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[4]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3306' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[5]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3311' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[6]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3316' with positive edge clock.
+Creating register for signal `\LSU.\sb_addr[7]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3321' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3326' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3331' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3336' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3341' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[4]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3346' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[5]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3351' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[6]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3356' with positive edge clock.
+Creating register for signal `\LSU.\sb_wdata[7]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3361' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3366' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3371' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3376' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3381' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[4]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3386' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[5]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3391' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[6]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3396' with positive edge clock.
+Creating register for signal `\LSU.\sb_wstrb[7]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3401' with positive edge clock.
+Creating register for signal `\LSU.\lq_addr[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3406' with positive edge clock.
+Creating register for signal `\LSU.\lq_addr[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3411' with positive edge clock.
+Creating register for signal `\LSU.\lq_addr[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3416' with positive edge clock.
+Creating register for signal `\LSU.\lq_addr[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3421' with positive edge clock.
+Creating register for signal `\LSU.\lq_rd[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3426' with positive edge clock.
+Creating register for signal `\LSU.\lq_rd[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3431' with positive edge clock.
+Creating register for signal `\LSU.\lq_rd[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3436' with positive edge clock.
+Creating register for signal `\LSU.\lq_rd[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3441' with positive edge clock.
+Creating register for signal `\LSU.\lq_funct3[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3446' with positive edge clock.
+Creating register for signal `\LSU.\lq_funct3[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3451' with positive edge clock.
+Creating register for signal `\LSU.\lq_funct3[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3456' with positive edge clock.
+Creating register for signal `\LSU.\lq_funct3[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3461' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3466' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3471' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3476' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3481' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd_data[0]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3486' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd_data[1]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3491' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd_data[2]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3496' with positive edge clock.
+Creating register for signal `\LSU.\lq_fwd_data[3]' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $dff cell `$procdff$3501' with positive edge clock.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206$84_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3504' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:206$84_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3507' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207$85_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3510' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_wdata$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:207$85_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3513' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208$86_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3516' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_wstrb$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:208$86_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3519' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:209$87_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3522' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:209$87_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3525' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:215$88_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3528' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\sb_valid$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:215$88_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3531' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229$89_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3534' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:229$89_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3537' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230$90_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3540' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:230$90_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3543' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231$91_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3546' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:231$91_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3549' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232$92_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3552' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_fwd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:232$92_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3555' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233$93_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3558' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_wr$\lq_fwd_data$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:233$93_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3561' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3564' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_addr$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:242$94_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3567' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3570' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_rd$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:243$95_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3573' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_ADDR' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3576' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$mem2reg_rd$\lq_funct3$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:244$96_DATA' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3579' with positive edge clock and positive level reset.
+Creating register for signal `\LSU.$lookahead\scoreboard_reg$143' using process `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+  created $adff cell `$procdff$3582' with positive edge clock and positive level reset.
+Creating register for signal `\IFU.\instr_hold' using process `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:93$449'.
+  created $adff cell `$procdff$3585' with positive edge clock and positive level reset.
+Creating register for signal `\IFU.\PC' using process `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:63$446'.
+  created $adff cell `$procdff$3588' with positive edge clock and positive level reset.
+Creating register for signal `\PIPELINE_REG_IF_ID.\instr_out' using process `\PIPELINE_REG_IF_ID.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442'.
+  created $adff cell `$procdff$3591' with positive edge clock and positive level reset.
+Creating register for signal `\PIPELINE_REG_IF_ID.\pc_out' using process `\PIPELINE_REG_IF_ID.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442'.
+  created $adff cell `$procdff$3594' with positive edge clock and positive level reset.
+
+17.10. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+17.11. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Found and cleaned up 2 empty switches in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:351$49'.
+Found and cleaned up 2 empty switches in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:318$43'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:318$43'.
+Found and cleaned up 1 empty switch in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:307$40'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:307$40'.
+Found and cleaned up 1 empty switch in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:260$38'.
+Found and cleaned up 2 empty switches in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:168$15'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:61$7'.
+Found and cleaned up 2 empty switches in `\riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:47$6'.
+Removing empty process `riscv_cpu_core.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:47$6'.
+Found and cleaned up 1 empty switch in `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$434'.
+Removing empty process `reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$434'.
+Found and cleaned up 1 empty switch in `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$431'.
+Removing empty process `reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:0$431'.
+Found and cleaned up 2 empty switches in `\reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+Removing empty process `reg_file.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/reg_file.v:26$408'.
+Found and cleaned up 1 empty switch in `\imm_gen.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v:25$404'.
+Removing empty process `imm_gen.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v:25$404'.
+Found and cleaned up 4 empty switches in `\forwarding_unit.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v:24$387'.
+Removing empty process `forwarding_unit.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/forwarding_unit.v:24$387'.
+Found and cleaned up 1 empty switch in `\alu.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:61$371'.
+Removing empty process `alu.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:61$371'.
+Found and cleaned up 2 empty switches in `\branch_logic.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v:71$365'.
+Removing empty process `branch_logic.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/branch_logic.v:71$365'.
+Found and cleaned up 5 empty switches in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+Removing empty process `LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:358$342'.
+Found and cleaned up 4 empty switches in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338'.
+Removing empty process `LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:321$338'.
+Found and cleaned up 11 empty switches in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+Removing empty process `LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:267$266'.
+Found and cleaned up 22 empty switches in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+Removing empty process `LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:186$144'.
+Found and cleaned up 8 empty switches in `\LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111'.
+Removing empty process `LSU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/LSU.v:109$111'.
+Found and cleaned up 10 empty switches in `\control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+Removing empty process `control.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:109$437'.
+Found and cleaned up 1 empty switch in `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:93$449'.
+Removing empty process `IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:93$449'.
+Found and cleaned up 1 empty switch in `\IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:63$446'.
+Removing empty process `IFU.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/IFU.v:63$446'.
+Found and cleaned up 2 empty switches in `\PIPELINE_REG_IF_ID.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442'.
+Removing empty process `PIPELINE_REG_IF_ID.$proc$/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/PIPELINE_REG_IF_ID.v:15$442'.
+Cleaned up 86 empty switches.
+
+17.12. Executing OPT_EXPR pass (perform const folding).
+Optimizing module riscv_cpu_core.
+<suppressed ~79 debug messages>
+Optimizing module reg_file.
+<suppressed ~42 debug messages>
+Optimizing module imm_gen.
+Optimizing module forwarding_unit.
+<suppressed ~4 debug messages>
+Optimizing module alu.
+<suppressed ~2 debug messages>
+Optimizing module branch_logic.
+<suppressed ~1 debug messages>
+Optimizing module LSU.
+<suppressed ~181 debug messages>
+Optimizing module hazard_detection.
+<suppressed ~4 debug messages>
+Optimizing module control.
+<suppressed ~6 debug messages>
+Optimizing module IFU.
+<suppressed ~2 debug messages>
+Optimizing module PIPELINE_REG_IF_ID.
+<suppressed ~4 debug messages>
+
+18. Executing FLATTEN pass (flatten design).
+Deleting now unused module reg_file.
+Deleting now unused module imm_gen.
+Deleting now unused module forwarding_unit.
+Deleting now unused module alu.
+Deleting now unused module branch_logic.
+Deleting now unused module LSU.
+Deleting now unused module hazard_detection.
+Deleting now unused module control.
+Deleting now unused module IFU.
+Deleting now unused module PIPELINE_REG_IF_ID.
+<suppressed ~10 debug messages>
+
+19. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \riscv_cpu_core..
+Removed 234 unused cells and 1412 unused wires.
+<suppressed ~402 debug messages>
