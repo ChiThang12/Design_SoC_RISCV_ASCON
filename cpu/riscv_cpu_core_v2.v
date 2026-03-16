@@ -422,7 +422,7 @@ module riscv_cpu_core (
     wire [31:0] wb_data_before_jump;
     assign wb_data_before_jump = memtoreg_wb ? mem_data_wb : alu_result_wb;
     assign write_back_data_wb  = jump_wb ? pc_plus_4_wb : wb_data_before_jump;
-
+    
     // ========================================================================
     // HAZARD DETECTION UNIT
     // ========================================================================
