@@ -25,7 +25,7 @@
 
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2
-`define TIMEOUT         200000
+`define TIMEOUT         1000
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
@@ -341,6 +341,38 @@ wire        ascon_reg_dma_en   = soc.u_ascon.u_slave.reg_dma_en;
 wire        ascon_irq_wire     = soc.ascon_irq;     // wire trong soc_top
 
 // ─────────────────────────────────────────────────────────────────────────────
+// [P2] ASCON CORE input/output debug taps
+//      Dùng để verify KEY, NONCE, DATA_IN, CTEXT, TAG sau mỗi encryption
+// ─────────────────────────────────────────────────────────────────────────────
+// KEY / NONCE / DATA_IN gửi vào u_core_cpu
+wire [127:0] ascon_key_in     = soc.u_ascon.u_slave.core_key;
+wire [127:0] ascon_nonce_in   = soc.u_ascon.u_slave.core_nonce;
+wire [127:0] ascon_data_in    = soc.u_ascon.core_data_in_mux;
+wire [6:0]   ascon_data_len   = soc.u_ascon.u_slave.core_data_len;
+wire [1:0]   ascon_mode_w     = soc.u_ascon.u_slave.core_mode;
+wire         ascon_enc_dec_w  = soc.u_ascon.u_slave.core_enc_dec;
+wire         ascon_dma_en_w   = soc.u_ascon.u_slave.reg_dma_en;
+
+// DMA ptext words (sau khi DMA fetch từ DMEM)
+wire [31:0]  ascon_ptext_0    = soc.u_ascon.dma_core_ptext_0;
+wire [31:0]  ascon_ptext_1    = soc.u_ascon.dma_core_ptext_1;
+wire         ascon_dma_data_v = soc.u_ascon.dma_core_data_valid;
+
+// CORE output
+wire [127:0] ascon_ctext_out  = soc.u_ascon.core_data_out_w;
+wire         ascon_ctext_v    = soc.u_ascon.core_data_out_valid_w;
+wire [127:0] ascon_tag_out    = soc.u_ascon.core_tag_out_w;
+wire         ascon_tag_v      = soc.u_ascon.core_tag_valid_w;
+
+// AXI slave ctext/tag registers (captured sau encryption)
+wire [31:0]  ascon_reg_ctext0 = soc.u_ascon.u_slave.reg_ctext_0;
+wire [31:0]  ascon_reg_ctext1 = soc.u_ascon.u_slave.reg_ctext_1;
+wire [31:0]  ascon_reg_tag0   = soc.u_ascon.u_slave.reg_tag_0;
+wire [31:0]  ascon_reg_tag1   = soc.u_ascon.u_slave.reg_tag_1;
+wire [31:0]  ascon_reg_tag2   = soc.u_ascon.u_slave.reg_tag_2;
+wire [31:0]  ascon_reg_tag3   = soc.u_ascon.u_slave.reg_tag_3;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // [P] LSU Store Buffer  (instance: soc.u_cpu)
 // ─────────────────────────────────────────────────────────────────────────────
 wire        lsu_sb_empty   = soc.u_cpu.lsu_unit.sb_empty;
@@ -418,6 +450,8 @@ reg prev_ascon_dma_done_st;
 reg prev_ascon_core_done;
 reg prev_ascon_dma_error;
 reg prev_ascon_irq;
+reg prev_ascon_ctext_v;
+reg prev_ascon_tag_v;
 reg prev_timer_irq;
 reg prev_sw_irq;
 reg prev_soft_rst;
@@ -771,7 +805,7 @@ always @(posedge clk) begin
 end
 
 // ============================================================================
-// (9) ASCON IP Event Logger
+// (9) ASCON IP Event Logger — enhanced with input/output debug
 // ============================================================================
 always @(posedge clk) begin
     if (!rst_n_r) begin
@@ -779,11 +813,15 @@ always @(posedge clk) begin
         prev_ascon_core_done   <= 1'b0;
         prev_ascon_dma_error   <= 1'b0;
         prev_ascon_irq         <= 1'b0;
+        prev_ascon_ctext_v     <= 1'b0;
+        prev_ascon_tag_v       <= 1'b0;
     end else begin
         prev_ascon_dma_done_st <= ascon_dma_done_st;
         prev_ascon_core_done   <= ascon_core_done;
         prev_ascon_dma_error   <= ascon_dma_error;
         prev_ascon_irq         <= ascon_irq_wire;
+        prev_ascon_ctext_v     <= ascon_ctext_v;
+        prev_ascon_tag_v       <= ascon_tag_v;
     end
 end
 
@@ -792,12 +830,23 @@ always @(posedge clk) begin
         if (ascon_soft_rst)
             $display("[%6d] [ASCON] SOFT_RST asserted", cycle_count);
 
+        // ── CORE START: print all inputs ──────────────────────────────────
         if (ascon_core_start) begin
             ascon_start_cnt = ascon_start_cnt + 1;
-            $display("[%6d] [ASCON] CORE START  #%0d  dma_en=%0d",
-                     cycle_count, ascon_start_cnt, ascon_reg_dma_en);
+            $display("[%6d] [ASCON] CORE START  #%0d  dma_en=%0d  mode=%0d  enc_dec=%0d  data_len=%0d",
+                     cycle_count, ascon_start_cnt, ascon_dma_en_w,
+                     ascon_mode_w, ascon_enc_dec_w, ascon_data_len);
+            $display("[%6d] [ASCON-IN] KEY    = %032h", cycle_count, ascon_key_in);
+            $display("[%6d] [ASCON-IN] NONCE  = %032h", cycle_count, ascon_nonce_in);
+            $display("[%6d] [ASCON-IN] DATA   = %032h", cycle_count, ascon_data_in);
+            $display("[%6d] [ASCON-IN]   → PT_upper64 = %016h  (bits[127:64])",
+                     cycle_count, ascon_data_in[127:64]);
+            if (ascon_dma_en_w)
+                $display("[%6d] [ASCON-IN]   → ptext_0=0x%08h  ptext_1=0x%08h  (from DMA)",
+                         cycle_count, ascon_ptext_0, ascon_ptext_1);
         end
 
+        // ── DMA START ─────────────────────────────────────────────────────
         if (ascon_dma_start) begin
             ascon_dma_start_cnt = ascon_dma_start_cnt + 1;
             $display("[%6d] [ASCON] DMA  START  #%0d  src=0x%08h  dst=0x%08h  len=%0d",
@@ -805,16 +854,40 @@ always @(posedge clk) begin
                      ascon_dma_src_r, ascon_dma_dst_r, ascon_dma_len_r);
         end
 
+        // ── DMA data fetched (ptext_0/1 valid) ────────────────────────────
+        if (ascon_dma_data_v && `LOG_LEVEL >= 2)
+            $display("[%6d] [ASCON-DMA] ptext fetched: ptext_0=0x%08h  ptext_1=0x%08h",
+                     cycle_count, ascon_ptext_0, ascon_ptext_1);
+
+        // ── CTEXT out (first occurrence) ──────────────────────────────────
+        if (ascon_ctext_v && !prev_ascon_ctext_v)
+            $display("[%6d] [ASCON-OUT] CTEXT = %016h  (ctext[63:32]=0x%08h  ctext[31:0]=0x%08h)",
+                     cycle_count, ascon_ctext_out[127:64],
+                     ascon_ctext_out[127:96], ascon_ctext_out[95:64]);
+
+        // ── TAG out (first occurrence) ────────────────────────────────────
+        if (ascon_tag_v && !prev_ascon_tag_v)
+            $display("[%6d] [ASCON-OUT] TAG   = %032h",
+                     cycle_count, ascon_tag_out);
+
+        // ── DMA DONE ──────────────────────────────────────────────────────
         if (ascon_dma_done_st && !prev_ascon_dma_done_st) begin
             ascon_dma_done_cnt = ascon_dma_done_cnt + 1;
             $display("[%6d] [ASCON] DMA  DONE  #%0d  STATUS=0x%08h",
                      cycle_count, ascon_dma_done_cnt, ascon_status_word);
         end
 
+        // ── CORE DONE: print captured regs from slave ─────────────────────
         if (ascon_core_done && !prev_ascon_core_done) begin
             ascon_done_cnt = ascon_done_cnt + 1;
             $display("[%6d] [ASCON] CORE DONE  #%0d  STATUS=0x%08h",
                      cycle_count, ascon_done_cnt, ascon_status_word);
+            $display("[%6d] [ASCON-REG] CTEXT_0=0x%08h  CTEXT_1=0x%08h",
+                     cycle_count, ascon_reg_ctext0, ascon_reg_ctext1);
+            $display("[%6d] [ASCON-REG] TAG_0  =0x%08h  TAG_1  =0x%08h",
+                     cycle_count, ascon_reg_tag0, ascon_reg_tag1);
+            $display("[%6d] [ASCON-REG] TAG_2  =0x%08h  TAG_3  =0x%08h",
+                     cycle_count, ascon_reg_tag2, ascon_reg_tag3);
         end
 
         if (ascon_dma_error && !prev_ascon_dma_error) begin
@@ -1218,6 +1291,35 @@ task print_report;
         else if (ascon_done_cnt     > 0) $display("|  [OK]  CPU-Direct encryption completed");
         else if (ascon_error_cnt    > 0) $display("|  [!!!] DMA error — check M2 routing and DMEM addr");
         else                             $display("|  [?]   ASCON not completed — check CTRL.START");
+        $display("+----------------------------------------------------------------+");
+
+        // ── (5b) ASCON I/O Debug ─────────────────────────────────────────────
+        $display("");
+        $display("+--- (5b) ASCON I/O DEBUG ----------------------------------------+");
+        $display("|  --- INPUT ---");
+        $display("|  KEY    [127:96] = 0x%08h", ascon_key_in[127:96]);
+        $display("|  KEY     [95:64] = 0x%08h", ascon_key_in[95:64]);
+        $display("|  KEY     [63:32] = 0x%08h", ascon_key_in[63:32]);
+        $display("|  KEY     [31: 0] = 0x%08h", ascon_key_in[31:0]);
+        $display("|  NONCE  [127:96] = 0x%08h", ascon_nonce_in[127:96]);
+        $display("|  NONCE   [95:64] = 0x%08h", ascon_nonce_in[95:64]);
+        $display("|  NONCE   [63:32] = 0x%08h", ascon_nonce_in[63:32]);
+        $display("|  NONCE   [31: 0] = 0x%08h", ascon_nonce_in[31:0]);
+        $display("|  DATA_IN[127:64] = %016h  (upper 64-bit = PT)", ascon_data_in[127:64]);
+        $display("|    ptext_0 (DMA) = 0x%08h", ascon_ptext_0);
+        $display("|    ptext_1 (DMA) = 0x%08h", ascon_ptext_1);
+        $display("|  data_len        = %0d bytes", ascon_data_len);
+        $display("|  mode            = %0d  (0=ASCON128-enc, 1=dec, 2=128a-enc, 3=dec)", ascon_mode_w);
+        $display("|  dma_en          = %0d", ascon_dma_en_w);
+        $display("|  --- OUTPUT (slave registers) ---");
+        $display("|  CTEXT_0         = 0x%08h", ascon_reg_ctext0);
+        $display("|  CTEXT_1         = 0x%08h", ascon_reg_ctext1);
+        $display("|  TAG_0           = 0x%08h", ascon_reg_tag0);
+        $display("|  TAG_1           = 0x%08h", ascon_reg_tag1);
+        $display("|  TAG_2           = 0x%08h", ascon_reg_tag2);
+        $display("|  TAG_3           = 0x%08h", ascon_reg_tag3);
+        $display("|  --- OUTPUT (DMEM via DMA) ---");
+        $display("|  DMEM[dst+0x00]  = 0x%08h  (ciphertext word 0)", ascon_dma_dst_r);
         $display("+----------------------------------------------------------------+");
 
         // ── (6) Interrupt / CLINT Summary ───────────────────────────────────

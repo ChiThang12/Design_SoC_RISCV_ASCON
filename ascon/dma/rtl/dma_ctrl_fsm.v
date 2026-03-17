@@ -291,48 +291,4 @@ module dma_ctrl_fsm (
         end
     end
 
-    // -------------------------------------------------------------------------
-    // Simulation debug
-    // -------------------------------------------------------------------------
-    `ifdef SIMULATION
-
-    // Read side
-    always @(posedge clk) begin
-        if (state == S_FIFO_WAIT)
-            $display("[DMA FSM @%0t] S_FIFO_WAIT: waiting for FIFO dout to settle (dout=%016h)",
-                $time, rd_fifo_dout);
-        if (state == S_FIFO_LATCH)
-            $display("[DMA FSM @%0t] S_FIFO_LATCH: latching ptext_0=%08h ptext_1=%08h (from dout=%016h)",
-                $time, rd_fifo_dout[63:32], rd_fifo_dout[31:0], rd_fifo_dout);
-        if (state == S_CORE_START)
-            $display("[DMA FSM @%0t] S_CORE_START: asserting core_start, ptext_0=%08h ptext_1=%08h",
-                $time, core_ptext_0, core_ptext_1);
-    end
-
-    // WR FIFO push monitor — log gia tri THUC TE duoc push vao FIFO tai posedge
-    // NOTE: wr_fifo_din/push la nonblocking nen gia tri hien tai truoc posedge
-    // la gia tri cu (cycle truoc). Can xem wr_load_cnt va r_* de biet FIFO nhan gi.
-    always @(posedge clk) begin
-        if (wr_fifo_push && !wr_fifo_full)
-            $display("[WR PUSH @%0t] cnt_BEFORE=%0d  din_BEFORE=%08h | r_ctext={%08h,%08h} r_tag={%08h,%08h,%08h,%08h}",
-                $time, wr_load_cnt, wr_fifo_din,
-                r_ctext_0, r_ctext_1, r_tag_0, r_tag_1, r_tag_2, r_tag_3);
-    end
-
-    // Core done capture check
-    always @(posedge clk) begin
-        if (state == S_CORE_WAIT && core_done)
-            $display("[DMA FSM @%0t] CORE_DONE: ctext={%08h,%08h} tag={%08h,%08h,%08h,%08h}",
-                $time, core_ctext_0, core_ctext_1,
-                core_tag_0, core_tag_1, core_tag_2, core_tag_3);
-        if (state == S_WR_LOAD && wr_load_cnt == 3'd0 && !wr_fifo_full)
-            $display("[DMA FSM @%0t] S_WR_LOAD[0]: r_ctext={%08h,%08h} r_tag={%08h,%08h,%08h,%08h}",
-                $time, r_ctext_0, r_ctext_1, r_tag_0, r_tag_1, r_tag_2, r_tag_3);
-        if (state == S_WR_START)
-            $display("[DMA FSM @%0t] S_WR_START: wr_start pulse (FIFO should have 6 words ready)",
-                $time);
-    end
-
-    `endif
-
 endmodule
