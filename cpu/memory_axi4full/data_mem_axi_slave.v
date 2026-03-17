@@ -1,27 +1,9 @@
 // ============================================================================
-// data_mem_axi4_slave.v - Data Memory AXI4 Full Slave
+// data_mem_axi4_slave.v - Data Memory AXI4 Full Slave (FIXED)
 // ============================================================================
 // FIXES:
-//
-// [FIX-BUG5] (giữ nguyên từ bản gốc)
-//   burst_wr_valid dùng wr_next (combinational) để W beat đầu không bị drop
-//   khi WVALID arrive cùng cycle AW handshake.
-//
-// [FIX-CRIT-1] burst_wr_addr phải là S_AXI_AWADDR trực tiếp tại cycle AW
-//   handshake, KHÔNG qua write_addr registered (lệch 1 cycle).
-//   Fix: dùng mux wr_awaddr_mux = AW handshake ? S_AXI_AWADDR : write_addr
-//   Truyền wr_awaddr_mux vào burst_wr_addr của data_mem_burst.
-//   → data_mem_burst.wr_first_beat dùng giá trị này ngay cycle đầu → đúng địa chỉ.
-//
-// [FIX-RD-REQ] burst_rd_req bị HIGH 2 cycle:
-//   Code gốc assert burst_rd_req = 1'b1 trong nhánh AR handshake của RD_IDLE,
-//   nhưng RD_IDLE block vẫn chạy cycle kế (rd_state chưa chuyển sang RD_BURST
-//   do non-blocking). Fix: chuyển rd_state trong always comb (rd_next), dùng
-//   rd_next == RD_BURST để clear burst_rd_req ngay cycle kế.
-//   Thực tế fix đơn giản hơn: deassert burst_rd_req ngay đầu RD_BURST state.
-//   (Đã có dòng burst_rd_req <= 1'b0 trong RD_BURST — giữ nguyên, đủ rồi nếu
-//    data_mem_burst ignore req khi đang ACTIVE. Tuy nhiên để chắc chắn, dùng
-//    pulse logic: burst_rd_req chỉ HIGH đúng 1 cycle.)
+// - S_AXI_ARREADY, S_AXI_AWREADY đổi từ reg thành wire (vì gán assign)
+// - Giữ nguyên logic combinational để đảm bảo handshake ngay lập tức
 // ============================================================================
 
 `include "cpu/memory_axi4full/data_mem_burst.v"
@@ -43,7 +25,7 @@ module data_mem_axi4_slave #(
     input wire [1:0]              S_AXI_AWBURST,
     input wire [2:0]              S_AXI_AWPROT,
     input wire                    S_AXI_AWVALID,
-    output reg                    S_AXI_AWREADY,
+    output wire                   S_AXI_AWREADY,  // Changed from reg to wire
 
     // Write Data Channel
     input wire [DATA_WIDTH-1:0]   S_AXI_WDATA,
@@ -66,7 +48,7 @@ module data_mem_axi4_slave #(
     input wire [1:0]              S_AXI_ARBURST,
     input wire [2:0]              S_AXI_ARPROT,
     input wire                    S_AXI_ARVALID,
-    output reg                    S_AXI_ARREADY,
+    output wire                   S_AXI_ARREADY,  // Changed from reg to wire
 
     // Read Data Channel
     output wire [ID_WIDTH-1:0]    S_AXI_RID,
@@ -137,9 +119,7 @@ module data_mem_axi4_slave #(
     assign burst_rd_len   = rd_burst_length;
     assign burst_rd_ready = S_AXI_RREADY;
 
-    // [FIX-CRIT-1] burst_wr_addr: dùng S_AXI_AWADDR trực tiếp tại cycle AW handshake,
-    // các cycle sau dùng write_addr (đã latch). Đảm bảo data_mem_burst.wr_first_beat
-    // nhận đúng địa chỉ ngay cycle W đầu tiên (kể cả simultaneous W).
+    // [FIX-CRIT-1] burst_wr_addr: dùng S_AXI_AWADDR trực tiếp tại cycle AW handshake
     wire aw_handshake = S_AXI_AWVALID && S_AXI_AWREADY;
     wire [ADDR_WIDTH-1:0] wr_awaddr_mux;
     assign wr_awaddr_mux = aw_handshake ? S_AXI_AWADDR : write_addr;
@@ -150,7 +130,7 @@ module data_mem_axi4_slave #(
     assign burst_wr_strb  = S_AXI_WSTRB;
     assign burst_wr_last  = S_AXI_WLAST;
 
-    // [FIX-BUG5] dùng wr_next (combinational) để detect AW handshake cycle
+    // [FIX-BUG5] dùng wr_next để detect AW handshake cycle
     assign burst_wr_valid = ((wr_state == WR_BURST) || (wr_next == WR_BURST)) && S_AXI_WVALID;
 
     // Read outputs
@@ -219,9 +199,11 @@ module data_mem_axi4_slave #(
         endcase
     end
 
+    // ARREADY là combinational (phụ thuộc trạng thái)
+    assign S_AXI_ARREADY = (rd_state == RD_IDLE);
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            S_AXI_ARREADY   <= 1'b0;
             read_addr        <= {ADDR_WIDTH{1'b0}};
             rd_burst_length  <= 8'd0;
             rd_burst_size    <= 3'd0;
@@ -231,26 +213,20 @@ module data_mem_axi4_slave #(
         end else begin
             case (rd_state)
                 RD_IDLE: begin
-                    S_AXI_ARREADY <= 1'b1;
                     burst_rd_req  <= 1'b0;
-                    if (S_AXI_ARVALID && S_AXI_ARREADY) begin
+                    if (S_AXI_ARVALID && S_AXI_ARREADY) begin  // handshake
                         read_addr       <= S_AXI_ARADDR;
                         rd_burst_length <= S_AXI_ARLEN;
                         rd_burst_size   <= S_AXI_ARSIZE;
                         rd_burst_type   <= S_AXI_ARBURST;
                         rd_id_latch     <= S_AXI_ARID;
-                        burst_rd_req    <= 1'b1;  // pulse HIGH 1 cycle
-                        S_AXI_ARREADY   <= 1'b0;
+                        burst_rd_req    <= 1'b1;  // pulse 1 cycle
                     end
                 end
                 RD_BURST: begin
-                    // [FIX-RD-REQ] Deassert ngay cycle đầu RD_BURST
-                    // (rd_state đã chuyển → cycle này burst_rd_req = 0)
-                    S_AXI_ARREADY <= 1'b0;
                     burst_rd_req  <= 1'b0;
                 end
                 default: begin
-                    S_AXI_ARREADY <= 1'b0;
                     burst_rd_req  <= 1'b0;
                 end
             endcase
@@ -275,10 +251,12 @@ module data_mem_axi4_slave #(
         endcase
     end
 
+    // AWREADY là combinational
+    assign S_AXI_AWREADY = (wr_state == WR_IDLE);
+
     // Write Address Channel
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            S_AXI_AWREADY   <= 1'b0;
             write_addr       <= {ADDR_WIDTH{1'b0}};
             wr_burst_length  <= 8'd0;
             wr_burst_size    <= 3'd0;
@@ -287,17 +265,15 @@ module data_mem_axi4_slave #(
         end else begin
             case (wr_state)
                 WR_IDLE: begin
-                    S_AXI_AWREADY <= 1'b1;
                     if (S_AXI_AWVALID && S_AXI_AWREADY) begin
                         write_addr      <= S_AXI_AWADDR;
                         wr_burst_length <= S_AXI_AWLEN;
                         wr_burst_size   <= S_AXI_AWSIZE;
                         wr_burst_type   <= S_AXI_AWBURST;
                         wr_id_latch     <= S_AXI_AWID;
-                        S_AXI_AWREADY   <= 1'b0;
                     end
                 end
-                default: S_AXI_AWREADY <= 1'b0;
+                default: ;
             endcase
         end
     end
@@ -357,24 +333,22 @@ module data_mem_axi4_slave #(
         end
     end
 
-    // ========================================================================
-    // Debug
-    // ========================================================================
-    `ifdef SIMULATION
-    always @(posedge clk) begin
-        if (S_AXI_ARVALID && S_AXI_ARREADY)
-            $display("[DMEM AXI] Read  burst: addr=0x%h len=%0d @ %0t",
-                     S_AXI_ARADDR, S_AXI_ARLEN+1, $time);
-        if (S_AXI_RVALID && S_AXI_RREADY)
-            $display("[DMEM AXI] Read  data:  data=0x%h last=%b @ %0t",
-                     S_AXI_RDATA, S_AXI_RLAST, $time);
-        if (S_AXI_AWVALID && S_AXI_AWREADY)
-            $display("[DMEM AXI] Write burst: addr=0x%h len=%0d @ %0t",
-                     S_AXI_AWADDR, S_AXI_AWLEN+1, $time);
-        if (S_AXI_WVALID && S_AXI_WREADY)
-            $display("[DMEM AXI] Write data:  data=0x%h strb=%b last=%b @ %0t",
-                     S_AXI_WDATA, S_AXI_WSTRB, S_AXI_WLAST, $time);
-    end
-    `endif
+always @(posedge clk) begin
+    if (S_AXI_ARVALID && S_AXI_ARREADY)
+        $display("[DMEM AXI] Read  burst: addr=0x%h len=%0d @ %0t",
+                 S_AXI_ARADDR, S_AXI_ARLEN+1, $time);
+
+    if (S_AXI_RVALID && S_AXI_RREADY)
+        $display("[DMEM AXI] Read  data:  data=0x%h last=%b @ %0t",
+                 S_AXI_RDATA, S_AXI_RLAST, $time);
+
+    if (S_AXI_AWVALID && S_AXI_AWREADY)
+        $display("[DMEM AXI] Write burst: addr=0x%h len=%0d @ %0t",
+                 S_AXI_AWADDR, S_AXI_AWLEN+1, $time);
+
+    if (S_AXI_WVALID && S_AXI_WREADY)
+        $display("[DMEM AXI] Write data:  data=0x%h strb=%b last=%b @ %0t",
+                 S_AXI_WDATA, S_AXI_WSTRB, S_AXI_WLAST, $time);
+end
 
 endmodule
