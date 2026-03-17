@@ -4,7 +4,7 @@
 `include "cpu/memory_axi4full/inst_mem_axi_slave.v"
 `include "cpu/memory_axi4full/data_mem_axi_slave.v"
 `include "cpu/interconnect/axi4_crossbar_3m5s.v"
-`include "ascon_accelerator/ascon_top.v"
+`include "ascon/ascon_top.v"
 `include "axi_width_converter_64to32.v"
 `include "controller/soc_ctrl_slave.v"
 `include "clint.v"
@@ -89,6 +89,24 @@ wire external_irq;
 wire timer_irq;
 wire sw_irq;
 wire ascon_irq;
+
+// ============================================================================
+// ASCON AXI-Stream interface wires (unused in SoC — tied off)
+// ============================================================================
+wire [63:0] ascon_s_axis_tdata  = 64'h0;
+wire        ascon_s_axis_tvalid = 1'b0;
+wire        ascon_s_axis_tlast  = 1'b0;
+wire        ascon_s_axis_tready;   // output — not connected upstream
+
+wire [63:0] ascon_m_axis_tdata;    // outputs — available for future use
+wire        ascon_m_axis_tvalid;
+wire        ascon_m_axis_tlast;
+wire        ascon_m_axis_tready = 1'b1;  // always consume
+
+// ASCON tag parallel output wires
+wire [127:0] ascon_o_tag;
+wire         ascon_o_tag_valid;
+wire         ascon_o_busy;
 
 // ============================================================================
 // ICache ↔ Crossbar M0 (AXI4)
@@ -448,6 +466,21 @@ ascon_ip_top u_ascon (
     .M_AXI_RID      (dma_rid),   .M_AXI_RDATA   (dma_rdata),
     .M_AXI_RRESP    (dma_rresp), .M_AXI_RLAST   (dma_rlast),
     .M_AXI_RVALID   (dma_rvalid),.M_AXI_RREADY  (dma_rready),
+
+    // AXI4-Stream interface (tied off — SoC không dùng stream mode)
+    .s_axis_tdata   (ascon_s_axis_tdata),
+    .s_axis_tvalid  (ascon_s_axis_tvalid),
+    .s_axis_tlast   (ascon_s_axis_tlast),
+    .s_axis_tready  (ascon_s_axis_tready),
+    .m_axis_tdata   (ascon_m_axis_tdata),
+    .m_axis_tvalid  (ascon_m_axis_tvalid),
+    .m_axis_tlast   (ascon_m_axis_tlast),
+    .m_axis_tready  (ascon_m_axis_tready),
+
+    // Tag parallel output
+    .o_tag          (ascon_o_tag),
+    .o_tag_valid    (ascon_o_tag_valid),
+    .o_busy         (ascon_o_busy),
 
     .irq            (ascon_irq)
 );
