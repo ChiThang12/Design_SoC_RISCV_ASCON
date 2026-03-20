@@ -281,6 +281,10 @@ module dcache_axi_interface #(
             evict_done <= 1'b0;
 
             case (ev_state)
+
+                // ── EV_IDLE: latch request, assert AW only ────────────────────
+                // KHÔNG assert WVALID ở đây. Nếu AWREADY=1 ngay lập tức,
+                // beat 0 sẽ bị consumed trong EV_AW trước khi ev_beat được đếm.
                 EV_IDLE: begin
                     evict_busy    <= 1'b0;
                     M_AXI_AWVALID <= 1'b0;
@@ -292,60 +296,52 @@ module dcache_axi_interface #(
 
                     if (evict_start) begin
                         M_AXI_AWADDR  <= evict_addr;
-                        ev_d0 <= evict_data_0;
-                        ev_d1 <= evict_data_1;
-                        ev_d2 <= evict_data_2;
-                        ev_d3 <= evict_data_3;
-
+                        ev_d0         <= evict_data_0;
+                        ev_d1         <= evict_data_1;
+                        ev_d2         <= evict_data_2;
+                        ev_d3         <= evict_data_3;
                         ev_burst_len  <= evict_nc ? 8'd0 : 8'd3;
                         ev_nc_mode    <= evict_nc;
-
                         M_AXI_AWVALID <= 1'b1;
-                        M_AXI_WDATA   <= evict_data_0;
-                        M_AXI_WSTRB   <= evict_nc ? evict_wstrb_nc : 4'hf;
-                        // [NC-BYPASS] 1-beat write: WLAST=1 ngay từ đầu
-                        M_AXI_WLAST   <= evict_nc ? 1'b1 : 1'b0;
-                        M_AXI_WVALID  <= 1'b1;
                         evict_busy    <= 1'b1;
                         ev_state      <= EV_AW;
                     end
                 end
 
+                // ── EV_AW: chờ AWREADY, rồi bắt đầu write data ──────────────
                 EV_AW: begin
                     if (M_AXI_AWVALID && M_AXI_AWREADY) begin
                         M_AXI_AWVALID <= 1'b0;
-                        ev_aw_done    <= 1'b1;
+                        // Bắt đầu burst: gửi beat 0
+                        M_AXI_WVALID  <= 1'b1;
+                        M_AXI_WDATA   <= ev_d0;
+                        M_AXI_WSTRB   <= ev_nc_mode ? evict_wstrb_nc : 4'hf;
+                        M_AXI_WLAST   <= ev_nc_mode ? 1'b1 : 1'b0;
+                        ev_beat       <= 2'b00;
+                        ev_state      <= EV_W;
                     end
+                end
 
+                // ── EV_W: gửi toàn bộ write data burst (beat 0..3) ───────────
+                EV_W: begin
                     if (M_AXI_WVALID && M_AXI_WREADY) begin
-                        // [NC-BYPASS] NC mode: 1-beat, WLAST đã =1 từ EV_IDLE
-                        // Normal mode: 4-beat, tăng beat counter
                         if (ev_nc_mode || ev_beat == 2'd3) begin
+                            // Beat cuối accepted → kết thúc
                             M_AXI_WVALID <= 1'b0;
                             M_AXI_WLAST  <= 1'b0;
-
-                            if (ev_aw_done || (M_AXI_AWVALID && M_AXI_AWREADY)) begin
-                                M_AXI_BREADY <= 1'b1;
-                                ev_state     <= EV_B;
-                            end else begin
-                                ev_state <= EV_W;
-                            end
+                            M_AXI_BREADY <= 1'b1;
+                            ev_state     <= EV_B;
                         end else begin
+                            // Gửi beat tiếp theo
                             ev_beat     <= ev_beat + 1'b1;
                             M_AXI_WDATA <= ev_word(ev_beat + 1'b1);
+                            // WLAST=1 khi đang ở beat 2 (beat kế = 3 = last)
                             M_AXI_WLAST <= (ev_beat == 2'd2) ? 1'b1 : 1'b0;
                         end
                     end
                 end
 
-                EV_W: begin
-                    if (M_AXI_AWVALID && M_AXI_AWREADY) begin
-                        M_AXI_AWVALID <= 1'b0;
-                        M_AXI_BREADY  <= 1'b1;
-                        ev_state      <= EV_B;
-                    end
-                end
-
+                // ── EV_B: chờ write response ──────────────────────────────────
                 EV_B: begin
                     if (M_AXI_BVALID && M_AXI_BREADY) begin
                         M_AXI_BREADY <= 1'b0;

@@ -194,8 +194,11 @@ module dma_ctrl_fsm (
                 //   dout = mem[rd_idx] valid và ổn định.
                 // An toàn để latch vào core_ptext_0/1.
                 S_FIFO_LATCH: begin
-                    core_ptext_0    <= rd_fifo_dout[63:32];
-                    core_ptext_1    <= rd_fifo_dout[31:0];
+                    // [BUG1-FIX] AXI 64-bit read: addr_low → rdata[31:0], addr_high → rdata[63:32]
+                    // DMEM[src+0] = PTEXT_0 → rdata[31:0]  → core_ptext_0
+                    // DMEM[src+4] = PTEXT_1 → rdata[63:32] → core_ptext_1
+                    core_ptext_0    <= rd_fifo_dout[31:0];
+                    core_ptext_1    <= rd_fifo_dout[63:32];
                     core_data_valid <= 1'b1;
                     state           <= S_CORE_START;
                 end

@@ -29,7 +29,8 @@ module dcache_top #(
     input  wire                  cpu_we,
     output wire [DATA_WIDTH-1:0] cpu_rdata,
     output wire                  cpu_ready,
-    input  wire                  fence,
+    // fence_type[0]=flush-dirty  fence_type[1]=invalidate-read
+    input  wire [1:0]            fence_type,
 
     // Debug
     output wire [ADDR_WIDTH-1:0] current_addr,
@@ -100,7 +101,8 @@ module dcache_top #(
     wire        tag_update_valid;
     wire [5:0]  tag_update_index;
     wire [21:0] tag_update_tag;
-    wire        tag_flush_all;
+    wire        tag_flush_all;      // flush dirty lines (write-back) — fence w,w hoặc fence iorw
+    wire        tag_invalidate_all; // xóa valid bits (invalidate)    — fence iorw hoặc fence.i
     wire        tag_dirty_set;
     wire        tag_dirty_clear;
     wire [5:0]  tag_dirty_index;
@@ -163,7 +165,8 @@ module dcache_top #(
         .dirty_set      (tag_dirty_set),
         .dirty_clear    (tag_dirty_clear),
         .dirty_index    (tag_dirty_index),
-        .flush_all      (tag_flush_all)
+        .flush_all      (tag_flush_all),
+        .invalidate_all (tag_invalidate_all)
     );
 
     dcache_data_array data_array_inst (
@@ -253,7 +256,7 @@ module dcache_top #(
         .cpu_we             (cpu_we),
         .cpu_rdata          (cpu_rdata),
         .cpu_ready          (cpu_ready),
-        .fence              (fence),
+        .fence_type         (fence_type),
 
         .current_addr       (current_addr),
         .current_data       (current_data),
@@ -268,6 +271,7 @@ module dcache_top #(
         .tag_update_index   (tag_update_index),
         .tag_update_tag     (tag_update_tag),
         .tag_flush_all      (tag_flush_all),
+        .tag_invalidate_all (tag_invalidate_all),
         .tag_dirty_set      (tag_dirty_set),
         .tag_dirty_clear    (tag_dirty_clear),
         .tag_dirty_index    (tag_dirty_index),
