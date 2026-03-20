@@ -6,6 +6,7 @@
 // Logic: slave[i] được chọn khi (addr & SLAVE_MASK[i]) == SLAVE_BASE[i]
 //
 // [Fix 3] Thêm S4 = CLINT @ 0x4000_0000
+// [Fix 4] Đồng bộ S1_MASK default = 32'hFFFF_E000 (8KB) khớp với soc_top
 // ============================================================================
 
 module axi4_addr_decoder #(
@@ -15,7 +16,7 @@ module axi4_addr_decoder #(
     parameter [ADDR_WIDTH-1:0] S0_BASE = 32'h0000_0000,
     parameter [ADDR_WIDTH-1:0] S0_MASK = 32'hFFFF_E000,
     parameter [ADDR_WIDTH-1:0] S1_BASE = 32'h1000_0000,
-    parameter [ADDR_WIDTH-1:0] S1_MASK = 32'hFFFF_0000,
+    parameter [ADDR_WIDTH-1:0] S1_MASK = 32'hFFFF_E000,   // [Fix 4] was 32'hFFFF_0000 (64KB) → 32'hFFFF_E000 (8KB, khớp soc_top/DMEM_SIZE)
     parameter [ADDR_WIDTH-1:0] S2_BASE = 32'h2000_0000,
     parameter [ADDR_WIDTH-1:0] S2_MASK = 32'hFFFF_F000,
     parameter [ADDR_WIDTH-1:0] S3_BASE = 32'h3000_0000,

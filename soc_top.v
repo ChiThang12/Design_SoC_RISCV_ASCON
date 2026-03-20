@@ -80,7 +80,7 @@ wire        cpu_dcache_req;
 wire        cpu_dcache_we;
 wire [31:0] dcache_cpu_rdata;
 wire        dcache_cpu_ready;
-wire        cpu_dcache_fence;
+wire [1:0]  cpu_dcache_fence_type;
 
 // ============================================================================
 // Interrupt wires
@@ -341,7 +341,7 @@ riscv_cpu_core u_cpu (
     .dcache_we      (cpu_dcache_we),
     .dcache_rdata   (dcache_cpu_rdata),
     .dcache_ready   (dcache_cpu_ready),
-    .dcache_fence   (cpu_dcache_fence),
+    .dcache_fence_type (cpu_dcache_fence_type),
 
     .external_irq   (external_irq),
     .timer_irq      (timer_irq),
@@ -396,7 +396,7 @@ dcache_top u_dcache (
     .cpu_we         (cpu_dcache_we),
     .cpu_rdata      (dcache_cpu_rdata),
     .cpu_ready      (dcache_cpu_ready),
-    .fence          (cpu_dcache_fence),
+    .fence_type     (cpu_dcache_fence_type),
 
     .current_addr   (),
     .current_data   (),

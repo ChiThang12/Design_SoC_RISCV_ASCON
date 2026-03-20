@@ -27,7 +27,7 @@ module riscv_cpu_core (
     output wire        dcache_we,
     input  wire [31:0] dcache_rdata,
     input  wire        dcache_ready,
-    output wire        dcache_fence,
+    output wire [1:0]      dcache_fence_type,
 
     input  wire external_irq,
     input  wire timer_irq,
@@ -78,6 +78,26 @@ module riscv_cpu_core (
     wire regwrite_id, alusrc_id, memread_id, memwrite_id, memtoreg_id;
     wire branch_id, jump_id, fence_id;
     wire [1:0] byte_size_id;
+
+    // =========================================================================
+    // [FENCE-TYPE] Decode pred/succ bits từ FENCE instruction
+    // FENCE encoding: instr[31:28]=fm, instr[27:24]=pred, instr[23:20]=succ
+    //   pred bit3=I, bit2=O, bit1=R, bit0=W
+    // fence w,w   : pred=0001, succ=0001 → fence_type=2'b01 (flush only)
+    // fence r,r   : pred=0010, succ=0010 → fence_type=2'b10 (invalidate only)
+    // fence iorw  : pred=1111, succ=1111 → fence_type=2'b11 (flush+invalidate)
+    // fence.i     : funct3=1             → fence_type=2'b11 (full flush+invalidate)
+    // fence_type[0]=1 → flush dirty lines (write-back)  ← pred has W(bit0) or I(bit3)
+    // fence_type[1]=1 → invalidate read cache            ← pred has R(bit1) or I(bit3)
+    // =========================================================================
+    wire [3:0] fence_pred    = instr_id[27:24]; // pred field
+    wire       fence_is_fencei = funct3_id[0];  // FENCE.I: funct3=001
+
+    wire fence_active = fence_id && !fence_stall;
+    // flush dirty  : pred W(bit0) OR pred I(bit3) OR FENCE.I
+    // invalidate   : pred R(bit1) OR pred I(bit3) OR FENCE.I
+    assign dcache_fence_type[0] = fence_active && (fence_is_fencei | fence_pred[0] | fence_pred[3]);
+    assign dcache_fence_type[1] = fence_active && (fence_is_fencei | fence_pred[1] | fence_pred[3]);
     wire [31:0] read_data1_id, read_data2_id, imm_id;
 
     wire regwrite_ex, alusrc_ex, memread_ex, memwrite_ex, memtoreg_ex;
@@ -126,14 +146,27 @@ module riscv_cpu_core (
 
     assign stall_any = stall | stall_if;
 
+    // [FIX-EXMEM-GATE] EX/MEM phải freeze chọn lọc:
+    //   - lsu_dependency_stall: in-flight load ở LSU, instruction mới cần
+    //     register đó → EX/MEM phải freeze (pipeline stall thực sự).
+    //   - fence_stall: chờ LSU drain → EX/MEM phải freeze.
+    //   - load_use_hazard: load ở EX, next instruction cần rd →
+    //     EX/MEM PHẢI ADVANCE để load vào MEM, ID/EX được flush (NOP).
+    //     Nếu freeze EX/MEM, load bị kẹt ở EX mãi → không bao giờ execute!
+    //   - mem_load_stall: tương tự → EX/MEM advance.
+    //   - stall_if (ICache miss): EX/MEM không liên quan → advance.
+    //
+    // stall_ex_mem = 1 → freeze; = 0 → advance
+    // Chỉ freeze khi: lsu_dependency_stall OR fence_stall
+    wire lsu_dependency_stall_w = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
+                                   (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
+    wire stall_ex_mem = lsu_dependency_stall_w | fence_stall;
+
     wire flush_if_id_final = flush_if_id | irq_flush;
     wire flush_id_ex_final = flush_id_ex | irq_flush;
 
-    // fence_id: FENCE instruction đang ở ID stage
-    // Được drive từ control unit, truyền thẳng không qua pipeline reg
-    // (không cần truyền vào EX vì FENCE không làm gì ở EX/MEM/WB)
-    // dcache_fence: expose ra soc_top để nối vào dcache_top.fence
-    assign dcache_fence = fence_id && !fence_stall;
+    // dcache_fence_type: expose ra soc_top để nối vào dcache_top.fence_type
+    // (logic decode ở wire fence_active + dcache_fence_type[1:0] phía trên)
 
     // ========================================================================
     // STAGE 1: IF
@@ -313,7 +346,10 @@ module riscv_cpu_core (
             write_data_ex_mem <= 32'h0; pc_plus_4_ex_mem <= 32'h0;
             rd_ex_mem         <= 5'b0; byte_size_ex_mem  <= 2'b0;
             funct3_ex_mem     <= 3'b0;
-        end else if (!stall_if) begin
+        end else if (!stall_ex_mem) begin  // [FIX-BUG-EXMEM] advance trừ khi lsu_dependency/fence
+            // EX/MEM chỉ freeze khi lsu_dependency_stall hoặc fence_stall.
+            // load_use_hazard/mem_load_stall: EX/MEM PHẢI advance (load vào MEM),
+            // ID/EX được flush tạo NOP. Nếu freeze EX/MEM, load kẹt ở EX mãi.
             regwrite_ex_mem   <= regwrite_ex;
             memread_ex_mem    <= memread_ex;
             memwrite_ex_mem   <= memwrite_ex;
@@ -354,13 +390,33 @@ module riscv_cpu_core (
         if (rst)
             lsu_req_sent <= 1'b0;
         else begin
+            // [FIX-LSU-SENT] Đúng priority: CLEAR khi pipeline advance,
+            // SET khi LSU nhận.
+            //
+            // lsu_req_valid = (mem_op) & !(lsu_req_sent & stall_any)
+            //   - stall_any=0 (no hazard): pipeline advance → luôn valid,
+            //     lsu_req_sent không block → mỗi instruction chỉ gửi 1 lần
+            //     vì EX/MEM advance ngay cycle sau khi instruction vào MEM.
+            //   - stall_any=1 (stall): pipeline frozen → lsu_req_sent block
+            //     gửi lần 2, ngăn double-enqueue vào LQ.
+            //
+            // CLEAR phải có priority cao hơn SET:
+            //   Cycle A: stall_any=0, LSU nhận req → SET fire
+            //   → lsu_req_sent=1, NHƯNG EX/MEM advance ngay cycle này.
+            //   Cycle A+1: instruction mới ở MEM, lsu_req_sent=1.
+            //   Nếu SET thắng: lsu_req_valid = op & !(1 & 0) = 1 → OK
+            //   nhưng lsu_req_sent vẫn=1 → next cycle vẫn block dù
+            //   instruction mới. Phải CLEAR khi !stall_any.
             if (!stall_any)
                 lsu_req_sent <= 1'b0;
             else if (lsu_req_valid && lsu_req_ready)
                 lsu_req_sent <= 1'b1;
         end
     end
-    assign lsu_req_valid = (memread_mem | memwrite_mem) & !lsu_req_sent;
+    // [FIX-LSU-VALID] Gate bằng !(lsu_req_sent & stall_any), không phải !lsu_req_sent.
+    //   - Khi stall_any=0: req luôn valid (pipeline advance = new instruction)
+    //   - Khi stall_any=1: req chỉ valid nếu chưa gửi (ngăn double-enqueue)
+    assign lsu_req_valid = (memread_mem | memwrite_mem) & !(lsu_req_sent & stall_any);
 
     LSU lsu_unit (
         .clk         (clk),           .rst         (rst),
@@ -368,7 +424,7 @@ module riscv_cpu_core (
         .req_addr    (alu_result_mem), .req_wdata   (write_data_mem),
         .req_wstrb   (lsu_req_wstrb),  .req_is_load (memread_mem),
         .req_rd      (rd_mem),         .req_funct3  (funct3_mem),
-        .fence       (dcache_fence),
+        .fence       (|dcache_fence_type),  // any fence → stall LSU
         .result_valid(lsu_result_valid), .result_data(lsu_result_data),
         .result_rd   (lsu_result_rd),  .result_ack  (lsu_result_ack),
         .scoreboard  (lsu_scoreboard), .lsu_idle    (lsu_idle),
@@ -385,6 +441,17 @@ module riscv_cpu_core (
     reg [31:0] alu_result_mem_wb, mem_data_mem_wb, pc_plus_4_mem_wb;
     reg [4:0]  rd_mem_wb;
 
+    // [FIX-MEMWB-GUARD] 1-cycle flag: ngăn else-if overwrite ngay sau lsu_result commit.
+    // Set = 1 khi lsu_result commit xảy ra (lsu_result_valid && !stall_if).
+    // Được dùng làm guard trong else-if (!stall_any && !lsu_committed_r).
+    reg lsu_committed_r;
+    always @(posedge clk or posedge rst) begin
+        if (rst)
+            lsu_committed_r <= 1'b0;
+        else
+            lsu_committed_r <= lsu_result_valid && !stall_if;
+    end
+
     assign lsu_result_ack = lsu_result_valid;
 
     always @(posedge clk or posedge rst) begin
@@ -394,13 +461,39 @@ module riscv_cpu_core (
             mem_data_mem_wb   <= 32'h0; pc_plus_4_mem_wb <= 32'h0;
             rd_mem_wb         <= 5'b0;
         end else begin
+            // [FIX-MEMWB-GATE] Xử lý đúng hai trường hợp conflict:
+            //
+            // VẤN ĐỀ 1 (bug gốc): else-if overwrite sau khi lsu_result commit.
+            //   Cycle N: lsu_result_valid=1, stall_any=1 (scoreboard[rd]=1)
+            //     → lsu_result branch fire → WB = load result ✓
+            //   Cycle N+1: stall_any=0 (scoreboard cleared), lsu_result_valid=0
+            //     → else-if fire → rd_mem_wb <= rd_mem (instruction MỚI ở MEM)
+            //     → OVERWRITE load result → epilogue đọc stack sai → jalr corrupt
+            //
+            // VẤN ĐỀ 2 (nếu dùng !stall_any cho lsu_result):
+            //   Deadlock: stall_any=1 vì đang chờ load, lsu_result không commit
+            //   → stall không bao giờ clear → pipeline đóng băng.
+            //
+            // FIX ĐÚNG:
+            //   - lsu_result branch: giữ !stall_if (original) để tránh deadlock.
+            //     Load PHẢI commit kể cả khi pipeline stall vì đang chờ chính load đó.
+            //   - else-if branch: thêm guard !lsu_committed_r để ngăn overwrite
+            //     ngay sau cycle lsu_result commit.
+            //
+            // lsu_committed_r = 1 chu kỳ sau khi lsu_result commit:
+            //   Cycle N: lsu_result fire → lsu_committed_r <= 1
+            //   Cycle N+1: else-if KHÔNG fire (guard lsu_committed_r=1)
+            //              WB giữ nguyên load result ✓
+            //   Cycle N+2: lsu_committed_r = 0 → else-if có thể fire bình thường
             if (lsu_result_valid && !stall_if) begin
-                mem_data_mem_wb <= lsu_result_data;
-                rd_mem_wb       <= lsu_result_rd;
-                regwrite_mem_wb <= 1'b1;
-                memtoreg_mem_wb <= 1'b1;
-                jump_mem_wb     <= 1'b0;
-            end else if (!stall_any) begin
+                mem_data_mem_wb   <= lsu_result_data;
+                rd_mem_wb         <= lsu_result_rd;
+                regwrite_mem_wb   <= 1'b1;
+                memtoreg_mem_wb   <= 1'b1;
+                jump_mem_wb       <= 1'b0;
+                alu_result_mem_wb <= alu_result_mem;
+                pc_plus_4_mem_wb  <= pc_plus_4_mem;
+            end else if (!stall_any && !lsu_committed_r) begin
                 alu_result_mem_wb <= alu_result_mem;
                 pc_plus_4_mem_wb  <= pc_plus_4_mem;
                 regwrite_mem_wb   <= regwrite_mem & ~memread_mem;
@@ -408,6 +501,8 @@ module riscv_cpu_core (
                 jump_mem_wb       <= jump_mem;
                 rd_mem_wb         <= rd_mem;
             end
+            // else: stall_any=1 (không phải lsu_result) OR lsu_committed_r=1
+            //       → MEM/WB giữ nguyên (implicit freeze)
         end
     end
 

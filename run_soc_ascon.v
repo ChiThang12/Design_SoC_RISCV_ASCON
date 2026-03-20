@@ -25,7 +25,7 @@
 
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2
-`define TIMEOUT         1000
+`define TIMEOUT         2000
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32

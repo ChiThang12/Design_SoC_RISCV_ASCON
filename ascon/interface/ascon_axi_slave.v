@@ -1,6 +1,28 @@
 // ============================================================================
 // Module  : ascon_axi_slave
-// Version : 2.0  (AXI4-Full slave + DATA_LEN register)
+// Version : 2.2  (AXI4-Full slave + DATA_LEN register + BUG fixes)
+//
+// Changes vs v2.1:
+//   FIX-BUG-CTRL2 : core_start bị suppressed khi DMA_EN=1.
+//                   v2.1 pulse core_start=1 cả trong DMA mode, gây glitch
+//                   vào ascon_CORE trước khi DMA FSM sẵn sàng (race condition
+//                   với dma_core_start trong core_start_mux của ascon_top).
+//                   Fix: core_start chỉ pulse khi !dma_en (CPU-Direct mode).
+//                   Trong DMA mode, core được kick bởi dma_core_start từ FSM.
+//
+// Changes vs v2.1:
+//   FIX-BUG-AWREADY : WR_RESP không set AWREADY=1. Nếu AWREADY=1 trong khi
+//                     BVALID=1 chưa clear (WR_DONE cycle), master có thể
+//                     handshake AW mới nhưng WR_DONE bỏ qua → transaction LOST.
+//                     Fix: chuyển AWREADY=1 vào WR_DONE sau khi BVALID=0.
+//
+//   FIX-WLAST       : WR_DATA decode ngay beat đầu mà không check WLAST.
+//                     Với AWLEN>0 (burst), decode phải chờ beat cuối (WLAST=1).
+//                     Fix: thêm wr_wlast_lat, chỉ decode khi WLAST=1.
+//
+//   FIX-BUG-CTRL    : dma_start bị block bởi core_busy không cần thiết.
+//                     dma_start chỉ cần !dma_busy, không phụ thuộc core_busy.
+//                     Fix: tách điều kiện core_start và dma_start.
 //
 // Changes vs v1.9:
 //   FIX-BUG1 : Nâng cấp từ AXI4-Lite lên AXI4-Full slave.
@@ -154,6 +176,7 @@ module ascon_axi_slave #(
     reg [3:0]          wr_strb_lat;
     reg [7:0]          wr_len_lat;    // FIX-BUG1: burst length latch
     reg [7:0]          wr_beat_cnt;   // FIX-BUG1: beat counter
+    reg                wr_wlast_lat;  // [FIX-WLAST] latch WLAST khi pre-latch W
 
     // module-level decode temporaries
     reg [31:0] wr_exec_data;
@@ -264,6 +287,7 @@ module ascon_axi_slave #(
             wr_strb_lat   <= 4'h0;
             wr_len_lat    <= 8'h0;
             wr_beat_cnt   <= 8'h0;
+            wr_wlast_lat  <= 1'b0;
             wr_exec_data  <= 32'h0;
             wr_exec_strb  <= 4'h0;
             // Storage registers
@@ -300,6 +324,7 @@ module ascon_axi_slave #(
                     if (S_AXI_WVALID && S_AXI_WREADY) begin
                         wr_data_lat  <= S_AXI_WDATA;
                         wr_strb_lat  <= S_AXI_WSTRB;
+                        wr_wlast_lat <= S_AXI_WLAST;  // [FIX-WLAST]
                         S_AXI_WREADY <= 1'b0;   // đã latch W, không nhận thêm
                     end
                     if (S_AXI_AWVALID && S_AXI_AWREADY) begin
@@ -318,8 +343,15 @@ module ascon_axi_slave #(
                 //      Decode ngay cycle đầu tiên vào WR_DATA.
                 //   B) W chưa đến: WREADY=1 → chờ WVALID rồi decode khi WLAST.
                 // Với AWLEN=0 (single beat TB): WLAST luôn = 1.
+                // ── WR_DATA ──────────────────────────────────────────────────
+                // [FIX-WLAST] Decode chỉ khi nhận beat CUỐI (WLAST=1).
+                // Trường hợp A (W pre-latched, WREADY=0): WLAST=wr_wlast_lat
+                // Trường hợp B (W đến live, WREADY=1): WLAST=S_AXI_WLAST
+                // Với AWLEN=0 (single-beat): WLAST luôn=1 → không đổi behavior.
+                // Với AWLEN>0 (burst): chỉ decode khi WLAST=1 (beat cuối).
                 WR_DATA: begin
-                    if ((!S_AXI_WREADY) || (S_AXI_WVALID && S_AXI_WREADY)) begin
+                    if ((!S_AXI_WREADY && wr_wlast_lat) ||
+                        (S_AXI_WVALID && S_AXI_WREADY && S_AXI_WLAST)) begin
 
                         // Lấy data từ bus (case B) hoặc từ latch (case A)
                         wr_exec_data = (S_AXI_WVALID && S_AXI_WREADY) ?
@@ -334,9 +366,17 @@ module ascon_axi_slave #(
                                         core_soft_rst <= 1'b1;
                                         dma_soft_rst  <= 1'b1;
                                     end
-                                    if (wr_exec_data[0] && !core_busy && !dma_busy) begin
-                                        core_start <= 1'b1;
-                                        if (wr_exec_data[2] || reg_dma_en)
+                                    // [FIX-BUG-CTRL] Tách điều kiện core_start và dma_start:
+                                    // core_start: bit[0]=1 AND core không bận AND DMA_EN=0
+                                    //   → khi DMA_EN=1, core_start do DMA FSM (dma_core_start)
+                                    //     điều khiển qua core_start_mux trong ascon_top.
+                                    //     Không được pulse slave_core_start — tránh glitch vào CORE
+                                    //     trước khi DMA FSM sẵn sàng.
+                                    // dma_start:  bit[0]=1 AND (DMA_EN bit hiện tại hoặc reg) AND !dma_busy
+                                    if (wr_exec_data[0]) begin
+                                        if (!core_busy && !wr_exec_data[2] && !reg_dma_en)
+                                            core_start <= 1'b1;   // CPU-Direct: chỉ khi DMA_EN=0
+                                        if ((wr_exec_data[2] || reg_dma_en) && !dma_busy)
                                             dma_start <= 1'b1;
                                     end
                                     reg_dma_en <= wr_exec_data[2];
@@ -370,18 +410,25 @@ module ascon_axi_slave #(
                 end
 
                 // ── WR_RESP ───────────────────────────────────────────────────
+                // [FIX-BUG-AWREADY] KHÔNG set AWREADY tại đây.
+                // Nếu AWREADY=1 trong khi BVALID=1 còn chưa clear (WR_DONE cycle),
+                // master có thể handshake AW nhưng WR_DONE không latch → transaction LOST.
+                // AWREADY=1 được chuyển sang WR_DONE sau khi BVALID đã clear.
                 WR_RESP: begin
                     if (S_AXI_BREADY) begin
-                        S_AXI_AWREADY <= 1'b1;
                         S_AXI_WREADY  <= 1'b1;
                         wr_state      <= WR_DONE;
                     end
                 end
 
                 // ── WR_DONE ───────────────────────────────────────────────────
+                // [FIX-BUG-AWREADY] BVALID clear TRƯỚC khi AWREADY=1.
+                // Đảm bảo master không thể handshake AW mới trong cycle này
+                // vì AWREADY chỉ vừa được set → master sẽ thấy AWREADY=1 ở cycle SAU.
                 WR_DONE: begin
-                    S_AXI_BVALID <= 1'b0;
-                    wr_state     <= WR_IDLE;
+                    S_AXI_BVALID  <= 1'b0;
+                    S_AXI_AWREADY <= 1'b1;   // [FIX] set sau khi BVALID=0
+                    wr_state      <= WR_IDLE;
                 end
 
                 default: begin
@@ -409,6 +456,13 @@ module ascon_axi_slave #(
                 status_dma_done  <= 1'b0;
                 status_error     <= 1'b0;
                 status_dma_error <= 1'b0;
+                // [BUG3-FIX] Clear reg_dma_en on soft_rst.
+                // Nếu không clear: sau khi firmware ghi CTRL_SOFT_RST cuối vòng,
+                // reg_dma_en vẫn=1. Lần tiếp theo bất kỳ giá trị nào được ghi vào
+                // CTRL đều có thể trigger dma_start do điều kiện:
+                //   if ((wr_exec_data[2] || reg_dma_en) && !dma_busy) dma_start<=1
+                // → DMA kick với src/dst stale → DECERR trên AXI crossbar.
+                reg_dma_en <= 1'b0;
             end
             if (core_data_out_valid) begin
                 reg_ctext_0 <= core_data_out[127:96];
