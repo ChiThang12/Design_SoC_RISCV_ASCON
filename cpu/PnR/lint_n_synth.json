@@ -1,15 +1,12 @@
 {
   "DESIGN_NAME": "riscv_cpu_core",
   "VERILOG_FILES": ["dir::rtl/*.v"],
-  "CLOCK_PERIOD": 16.0,
+  "CLOCK_PERIOD": 20.0,
   "CLOCK_PORT": "clk",
   "PDK": "sky130B",
 
   "GPL_CELL_PADDING": 0,
   "SYNTH_STRATEGY": "DELAY 1",
-  "SYNTH_ABC_DFF": true,
-  "SYNTH_ABC_BUFFERING": true,
-  "SYNTH_ABC_USE_MFS3": true,
   "SYNTH_BUFFERING": true,
   
   "SYNTH_BUFFERING": true,

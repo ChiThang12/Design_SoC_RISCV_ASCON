@@ -7,11 +7,11 @@
 # 1. Clock Definition
 set clk_name clk
 # 50MHz - Pass
-#set clk_period 20.0
+set clk_period 20.0
 # 80MHz - Fail
 #set clk_period 12.5
 # 60MHz
-set clk_period 16.0
+#set clk_period 16.0
 set clk_port [get_ports clk]
 
 create_clock -name $clk_name -period $clk_period $clk_port
@@ -19,8 +19,8 @@ set_clock_uncertainty 0.25 [get_clocks $clk_name]
 set_clock_transition 0.15 [get_clocks $clk_name]
 
 # 2. Design Constraints (Khắt khe hơn để ép tool chèn Buffer)
-set_max_fanout 12 [current_design]
-set_max_transition 1.0 [current_design]
+set_max_fanout 10 [current_design]
+set_max_transition 1.2 [current_design]
 set_max_capacitance 0.6 [current_design]
 
 # 3. Input Constraints

@@ -1,0 +1,5 @@
+`verilator_config
+lint_off -rule DECLFILENAME
+lint_off -rule EOFNEWLINE
+lint_off -rule UNDRIVEN -file "/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/runs/Mar21_50MHz_final/tmp/0829c00d3ef547fea25e0f2c65629bc2.bb.v"
+lint_off -rule UNUSEDSIGNAL -file "/home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/runs/Mar21_50MHz_final/tmp/0829c00d3ef547fea25e0f2c65629bc2.bb.v"
