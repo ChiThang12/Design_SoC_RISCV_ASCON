@@ -1,19 +1,19 @@
 {
   "DESIGN_NAME": "riscv_cpu_core",
   "VERILOG_FILES": ["dir::rtl/*.v"],
-  "CLOCK_PERIOD": 10.0,
+  "CLOCK_PERIOD": 16.0,
   "CLOCK_PORT": "clk",
   "PDK": "sky130B",
 
-  "MAX_FANOUT_CONSTRAINT": 5,
-  "MAX_TRANSITION_CONSTRAINT": 0.5,
-  "MAX_CAPACITANCE_CONSTRAINT": 0.1,
   "GPL_CELL_PADDING": 0,
-  "SYNTH_STRATEGY": "DELAY 2",
+  "SYNTH_STRATEGY": "DELAY 1",
+  "SYNTH_ABC_DFF": true,
+  "SYNTH_ABC_BUFFERING": true,
+  "SYNTH_ABC_USE_MFS3": true,
   "SYNTH_BUFFERING": true,
   
   "SYNTH_BUFFERING": true,
-  "DONT_USE_CELLS": ["sky130_fd_sc_hd__buf_1", "sky130_fd_sc_hd__inv_1"],
+  "DONT_USE_CELLS": ["sky130_fd_sc_hd__buf_1", "sky130_fd_sc_hd__buf_2", "sky130_fd_sc_hd__inv_1", "sky130_fd_sc_hd__inv_2"],
   
   "PNR_SDC_FILE": "dir::constraints/top.sdc",
   "SIGNOFF_SDC_FILE": "dir::constraints/top.sdc",
