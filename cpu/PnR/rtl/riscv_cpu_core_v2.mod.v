@@ -194,7 +194,6 @@ module riscv_cpu_core (
             end else begin
                 // Stall: Keep values
                 regwrite_id_ex <= regwrite_id_ex; 
-                // ... logic tương tự cho các biến khác được tool tự suy diễn an toàn
             end
         end
     end

@@ -1,0 +1,65 @@
+%Warning-PINCONNECTEMPTY: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:144:46: Cell pin connected by name with empty reference: 'aluop'
+  144 |         .branch(branch_id), .jump(jump_id), .aluop(), .byte_size(byte_size_id)
+      |                                              ^~~~~
+                          ... For warning description see https://verilator.org/warn/PINCONNECTEMPTY?v=5.018
+                          ... Use "/* verilator lint_off PINCONNECTEMPTY */" and lint_on around source to disable this message.
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:92:16: Signal is not used: 'funct7_ex'
+                                                                                                                 : ... note: In instance 'riscv_cpu_core'
+   92 |     wire [6:0] funct7_ex;
+      |                ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/riscv_cpu_core_v2.mod.v:101:51: Signal is not used: 'memtoreg_mem'
+                                                                                                                  : ... note: In instance 'riscv_cpu_core'
+  101 |     wire regwrite_mem, memread_mem, memwrite_mem, memtoreg_mem, jump_mem;
+      |                                                   ^~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:39:9: Parameter is not used: 'ALU_DIV'
+                                                                                             : ... note: In instance 'riscv_cpu_core.arithmetic_logic_unit'
+   39 |         ALU_DIV   = 4'b1100,     
+      |         ^~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:40:9: Parameter is not used: 'ALU_DIVU'
+                                                                                             : ... note: In instance 'riscv_cpu_core.arithmetic_logic_unit'
+   40 |         ALU_DIVU  = 4'b1101,     
+      |         ^~~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:41:9: Parameter is not used: 'ALU_REM'
+                                                                                             : ... note: In instance 'riscv_cpu_core.arithmetic_logic_unit'
+   41 |         ALU_REM   = 4'b1110,     
+      |         ^~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:42:9: Parameter is not used: 'ALU_REMU'
+                                                                                             : ... note: In instance 'riscv_cpu_core.arithmetic_logic_unit'
+   42 |         ALU_REMU  = 4'b1111;     
+      |         ^~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/alu.v:48:24: Signal is not used: 'mul_result_unsigned'
+                                                                                               : ... note: In instance 'riscv_cpu_core.arithmetic_logic_unit'
+   48 |     wire        [63:0] mul_result_unsigned;   
+      |                        ^~~~~~~~~~~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:83:9: Parameter is not used: 'F3_BEQ'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.control_unit'
+   83 |         F3_BEQ      = 3'b000,
+      |         ^~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:84:9: Parameter is not used: 'F3_BNE'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.control_unit'
+   84 |         F3_BNE      = 3'b001,
+      |         ^~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:85:9: Parameter is not used: 'F3_BLT'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.control_unit'
+   85 |         F3_BLT      = 3'b100,
+      |         ^~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:86:9: Parameter is not used: 'F3_BGE'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.control_unit'
+   86 |         F3_BGE      = 3'b101,
+      |         ^~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:87:9: Parameter is not used: 'F3_BLTU'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.control_unit'
+   87 |         F3_BLTU     = 3'b110,
+      |         ^~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:88:9: Parameter is not used: 'F3_BGEU'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.control_unit'
+   88 |         F3_BGEU     = 3'b111,
+      |         ^~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/control.v:102:9: Parameter is not used: 'F7_DEFAULT'
+                                                                                                  : ... note: In instance 'riscv_cpu_core.control_unit'
+  102 |         F7_DEFAULT  = 7'b0000000,     
+      |         ^~~~~~~~~~
+%Warning-UNUSEDPARAM: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/PnR/rtl/imm_gen.v:10:9: Parameter is not used: 'OP_R_TYPE'
+                                                                                                 : ... note: In instance 'riscv_cpu_core.immediate_generator'
+   10 |         OP_R_TYPE   = 7'b0110011,     
+      |         ^~~~~~~~~

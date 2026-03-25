@@ -1,0 +1,41 @@
+133. Printing statistics.
+
+=== axi4_crossbar_3m5s ===
+
+   Number of wires:               3666
+   Number of wire bits:           5130
+   Number of public wires:         307
+   Number of public wire bits:    1731
+   Number of ports:                250
+   Number of port bits:           1570
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               4400
+     $_ANDNOT_                     685
+     $_AND_                        548
+     $_MUX_                       1591
+     $_NAND_                        61
+     $_NOR_                        100
+     $_NOT_                         44
+     $_ORNOT_                      124
+     $_OR_                        1030
+     $_XNOR_                        36
+     $_XOR_                         30
+     sky130_fd_sc_hd__dfrtp_2      145
+     sky130_fd_sc_hd__dfstp_2        6
+
+   Area for cell type $_NOT_ is unknown!
+   Area for cell type $_AND_ is unknown!
+   Area for cell type $_NAND_ is unknown!
+   Area for cell type $_OR_ is unknown!
+   Area for cell type $_NOR_ is unknown!
+   Area for cell type $_XOR_ is unknown!
+   Area for cell type $_XNOR_ is unknown!
+   Area for cell type $_ANDNOT_ is unknown!
+   Area for cell type $_ORNOT_ is unknown!
+   Area for cell type $_MUX_ is unknown!
+
+   Chip area for module '\axi4_crossbar_3m5s': 3967.555200
+     of which used for sequential elements: 3967.555200 (100.00%)
+

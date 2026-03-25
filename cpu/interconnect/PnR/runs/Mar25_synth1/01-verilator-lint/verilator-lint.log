@@ -1,0 +1,86 @@
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:49: Operator AND expects 4 bits on the LHS, but LHS's REPLICATE generates 2 bits.
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                 ^
+                      ... For warning description see https://verilator.org/warn/WIDTHEXPAND?v=5.018
+                      ... Use "/* verilator lint_off WIDTHEXPAND */" and lint_on around source to disable this message.
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:49: Operator AND expects 4 bits on the RHS, but RHS's ARRAYSEL generates 2 bits.
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                 ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:89: Operator AND expects 4 bits on the LHS, but LHS's REPLICATE generates 2 bits.
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                         ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:89: Operator AND expects 4 bits on the RHS, but RHS's ARRAYSEL generates 2 bits.
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                         ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:129: Operator AND expects 4 bits on the LHS, but LHS's REPLICATE generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                 ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:129: Operator AND expects 4 bits on the RHS, but RHS's ARRAYSEL generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                 ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:169: Operator AND expects 4 bits on the LHS, but LHS's REPLICATE generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                                                         ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:169: Operator AND expects 4 bits on the RHS, but RHS's ARRAYSEL generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                                                         ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:209: Operator AND expects 4 bits on the LHS, but LHS's REPLICATE generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                                                                                                 ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:209: Operator AND expects 4 bits on the RHS, but RHS's ARRAYSEL generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                                                                                                 ^
+%Warning-WIDTHEXPAND: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:249: Operator AND expects 4 bits on the LHS, but LHS's REPLICATE generates 2 bits.
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                                                                                                                                                                                                                                                         ^
+%Warning-WIDTHTRUNC: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_crossbar_3m5s.v:553:26: Operator ASSIGNW expects 2 bits on the Assign RHS, but Assign RHS's OR generates 4 bits.
+                                                                                                                          : ... note: In instance 'axi4_crossbar_3m5s'
+  553 |     assign M1_AXI_BRESP  = ({2{m1_bvalid_s[0]}} & m1_bresp_s[0]) | ({2{m1_bvalid_s[1]}} & m1_bresp_s[1]) | ({2{m1_bvalid_s[2]}} & m1_bresp_s[2]) | ({2{m1_bvalid_s[3]}} & m1_bresp_s[3]) | ({2{m1_bvalid_s[4]}} & m1_bresp_s[4]) | ({2{m1_bvalid_s[5]}} & m1_bid_s[5]);
+      |                          ^
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_decerr_slave.v:19:34: Signal is not used: 's_araddr'
+                                                                                                                          : ... note: In instance 'axi4_crossbar_3m5s.decerr_m2'
+   19 |     input  wire [ADDR_WIDTH-1:0] s_araddr,
+      |                                  ^~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_decerr_slave.v:34:34: Signal is not used: 's_awaddr'
+                                                                                                                          : ... note: In instance 'axi4_crossbar_3m5s.decerr_m2'
+   34 |     input  wire [ADDR_WIDTH-1:0] s_awaddr,
+      |                                  ^~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_decerr_slave.v:35:34: Signal is not used: 's_awlen'
+                                                                                                                          : ... note: In instance 'axi4_crossbar_3m5s.decerr_m2'
+   35 |     input  wire [7:0]            s_awlen,
+      |                                  ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_master_mux_3m.v:28:34: Bits of signal are not used: 'm0_arid'[3:2]
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s.mux_s4'
+   28 |     input  wire [ID_WIDTH-1:0]   m0_arid,
+      |                                  ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_master_mux_3m.v:45:34: Bits of signal are not used: 'm0_awid'[3:2]
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s.mux_s4'
+   45 |     input  wire [ID_WIDTH-1:0]   m0_awid,
+      |                                  ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_master_mux_3m.v:68:34: Bits of signal are not used: 'm1_arid'[3:2]
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s.mux_s4'
+   68 |     input  wire [ID_WIDTH-1:0]   m1_arid,
+      |                                  ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_master_mux_3m.v:85:34: Bits of signal are not used: 'm1_awid'[3:2]
+                                                                                                                           : ... note: In instance 'axi4_crossbar_3m5s.mux_s4'
+   85 |     input  wire [ID_WIDTH-1:0]   m1_awid,
+      |                                  ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_master_mux_3m.v:108:34: Bits of signal are not used: 'm2_arid'[3:2]
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s.mux_s4'
+  108 |     input  wire [ID_WIDTH-1:0]   m2_arid,
+      |                                  ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/ngoduc202/Documents/Design_SoC_RISCV_ASCON/cpu/interconnect/PnR/rtl/axi4_master_mux_3m.v:125:34: Bits of signal are not used: 'm2_awid'[3:2]
+                                                                                                                            : ... note: In instance 'axi4_crossbar_3m5s.mux_s4'
+  125 |     input  wire [ID_WIDTH-1:0]   m2_awid,
+      |                                  ^~~~~~~

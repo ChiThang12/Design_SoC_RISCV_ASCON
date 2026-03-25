@@ -1,0 +1,43 @@
+{
+  "DESIGN_NAME": "axi4_crossbar_3m5s",
+  "VERILOG_FILES": ["dir::rtl/*.v"],
+  "CLOCK_PERIOD": 10.0,
+  "CLOCK_PORT": "clk",
+  "PDK": "sky130B",
+
+  "GPL_CELL_PADDING": 0,
+  "SYNTH_STRATEGY": "DELAY 1",
+  "SYNTH_BUFFERING": true,
+  
+  "SYNTH_BUFFERING": true,
+  "DONT_USE_CELLS": ["sky130_fd_sc_hd__buf_1", "sky130_fd_sc_hd__buf_2", "sky130_fd_sc_hd__inv_1", "sky130_fd_sc_hd__inv_2"],
+  "MAX_FANOUT_CONSTRAINT": 10,
+  "MAX_TRANSITION_CONSTRAINT": 1.2,
+  "MAX_CAPACITANCE_CONSTRAINT": 0.6,
+  "PNR_SDC_FILE": "dir::constraints/top.sdc",
+  "SIGNOFF_SDC_FILE": "dir::constraints/top.sdc",
+  
+  "meta": {
+    "flow": [
+      "Verilator.Lint",
+		  "Checker.LintTimingConstructs",
+		  "Checker.LintErrors",
+		  "Checker.LintWarnings",
+		  "Yosys.JsonHeader",
+		  "Yosys.Synthesis",
+		  "Checker.YosysUnmappedCells",
+		  "Checker.YosysSynthChecks",
+		  "Checker.NetlistAssignStatements",
+		  "OpenROAD.CheckSDCFiles",
+		  "OpenROAD.CheckMacroInstances",
+		  "OpenROAD.STAPrePNR"
+    ]
+  },
+  
+  "RUN_POST_GRT_RESIZER_TIMING" : true,
+  "RUN_POST_GRT_DESIGN_REPAIR" : true
+  
+}
+
+
+
