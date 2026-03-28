@@ -477,3 +477,4 @@ Dự án này được phân phối dưới [MIT License](LICENSE).
 
 **Last Updated**: February 2026  
 **Status**: 🚀 Active Development
+# SoC_full

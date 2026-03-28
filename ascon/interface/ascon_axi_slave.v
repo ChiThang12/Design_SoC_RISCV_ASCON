@@ -288,8 +288,10 @@ module ascon_axi_slave #(
             wr_len_lat    <= 8'h0;
             wr_beat_cnt   <= 8'h0;
             wr_wlast_lat  <= 1'b0;
-            wr_exec_data  <= 32'h0;
-            wr_exec_strb  <= 4'h0;
+            // NOTE: wr_exec_data / wr_exec_strb are combinational temporaries
+            // (blocking-assigned inside the WR_DATA branch). They must NOT be
+            // initialised here with <= to avoid mixing blocking and non-blocking
+            // assignments on the same variable (%Error-BLKANDNBLK).
             // Storage registers
             reg_mode      <= 2'h0;
             reg_irq_en    <= 3'h0;

@@ -12,6 +12,22 @@
 // Parameters:
 //   WIDTH : data width in bits
 //   DEPTH : number of entries (must be power of 2)
+//
+// [FIX] Split mem[] write from pointer reset into separate always blocks.
+//
+// Root cause of Yosys "Multiple edge sensitive events" error:
+//   The original write block `always @(posedge clk or negedge rst_n)` had
+//   BOTH `mem[wr_idx] <= din` AND `wr_ptr` reset inside it.  Yosys tries
+//   to infer $adff (async-reset DFF) for every signal in that sensitivity
+//   list, including the mem[] array.  RAM/ROM arrays cannot be synthesised
+//   as $adff; the tool hits an internal contradiction and aborts.
+//
+// Fix: mem[] lives in its own `always @(posedge clk)` block with NO reset
+//   branch.  This maps cleanly to a standard $dff / BRAM primitive.
+//   wr_ptr stays in its own `always @(posedge clk or negedge rst_n)` block
+//   so it still resets correctly.  Functional behaviour is unchanged:
+//   mem[] contents are undefined after rst_n but can never be consumed
+//   until wr_ptr advances, which only happens on a valid push.
 // ============================================================================
 
 module sync_fifo #(
@@ -56,17 +72,24 @@ module sync_fifo #(
     assign empty = (wr_ptr == rd_ptr);
     assign count = wr_ptr - rd_ptr;
 
-    // Write
+    // ── Write pointer — async reset, infers $adff ─────────────────────────
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
+        if (!rst_n)
             wr_ptr <= {(PTR_W+1){1'b0}};
-        end else if (push && !full) begin
-            mem[wr_idx] <= din;
-            wr_ptr      <= wr_ptr + 1'b1;
-        end
+        else if (push && !full)
+            wr_ptr <= wr_ptr + 1'b1;
     end
 
-    // Read
+    // ── Memory array — posedge clk ONLY, infers $dff / BRAM ──────────────
+    // [FIX] No negedge rst_n here: mem[] cannot be an $adff.
+    // Contents are undefined after reset but safe — wr_ptr == rd_ptr == 0
+    // (empty) so no pop can occur until a push writes valid data first.
+    always @(posedge clk) begin
+        if (push && !full)
+            mem[wr_idx] <= din;
+    end
+
+    // ── Read pointer and output — async reset, infers $adff ──────────────
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rd_ptr <= {(PTR_W+1){1'b0}};

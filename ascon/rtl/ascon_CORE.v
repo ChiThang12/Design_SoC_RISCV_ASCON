@@ -20,7 +20,7 @@
 // ============================================================
 `include "ascon/rtl/ascon_INITIALIZATION.v"
 `include "ascon/rtl/ascon_STATE_REGISTER.v"
-`include "ascon/rtl/ascon_DATAPATH.v"
+`include "ascon/rtl/ascon_datapath.v"
 `include "ascon/rtl/PERMUTATION/ascon_PERMUTATION.v"
 `include "ascon/rtl/ascon_TAG_GENERATOR.v"
 `include "ascon/rtl/ascon_TAG_COMPARATOR.v"
@@ -98,6 +98,35 @@ module ascon_CORE #(
     wire [127:0] tag_gen_out;
     wire         tag_gen_valid;
     wire         tag_cmp_match, tag_cmp_done;
+
+    // ----------------------------------------------------------------
+    // [FIX-UNOPTFLAT] Break combinational loop on ctrl_dp_pad_enable.
+    //
+    // Root cause:
+    //   CONTROLLER (comb always@*) drives ctrl_dp_pad_enable
+    //   → DATAPATH  (comb always@*) computes:
+    //       extra_pad_block_needed = pad_enable && (data_len == rate_bytes)
+    //   → dp_extra_pad wire feeds back directly into CONTROLLER comb block
+    //     (S_AD_LOAD / S_DATA_LOAD read extra_pad_block_needed to decide
+    //      the next value of dp_pad_enable) → pure combinational loop.
+    //
+    // Fix: register dp_extra_pad through one flip-flop here in CORE.
+    //   dp_extra_pad   — raw combinational output from DATAPATH  (wire)
+    //   dp_extra_pad_r — registered 1-cycle later               (reg)
+    //
+    // Timing: CONTROLLER only needs extra_pad_block_needed at the
+    //   S_AD_LOAD / S_DATA_LOAD states, which fire *after* the block
+    //   has already been presented and data_len is stable.  The 1-cycle
+    //   pipeline delay is absorbed by the FSM before it transitions.
+    // ----------------------------------------------------------------
+    reg dp_extra_pad_r;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            dp_extra_pad_r <= 1'b0;
+        else
+            dp_extra_pad_r <= dp_extra_pad;
+    end
 
     // ----------------------------------------------------------------
     // Key byte-swap (BE → LE)
@@ -238,7 +267,7 @@ module ascon_CORE #(
         .do_post_init_key_xor(ctrl_post_init_key_xor),
         .do_pre_fin_key_xor(ctrl_pre_fin_key_xor),
         .do_dom_sep(ctrl_dom_sep),
-        .extra_pad_block_needed(dp_extra_pad),
+        .extra_pad_block_needed(dp_extra_pad_r),  // [FIX-UNOPTFLAT] registered
         .init_done(init_valid), .perm_done(perm_done),
         .tag_gen_valid(tag_gen_valid), .tag_cmp_done(tag_cmp_done)
     );
