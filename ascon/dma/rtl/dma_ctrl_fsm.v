@@ -118,8 +118,20 @@ module dma_ctrl_fsm (
     // -------------------------------------------------------------------------
     // Main FSM
     // -------------------------------------------------------------------------
+    // [FIX-SOFTrst] dma_soft_rst is a level signal driven by firmware — it is
+    // NOT an asynchronous reset edge. Including it in the async-reset branch
+    // `if (!rst_n || dma_soft_rst)` forces Yosys to synthesise every register
+    // as $adff with two reset sources, which standard cell libraries cannot
+    // represent → "Multiple edge sensitive events" error.
+    //
+    // Fix: handle dma_soft_rst as a SYNCHRONOUS reset in the clocked (else)
+    // branch. rst_n stays asynchronous (negedge in sensitivity list).
+    // Functional behaviour is preserved: soft-reset takes effect on the very
+    // next rising clock edge after dma_soft_rst is asserted, which is the
+    // correct and intended behaviour for a software-triggered reset.
     always @(posedge clk or negedge rst_n) begin
-        if (!rst_n || dma_soft_rst) begin
+        if (!rst_n) begin
+            // Asynchronous power-on reset
             state                <= S_IDLE;
             dma_busy             <= 1'b0;
             dma_done             <= 1'b0;
@@ -141,6 +153,30 @@ module dma_ctrl_fsm (
             r_tag_0   <= 32'h0; r_tag_1   <= 32'h0;
             r_tag_2   <= 32'h0; r_tag_3   <= 32'h0;
         end else begin
+            // [FIX-SOFTRS] Synchronous soft-reset: same register set,
+            // handled on posedge clk so all flops remain plain $adff/$dff.
+            if (dma_soft_rst) begin
+                state                <= S_IDLE;
+                dma_busy             <= 1'b0;
+                dma_done             <= 1'b0;
+                dma_error            <= 1'b0;
+                rd_start             <= 1'b0;
+                rd_fifo_pop          <= 1'b0;
+                core_ptext_0         <= 32'h0;
+                core_ptext_1         <= 32'h0;
+                core_data_valid      <= 1'b0;
+                core_start           <= 1'b0;
+                wr_fifo_din          <= 32'h0;
+                wr_fifo_push         <= 1'b0;
+                wr_start             <= 1'b0;
+                wr_load_cnt          <= 3'd0;
+                status_rd_done       <= 1'b0;
+                status_wr_done       <= 1'b0;
+                status_fifo_overflow <= 1'b0;
+                r_ctext_0 <= 32'h0; r_ctext_1 <= 32'h0;
+                r_tag_0   <= 32'h0; r_tag_1   <= 32'h0;
+                r_tag_2   <= 32'h0; r_tag_3   <= 32'h0;
+            end else begin
             // Default: clear all 1-cycle pulse signals
             dma_done     <= 1'b0;
             rd_start     <= 1'b0;
@@ -291,7 +327,8 @@ module dma_ctrl_fsm (
                 default: state <= S_IDLE;
 
             endcase
-        end
-    end
+            end  // else: normal operation (not soft_rst)
+        end  // else: clocked (not async rst_n)
+    end  // always
 
 endmodule

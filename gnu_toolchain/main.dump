@@ -1,0 +1,1329 @@
+
+main.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+       0:	10002117          	auipc	x2,0x10002
+       4:	00010113          	addi	x2,x2,0 # 10002000 <__stack_top>
+       8:	00000013          	addi	x0,x0,0
+       c:	00000013          	addi	x0,x0,0
+      10:	00001297          	auipc	x5,0x1
+      14:	3e428293          	addi	x5,x5,996 # 13f4 <__data_load>
+      18:	10000317          	auipc	x6,0x10000
+      1c:	fe830313          	addi	x6,x6,-24 # 10000000 <__bss_end>
+      20:	10000397          	auipc	x7,0x10000
+      24:	fe038393          	addi	x7,x7,-32 # 10000000 <__bss_end>
+      28:	00730e63          	beq	x6,x7,44 <_copy_done>
+
+0000002c <_copy_data>:
+      2c:	00735c63          	bge	x6,x7,44 <_copy_done>
+      30:	0002ae03          	lw	x28,0(x5)
+      34:	01c32023          	sw	x28,0(x6)
+      38:	00428293          	addi	x5,x5,4
+      3c:	00430313          	addi	x6,x6,4
+      40:	fedff06f          	jal	x0,2c <_copy_data>
+
+00000044 <_copy_done>:
+      44:	10000297          	auipc	x5,0x10000
+      48:	fbc28293          	addi	x5,x5,-68 # 10000000 <__bss_end>
+      4c:	10000317          	auipc	x6,0x10000
+      50:	fb430313          	addi	x6,x6,-76 # 10000000 <__bss_end>
+
+00000054 <_clear_bss>:
+      54:	0062d863          	bge	x5,x6,64 <_bss_done>
+      58:	0002a023          	sw	x0,0(x5)
+      5c:	00428293          	addi	x5,x5,4
+      60:	ff5ff06f          	jal	x0,54 <_clear_bss>
+
+00000064 <_bss_done>:
+      64:	00001097          	auipc	x1,0x1
+      68:	070080e7          	jalr	x1,112(x1) # 10d4 <main>
+
+0000006c <_halt>:
+      6c:	0000006f          	jal	x0,6c <_halt>
+
+00000070 <ascon_read_status>:
+      70:	fe010113          	addi	x2,x2,-32
+      74:	00812e23          	sw	x8,28(x2)
+      78:	02010413          	addi	x8,x2,32
+      7c:	200007b7          	lui	x15,0x20000
+      80:	03c7a783          	lw	x15,60(x15) # 2000003c <__stack_top+0xfffe03c>
+      84:	fef42623          	sw	x15,-20(x8)
+      88:	fec42783          	lw	x15,-20(x8)
+      8c:	00078513          	addi	x10,x15,0
+      90:	01c12403          	lw	x8,28(x2)
+      94:	02010113          	addi	x2,x2,32
+      98:	00008067          	jalr	x0,0(x1)
+
+0000009c <uart_putc>:
+      9c:	fe010113          	addi	x2,x2,-32
+      a0:	00812e23          	sw	x8,28(x2)
+      a4:	02010413          	addi	x8,x2,32
+      a8:	00050793          	addi	x15,x10,0
+      ac:	fef407a3          	sb	x15,-17(x8)
+      b0:	500007b7          	lui	x15,0x50000
+      b4:	00478793          	addi	x15,x15,4 # 50000004 <__stack_top+0x3fffe004>
+      b8:	fef44703          	lbu	x14,-17(x8)
+      bc:	00e7a023          	sw	x14,0(x15)
+      c0:	0110000f          	fence	w,w
+      c4:	00000013          	addi	x0,x0,0
+      c8:	00000013          	addi	x0,x0,0
+      cc:	00000013          	addi	x0,x0,0
+      d0:	00000013          	addi	x0,x0,0
+      d4:	00000013          	addi	x0,x0,0
+      d8:	00000013          	addi	x0,x0,0
+      dc:	00000013          	addi	x0,x0,0
+      e0:	00000013          	addi	x0,x0,0
+      e4:	00000013          	addi	x0,x0,0
+      e8:	00000013          	addi	x0,x0,0
+      ec:	00000013          	addi	x0,x0,0
+      f0:	00000013          	addi	x0,x0,0
+      f4:	00000013          	addi	x0,x0,0
+      f8:	00000013          	addi	x0,x0,0
+      fc:	00000013          	addi	x0,x0,0
+     100:	00000013          	addi	x0,x0,0
+     104:	00000013          	addi	x0,x0,0
+     108:	01c12403          	lw	x8,28(x2)
+     10c:	02010113          	addi	x2,x2,32
+     110:	00008067          	jalr	x0,0(x1)
+
+00000114 <uart_puts>:
+     114:	fe010113          	addi	x2,x2,-32
+     118:	00112e23          	sw	x1,28(x2)
+     11c:	00812c23          	sw	x8,24(x2)
+     120:	02010413          	addi	x8,x2,32
+     124:	fea42623          	sw	x10,-20(x8)
+     128:	0200006f          	jal	x0,148 <uart_puts+0x34>
+     12c:	fec42783          	lw	x15,-20(x8)
+     130:	00178713          	addi	x14,x15,1
+     134:	fee42623          	sw	x14,-20(x8)
+     138:	0007c783          	lbu	x15,0(x15)
+     13c:	00078513          	addi	x10,x15,0
+     140:	00000097          	auipc	x1,0x0
+     144:	f5c080e7          	jalr	x1,-164(x1) # 9c <uart_putc>
+     148:	fec42783          	lw	x15,-20(x8)
+     14c:	0007c783          	lbu	x15,0(x15)
+     150:	fc079ee3          	bne	x15,x0,12c <uart_puts+0x18>
+     154:	00000013          	addi	x0,x0,0
+     158:	00000013          	addi	x0,x0,0
+     15c:	01c12083          	lw	x1,28(x2)
+     160:	01812403          	lw	x8,24(x2)
+     164:	02010113          	addi	x2,x2,32
+     168:	00008067          	jalr	x0,0(x1)
+
+0000016c <uart_puthex8>:
+     16c:	fd010113          	addi	x2,x2,-48
+     170:	02112623          	sw	x1,44(x2)
+     174:	02812423          	sw	x8,40(x2)
+     178:	03010413          	addi	x8,x2,48
+     17c:	00050793          	addi	x15,x10,0
+     180:	fcf40fa3          	sb	x15,-33(x8)
+     184:	000017b7          	lui	x15,0x1
+     188:	3b878793          	addi	x15,x15,952 # 13b8 <main+0x2e4>
+     18c:	fef42623          	sw	x15,-20(x8)
+     190:	fdf44783          	lbu	x15,-33(x8)
+     194:	0047d793          	srli	x15,x15,0x4
+     198:	0ff7f793          	andi	x15,x15,255
+     19c:	00f7f793          	andi	x15,x15,15
+     1a0:	fec42703          	lw	x14,-20(x8)
+     1a4:	00f707b3          	add	x15,x14,x15
+     1a8:	0007c783          	lbu	x15,0(x15)
+     1ac:	00078513          	addi	x10,x15,0
+     1b0:	00000097          	auipc	x1,0x0
+     1b4:	eec080e7          	jalr	x1,-276(x1) # 9c <uart_putc>
+     1b8:	fdf44783          	lbu	x15,-33(x8)
+     1bc:	00f7f793          	andi	x15,x15,15
+     1c0:	fec42703          	lw	x14,-20(x8)
+     1c4:	00f707b3          	add	x15,x14,x15
+     1c8:	0007c783          	lbu	x15,0(x15)
+     1cc:	00078513          	addi	x10,x15,0
+     1d0:	00000097          	auipc	x1,0x0
+     1d4:	ecc080e7          	jalr	x1,-308(x1) # 9c <uart_putc>
+     1d8:	00000013          	addi	x0,x0,0
+     1dc:	02c12083          	lw	x1,44(x2)
+     1e0:	02812403          	lw	x8,40(x2)
+     1e4:	03010113          	addi	x2,x2,48
+     1e8:	00008067          	jalr	x0,0(x1)
+
+000001ec <uart_puthex32>:
+     1ec:	fe010113          	addi	x2,x2,-32
+     1f0:	00112e23          	sw	x1,28(x2)
+     1f4:	00812c23          	sw	x8,24(x2)
+     1f8:	02010413          	addi	x8,x2,32
+     1fc:	fea42623          	sw	x10,-20(x8)
+     200:	fec42783          	lw	x15,-20(x8)
+     204:	0187d793          	srli	x15,x15,0x18
+     208:	0ff7f793          	andi	x15,x15,255
+     20c:	00078513          	addi	x10,x15,0
+     210:	00000097          	auipc	x1,0x0
+     214:	f5c080e7          	jalr	x1,-164(x1) # 16c <uart_puthex8>
+     218:	fec42783          	lw	x15,-20(x8)
+     21c:	0107d793          	srli	x15,x15,0x10
+     220:	0ff7f793          	andi	x15,x15,255
+     224:	00078513          	addi	x10,x15,0
+     228:	00000097          	auipc	x1,0x0
+     22c:	f44080e7          	jalr	x1,-188(x1) # 16c <uart_puthex8>
+     230:	fec42783          	lw	x15,-20(x8)
+     234:	0087d793          	srli	x15,x15,0x8
+     238:	0ff7f793          	andi	x15,x15,255
+     23c:	00078513          	addi	x10,x15,0
+     240:	00000097          	auipc	x1,0x0
+     244:	f2c080e7          	jalr	x1,-212(x1) # 16c <uart_puthex8>
+     248:	fec42783          	lw	x15,-20(x8)
+     24c:	0ff7f793          	andi	x15,x15,255
+     250:	00078513          	addi	x10,x15,0
+     254:	00000097          	auipc	x1,0x0
+     258:	f18080e7          	jalr	x1,-232(x1) # 16c <uart_puthex8>
+     25c:	00000013          	addi	x0,x0,0
+     260:	01c12083          	lw	x1,28(x2)
+     264:	01812403          	lw	x8,24(x2)
+     268:	02010113          	addi	x2,x2,32
+     26c:	00008067          	jalr	x0,0(x1)
+
+00000270 <step1_write_ptext_to_dmem>:
+     270:	ff010113          	addi	x2,x2,-16
+     274:	00812623          	sw	x8,12(x2)
+     278:	01010413          	addi	x8,x2,16
+     27c:	100007b7          	lui	x15,0x10000
+     280:	6c6c6737          	lui	x14,0x6c6c6
+     284:	54870713          	addi	x14,x14,1352 # 6c6c6548 <__stack_top+0x5c6c4548>
+     288:	00e7a023          	sw	x14,0(x15) # 10000000 <__bss_end>
+     28c:	100007b7          	lui	x15,0x10000
+     290:	00002737          	lui	x14,0x2
+     294:	16f70713          	addi	x14,x14,367 # 216f <__data_load+0xd7b>
+     298:	00e7a223          	sw	x14,4(x15) # 10000004 <__bss_end+0x4>
+     29c:	0110000f          	fence	w,w
+     2a0:	00000013          	addi	x0,x0,0
+     2a4:	00c12403          	lw	x8,12(x2)
+     2a8:	01010113          	addi	x2,x2,16
+     2ac:	00008067          	jalr	x0,0(x1)
+
+000002b0 <step2_reset_and_config>:
+     2b0:	fe010113          	addi	x2,x2,-32
+     2b4:	00112e23          	sw	x1,28(x2)
+     2b8:	00812c23          	sw	x8,24(x2)
+     2bc:	02010413          	addi	x8,x2,32
+     2c0:	200007b7          	lui	x15,0x20000
+     2c4:	00200713          	addi	x14,x0,2
+     2c8:	00e7a023          	sw	x14,0(x15) # 20000000 <__stack_top+0xfffe000>
+     2cc:	0110000f          	fence	w,w
+     2d0:	00000013          	addi	x0,x0,0
+     2d4:	00000013          	addi	x0,x0,0
+     2d8:	00000013          	addi	x0,x0,0
+     2dc:	00000013          	addi	x0,x0,0
+     2e0:	00000013          	addi	x0,x0,0
+     2e4:	00000013          	addi	x0,x0,0
+     2e8:	00000013          	addi	x0,x0,0
+     2ec:	00000013          	addi	x0,x0,0
+     2f0:	00000013          	addi	x0,x0,0
+     2f4:	00000013          	addi	x0,x0,0
+     2f8:	00000013          	addi	x0,x0,0
+     2fc:	00000013          	addi	x0,x0,0
+     300:	00000013          	addi	x0,x0,0
+     304:	00000013          	addi	x0,x0,0
+     308:	00000013          	addi	x0,x0,0
+     30c:	00000013          	addi	x0,x0,0
+     310:	00000013          	addi	x0,x0,0
+     314:	00000013          	addi	x0,x0,0
+     318:	00000013          	addi	x0,x0,0
+     31c:	00000013          	addi	x0,x0,0
+     320:	00000013          	addi	x0,x0,0
+     324:	00000013          	addi	x0,x0,0
+     328:	00000013          	addi	x0,x0,0
+     32c:	00000013          	addi	x0,x0,0
+     330:	00000013          	addi	x0,x0,0
+     334:	00000013          	addi	x0,x0,0
+     338:	00000013          	addi	x0,x0,0
+     33c:	00000013          	addi	x0,x0,0
+     340:	00000013          	addi	x0,x0,0
+     344:	00000013          	addi	x0,x0,0
+     348:	00000013          	addi	x0,x0,0
+     34c:	00000013          	addi	x0,x0,0
+     350:	00000013          	addi	x0,x0,0
+     354:	00000013          	addi	x0,x0,0
+     358:	00000013          	addi	x0,x0,0
+     35c:	00000013          	addi	x0,x0,0
+     360:	00000013          	addi	x0,x0,0
+     364:	00000013          	addi	x0,x0,0
+     368:	00000013          	addi	x0,x0,0
+     36c:	00000013          	addi	x0,x0,0
+     370:	00000013          	addi	x0,x0,0
+     374:	00000013          	addi	x0,x0,0
+     378:	00000013          	addi	x0,x0,0
+     37c:	00000013          	addi	x0,x0,0
+     380:	00000013          	addi	x0,x0,0
+     384:	00000013          	addi	x0,x0,0
+     388:	00000013          	addi	x0,x0,0
+     38c:	00000013          	addi	x0,x0,0
+     390:	00000013          	addi	x0,x0,0
+     394:	00000013          	addi	x0,x0,0
+     398:	00000013          	addi	x0,x0,0
+     39c:	00000013          	addi	x0,x0,0
+     3a0:	00000013          	addi	x0,x0,0
+     3a4:	00000013          	addi	x0,x0,0
+     3a8:	00000013          	addi	x0,x0,0
+     3ac:	00000013          	addi	x0,x0,0
+     3b0:	00000013          	addi	x0,x0,0
+     3b4:	00000013          	addi	x0,x0,0
+     3b8:	00000013          	addi	x0,x0,0
+     3bc:	00000013          	addi	x0,x0,0
+     3c0:	00000013          	addi	x0,x0,0
+     3c4:	00000013          	addi	x0,x0,0
+     3c8:	00000013          	addi	x0,x0,0
+     3cc:	00000013          	addi	x0,x0,0
+     3d0:	00000013          	addi	x0,x0,0
+     3d4:	00000013          	addi	x0,x0,0
+     3d8:	00000013          	addi	x0,x0,0
+     3dc:	00000013          	addi	x0,x0,0
+     3e0:	00000013          	addi	x0,x0,0
+     3e4:	00000013          	addi	x0,x0,0
+     3e8:	00000013          	addi	x0,x0,0
+     3ec:	00000013          	addi	x0,x0,0
+     3f0:	00000013          	addi	x0,x0,0
+     3f4:	00000013          	addi	x0,x0,0
+     3f8:	00000013          	addi	x0,x0,0
+     3fc:	00000013          	addi	x0,x0,0
+     400:	00000013          	addi	x0,x0,0
+     404:	00000013          	addi	x0,x0,0
+     408:	00000013          	addi	x0,x0,0
+     40c:	00000013          	addi	x0,x0,0
+     410:	00000013          	addi	x0,x0,0
+     414:	00000013          	addi	x0,x0,0
+     418:	00000013          	addi	x0,x0,0
+     41c:	00000013          	addi	x0,x0,0
+     420:	00000013          	addi	x0,x0,0
+     424:	00000013          	addi	x0,x0,0
+     428:	00000013          	addi	x0,x0,0
+     42c:	00000013          	addi	x0,x0,0
+     430:	00000013          	addi	x0,x0,0
+     434:	00000013          	addi	x0,x0,0
+     438:	00000013          	addi	x0,x0,0
+     43c:	00000013          	addi	x0,x0,0
+     440:	00000013          	addi	x0,x0,0
+     444:	00000013          	addi	x0,x0,0
+     448:	00000013          	addi	x0,x0,0
+     44c:	00000013          	addi	x0,x0,0
+     450:	10000793          	addi	x15,x0,256
+     454:	fef42623          	sw	x15,-20(x8)
+     458:	00000097          	auipc	x1,0x0
+     45c:	c18080e7          	jalr	x1,-1000(x1) # 70 <ascon_read_status>
+     460:	fea42423          	sw	x10,-24(x8)
+     464:	fe842783          	lw	x15,-24(x8)
+     468:	0017f793          	andi	x15,x15,1
+     46c:	02078663          	beq	x15,x0,498 <step2_reset_and_config+0x1e8>
+     470:	00000013          	addi	x0,x0,0
+     474:	00000013          	addi	x0,x0,0
+     478:	00000013          	addi	x0,x0,0
+     47c:	00000013          	addi	x0,x0,0
+     480:	fec42783          	lw	x15,-20(x8)
+     484:	fff78793          	addi	x15,x15,-1
+     488:	fef42623          	sw	x15,-20(x8)
+     48c:	fec42783          	lw	x15,-20(x8)
+     490:	fc0794e3          	bne	x15,x0,458 <step2_reset_and_config+0x1a8>
+     494:	0080006f          	jal	x0,49c <step2_reset_and_config+0x1ec>
+     498:	00000013          	addi	x0,x0,0
+     49c:	fe842783          	lw	x15,-24(x8)
+     4a0:	0017f793          	andi	x15,x15,1
+     4a4:	02078463          	beq	x15,x0,4cc <step2_reset_and_config+0x21c>
+     4a8:	100007b7          	lui	x15,0x10000
+     4ac:	fe842703          	lw	x14,-24(x8)
+     4b0:	04e7aa23          	sw	x14,84(x15) # 10000054 <__bss_end+0x54>
+     4b4:	100007b7          	lui	x15,0x10000
+     4b8:	ffd00713          	addi	x14,x0,-3
+     4bc:	04e7ac23          	sw	x14,88(x15) # 10000058 <__bss_end+0x58>
+     4c0:	0110000f          	fence	w,w
+     4c4:	ffd00793          	addi	x15,x0,-3
+     4c8:	6540006f          	jal	x0,b1c <step2_reset_and_config+0x86c>
+     4cc:	200007b7          	lui	x15,0x20000
+     4d0:	00100713          	addi	x14,x0,1
+     4d4:	00e7a223          	sw	x14,4(x15) # 20000004 <__stack_top+0xfffe004>
+     4d8:	0110000f          	fence	w,w
+     4dc:	00000013          	addi	x0,x0,0
+     4e0:	00000013          	addi	x0,x0,0
+     4e4:	00000013          	addi	x0,x0,0
+     4e8:	00000013          	addi	x0,x0,0
+     4ec:	00000013          	addi	x0,x0,0
+     4f0:	00000013          	addi	x0,x0,0
+     4f4:	00000013          	addi	x0,x0,0
+     4f8:	00000013          	addi	x0,x0,0
+     4fc:	00000013          	addi	x0,x0,0
+     500:	00000013          	addi	x0,x0,0
+     504:	00000013          	addi	x0,x0,0
+     508:	00000013          	addi	x0,x0,0
+     50c:	00000013          	addi	x0,x0,0
+     510:	00000013          	addi	x0,x0,0
+     514:	00000013          	addi	x0,x0,0
+     518:	00000013          	addi	x0,x0,0
+     51c:	00000013          	addi	x0,x0,0
+     520:	00000013          	addi	x0,x0,0
+     524:	00000013          	addi	x0,x0,0
+     528:	00000013          	addi	x0,x0,0
+     52c:	00000013          	addi	x0,x0,0
+     530:	00000013          	addi	x0,x0,0
+     534:	00000013          	addi	x0,x0,0
+     538:	00000013          	addi	x0,x0,0
+     53c:	00000013          	addi	x0,x0,0
+     540:	00000013          	addi	x0,x0,0
+     544:	00000013          	addi	x0,x0,0
+     548:	00000013          	addi	x0,x0,0
+     54c:	00000013          	addi	x0,x0,0
+     550:	00000013          	addi	x0,x0,0
+     554:	00000013          	addi	x0,x0,0
+     558:	00000013          	addi	x0,x0,0
+     55c:	200007b7          	lui	x15,0x20000
+     560:	0007a423          	sw	x0,8(x15) # 20000008 <__stack_top+0xfffe008>
+     564:	0110000f          	fence	w,w
+     568:	00000013          	addi	x0,x0,0
+     56c:	00000013          	addi	x0,x0,0
+     570:	00000013          	addi	x0,x0,0
+     574:	00000013          	addi	x0,x0,0
+     578:	00000013          	addi	x0,x0,0
+     57c:	00000013          	addi	x0,x0,0
+     580:	00000013          	addi	x0,x0,0
+     584:	00000013          	addi	x0,x0,0
+     588:	00000013          	addi	x0,x0,0
+     58c:	00000013          	addi	x0,x0,0
+     590:	00000013          	addi	x0,x0,0
+     594:	00000013          	addi	x0,x0,0
+     598:	00000013          	addi	x0,x0,0
+     59c:	00000013          	addi	x0,x0,0
+     5a0:	00000013          	addi	x0,x0,0
+     5a4:	00000013          	addi	x0,x0,0
+     5a8:	00000013          	addi	x0,x0,0
+     5ac:	00000013          	addi	x0,x0,0
+     5b0:	00000013          	addi	x0,x0,0
+     5b4:	00000013          	addi	x0,x0,0
+     5b8:	00000013          	addi	x0,x0,0
+     5bc:	00000013          	addi	x0,x0,0
+     5c0:	00000013          	addi	x0,x0,0
+     5c4:	00000013          	addi	x0,x0,0
+     5c8:	00000013          	addi	x0,x0,0
+     5cc:	00000013          	addi	x0,x0,0
+     5d0:	00000013          	addi	x0,x0,0
+     5d4:	00000013          	addi	x0,x0,0
+     5d8:	00000013          	addi	x0,x0,0
+     5dc:	00000013          	addi	x0,x0,0
+     5e0:	00000013          	addi	x0,x0,0
+     5e4:	00000013          	addi	x0,x0,0
+     5e8:	200007b7          	lui	x15,0x20000
+     5ec:	00112737          	lui	x14,0x112
+     5f0:	23370713          	addi	x14,x14,563 # 112233 <__data_load+0x110e3f>
+     5f4:	00e7a823          	sw	x14,16(x15) # 20000010 <__stack_top+0xfffe010>
+     5f8:	0110000f          	fence	w,w
+     5fc:	00000013          	addi	x0,x0,0
+     600:	00000013          	addi	x0,x0,0
+     604:	00000013          	addi	x0,x0,0
+     608:	00000013          	addi	x0,x0,0
+     60c:	00000013          	addi	x0,x0,0
+     610:	00000013          	addi	x0,x0,0
+     614:	00000013          	addi	x0,x0,0
+     618:	00000013          	addi	x0,x0,0
+     61c:	00000013          	addi	x0,x0,0
+     620:	00000013          	addi	x0,x0,0
+     624:	00000013          	addi	x0,x0,0
+     628:	00000013          	addi	x0,x0,0
+     62c:	00000013          	addi	x0,x0,0
+     630:	00000013          	addi	x0,x0,0
+     634:	00000013          	addi	x0,x0,0
+     638:	00000013          	addi	x0,x0,0
+     63c:	00000013          	addi	x0,x0,0
+     640:	00000013          	addi	x0,x0,0
+     644:	00000013          	addi	x0,x0,0
+     648:	00000013          	addi	x0,x0,0
+     64c:	00000013          	addi	x0,x0,0
+     650:	00000013          	addi	x0,x0,0
+     654:	00000013          	addi	x0,x0,0
+     658:	00000013          	addi	x0,x0,0
+     65c:	00000013          	addi	x0,x0,0
+     660:	00000013          	addi	x0,x0,0
+     664:	00000013          	addi	x0,x0,0
+     668:	00000013          	addi	x0,x0,0
+     66c:	00000013          	addi	x0,x0,0
+     670:	00000013          	addi	x0,x0,0
+     674:	00000013          	addi	x0,x0,0
+     678:	00000013          	addi	x0,x0,0
+     67c:	200007b7          	lui	x15,0x20000
+     680:	44556737          	lui	x14,0x44556
+     684:	67770713          	addi	x14,x14,1655 # 44556677 <__stack_top+0x34554677>
+     688:	00e7aa23          	sw	x14,20(x15) # 20000014 <__stack_top+0xfffe014>
+     68c:	0110000f          	fence	w,w
+     690:	00000013          	addi	x0,x0,0
+     694:	00000013          	addi	x0,x0,0
+     698:	00000013          	addi	x0,x0,0
+     69c:	00000013          	addi	x0,x0,0
+     6a0:	00000013          	addi	x0,x0,0
+     6a4:	00000013          	addi	x0,x0,0
+     6a8:	00000013          	addi	x0,x0,0
+     6ac:	00000013          	addi	x0,x0,0
+     6b0:	00000013          	addi	x0,x0,0
+     6b4:	00000013          	addi	x0,x0,0
+     6b8:	00000013          	addi	x0,x0,0
+     6bc:	00000013          	addi	x0,x0,0
+     6c0:	00000013          	addi	x0,x0,0
+     6c4:	00000013          	addi	x0,x0,0
+     6c8:	00000013          	addi	x0,x0,0
+     6cc:	00000013          	addi	x0,x0,0
+     6d0:	00000013          	addi	x0,x0,0
+     6d4:	00000013          	addi	x0,x0,0
+     6d8:	00000013          	addi	x0,x0,0
+     6dc:	00000013          	addi	x0,x0,0
+     6e0:	00000013          	addi	x0,x0,0
+     6e4:	00000013          	addi	x0,x0,0
+     6e8:	00000013          	addi	x0,x0,0
+     6ec:	00000013          	addi	x0,x0,0
+     6f0:	00000013          	addi	x0,x0,0
+     6f4:	00000013          	addi	x0,x0,0
+     6f8:	00000013          	addi	x0,x0,0
+     6fc:	00000013          	addi	x0,x0,0
+     700:	00000013          	addi	x0,x0,0
+     704:	00000013          	addi	x0,x0,0
+     708:	00000013          	addi	x0,x0,0
+     70c:	00000013          	addi	x0,x0,0
+     710:	200007b7          	lui	x15,0x20000
+     714:	8899b737          	lui	x14,0x8899b
+     718:	abb70713          	addi	x14,x14,-1349 # 8899aabb <__stack_top+0x78998abb>
+     71c:	00e7ac23          	sw	x14,24(x15) # 20000018 <__stack_top+0xfffe018>
+     720:	0110000f          	fence	w,w
+     724:	00000013          	addi	x0,x0,0
+     728:	00000013          	addi	x0,x0,0
+     72c:	00000013          	addi	x0,x0,0
+     730:	00000013          	addi	x0,x0,0
+     734:	00000013          	addi	x0,x0,0
+     738:	00000013          	addi	x0,x0,0
+     73c:	00000013          	addi	x0,x0,0
+     740:	00000013          	addi	x0,x0,0
+     744:	00000013          	addi	x0,x0,0
+     748:	00000013          	addi	x0,x0,0
+     74c:	00000013          	addi	x0,x0,0
+     750:	00000013          	addi	x0,x0,0
+     754:	00000013          	addi	x0,x0,0
+     758:	00000013          	addi	x0,x0,0
+     75c:	00000013          	addi	x0,x0,0
+     760:	00000013          	addi	x0,x0,0
+     764:	00000013          	addi	x0,x0,0
+     768:	00000013          	addi	x0,x0,0
+     76c:	00000013          	addi	x0,x0,0
+     770:	00000013          	addi	x0,x0,0
+     774:	00000013          	addi	x0,x0,0
+     778:	00000013          	addi	x0,x0,0
+     77c:	00000013          	addi	x0,x0,0
+     780:	00000013          	addi	x0,x0,0
+     784:	00000013          	addi	x0,x0,0
+     788:	00000013          	addi	x0,x0,0
+     78c:	00000013          	addi	x0,x0,0
+     790:	00000013          	addi	x0,x0,0
+     794:	00000013          	addi	x0,x0,0
+     798:	00000013          	addi	x0,x0,0
+     79c:	00000013          	addi	x0,x0,0
+     7a0:	00000013          	addi	x0,x0,0
+     7a4:	200007b7          	lui	x15,0x20000
+     7a8:	ccddf737          	lui	x14,0xccddf
+     7ac:	eff70713          	addi	x14,x14,-257 # ccddeeff <__stack_top+0xbcddceff>
+     7b0:	00e7ae23          	sw	x14,28(x15) # 2000001c <__stack_top+0xfffe01c>
+     7b4:	0110000f          	fence	w,w
+     7b8:	00000013          	addi	x0,x0,0
+     7bc:	00000013          	addi	x0,x0,0
+     7c0:	00000013          	addi	x0,x0,0
+     7c4:	00000013          	addi	x0,x0,0
+     7c8:	00000013          	addi	x0,x0,0
+     7cc:	00000013          	addi	x0,x0,0
+     7d0:	00000013          	addi	x0,x0,0
+     7d4:	00000013          	addi	x0,x0,0
+     7d8:	00000013          	addi	x0,x0,0
+     7dc:	00000013          	addi	x0,x0,0
+     7e0:	00000013          	addi	x0,x0,0
+     7e4:	00000013          	addi	x0,x0,0
+     7e8:	00000013          	addi	x0,x0,0
+     7ec:	00000013          	addi	x0,x0,0
+     7f0:	00000013          	addi	x0,x0,0
+     7f4:	00000013          	addi	x0,x0,0
+     7f8:	00000013          	addi	x0,x0,0
+     7fc:	00000013          	addi	x0,x0,0
+     800:	00000013          	addi	x0,x0,0
+     804:	00000013          	addi	x0,x0,0
+     808:	00000013          	addi	x0,x0,0
+     80c:	00000013          	addi	x0,x0,0
+     810:	00000013          	addi	x0,x0,0
+     814:	00000013          	addi	x0,x0,0
+     818:	00000013          	addi	x0,x0,0
+     81c:	00000013          	addi	x0,x0,0
+     820:	00000013          	addi	x0,x0,0
+     824:	00000013          	addi	x0,x0,0
+     828:	00000013          	addi	x0,x0,0
+     82c:	00000013          	addi	x0,x0,0
+     830:	00000013          	addi	x0,x0,0
+     834:	00000013          	addi	x0,x0,0
+     838:	200007b7          	lui	x15,0x20000
+     83c:	deadc737          	lui	x14,0xdeadc
+     840:	eef70713          	addi	x14,x14,-273 # deadbeef <__stack_top+0xcead9eef>
+     844:	02e7a023          	sw	x14,32(x15) # 20000020 <__stack_top+0xfffe020>
+     848:	0110000f          	fence	w,w
+     84c:	00000013          	addi	x0,x0,0
+     850:	00000013          	addi	x0,x0,0
+     854:	00000013          	addi	x0,x0,0
+     858:	00000013          	addi	x0,x0,0
+     85c:	00000013          	addi	x0,x0,0
+     860:	00000013          	addi	x0,x0,0
+     864:	00000013          	addi	x0,x0,0
+     868:	00000013          	addi	x0,x0,0
+     86c:	00000013          	addi	x0,x0,0
+     870:	00000013          	addi	x0,x0,0
+     874:	00000013          	addi	x0,x0,0
+     878:	00000013          	addi	x0,x0,0
+     87c:	00000013          	addi	x0,x0,0
+     880:	00000013          	addi	x0,x0,0
+     884:	00000013          	addi	x0,x0,0
+     888:	00000013          	addi	x0,x0,0
+     88c:	00000013          	addi	x0,x0,0
+     890:	00000013          	addi	x0,x0,0
+     894:	00000013          	addi	x0,x0,0
+     898:	00000013          	addi	x0,x0,0
+     89c:	00000013          	addi	x0,x0,0
+     8a0:	00000013          	addi	x0,x0,0
+     8a4:	00000013          	addi	x0,x0,0
+     8a8:	00000013          	addi	x0,x0,0
+     8ac:	00000013          	addi	x0,x0,0
+     8b0:	00000013          	addi	x0,x0,0
+     8b4:	00000013          	addi	x0,x0,0
+     8b8:	00000013          	addi	x0,x0,0
+     8bc:	00000013          	addi	x0,x0,0
+     8c0:	00000013          	addi	x0,x0,0
+     8c4:	00000013          	addi	x0,x0,0
+     8c8:	00000013          	addi	x0,x0,0
+     8cc:	200007b7          	lui	x15,0x20000
+     8d0:	cafec737          	lui	x14,0xcafec
+     8d4:	abe70713          	addi	x14,x14,-1346 # cafebabe <__stack_top+0xbafe9abe>
+     8d8:	02e7a223          	sw	x14,36(x15) # 20000024 <__stack_top+0xfffe024>
+     8dc:	0110000f          	fence	w,w
+     8e0:	00000013          	addi	x0,x0,0
+     8e4:	00000013          	addi	x0,x0,0
+     8e8:	00000013          	addi	x0,x0,0
+     8ec:	00000013          	addi	x0,x0,0
+     8f0:	00000013          	addi	x0,x0,0
+     8f4:	00000013          	addi	x0,x0,0
+     8f8:	00000013          	addi	x0,x0,0
+     8fc:	00000013          	addi	x0,x0,0
+     900:	00000013          	addi	x0,x0,0
+     904:	00000013          	addi	x0,x0,0
+     908:	00000013          	addi	x0,x0,0
+     90c:	00000013          	addi	x0,x0,0
+     910:	00000013          	addi	x0,x0,0
+     914:	00000013          	addi	x0,x0,0
+     918:	00000013          	addi	x0,x0,0
+     91c:	00000013          	addi	x0,x0,0
+     920:	00000013          	addi	x0,x0,0
+     924:	00000013          	addi	x0,x0,0
+     928:	00000013          	addi	x0,x0,0
+     92c:	00000013          	addi	x0,x0,0
+     930:	00000013          	addi	x0,x0,0
+     934:	00000013          	addi	x0,x0,0
+     938:	00000013          	addi	x0,x0,0
+     93c:	00000013          	addi	x0,x0,0
+     940:	00000013          	addi	x0,x0,0
+     944:	00000013          	addi	x0,x0,0
+     948:	00000013          	addi	x0,x0,0
+     94c:	00000013          	addi	x0,x0,0
+     950:	00000013          	addi	x0,x0,0
+     954:	00000013          	addi	x0,x0,0
+     958:	00000013          	addi	x0,x0,0
+     95c:	00000013          	addi	x0,x0,0
+     960:	200007b7          	lui	x15,0x20000
+     964:	01234737          	lui	x14,0x1234
+     968:	56770713          	addi	x14,x14,1383 # 1234567 <__data_load+0x1233173>
+     96c:	02e7a423          	sw	x14,40(x15) # 20000028 <__stack_top+0xfffe028>
+     970:	0110000f          	fence	w,w
+     974:	00000013          	addi	x0,x0,0
+     978:	00000013          	addi	x0,x0,0
+     97c:	00000013          	addi	x0,x0,0
+     980:	00000013          	addi	x0,x0,0
+     984:	00000013          	addi	x0,x0,0
+     988:	00000013          	addi	x0,x0,0
+     98c:	00000013          	addi	x0,x0,0
+     990:	00000013          	addi	x0,x0,0
+     994:	00000013          	addi	x0,x0,0
+     998:	00000013          	addi	x0,x0,0
+     99c:	00000013          	addi	x0,x0,0
+     9a0:	00000013          	addi	x0,x0,0
+     9a4:	00000013          	addi	x0,x0,0
+     9a8:	00000013          	addi	x0,x0,0
+     9ac:	00000013          	addi	x0,x0,0
+     9b0:	00000013          	addi	x0,x0,0
+     9b4:	00000013          	addi	x0,x0,0
+     9b8:	00000013          	addi	x0,x0,0
+     9bc:	00000013          	addi	x0,x0,0
+     9c0:	00000013          	addi	x0,x0,0
+     9c4:	00000013          	addi	x0,x0,0
+     9c8:	00000013          	addi	x0,x0,0
+     9cc:	00000013          	addi	x0,x0,0
+     9d0:	00000013          	addi	x0,x0,0
+     9d4:	00000013          	addi	x0,x0,0
+     9d8:	00000013          	addi	x0,x0,0
+     9dc:	00000013          	addi	x0,x0,0
+     9e0:	00000013          	addi	x0,x0,0
+     9e4:	00000013          	addi	x0,x0,0
+     9e8:	00000013          	addi	x0,x0,0
+     9ec:	00000013          	addi	x0,x0,0
+     9f0:	00000013          	addi	x0,x0,0
+     9f4:	200007b7          	lui	x15,0x20000
+     9f8:	89abd737          	lui	x14,0x89abd
+     9fc:	def70713          	addi	x14,x14,-529 # 89abcdef <__stack_top+0x79abadef>
+     a00:	02e7a623          	sw	x14,44(x15) # 2000002c <__stack_top+0xfffe02c>
+     a04:	0110000f          	fence	w,w
+     a08:	00000013          	addi	x0,x0,0
+     a0c:	00000013          	addi	x0,x0,0
+     a10:	00000013          	addi	x0,x0,0
+     a14:	00000013          	addi	x0,x0,0
+     a18:	00000013          	addi	x0,x0,0
+     a1c:	00000013          	addi	x0,x0,0
+     a20:	00000013          	addi	x0,x0,0
+     a24:	00000013          	addi	x0,x0,0
+     a28:	00000013          	addi	x0,x0,0
+     a2c:	00000013          	addi	x0,x0,0
+     a30:	00000013          	addi	x0,x0,0
+     a34:	00000013          	addi	x0,x0,0
+     a38:	00000013          	addi	x0,x0,0
+     a3c:	00000013          	addi	x0,x0,0
+     a40:	00000013          	addi	x0,x0,0
+     a44:	00000013          	addi	x0,x0,0
+     a48:	00000013          	addi	x0,x0,0
+     a4c:	00000013          	addi	x0,x0,0
+     a50:	00000013          	addi	x0,x0,0
+     a54:	00000013          	addi	x0,x0,0
+     a58:	00000013          	addi	x0,x0,0
+     a5c:	00000013          	addi	x0,x0,0
+     a60:	00000013          	addi	x0,x0,0
+     a64:	00000013          	addi	x0,x0,0
+     a68:	00000013          	addi	x0,x0,0
+     a6c:	00000013          	addi	x0,x0,0
+     a70:	00000013          	addi	x0,x0,0
+     a74:	00000013          	addi	x0,x0,0
+     a78:	00000013          	addi	x0,x0,0
+     a7c:	00000013          	addi	x0,x0,0
+     a80:	00000013          	addi	x0,x0,0
+     a84:	00000013          	addi	x0,x0,0
+     a88:	200007b7          	lui	x15,0x20000
+     a8c:	00800713          	addi	x14,x0,8
+     a90:	02e7a823          	sw	x14,48(x15) # 20000030 <__stack_top+0xfffe030>
+     a94:	0110000f          	fence	w,w
+     a98:	00000013          	addi	x0,x0,0
+     a9c:	00000013          	addi	x0,x0,0
+     aa0:	00000013          	addi	x0,x0,0
+     aa4:	00000013          	addi	x0,x0,0
+     aa8:	00000013          	addi	x0,x0,0
+     aac:	00000013          	addi	x0,x0,0
+     ab0:	00000013          	addi	x0,x0,0
+     ab4:	00000013          	addi	x0,x0,0
+     ab8:	00000013          	addi	x0,x0,0
+     abc:	00000013          	addi	x0,x0,0
+     ac0:	00000013          	addi	x0,x0,0
+     ac4:	00000013          	addi	x0,x0,0
+     ac8:	00000013          	addi	x0,x0,0
+     acc:	00000013          	addi	x0,x0,0
+     ad0:	00000013          	addi	x0,x0,0
+     ad4:	00000013          	addi	x0,x0,0
+     ad8:	00000013          	addi	x0,x0,0
+     adc:	00000013          	addi	x0,x0,0
+     ae0:	00000013          	addi	x0,x0,0
+     ae4:	00000013          	addi	x0,x0,0
+     ae8:	00000013          	addi	x0,x0,0
+     aec:	00000013          	addi	x0,x0,0
+     af0:	00000013          	addi	x0,x0,0
+     af4:	00000013          	addi	x0,x0,0
+     af8:	00000013          	addi	x0,x0,0
+     afc:	00000013          	addi	x0,x0,0
+     b00:	00000013          	addi	x0,x0,0
+     b04:	00000013          	addi	x0,x0,0
+     b08:	00000013          	addi	x0,x0,0
+     b0c:	00000013          	addi	x0,x0,0
+     b10:	00000013          	addi	x0,x0,0
+     b14:	00000013          	addi	x0,x0,0
+     b18:	00000793          	addi	x15,x0,0
+     b1c:	00078513          	addi	x10,x15,0
+     b20:	01c12083          	lw	x1,28(x2)
+     b24:	01812403          	lw	x8,24(x2)
+     b28:	02010113          	addi	x2,x2,32
+     b2c:	00008067          	jalr	x0,0(x1)
+
+00000b30 <step3_kick_dma>:
+     b30:	ff010113          	addi	x2,x2,-16
+     b34:	00812623          	sw	x8,12(x2)
+     b38:	01010413          	addi	x8,x2,16
+     b3c:	200007b7          	lui	x15,0x20000
+     b40:	10000737          	lui	x14,0x10000
+     b44:	10e7a023          	sw	x14,256(x15) # 20000100 <__stack_top+0xfffe100>
+     b48:	0110000f          	fence	w,w
+     b4c:	00000013          	addi	x0,x0,0
+     b50:	00000013          	addi	x0,x0,0
+     b54:	00000013          	addi	x0,x0,0
+     b58:	00000013          	addi	x0,x0,0
+     b5c:	00000013          	addi	x0,x0,0
+     b60:	00000013          	addi	x0,x0,0
+     b64:	00000013          	addi	x0,x0,0
+     b68:	00000013          	addi	x0,x0,0
+     b6c:	00000013          	addi	x0,x0,0
+     b70:	00000013          	addi	x0,x0,0
+     b74:	00000013          	addi	x0,x0,0
+     b78:	00000013          	addi	x0,x0,0
+     b7c:	00000013          	addi	x0,x0,0
+     b80:	00000013          	addi	x0,x0,0
+     b84:	00000013          	addi	x0,x0,0
+     b88:	00000013          	addi	x0,x0,0
+     b8c:	00000013          	addi	x0,x0,0
+     b90:	00000013          	addi	x0,x0,0
+     b94:	00000013          	addi	x0,x0,0
+     b98:	00000013          	addi	x0,x0,0
+     b9c:	00000013          	addi	x0,x0,0
+     ba0:	00000013          	addi	x0,x0,0
+     ba4:	00000013          	addi	x0,x0,0
+     ba8:	00000013          	addi	x0,x0,0
+     bac:	00000013          	addi	x0,x0,0
+     bb0:	00000013          	addi	x0,x0,0
+     bb4:	00000013          	addi	x0,x0,0
+     bb8:	00000013          	addi	x0,x0,0
+     bbc:	00000013          	addi	x0,x0,0
+     bc0:	00000013          	addi	x0,x0,0
+     bc4:	00000013          	addi	x0,x0,0
+     bc8:	00000013          	addi	x0,x0,0
+     bcc:	200007b7          	lui	x15,0x20000
+     bd0:	10000737          	lui	x14,0x10000
+     bd4:	01070713          	addi	x14,x14,16 # 10000010 <__bss_end+0x10>
+     bd8:	10e7a223          	sw	x14,260(x15) # 20000104 <__stack_top+0xfffe104>
+     bdc:	0110000f          	fence	w,w
+     be0:	00000013          	addi	x0,x0,0
+     be4:	00000013          	addi	x0,x0,0
+     be8:	00000013          	addi	x0,x0,0
+     bec:	00000013          	addi	x0,x0,0
+     bf0:	00000013          	addi	x0,x0,0
+     bf4:	00000013          	addi	x0,x0,0
+     bf8:	00000013          	addi	x0,x0,0
+     bfc:	00000013          	addi	x0,x0,0
+     c00:	00000013          	addi	x0,x0,0
+     c04:	00000013          	addi	x0,x0,0
+     c08:	00000013          	addi	x0,x0,0
+     c0c:	00000013          	addi	x0,x0,0
+     c10:	00000013          	addi	x0,x0,0
+     c14:	00000013          	addi	x0,x0,0
+     c18:	00000013          	addi	x0,x0,0
+     c1c:	00000013          	addi	x0,x0,0
+     c20:	00000013          	addi	x0,x0,0
+     c24:	00000013          	addi	x0,x0,0
+     c28:	00000013          	addi	x0,x0,0
+     c2c:	00000013          	addi	x0,x0,0
+     c30:	00000013          	addi	x0,x0,0
+     c34:	00000013          	addi	x0,x0,0
+     c38:	00000013          	addi	x0,x0,0
+     c3c:	00000013          	addi	x0,x0,0
+     c40:	00000013          	addi	x0,x0,0
+     c44:	00000013          	addi	x0,x0,0
+     c48:	00000013          	addi	x0,x0,0
+     c4c:	00000013          	addi	x0,x0,0
+     c50:	00000013          	addi	x0,x0,0
+     c54:	00000013          	addi	x0,x0,0
+     c58:	00000013          	addi	x0,x0,0
+     c5c:	00000013          	addi	x0,x0,0
+     c60:	200007b7          	lui	x15,0x20000
+     c64:	00800713          	addi	x14,x0,8
+     c68:	10e7a423          	sw	x14,264(x15) # 20000108 <__stack_top+0xfffe108>
+     c6c:	0110000f          	fence	w,w
+     c70:	00000013          	addi	x0,x0,0
+     c74:	00000013          	addi	x0,x0,0
+     c78:	00000013          	addi	x0,x0,0
+     c7c:	00000013          	addi	x0,x0,0
+     c80:	00000013          	addi	x0,x0,0
+     c84:	00000013          	addi	x0,x0,0
+     c88:	00000013          	addi	x0,x0,0
+     c8c:	00000013          	addi	x0,x0,0
+     c90:	00000013          	addi	x0,x0,0
+     c94:	00000013          	addi	x0,x0,0
+     c98:	00000013          	addi	x0,x0,0
+     c9c:	00000013          	addi	x0,x0,0
+     ca0:	00000013          	addi	x0,x0,0
+     ca4:	00000013          	addi	x0,x0,0
+     ca8:	00000013          	addi	x0,x0,0
+     cac:	00000013          	addi	x0,x0,0
+     cb0:	00000013          	addi	x0,x0,0
+     cb4:	00000013          	addi	x0,x0,0
+     cb8:	00000013          	addi	x0,x0,0
+     cbc:	00000013          	addi	x0,x0,0
+     cc0:	00000013          	addi	x0,x0,0
+     cc4:	00000013          	addi	x0,x0,0
+     cc8:	00000013          	addi	x0,x0,0
+     ccc:	00000013          	addi	x0,x0,0
+     cd0:	00000013          	addi	x0,x0,0
+     cd4:	00000013          	addi	x0,x0,0
+     cd8:	00000013          	addi	x0,x0,0
+     cdc:	00000013          	addi	x0,x0,0
+     ce0:	00000013          	addi	x0,x0,0
+     ce4:	00000013          	addi	x0,x0,0
+     ce8:	00000013          	addi	x0,x0,0
+     cec:	00000013          	addi	x0,x0,0
+     cf0:	0110000f          	fence	w,w
+     cf4:	0110000f          	fence	w,w
+     cf8:	0110000f          	fence	w,w
+     cfc:	00000013          	addi	x0,x0,0
+     d00:	00000013          	addi	x0,x0,0
+     d04:	00000013          	addi	x0,x0,0
+     d08:	00000013          	addi	x0,x0,0
+     d0c:	00000013          	addi	x0,x0,0
+     d10:	00000013          	addi	x0,x0,0
+     d14:	00000013          	addi	x0,x0,0
+     d18:	00000013          	addi	x0,x0,0
+     d1c:	00000013          	addi	x0,x0,0
+     d20:	00000013          	addi	x0,x0,0
+     d24:	00000013          	addi	x0,x0,0
+     d28:	00000013          	addi	x0,x0,0
+     d2c:	00000013          	addi	x0,x0,0
+     d30:	00000013          	addi	x0,x0,0
+     d34:	00000013          	addi	x0,x0,0
+     d38:	00000013          	addi	x0,x0,0
+     d3c:	00000013          	addi	x0,x0,0
+     d40:	00000013          	addi	x0,x0,0
+     d44:	00000013          	addi	x0,x0,0
+     d48:	00000013          	addi	x0,x0,0
+     d4c:	00000013          	addi	x0,x0,0
+     d50:	00000013          	addi	x0,x0,0
+     d54:	00000013          	addi	x0,x0,0
+     d58:	00000013          	addi	x0,x0,0
+     d5c:	00000013          	addi	x0,x0,0
+     d60:	00000013          	addi	x0,x0,0
+     d64:	00000013          	addi	x0,x0,0
+     d68:	00000013          	addi	x0,x0,0
+     d6c:	00000013          	addi	x0,x0,0
+     d70:	00000013          	addi	x0,x0,0
+     d74:	00000013          	addi	x0,x0,0
+     d78:	00000013          	addi	x0,x0,0
+     d7c:	200007b7          	lui	x15,0x20000
+     d80:	00500713          	addi	x14,x0,5
+     d84:	00e7a023          	sw	x14,0(x15) # 20000000 <__stack_top+0xfffe000>
+     d88:	0110000f          	fence	w,w
+     d8c:	00000013          	addi	x0,x0,0
+     d90:	00000013          	addi	x0,x0,0
+     d94:	00000013          	addi	x0,x0,0
+     d98:	00000013          	addi	x0,x0,0
+     d9c:	00000013          	addi	x0,x0,0
+     da0:	00000013          	addi	x0,x0,0
+     da4:	00000013          	addi	x0,x0,0
+     da8:	00000013          	addi	x0,x0,0
+     dac:	00000013          	addi	x0,x0,0
+     db0:	00000013          	addi	x0,x0,0
+     db4:	00000013          	addi	x0,x0,0
+     db8:	00000013          	addi	x0,x0,0
+     dbc:	00000013          	addi	x0,x0,0
+     dc0:	00000013          	addi	x0,x0,0
+     dc4:	00000013          	addi	x0,x0,0
+     dc8:	00000013          	addi	x0,x0,0
+     dcc:	00000013          	addi	x0,x0,0
+     dd0:	00000013          	addi	x0,x0,0
+     dd4:	00000013          	addi	x0,x0,0
+     dd8:	00000013          	addi	x0,x0,0
+     ddc:	00000013          	addi	x0,x0,0
+     de0:	00000013          	addi	x0,x0,0
+     de4:	00000013          	addi	x0,x0,0
+     de8:	00000013          	addi	x0,x0,0
+     dec:	00000013          	addi	x0,x0,0
+     df0:	00000013          	addi	x0,x0,0
+     df4:	00000013          	addi	x0,x0,0
+     df8:	00000013          	addi	x0,x0,0
+     dfc:	00000013          	addi	x0,x0,0
+     e00:	00000013          	addi	x0,x0,0
+     e04:	00000013          	addi	x0,x0,0
+     e08:	00000013          	addi	x0,x0,0
+     e0c:	00000013          	addi	x0,x0,0
+     e10:	00000013          	addi	x0,x0,0
+     e14:	00000013          	addi	x0,x0,0
+     e18:	00000013          	addi	x0,x0,0
+     e1c:	00000013          	addi	x0,x0,0
+     e20:	00000013          	addi	x0,x0,0
+     e24:	00000013          	addi	x0,x0,0
+     e28:	00000013          	addi	x0,x0,0
+     e2c:	00000013          	addi	x0,x0,0
+     e30:	00000013          	addi	x0,x0,0
+     e34:	00000013          	addi	x0,x0,0
+     e38:	00000013          	addi	x0,x0,0
+     e3c:	00000013          	addi	x0,x0,0
+     e40:	00000013          	addi	x0,x0,0
+     e44:	00000013          	addi	x0,x0,0
+     e48:	00000013          	addi	x0,x0,0
+     e4c:	00000013          	addi	x0,x0,0
+     e50:	00c12403          	lw	x8,12(x2)
+     e54:	01010113          	addi	x2,x2,16
+     e58:	00008067          	jalr	x0,0(x1)
+
+00000e5c <step4_poll_done>:
+     e5c:	fe010113          	addi	x2,x2,-32
+     e60:	00112e23          	sw	x1,28(x2)
+     e64:	00812c23          	sw	x8,24(x2)
+     e68:	02010413          	addi	x8,x2,32
+     e6c:	000017b7          	lui	x15,0x1
+     e70:	38878793          	addi	x15,x15,904 # 1388 <main+0x2b4>
+     e74:	fef42623          	sw	x15,-20(x8)
+     e78:	fffff097          	auipc	x1,0xfffff
+     e7c:	1f8080e7          	jalr	x1,504(x1) # 70 <ascon_read_status>
+     e80:	fea42423          	sw	x10,-24(x8)
+     e84:	fe842783          	lw	x15,-24(x8)
+     e88:	0047f793          	andi	x15,x15,4
+     e8c:	00078663          	beq	x15,x0,e98 <step4_poll_done+0x3c>
+     e90:	fe842783          	lw	x15,-24(x8)
+     e94:	0300006f          	jal	x0,ec4 <step4_poll_done+0x68>
+     e98:	fe842783          	lw	x15,-24(x8)
+     e9c:	0027f793          	andi	x15,x15,2
+     ea0:	00078663          	beq	x15,x0,eac <step4_poll_done+0x50>
+     ea4:	fe842783          	lw	x15,-24(x8)
+     ea8:	01c0006f          	jal	x0,ec4 <step4_poll_done+0x68>
+     eac:	fec42783          	lw	x15,-20(x8)
+     eb0:	fff78793          	addi	x15,x15,-1
+     eb4:	fef42623          	sw	x15,-20(x8)
+     eb8:	fec42783          	lw	x15,-20(x8)
+     ebc:	fa079ee3          	bne	x15,x0,e78 <step4_poll_done+0x1c>
+     ec0:	00000793          	addi	x15,x0,0
+     ec4:	00078513          	addi	x10,x15,0
+     ec8:	01c12083          	lw	x1,28(x2)
+     ecc:	01812403          	lw	x8,24(x2)
+     ed0:	02010113          	addi	x2,x2,32
+     ed4:	00008067          	jalr	x0,0(x1)
+
+00000ed8 <step5_copy_results_to_dmem>:
+     ed8:	fe010113          	addi	x2,x2,-32
+     edc:	00812e23          	sw	x8,28(x2)
+     ee0:	02010413          	addi	x8,x2,32
+     ee4:	fea42623          	sw	x10,-20(x8)
+     ee8:	feb42423          	sw	x11,-24(x8)
+     eec:	20000737          	lui	x14,0x20000
+     ef0:	100007b7          	lui	x15,0x10000
+     ef4:	04072703          	lw	x14,64(x14) # 20000040 <__stack_top+0xfffe040>
+     ef8:	00e7ac23          	sw	x14,24(x15) # 10000018 <__bss_end+0x18>
+     efc:	20000737          	lui	x14,0x20000
+     f00:	100007b7          	lui	x15,0x10000
+     f04:	04472703          	lw	x14,68(x14) # 20000044 <__stack_top+0xfffe044>
+     f08:	00e7ae23          	sw	x14,28(x15) # 1000001c <__bss_end+0x1c>
+     f0c:	20000737          	lui	x14,0x20000
+     f10:	100007b7          	lui	x15,0x10000
+     f14:	04872703          	lw	x14,72(x14) # 20000048 <__stack_top+0xfffe048>
+     f18:	02e7a023          	sw	x14,32(x15) # 10000020 <__bss_end+0x20>
+     f1c:	20000737          	lui	x14,0x20000
+     f20:	100007b7          	lui	x15,0x10000
+     f24:	04c72703          	lw	x14,76(x14) # 2000004c <__stack_top+0xfffe04c>
+     f28:	02e7a223          	sw	x14,36(x15) # 10000024 <__bss_end+0x24>
+     f2c:	100007b7          	lui	x15,0x10000
+     f30:	00800713          	addi	x14,x0,8
+     f34:	04e7a823          	sw	x14,80(x15) # 10000050 <__bss_end+0x50>
+     f38:	100007b7          	lui	x15,0x10000
+     f3c:	fec42703          	lw	x14,-20(x8)
+     f40:	04e7aa23          	sw	x14,84(x15) # 10000054 <__bss_end+0x54>
+     f44:	100007b7          	lui	x15,0x10000
+     f48:	fe842703          	lw	x14,-24(x8)
+     f4c:	04e7ac23          	sw	x14,88(x15) # 10000058 <__bss_end+0x58>
+     f50:	0110000f          	fence	w,w
+     f54:	00000013          	addi	x0,x0,0
+     f58:	01c12403          	lw	x8,28(x2)
+     f5c:	02010113          	addi	x2,x2,32
+     f60:	00008067          	jalr	x0,0(x1)
+
+00000f64 <step6_print_result>:
+     f64:	fe010113          	addi	x2,x2,-32
+     f68:	00112e23          	sw	x1,28(x2)
+     f6c:	00812c23          	sw	x8,24(x2)
+     f70:	02010413          	addi	x8,x2,32
+     f74:	fea42623          	sw	x10,-20(x8)
+     f78:	feb42423          	sw	x11,-24(x8)
+     f7c:	fe842783          	lw	x15,-24(x8)
+     f80:	06078e63          	beq	x15,x0,ffc <step6_print_result+0x98>
+     f84:	fe842703          	lw	x14,-24(x8)
+     f88:	ffd00793          	addi	x15,x0,-3
+     f8c:	00f71c63          	bne	x14,x15,fa4 <step6_print_result+0x40>
+     f90:	000017b7          	lui	x15,0x1
+     f94:	3cc78513          	addi	x10,x15,972 # 13cc <main+0x2f8>
+     f98:	fffff097          	auipc	x1,0xfffff
+     f9c:	17c080e7          	jalr	x1,380(x1) # 114 <uart_puts>
+     fa0:	1240006f          	jal	x0,10c4 <step6_print_result+0x160>
+     fa4:	fe842703          	lw	x14,-24(x8)
+     fa8:	ffe00793          	addi	x15,x0,-2
+     fac:	00f71c63          	bne	x14,x15,fc4 <step6_print_result+0x60>
+     fb0:	000017b7          	lui	x15,0x1
+     fb4:	3d478513          	addi	x10,x15,980 # 13d4 <main+0x300>
+     fb8:	fffff097          	auipc	x1,0xfffff
+     fbc:	15c080e7          	jalr	x1,348(x1) # 114 <uart_puts>
+     fc0:	1040006f          	jal	x0,10c4 <step6_print_result+0x160>
+     fc4:	000017b7          	lui	x15,0x1
+     fc8:	3dc78513          	addi	x10,x15,988 # 13dc <main+0x308>
+     fcc:	fffff097          	auipc	x1,0xfffff
+     fd0:	148080e7          	jalr	x1,328(x1) # 114 <uart_puts>
+     fd4:	fec42783          	lw	x15,-20(x8)
+     fd8:	0ff7f793          	andi	x15,x15,255
+     fdc:	00078513          	addi	x10,x15,0
+     fe0:	fffff097          	auipc	x1,0xfffff
+     fe4:	18c080e7          	jalr	x1,396(x1) # 16c <uart_puthex8>
+     fe8:	000017b7          	lui	x15,0x1
+     fec:	3e078513          	addi	x10,x15,992 # 13e0 <main+0x30c>
+     ff0:	fffff097          	auipc	x1,0xfffff
+     ff4:	124080e7          	jalr	x1,292(x1) # 114 <uart_puts>
+     ff8:	0cc0006f          	jal	x0,10c4 <step6_print_result+0x160>
+     ffc:	000017b7          	lui	x15,0x1
+    1000:	3e478513          	addi	x10,x15,996 # 13e4 <main+0x310>
+    1004:	fffff097          	auipc	x1,0xfffff
+    1008:	110080e7          	jalr	x1,272(x1) # 114 <uart_puts>
+    100c:	000017b7          	lui	x15,0x1
+    1010:	3ec78513          	addi	x10,x15,1004 # 13ec <main+0x318>
+    1014:	fffff097          	auipc	x1,0xfffff
+    1018:	100080e7          	jalr	x1,256(x1) # 114 <uart_puts>
+    101c:	100007b7          	lui	x15,0x10000
+    1020:	0107a783          	lw	x15,16(x15) # 10000010 <__bss_end+0x10>
+    1024:	00078513          	addi	x10,x15,0
+    1028:	fffff097          	auipc	x1,0xfffff
+    102c:	1c4080e7          	jalr	x1,452(x1) # 1ec <uart_puthex32>
+    1030:	100007b7          	lui	x15,0x10000
+    1034:	0147a783          	lw	x15,20(x15) # 10000014 <__bss_end+0x14>
+    1038:	00078513          	addi	x10,x15,0
+    103c:	fffff097          	auipc	x1,0xfffff
+    1040:	1b0080e7          	jalr	x1,432(x1) # 1ec <uart_puthex32>
+    1044:	000017b7          	lui	x15,0x1
+    1048:	3e078513          	addi	x10,x15,992 # 13e0 <main+0x30c>
+    104c:	fffff097          	auipc	x1,0xfffff
+    1050:	0c8080e7          	jalr	x1,200(x1) # 114 <uart_puts>
+    1054:	000017b7          	lui	x15,0x1
+    1058:	3f078513          	addi	x10,x15,1008 # 13f0 <main+0x31c>
+    105c:	fffff097          	auipc	x1,0xfffff
+    1060:	0b8080e7          	jalr	x1,184(x1) # 114 <uart_puts>
+    1064:	100007b7          	lui	x15,0x10000
+    1068:	0187a783          	lw	x15,24(x15) # 10000018 <__bss_end+0x18>
+    106c:	00078513          	addi	x10,x15,0
+    1070:	fffff097          	auipc	x1,0xfffff
+    1074:	17c080e7          	jalr	x1,380(x1) # 1ec <uart_puthex32>
+    1078:	100007b7          	lui	x15,0x10000
+    107c:	01c7a783          	lw	x15,28(x15) # 1000001c <__bss_end+0x1c>
+    1080:	00078513          	addi	x10,x15,0
+    1084:	fffff097          	auipc	x1,0xfffff
+    1088:	168080e7          	jalr	x1,360(x1) # 1ec <uart_puthex32>
+    108c:	100007b7          	lui	x15,0x10000
+    1090:	0207a783          	lw	x15,32(x15) # 10000020 <__bss_end+0x20>
+    1094:	00078513          	addi	x10,x15,0
+    1098:	fffff097          	auipc	x1,0xfffff
+    109c:	154080e7          	jalr	x1,340(x1) # 1ec <uart_puthex32>
+    10a0:	100007b7          	lui	x15,0x10000
+    10a4:	0247a783          	lw	x15,36(x15) # 10000024 <__bss_end+0x24>
+    10a8:	00078513          	addi	x10,x15,0
+    10ac:	fffff097          	auipc	x1,0xfffff
+    10b0:	140080e7          	jalr	x1,320(x1) # 1ec <uart_puthex32>
+    10b4:	000017b7          	lui	x15,0x1
+    10b8:	3e078513          	addi	x10,x15,992 # 13e0 <main+0x30c>
+    10bc:	fffff097          	auipc	x1,0xfffff
+    10c0:	058080e7          	jalr	x1,88(x1) # 114 <uart_puts>
+    10c4:	01c12083          	lw	x1,28(x2)
+    10c8:	01812403          	lw	x8,24(x2)
+    10cc:	02010113          	addi	x2,x2,32
+    10d0:	00008067          	jalr	x0,0(x1)
+
+000010d4 <main>:
+    10d4:	fe010113          	addi	x2,x2,-32
+    10d8:	00112e23          	sw	x1,28(x2)
+    10dc:	00812c23          	sw	x8,24(x2)
+    10e0:	00912a23          	sw	x9,20(x2)
+    10e4:	02010413          	addi	x8,x2,32
+    10e8:	fffff097          	auipc	x1,0xfffff
+    10ec:	188080e7          	jalr	x1,392(x1) # 270 <step1_write_ptext_to_dmem>
+    10f0:	fffff097          	auipc	x1,0xfffff
+    10f4:	1c0080e7          	jalr	x1,448(x1) # 2b0 <step2_reset_and_config>
+    10f8:	fea42623          	sw	x10,-20(x8)
+    10fc:	fec42783          	lw	x15,-20(x8)
+    1100:	02078263          	beq	x15,x0,1124 <main+0x50>
+    1104:	100007b7          	lui	x15,0x10000
+    1108:	0547a783          	lw	x15,84(x15) # 10000054 <__bss_end+0x54>
+    110c:	fec42583          	lw	x11,-20(x8)
+    1110:	00078513          	addi	x10,x15,0
+    1114:	00000097          	auipc	x1,0x0
+    1118:	e50080e7          	jalr	x1,-432(x1) # f64 <step6_print_result>
+    111c:	fec42783          	lw	x15,-20(x8)
+    1120:	2800006f          	jal	x0,13a0 <main+0x2cc>
+    1124:	00000097          	auipc	x1,0x0
+    1128:	a0c080e7          	jalr	x1,-1524(x1) # b30 <step3_kick_dma>
+    112c:	00000097          	auipc	x1,0x0
+    1130:	d30080e7          	jalr	x1,-720(x1) # e5c <step4_poll_done>
+    1134:	fea42423          	sw	x10,-24(x8)
+    1138:	fe842783          	lw	x15,-24(x8)
+    113c:	0c079c63          	bne	x15,x0,1214 <main+0x140>
+    1140:	ffe00793          	addi	x15,x0,-2
+    1144:	fef42623          	sw	x15,-20(x8)
+    1148:	100004b7          	lui	x9,0x10000
+    114c:	fffff097          	auipc	x1,0xfffff
+    1150:	f24080e7          	jalr	x1,-220(x1) # 70 <ascon_read_status>
+    1154:	00050793          	addi	x15,x10,0
+    1158:	04f4aa23          	sw	x15,84(x9) # 10000054 <__bss_end+0x54>
+    115c:	100007b7          	lui	x15,0x10000
+    1160:	fec42703          	lw	x14,-20(x8)
+    1164:	04e7ac23          	sw	x14,88(x15) # 10000058 <__bss_end+0x58>
+    1168:	0110000f          	fence	w,w
+    116c:	200007b7          	lui	x15,0x20000
+    1170:	00200713          	addi	x14,x0,2
+    1174:	00e7a023          	sw	x14,0(x15) # 20000000 <__stack_top+0xfffe000>
+    1178:	0110000f          	fence	w,w
+    117c:	00000013          	addi	x0,x0,0
+    1180:	00000013          	addi	x0,x0,0
+    1184:	00000013          	addi	x0,x0,0
+    1188:	00000013          	addi	x0,x0,0
+    118c:	00000013          	addi	x0,x0,0
+    1190:	00000013          	addi	x0,x0,0
+    1194:	00000013          	addi	x0,x0,0
+    1198:	00000013          	addi	x0,x0,0
+    119c:	00000013          	addi	x0,x0,0
+    11a0:	00000013          	addi	x0,x0,0
+    11a4:	00000013          	addi	x0,x0,0
+    11a8:	00000013          	addi	x0,x0,0
+    11ac:	00000013          	addi	x0,x0,0
+    11b0:	00000013          	addi	x0,x0,0
+    11b4:	00000013          	addi	x0,x0,0
+    11b8:	00000013          	addi	x0,x0,0
+    11bc:	00000013          	addi	x0,x0,0
+    11c0:	00000013          	addi	x0,x0,0
+    11c4:	00000013          	addi	x0,x0,0
+    11c8:	00000013          	addi	x0,x0,0
+    11cc:	00000013          	addi	x0,x0,0
+    11d0:	00000013          	addi	x0,x0,0
+    11d4:	00000013          	addi	x0,x0,0
+    11d8:	00000013          	addi	x0,x0,0
+    11dc:	00000013          	addi	x0,x0,0
+    11e0:	00000013          	addi	x0,x0,0
+    11e4:	00000013          	addi	x0,x0,0
+    11e8:	00000013          	addi	x0,x0,0
+    11ec:	00000013          	addi	x0,x0,0
+    11f0:	00000013          	addi	x0,x0,0
+    11f4:	00000013          	addi	x0,x0,0
+    11f8:	00000013          	addi	x0,x0,0
+    11fc:	fec42583          	lw	x11,-20(x8)
+    1200:	00000513          	addi	x10,x0,0
+    1204:	00000097          	auipc	x1,0x0
+    1208:	d60080e7          	jalr	x1,-672(x1) # f64 <step6_print_result>
+    120c:	fec42783          	lw	x15,-20(x8)
+    1210:	1900006f          	jal	x0,13a0 <main+0x2cc>
+    1214:	fe842783          	lw	x15,-24(x8)
+    1218:	0047f793          	andi	x15,x15,4
+    121c:	0c078863          	beq	x15,x0,12ec <main+0x218>
+    1220:	fff00793          	addi	x15,x0,-1
+    1224:	fef42623          	sw	x15,-20(x8)
+    1228:	100007b7          	lui	x15,0x10000
+    122c:	fe842703          	lw	x14,-24(x8)
+    1230:	04e7aa23          	sw	x14,84(x15) # 10000054 <__bss_end+0x54>
+    1234:	100007b7          	lui	x15,0x10000
+    1238:	fec42703          	lw	x14,-20(x8)
+    123c:	04e7ac23          	sw	x14,88(x15) # 10000058 <__bss_end+0x58>
+    1240:	0110000f          	fence	w,w
+    1244:	200007b7          	lui	x15,0x20000
+    1248:	00200713          	addi	x14,x0,2
+    124c:	00e7a023          	sw	x14,0(x15) # 20000000 <__stack_top+0xfffe000>
+    1250:	0110000f          	fence	w,w
+    1254:	00000013          	addi	x0,x0,0
+    1258:	00000013          	addi	x0,x0,0
+    125c:	00000013          	addi	x0,x0,0
+    1260:	00000013          	addi	x0,x0,0
+    1264:	00000013          	addi	x0,x0,0
+    1268:	00000013          	addi	x0,x0,0
+    126c:	00000013          	addi	x0,x0,0
+    1270:	00000013          	addi	x0,x0,0
+    1274:	00000013          	addi	x0,x0,0
+    1278:	00000013          	addi	x0,x0,0
+    127c:	00000013          	addi	x0,x0,0
+    1280:	00000013          	addi	x0,x0,0
+    1284:	00000013          	addi	x0,x0,0
+    1288:	00000013          	addi	x0,x0,0
+    128c:	00000013          	addi	x0,x0,0
+    1290:	00000013          	addi	x0,x0,0
+    1294:	00000013          	addi	x0,x0,0
+    1298:	00000013          	addi	x0,x0,0
+    129c:	00000013          	addi	x0,x0,0
+    12a0:	00000013          	addi	x0,x0,0
+    12a4:	00000013          	addi	x0,x0,0
+    12a8:	00000013          	addi	x0,x0,0
+    12ac:	00000013          	addi	x0,x0,0
+    12b0:	00000013          	addi	x0,x0,0
+    12b4:	00000013          	addi	x0,x0,0
+    12b8:	00000013          	addi	x0,x0,0
+    12bc:	00000013          	addi	x0,x0,0
+    12c0:	00000013          	addi	x0,x0,0
+    12c4:	00000013          	addi	x0,x0,0
+    12c8:	00000013          	addi	x0,x0,0
+    12cc:	00000013          	addi	x0,x0,0
+    12d0:	00000013          	addi	x0,x0,0
+    12d4:	fec42583          	lw	x11,-20(x8)
+    12d8:	fe842503          	lw	x10,-24(x8)
+    12dc:	00000097          	auipc	x1,0x0
+    12e0:	c88080e7          	jalr	x1,-888(x1) # f64 <step6_print_result>
+    12e4:	fec42783          	lw	x15,-20(x8)
+    12e8:	0b80006f          	jal	x0,13a0 <main+0x2cc>
+    12ec:	00000593          	addi	x11,x0,0
+    12f0:	fe842503          	lw	x10,-24(x8)
+    12f4:	00000097          	auipc	x1,0x0
+    12f8:	be4080e7          	jalr	x1,-1052(x1) # ed8 <step5_copy_results_to_dmem>
+    12fc:	00000593          	addi	x11,x0,0
+    1300:	fe842503          	lw	x10,-24(x8)
+    1304:	00000097          	auipc	x1,0x0
+    1308:	c60080e7          	jalr	x1,-928(x1) # f64 <step6_print_result>
+    130c:	200007b7          	lui	x15,0x20000
+    1310:	00200713          	addi	x14,x0,2
+    1314:	00e7a023          	sw	x14,0(x15) # 20000000 <__stack_top+0xfffe000>
+    1318:	0110000f          	fence	w,w
+    131c:	00000013          	addi	x0,x0,0
+    1320:	00000013          	addi	x0,x0,0
+    1324:	00000013          	addi	x0,x0,0
+    1328:	00000013          	addi	x0,x0,0
+    132c:	00000013          	addi	x0,x0,0
+    1330:	00000013          	addi	x0,x0,0
+    1334:	00000013          	addi	x0,x0,0
+    1338:	00000013          	addi	x0,x0,0
+    133c:	00000013          	addi	x0,x0,0
+    1340:	00000013          	addi	x0,x0,0
+    1344:	00000013          	addi	x0,x0,0
+    1348:	00000013          	addi	x0,x0,0
+    134c:	00000013          	addi	x0,x0,0
+    1350:	00000013          	addi	x0,x0,0
+    1354:	00000013          	addi	x0,x0,0
+    1358:	00000013          	addi	x0,x0,0
+    135c:	00000013          	addi	x0,x0,0
+    1360:	00000013          	addi	x0,x0,0
+    1364:	00000013          	addi	x0,x0,0
+    1368:	00000013          	addi	x0,x0,0
+    136c:	00000013          	addi	x0,x0,0
+    1370:	00000013          	addi	x0,x0,0
+    1374:	00000013          	addi	x0,x0,0
+    1378:	00000013          	addi	x0,x0,0
+    137c:	00000013          	addi	x0,x0,0
+    1380:	00000013          	addi	x0,x0,0
+    1384:	00000013          	addi	x0,x0,0
+    1388:	00000013          	addi	x0,x0,0
+    138c:	00000013          	addi	x0,x0,0
+    1390:	00000013          	addi	x0,x0,0
+    1394:	00000013          	addi	x0,x0,0
+    1398:	00000013          	addi	x0,x0,0
+    139c:	00000793          	addi	x15,x0,0
+    13a0:	00078513          	addi	x10,x15,0
+    13a4:	01c12083          	lw	x1,28(x2)
+    13a8:	01812403          	lw	x8,24(x2)
+    13ac:	01412483          	lw	x9,20(x2)
+    13b0:	02010113          	addi	x2,x2,32
+    13b4:	00008067          	jalr	x0,0(x1)
+    13b8:	3130                	.insn	2, 0x3130
+    13ba:	3332                	.insn	2, 0x3332
+    13bc:	3534                	.insn	2, 0x3534
+    13be:	3736                	.insn	2, 0x3736
+    13c0:	3938                	.insn	2, 0x3938
+    13c2:	4241                	.insn	2, 0x4241
+    13c4:	46454443          	.insn	4, 0x46454443
+    13c8:	0000                	.insn	2, 0x
+    13ca:	0000                	.insn	2, 0x
+    13cc:	3a45                	.insn	2, 0x3a45
+    13ce:	5352                	.insn	2, 0x5352
+    13d0:	0d54                	.insn	2, 0x0d54
+    13d2:	000a                	.insn	2, 0x000a
+    13d4:	3a45                	.insn	2, 0x3a45
+    13d6:	4d54                	.insn	2, 0x4d54
+    13d8:	000a0d4f          	.insn	4, 0x000a0d4f
+    13dc:	3a45                	.insn	2, 0x3a45
+    13de:	0000                	.insn	2, 0x
+    13e0:	0a0d                	.insn	2, 0x0a0d
+    13e2:	0000                	.insn	2, 0x
+    13e4:	0a0d4b4f          	.insn	4, 0x0a0d4b4f
+    13e8:	0000                	.insn	2, 0x
+    13ea:	0000                	.insn	2, 0x
+    13ec:	00003a43          	.insn	4, 0x3a43
+    13f0:	3a54                	.insn	2, 0x3a54
+	...

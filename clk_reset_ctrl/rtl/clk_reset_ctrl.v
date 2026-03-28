@@ -5,40 +5,55 @@
 // Bộ điều khiển Clock và Reset trung tâm — thay thế dòng nguy hiểm:
 //   wire fabric_rst_n = ext_rst_n;   // CŨ: metastability hazard!
 //
+// [THÊM MỚI so với v1]
+//   Input ndmreset từ jtag_debug_top (riscv_dm):
+//     ndmreset = 1 → reset CPU + tất cả peripheral, NGOẠI TRỪ fabric (crossbar)
+//                    và bản thân JTAG DM (để debugger vẫn connected).
+//     WHY không reset fabric: JTAG DM dùng crossbar (M4 SBA) để đọc/ghi
+//     DMEM/IMEM trong khi CPU đang bị reset. Nếu reset crossbar, path đó bị
+//     cắt và debugger mất kết nối.
+//     WHY không reset JTAG DM: DM là người phát ndmreset, nếu reset chính nó
+//     sẽ tự giải phóng ndmreset và CPU chưa kịp reset đầy đủ.
+//
+//   Tín hiệu ndmreset đến từ tck domain (JTAG TAP) nhưng đã được đồng bộ
+//   bên trong jtag_dtm (2-FF synchronizer tck→clk). Ở đây clk_reset_ctrl
+//   vẫn qua thêm reset_sync để chắc chắn — defense in depth.
+//
 // Hierarchy:
 //   clk_reset_ctrl
 //   ├── por_stretcher       — kéo dài POR ≥10µs sau khi VDD ổn định
 //   ├── reset_sync u_sync_fabric  — đồng bộ reset vào domain CORE/FABRIC
-//   ├── reset_sync u_sync_cpu     — đồng bộ reset vào domain CPU (cùng clk)
+//   ├── reset_sync u_sync_cpu     — đồng bộ reset vào domain CPU
 //   ├── reset_sync u_sync_periph  — đồng bộ reset vào domain PERIPH
+//   ├── reset_sync u_sync_ndm    — đồng bộ ndmreset trước khi combine
 //   ├── soft_rst_sync       — tái đồng bộ soft_rst_pulse, kéo dài 8 cycle
 //   ├── clk_buf u_clk_core  — ICG gate cho domain CORE
 //   └── clk_buf u_clk_periph— ICG gate cho domain PERIPH
 //
 // Reset logic (tất cả active-low):
-//   combined_rst_n = por_n_stretched AND ext_rst_sync_n AND soft_rst_n
-//   fabric_rst_n   = combined_rst_n  (2FF sync → CORE domain)
-//   cpu_rst_n      = combined_rst_n  (2FF sync → CPU domain, cùng clk)
-//   periph_rst_n   = combined_rst_n  (2FF sync → PERIPH domain)
+//   combined_rst_n       = por_n_stretched AND ext_rst_sync_n AND soft_rst_n
+//   combined_cpu_rst_n   = combined_rst_n AND ndm_rst_n   ← CPU thêm ndmreset
+//   fabric_rst_n         = combined_rst_n    (KHÔNG bị ảnh hưởng bởi ndmreset)
+//   cpu_rst_n            = combined_cpu_rst_n
+//   periph_rst_n         = combined_cpu_rst_n (peripheral cũng reset theo ndm)
 //
 // Kết nối trong soc_top.v:
-//   // XÓA: wire fabric_rst_n = ext_rst_n;
-//   // THÊM:
 //   clk_reset_ctrl u_clkrst (
 //       .clk_in          (clk),
 //       .por_n           (por_n),
 //       .ext_rst_n       (ext_rst_n),
 //       .soft_rst_pulse  (soft_rst_pulse),
+//       .ndmreset        (jtag_ndmreset),   // ← MỚI, từ u_jtag.ndmreset
 //       .test_en         (1'b0),
 //       .core_clk_en     (1'b1),
 //       .periph_clk_en   (1'b1),
-//       .clk_core        (clk_core),    // dùng thay cho clk nếu muốn gate
+//       .clk_core        (clk_core),
 //       .clk_periph      (clk_periph),
 //       .fabric_rst_n    (fabric_rst_n),
 //       .cpu_rst_n       (cpu_rst_n),
 //       .periph_rst_n    (periph_rst_n)
 //   );
-//   // cpu_rst = ~cpu_rst_n  (CPU core dùng active-high rst)
+//   wire cpu_rst = ~cpu_rst_n;   // CPU core dùng active-high rst
 // ============================================================================
 `include "clk_reset_ctrl/rtl/reset_sync.v"
 `include "clk_reset_ctrl/rtl/por_stretcher.v"
@@ -47,8 +62,8 @@
 
 
 module clk_reset_ctrl #(
-    parameter POR_CYCLES     = 1000,  // 10µs @ 100MHz
-    parameter SOFT_RST_STRETCH = 8    // 8 cycle pulse stretch
+    parameter POR_CYCLES       = 1000,  // 10µs @ 100MHz
+    parameter SOFT_RST_STRETCH = 8      // 8 cycle pulse stretch
 ) (
     // =========================================================================
     // Clock inputs
@@ -61,6 +76,26 @@ module clk_reset_ctrl #(
     input  wire por_n,          // Power-On Reset từ pad (active-low, có thể bounce)
     input  wire ext_rst_n,      // External reset từ GPIO (active-low, không sync)
     input  wire soft_rst_pulse, // Soft reset 1-cycle pulse từ soc_ctrl_slave
+
+    // =========================================================================
+    // JTAG Non-Debug Module Reset  [THÊM MỚI]
+    //
+    // ndmreset = 1 (active-high, theo RISC-V debug spec §3.3):
+    //   → Reset CPU core và tất cả peripheral
+    //   → KHÔNG reset crossbar (fabric) — giữ đường SBA của DM
+    //   → KHÔNG reset JTAG DM — DM vẫn phải điều khiển được reset
+    //
+    // WHY active-high khác với các reset input khác (active-low):
+    //   RISC-V Debug Spec định nghĩa ndmreset là active-high để phân biệt
+    //   rõ với các reset hệ thống thông thường. Chúng ta convert thành
+    //   active-low (ndm_rst_n = ~ndmreset_sync) trước khi AND vào combined.
+    //
+    // WHY cần thêm reset_sync cho ndmreset:
+    //   Dù jtag_dtm đã sync tck→clk, thêm 1 tầng FF nữa là "defense in depth"
+    //   an toàn hơn khi clk_reset_ctrl là module boundary cuối cùng trước
+    //   khi reset đến từng domain.
+    // =========================================================================
+    input  wire ndmreset,       // JTAG DM → reset CPU+periph (active-high, đã sync)
 
     // =========================================================================
     // DFT / Test
@@ -82,14 +117,13 @@ module clk_reset_ctrl #(
     // =========================================================================
     // Reset outputs (active-low, đã đồng bộ)
     // =========================================================================
-    output wire fabric_rst_n,   // reset cho toàn bộ fabric (crossbar, cache, ASCON)
-    output wire cpu_rst_n,      // reset riêng cho CPU core
-    output wire periph_rst_n    // reset cho domain PERIPH
+    output wire fabric_rst_n,   // reset cho toàn bộ fabric — KHÔNG bị ndmreset
+    output wire cpu_rst_n,      // reset riêng cho CPU core — BỊ ndmreset
+    output wire periph_rst_n    // reset cho domain PERIPH — BỊ ndmreset
 );
 
     // =========================================================================
     // Stage 1: POR stretcher
-    // Kéo dài POR pad ≥ POR_CYCLES chu kỳ để VDD ổn định
     // =========================================================================
     wire por_n_stretched;
 
@@ -102,9 +136,7 @@ module clk_reset_ctrl #(
     );
 
     // =========================================================================
-    // Stage 2: Kết hợp tất cả nguồn reset
-    // Combined = POR AND ext_rst AND soft_rst
-    // Tất cả active-low: AND hợp lệ (bất kỳ nguồn nào = 0 → reset)
+    // Stage 2a: Soft reset
     // =========================================================================
     wire soft_rst_n_w;
 
@@ -117,41 +149,71 @@ module clk_reset_ctrl #(
         .soft_rst_n     (soft_rst_n_w)
     );
 
-    // WHY AND: active-low → nếu bất kỳ nguồn nào pull xuống 0 → reset assert
+    // =========================================================================
+    // Stage 2b: Kết hợp reset cho FABRIC (không có ndmreset)
+    //
+    // WHY fabric KHÔNG có ndmreset:
+    //   Crossbar cần hoạt động liên tục để JTAG DM (M4) có thể truy cập
+    //   DMEM/IMEM qua System Bus Access trong khi CPU đang bị ndmreset.
+    //   Nếu fabric bị reset, M4 AXI path bị cắt → debugger mất khả năng
+    //   load chương trình hoặc đọc memory sau khi reset CPU.
+    // =========================================================================
     wire combined_rst_n = por_n_stretched & ext_rst_n & soft_rst_n_w;
 
     // =========================================================================
+    // Stage 2c: Đồng bộ ndmreset vào clk domain (defense in depth)
+    //
+    // ndmreset là active-high → convert sang active-low trước khi dùng
+    // Dùng reset_sync với rst_async_n = ~ndmreset:
+    //   ndmreset=0 (bình thường) → rst_async_n=1 → rst_sync_n=1 → không reset
+    //   ndmreset=1 (reset)       → rst_async_n=0 → rst_sync_n=0 → reset assert
+    // =========================================================================
+    wire ndm_rst_n_sync;    // đã đồng bộ, active-low
+
+    reset_sync u_sync_ndm (
+        .clk         (clk_in),
+        .rst_async_n (~ndmreset),      // active-high → flip thành active-low
+        .rst_sync_n  (ndm_rst_n_sync)
+    );
+
+    // combined_cpu_rst_n: thêm ndmreset vào chain reset của CPU và peripheral
+    // WHY AND: active-low → bất kỳ nguồn nào pull xuống 0 → reset assert
+    wire combined_cpu_rst_n = combined_rst_n & ndm_rst_n_sync;
+
+    // =========================================================================
     // Stage 3: 2FF synchronizer cho mỗi reset domain
-    // Mỗi domain có reset_sync riêng để tránh cross-domain coupling
     // =========================================================================
 
-    // Fabric reset (crossbar, cache, ASCON, CLINT, SOC CTRL)
+    // Fabric reset: chỉ từ combined_rst_n — KHÔNG có ndmreset
     reset_sync u_sync_fabric (
         .clk        (clk_in),
         .rst_async_n(combined_rst_n),
         .rst_sync_n (fabric_rst_n)
     );
 
-    // CPU reset (riêng biệt để có thể reset CPU mà không reset fabric)
-    // WHY riêng: debug module (JTAG) cần reset CPU nhưng giữ crossbar chạy
+    // CPU reset: combined + ndmreset
+    // WHY riêng biệt: debug module cần reset CPU mà không reset crossbar.
+    // Khi ndmreset=1, cpu_rst_n=0 nhưng fabric_rst_n vẫn=1.
     reset_sync u_sync_cpu (
         .clk        (clk_in),
-        .rst_async_n(combined_rst_n),
+        .rst_async_n(combined_cpu_rst_n),
         .rst_sync_n (cpu_rst_n)
     );
 
-    // Peripheral reset (UART, SPI, GPIO, Timer, PLIC)
+    // Peripheral reset: cũng bị ndmreset
+    // WHY: UART, SPI, GPIO cần reset khi CPU reset để tránh stale state
+    // (ví dụ UART đang TX giữa chừng, GPIO output bị giữ sai level).
+    // PLIC cũng reset để xóa pending interrupts từ session debug trước.
     reset_sync u_sync_periph (
         .clk        (clk_in),
-        .rst_async_n(combined_rst_n),
+        .rst_async_n(combined_cpu_rst_n),
         .rst_sync_n (periph_rst_n)
     );
 
     // =========================================================================
-    // Stage 4: Clock gating (ICG) cho từng domain
+    // Stage 4: Clock gating (ICG)
     // =========================================================================
 
-    // CORE domain: CPU + ICache + DCache + ASCON + Crossbar
     clk_buf u_clk_core (
         .clk_in  (clk_in),
         .enable  (core_clk_en),
@@ -159,7 +221,6 @@ module clk_reset_ctrl #(
         .clk_out (clk_core)
     );
 
-    // PERIPH domain: UART, SPI, GPIO, Timer/WDT, PLIC
     clk_buf u_clk_periph (
         .clk_in  (clk_in),
         .enable  (periph_clk_en),

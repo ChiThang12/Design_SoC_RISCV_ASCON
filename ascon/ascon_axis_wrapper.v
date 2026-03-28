@@ -20,6 +20,7 @@
 
 // FIX-BUG4: ascon_CORE KHÔNG được `include ở đây.
 // Compile filelist phải đảm bảo ascon_CORE.v được compile TRƯỚC file này.
+// `include "ascon/rtl/ascon_CORE.v"
 module ascon_AXIS_WRAPPER #(
     parameter G_COMB_RND_128  = 6,
     parameter G_COMB_RND_128A = 4,

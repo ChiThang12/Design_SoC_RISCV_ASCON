@@ -1,0 +1,64 @@
+
+example.elf:     file format elf32-littleriscv
+
+
+Disassembly of section .text:
+
+00000000 <_start>:
+   0:	10002137          	lui	x2,0x10002
+   4:	f0010113          	addi	x2,x2,-256 # 10001f00 <__stack_top>
+   8:	00000013          	addi	x0,x0,0
+   c:	00000013          	addi	x0,x0,0
+  10:	00000013          	addi	x0,x0,0
+  14:	00000297          	auipc	x5,0x0
+  18:	0a028293          	addi	x5,x5,160 # b4 <__data_load>
+  1c:	10000317          	auipc	x6,0x10000
+  20:	fe430313          	addi	x6,x6,-28 # 10000000 <__bss_end>
+  24:	10000397          	auipc	x7,0x10000
+  28:	fdc38393          	addi	x7,x7,-36 # 10000000 <__bss_end>
+  2c:	00730e63          	beq	x6,x7,48 <_copy_done>
+
+00000030 <_copy_data>:
+  30:	00735c63          	bge	x6,x7,48 <_copy_done>
+  34:	0002ae03          	lw	x28,0(x5)
+  38:	01c32023          	sw	x28,0(x6)
+  3c:	00428293          	addi	x5,x5,4
+  40:	00430313          	addi	x6,x6,4
+  44:	fedff06f          	jal	x0,30 <_copy_data>
+
+00000048 <_copy_done>:
+  48:	10000297          	auipc	x5,0x10000
+  4c:	fb828293          	addi	x5,x5,-72 # 10000000 <__bss_end>
+  50:	10000317          	auipc	x6,0x10000
+  54:	fb030313          	addi	x6,x6,-80 # 10000000 <__bss_end>
+
+00000058 <_clear_bss>:
+  58:	0062d863          	bge	x5,x6,68 <_bss_done>
+  5c:	0002a023          	sw	x0,0(x5)
+  60:	00428293          	addi	x5,x5,4
+  64:	ff5ff06f          	jal	x0,58 <_clear_bss>
+
+00000068 <_bss_done>:
+  68:	00000097          	auipc	x1,0x0
+  6c:	00c080e7          	jalr	x1,12(x1) # 74 <main>
+
+00000070 <_halt>:
+  70:	0000006f          	jal	x0,70 <_halt>
+
+00000074 <main>:
+  74:	fe010113          	addi	x2,x2,-32
+  78:	00812e23          	sw	x8,28(x2)
+  7c:	02010413          	addi	x8,x2,32
+  80:	00a00793          	addi	x15,x0,10
+  84:	fef42623          	sw	x15,-20(x8)
+  88:	01400793          	addi	x15,x0,20
+  8c:	fef42423          	sw	x15,-24(x8)
+  90:	fec42703          	lw	x14,-20(x8)
+  94:	fe842783          	lw	x15,-24(x8)
+  98:	00f707b3          	add	x15,x14,x15
+  9c:	fef42223          	sw	x15,-28(x8)
+  a0:	fe442783          	lw	x15,-28(x8)
+  a4:	00078513          	addi	x10,x15,0
+  a8:	01c12403          	lw	x8,28(x2)
+  ac:	02010113          	addi	x2,x2,32
+  b0:	00008067          	jalr	x0,0(x1)

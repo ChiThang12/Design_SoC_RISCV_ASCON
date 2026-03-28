@@ -1,0 +1,67 @@
+
+Discarded input sections
+
+ .comment       0x00000000       0x23 /tmp/ccFI7aOS.o
+ .riscv.attributes
+                0x00000000       0x2a /tmp/ccFI7aOS.o
+ .riscv.attributes
+                0x00000000       0x28 /tmp/ccrS1OD3.o
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+ROM              0x00000000         0x00004000         xr
+RAM              0x10000000         0x00002000         xrw
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+LOAD /tmp/ccFI7aOS.o
+LOAD /tmp/ccrS1OD3.o
+                0x00000000                        . = 0x0
+
+.text           0x00000000       0xb4
+ *(.text.start)
+ .text.start    0x00000000       0x74 /tmp/ccrS1OD3.o
+                0x00000000                _start
+ *(.text*)
+ .text          0x00000074       0x40 /tmp/ccFI7aOS.o
+                0x00000074                main
+ .text          0x000000b4        0x0 /tmp/ccrS1OD3.o
+                0x000000b4                        . = ALIGN (0x4)
+ *(.rodata*)
+ *(.srodata*)
+ *(.sdata2*)
+                0x000000b4                        . = ALIGN (0x4)
+                0x000000b4                        __data_load = LOADADDR (.data)
+
+.rela.dyn       0x000000b4        0x0
+ .rela.text.start
+                0x000000b4        0x0 /tmp/ccrS1OD3.o
+
+.data           0x10000000        0x0 load address 0x000000b4
+                0x10000000                        __data_start = .
+ *(.data*)
+ .data          0x10000000        0x0 /tmp/ccFI7aOS.o
+ .data          0x10000000        0x0 /tmp/ccrS1OD3.o
+ *(.sdata*)
+                0x10000000                        . = ALIGN (0x4)
+                0x10000000                        __data_end = .
+
+.bss            0x10000000        0x0 load address 0x000000b4
+                0x10000000                        __bss_start = .
+ *(.bss*)
+ .bss           0x10000000        0x0 /tmp/ccFI7aOS.o
+ .bss           0x10000000        0x0 /tmp/ccrS1OD3.o
+ *(.sbss*)
+ *(COMMON)
+                0x10000000                        . = ALIGN (0x4)
+                0x10000000                        __bss_end = .
+                0x10001f00                        __stack_top = 0x10001f00
+
+/DISCARD/
+ *(.comment)
+ *(.note*)
+ *(.riscv.attributes)
+ *(.debug*)
+OUTPUT(example.elf elf32-littleriscv)

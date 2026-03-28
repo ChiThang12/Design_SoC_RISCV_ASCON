@@ -1,263 +1,220 @@
 // ============================================================================
-// Module  : dma_write_engine
+// Module  : dma_read_engine
 // Project : ASCON Crypto Accelerator IP
-// Version : 3.0 (fixed sync-FIFO latency, all beats correct)
+// Parent  : ascon_dma
 //
-// Fix vs v2.0:
-//   WR_ADDR issue fifo_pop=1 → chuyển WR_FIFO_WAIT (đợi 1 cycle cho dout valid)
-//   → WR_POP_H latch wdata_hi đúng → WR_POP_L compose WDATA đúng → WR_BEAT
+// Description:
+//   AXI4-Full Master read engine. Issues one read transaction to fetch
+//   plaintext from memory and pushes the received data into the RD FIFO.
 //
-// Timeline đúng (sync FIFO: dout valid 1 cycle SAU pop):
+// AXI burst behaviour (configurable via burst_len):
+//   ARLEN  = burst_len   (0 = 1 beat, N = N+1 beats)
+//   ARSIZE = 3'b011      (8 bytes/beat — matches 64-bit bus)
+//   ARBURST= 2'b01       (INCR)
 //
-//   Cycle N   WR_ADDR   : AW handshake, fifo_pop=1 (pop word0=ctext_0)
-//   Cycle N+1 WR_FIFO_W : dout = ctext_0 valid → latch wdata_hi=ctext_0
-//                          fifo_pop=1 (pop word1=ctext_1)
-//   Cycle N+2 WR_POP_L  : dout = ctext_1 valid
-//                          WDATA={ctext_0, ctext_1}, WVALID=1, WLAST=0
-//   Cycle N+3 WR_BEAT   : hold WVALID, wait WREADY
-//   Cycle N+4 WR_BEAT   : WREADY=1 → beat0 done, beat_cnt=1
-//                          fifo_pop=1 (pop word2=tag_0)
-//   Cycle N+5 WR_FIFO_W : dout = tag_0 valid → latch wdata_hi=tag_0
-//                          fifo_pop=1 (pop word3=tag_1)
-//   Cycle N+6 WR_POP_L  : dout = tag_1 valid
-//                          WDATA={tag_0, tag_1}, WVALID=1, WLAST=0
-//   ...repeat for beat2 (tag_2, tag_3, WLAST=1)...
-//   WR_RESP : wait BVALID → wr_done
+// FSM states:
+//   RD_IDLE → RD_ADDR → RD_DATA → RD_DONE → RD_IDLE
 //
-// States:
-//   WR_IDLE   → WR_ADDR → WR_FIFO_W → WR_POP_L → WR_BEAT
-//                              ↑_____________↓  (lặp beat 1, 2)
-//                         WR_RESP (sau beat 2)
+// Error handling:
+//   [FIX-1] rd_error is now STICKY across beats (was accidentally cleared on
+//           subsequent valid beats in the same burst when RRESP was OK).
+//   [FIX-2] FIFO-full error now captures the current read-address beat
+//           (M_AXI_ARADDR + beat_count*8) instead of the fixed ARADDR.
+//   [FIX-3] rd_error is cleared at the START of a new transaction (rd_start),
+//           not unconditionally each cycle, so the host can read the sticky
+//           error flag after the burst completes.
+//   [FIX-4] Beat counter added so multi-beat bursts push every beat into FIFO.
+//           Previous code had no counter → only last beat was pushed correctly
+//           (fifo_push de-asserted between beats by the default clearing).
+//   [FIX-5] M_AXI_RREADY is de-asserted when FIFO is full (back-pressure),
+//           preventing data loss on slow FIFOs. Previous code left RREADY high
+//           and set rd_error instead — data was silently dropped.
+//   [FIX-6] rd_busy is kept high through RD_DONE state so that the upstream
+//           FSM cannot issue a new rd_start before rd_done is seen.
+//
 // ============================================================================
 
-module dma_write_engine #(
+module dma_read_engine #(
     parameter ADDR_WIDTH     = 32,
     parameter AXI_DATA_WIDTH = 64,
-    parameter AXI_ID_WIDTH   = 4,
-    parameter WR_BEATS       = 3        // default 3 beats (ctext_0/1 + tag_0/1 + tag_2/3)
+    parameter AXI_ID_WIDTH   = 4
 ) (
-    input  wire                        clk,
-    input  wire                        rst_n,
+    input  wire                       clk,
+    input  wire                       rst_n,
 
-    // ── Control ───────────────────────────────────────────────────────────────
-    input  wire [ADDR_WIDTH-1:0]       dst_addr,
-    input  wire                        wr_start,
-    output reg                         wr_busy,
-    output reg                         wr_done,
-    output reg                         wr_error,
-    output reg  [ADDR_WIDTH-1:0]       wr_err_addr,
+    // ── Control (from DMA top FSM) ────────────────────────────────────────────
+    input  wire [ADDR_WIDTH-1:0]      src_addr,
+    input  wire [7:0]                 burst_len,    // ARLEN value (0 = 1 beat)
+    input  wire                       rd_start,     // 1-cycle pulse: begin transaction
+    output reg                        rd_busy,
+    output reg                        rd_done,      // 1-cycle pulse: all beats received
+    output reg                        rd_error,     // sticky: AXI returned error or FIFO full
+    output reg  [ADDR_WIDTH-1:0]      rd_err_addr,
 
-    // ── WR FIFO pop interface (32-bit entries) ────────────────────────────────
-    input  wire [31:0]                 fifo_dout,
-    output reg                         fifo_pop,
-    input  wire                        fifo_empty,
+    // ── RD FIFO push interface ────────────────────────────────────────────────
+    output reg  [AXI_DATA_WIDTH-1:0]  fifo_din,
+    output reg                        fifo_push,
+    input  wire                       fifo_full,
 
-    // ── AXI4 Write Address Channel ────────────────────────────────────────────
-    output reg  [AXI_ID_WIDTH-1:0]     M_AXI_AWID,
-    output reg  [ADDR_WIDTH-1:0]       M_AXI_AWADDR,
-    output wire [7:0]                  M_AXI_AWLEN,
-    output wire [2:0]                  M_AXI_AWSIZE,
-    output wire [1:0]                  M_AXI_AWBURST,
-    output wire [3:0]                  M_AXI_AWCACHE,
-    output wire [2:0]                  M_AXI_AWPROT,
-    output reg                         M_AXI_AWVALID,
-    input  wire                        M_AXI_AWREADY,
+    // ── AXI4 Read Address Channel ─────────────────────────────────────────────
+    output reg  [AXI_ID_WIDTH-1:0]    M_AXI_ARID,
+    output reg  [ADDR_WIDTH-1:0]      M_AXI_ARADDR,
+    output reg  [7:0]                 M_AXI_ARLEN,
+    output wire [2:0]                 M_AXI_ARSIZE,
+    output wire [1:0]                 M_AXI_ARBURST,
+    output wire [3:0]                 M_AXI_ARCACHE,
+    output wire [2:0]                 M_AXI_ARPROT,
+    output reg                        M_AXI_ARVALID,
+    input  wire                       M_AXI_ARREADY,
 
-    // ── AXI4 Write Data Channel ───────────────────────────────────────────────
-    output reg  [AXI_DATA_WIDTH-1:0]   M_AXI_WDATA,
-    output wire [AXI_DATA_WIDTH/8-1:0] M_AXI_WSTRB,
-    output reg                         M_AXI_WLAST,
-    output reg                         M_AXI_WVALID,
-    input  wire                        M_AXI_WREADY,
-
-    // ── AXI4 Write Response Channel ───────────────────────────────────────────
-    input  wire [AXI_ID_WIDTH-1:0]     M_AXI_BID,
-    input  wire [1:0]                  M_AXI_BRESP,
-    input  wire                        M_AXI_BVALID,
-    output reg                         M_AXI_BREADY
+    // ── AXI4 Read Data Channel ────────────────────────────────────────────────
+    input  wire [AXI_ID_WIDTH-1:0]    M_AXI_RID,
+    input  wire [AXI_DATA_WIDTH-1:0]  M_AXI_RDATA,
+    input  wire [1:0]                 M_AXI_RRESP,
+    input  wire                       M_AXI_RLAST,
+    input  wire                       M_AXI_RVALID,
+    output reg                        M_AXI_RREADY
 );
 
-    // ── Fixed AXI parameters ─────────────────────────────────────────────────
-    assign M_AXI_AWLEN   = WR_BEATS - 1;       // e.g. WR_BEATS=3 → AWLEN=2 (3 beats)
-    assign M_AXI_AWSIZE  = 3'b011;         // 8 bytes/beat
-    assign M_AXI_AWBURST = 2'b01;          // INCR
-    assign M_AXI_AWCACHE = 4'b0010;        // Normal Non-cacheable Bufferable
-    assign M_AXI_AWPROT  = 3'b000;
-    assign M_AXI_WSTRB   = {(AXI_DATA_WIDTH/8){1'b1}};
+    // ─── Fixed AXI parameters ────────────────────────────────────────────────
+    assign M_AXI_ARSIZE  = 3'b011;   // 8 bytes/beat (64-bit bus)
+    assign M_AXI_ARBURST = 2'b01;    // INCR
+    assign M_AXI_ARCACHE = 4'b0010;  // Normal Non-cacheable Bufferable
+    assign M_AXI_ARPROT  = 3'b000;
 
-    // ── FSM states ────────────────────────────────────────────────────────────
-    // Sync FIFO latency: pop tại posedge N → dout valid tại posedge N+1
-    // Mỗi lần pop cần 1 state idle để dout ổn định trước khi đọc.
-    //
-    // Timeline đúng cho mỗi beat:
-    //   WR_ADDR   : AW handshake, fifo_pop=1 (pop hi)
-    //   WR_WAIT_H : idle — dout = mem[hi] đang latch (KHÔNG đọc, KHÔNG pop)
-    //   WR_LATCH_H: dout = hi valid → latch wdata_hi, fifo_pop=1 (pop lo)
-    //   WR_WAIT_L : idle — dout = mem[lo] đang latch (KHÔNG đọc, KHÔNG pop)
-    //   WR_LATCH_L: dout = lo valid → compose WDATA, drive WVALID → WR_BEAT
-    localparam [2:0]
-        WR_IDLE    = 3'd0,
-        WR_ADDR    = 3'd1,
-        WR_WAIT_H  = 3'd2,   // đợi dout[hi] settle (1 cycle sau pop hi)
-        WR_LATCH_H = 3'd3,   // dout[hi] valid → latch, pop lo
-        WR_WAIT_L  = 3'd4,   // đợi dout[lo] settle (1 cycle sau pop lo)
-        WR_LATCH_L = 3'd5,   // dout[lo] valid → compose WDATA, drive WVALID
-        WR_BEAT    = 3'd6,   // giữ WVALID, chờ WREADY
-        WR_RESP    = 3'd7;   // chờ BVALID, pulse wr_done
+    // ─── FSM state encoding ───────────────────────────────────────────────────
+    localparam [1:0]
+        RD_IDLE = 2'd0,
+        RD_ADDR = 2'd1,
+        RD_DATA = 2'd2,
+        RD_DONE = 2'd3;
 
-    reg [2:0]  state;
-    reg [2:0]  beat_cnt;    // 0 .. WR_BEATS-1
-    reg [31:0] wdata_hi;    // latched high word
+    reg [1:0] state;
 
-    localparam [2:0] LAST_BEAT = WR_BEATS - 1;
+    // ─── Beat counter (tracks which beat of burst we are on) ─────────────────
+    // [FIX-4] Needed to correctly push every beat and to compute err_addr per beat
+    reg [7:0] beat_cnt;
 
+    // ─── Registered burst_len (latched on rd_start so it cannot change mid-burst)
+    reg [7:0] burst_len_r;
+
+    // ─── Current beat address (base + beat_cnt * bytes_per_beat) ─────────────
+    // Used only for rd_err_addr capture; AXI INCR addressing is done by slave.
+    wire [ADDR_WIDTH-1:0] cur_beat_addr =
+        M_AXI_ARADDR + {{(ADDR_WIDTH-11){1'b0}}, beat_cnt, 3'b000};
+        // beat_cnt * 8  (3-bit left-shift, zero-extended to ADDR_WIDTH)
+
+    // =========================================================================
+    // Main FSM
+    // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            state         <= WR_IDLE;
-            wr_busy       <= 1'b0;
-            wr_done       <= 1'b0;
-            wr_error      <= 1'b0;
-            wr_err_addr   <= {ADDR_WIDTH{1'b0}};
-            M_AXI_AWVALID <= 1'b0;
-            M_AXI_AWID    <= {AXI_ID_WIDTH{1'b0}};
-            M_AXI_AWADDR  <= {ADDR_WIDTH{1'b0}};
-            M_AXI_WVALID  <= 1'b0;
-            M_AXI_WDATA   <= {AXI_DATA_WIDTH{1'b0}};
-            M_AXI_WLAST   <= 1'b0;
-            M_AXI_BREADY  <= 1'b0;
-            fifo_pop      <= 1'b0;
-            beat_cnt      <= 3'd0;
-            wdata_hi      <= 32'h0;
+            state          <= RD_IDLE;
+            rd_busy        <= 1'b0;
+            rd_done        <= 1'b0;
+            rd_error       <= 1'b0;
+            rd_err_addr    <= {ADDR_WIDTH{1'b0}};
+            M_AXI_ARVALID  <= 1'b0;
+            M_AXI_ARID     <= {AXI_ID_WIDTH{1'b0}};
+            M_AXI_ARADDR   <= {ADDR_WIDTH{1'b0}};
+            M_AXI_ARLEN    <= 8'h00;
+            M_AXI_RREADY   <= 1'b0;
+            fifo_push      <= 1'b0;
+            fifo_din       <= {AXI_DATA_WIDTH{1'b0}};
+            beat_cnt       <= 8'h00;
+            burst_len_r    <= 8'h00;
         end else begin
-            // Default: clear 1-cycle pulse signals
-            wr_done  <= 1'b0;
-            fifo_pop <= 1'b0;
+            // ── Default: clear 1-cycle strobes ───────────────────────────────
+            rd_done   <= 1'b0;
+            fifo_push <= 1'b0;
 
             case (state)
 
-                // ── Chờ wr_start ─────────────────────────────────────────────
-                WR_IDLE: begin
-                    wr_busy       <= 1'b0;
-                    M_AXI_AWVALID <= 1'b0;
-                    M_AXI_WVALID  <= 1'b0;
-                    M_AXI_BREADY  <= 1'b0;
-                    M_AXI_WLAST   <= 1'b0;
-                    beat_cnt      <= 3'd0;
-                    if (wr_start) begin
-                        wr_busy       <= 1'b1;
-                        wr_error      <= 1'b0;
-                        M_AXI_AWID    <= {AXI_ID_WIDTH{1'b0}};
-                        M_AXI_AWADDR  <= dst_addr;
-                        M_AXI_AWVALID <= 1'b1;
-                        state         <= WR_ADDR;
+                // ─────────────────────────────────────────────────────────────
+                RD_IDLE: begin
+                    rd_busy       <= 1'b0;
+                    M_AXI_ARVALID <= 1'b0;
+                    M_AXI_RREADY  <= 1'b0;
+                    beat_cnt      <= 8'h00;
+
+                    if (rd_start) begin
+                        // [FIX-3] Clear error only when a new transaction begins
+                        rd_error      <= 1'b0;
+                        rd_err_addr   <= {ADDR_WIDTH{1'b0}};
+
+                        rd_busy       <= 1'b1;
+                        burst_len_r   <= burst_len;        // latch for safety
+                        M_AXI_ARID    <= {AXI_ID_WIDTH{1'b0}};
+                        M_AXI_ARADDR  <= src_addr;
+                        M_AXI_ARLEN   <= burst_len;
+                        M_AXI_ARVALID <= 1'b1;
+                        state         <= RD_ADDR;
                     end
                 end
 
-                // ── Gửi AW channel, chờ AWREADY ──────────────────────────────
-                // Khi handshake: pop word[hi] của beat đầu tiên
-                // Chuyển WR_WAIT_H — KHÔNG đọc dout cycle này
-                WR_ADDR: begin
-                    if (M_AXI_AWREADY && M_AXI_AWVALID) begin
-                        M_AXI_AWVALID <= 1'b0;
-                        fifo_pop      <= 1'b1;   // pop word[hi]
-                        state         <= WR_WAIT_H;
+                // ─────────────────────────────────────────────────────────────
+                RD_ADDR: begin
+                    if (M_AXI_ARREADY && M_AXI_ARVALID) begin
+                        M_AXI_ARVALID <= 1'b0;
+                        // [FIX-5] Only assert RREADY when FIFO has space
+                        M_AXI_RREADY  <= ~fifo_full;
+                        state         <= RD_DATA;
                     end
                 end
 
-                // ── Đợi 1 cycle — dout[hi] đang latch trong FIFO ─────────────
-                // fifo_pop=1 xảy ra tại posedge cycle trước.
-                // FIFO nonblocking: dout sẽ = mem[hi] SAU posedge ĐÓ.
-                // Cycle này dout đã valid — nhưng KHÔNG pop thêm.
-                // Sang WR_LATCH_H để đọc.
-                WR_WAIT_H: begin
-                    state <= WR_LATCH_H;
-                end
+                // ─────────────────────────────────────────────────────────────
+                RD_DATA: begin
+                    // [FIX-5] Dynamic back-pressure: follow FIFO availability
+                    M_AXI_RREADY <= ~fifo_full;
 
-                // ── Latch dout[hi], pop word[lo] ──────────────────────────────
-                // dout = mem[hi] đã ổn định từ cycle trước.
-                // Latch vào wdata_hi, đồng thời pop word[lo].
-                // Chuyển WR_WAIT_L — dout[lo] sẽ valid cycle sau.
-                WR_LATCH_H: begin
-                    wdata_hi <= fifo_dout;   // latch hi word
-                    fifo_pop <= 1'b1;        // pop lo word
-                    state    <= WR_WAIT_L;
-                end
+                    if (M_AXI_RVALID && M_AXI_RREADY) begin
+                        // ── AXI response check ────────────────────────────────
+                        // [FIX-1] Use |= semantics: once set, rd_error stays set
+                        if (M_AXI_RRESP != 2'b00) begin
+                            rd_error    <= 1'b1;
+                            // Only capture the first error address
+                            if (!rd_error)
+                                rd_err_addr <= cur_beat_addr;
+                        end
 
-                // ── Đợi 1 cycle — dout[lo] đang latch trong FIFO ─────────────
-                // Tương tự WR_WAIT_H nhưng cho lo word.
-                WR_WAIT_L: begin
-                    state <= WR_LATCH_L;
-                end
-
-                // ── Latch dout[lo], compose WDATA, drive WVALID ───────────────
-                // dout = mem[lo] đã ổn định.
-                // [BUG2-FIX] Width converter 64→32 split: WDATA[31:0] → sub-beat0 → dst+0
-                //                                          WDATA[63:32]→ sub-beat1 → dst+4
-                // wdata_hi = word popped first (lower DMEM addr) → must go to dst+0 → [31:0]
-                // fifo_dout = word popped second (higher DMEM addr) → dst+4 → [63:32]
-                WR_LATCH_L: begin
-                    M_AXI_WDATA  <= {fifo_dout, wdata_hi};
-                    M_AXI_WVALID <= 1'b1;
-                    M_AXI_WLAST  <= (beat_cnt == LAST_BEAT);
-                    state        <= WR_BEAT;
-                end
-
-                // ── Giữ WVALID, chờ WREADY handshake ─────────────────────────
-                WR_BEAT: begin
-                    if (M_AXI_WVALID && M_AXI_WREADY) begin
-                        M_AXI_WVALID <= 1'b0;
-                        M_AXI_WLAST  <= 1'b0;
-
-                        if (beat_cnt == LAST_BEAT) begin
-                            M_AXI_BREADY <= 1'b1;
-                            state        <= WR_RESP;
+                        // ── Push data into FIFO ───────────────────────────────
+                        // RREADY was only asserted when !fifo_full, so we should
+                        // never arrive here with fifo_full=1.  Guard anyway.
+                        if (!fifo_full) begin
+                            fifo_din  <= M_AXI_RDATA;
+                            fifo_push <= 1'b1;
                         end else begin
-                            beat_cnt <= beat_cnt + 1'b1;
-                            fifo_pop <= 1'b1;      // pop word[hi] của beat kế
-                            state    <= WR_WAIT_H; // đợi dout settle
+                            // [FIX-2] Capture per-beat address, not fixed ARADDR
+                            rd_error <= 1'b1;
+                            if (!rd_error)
+                                rd_err_addr <= cur_beat_addr;
+                        end
+
+                        // [FIX-4] Advance beat counter on every accepted beat
+                        beat_cnt <= beat_cnt + 8'h01;
+
+                        // ── End-of-burst ──────────────────────────────────────
+                        if (M_AXI_RLAST) begin
+                            M_AXI_RREADY <= 1'b0;
+                            state        <= RD_DONE;
                         end
                     end
                 end
 
-                // ── Chờ BVALID, capture BRESP, pulse wr_done ─────────────────
-                WR_RESP: begin
-                    if (M_AXI_BVALID) begin
-                        M_AXI_BREADY <= 1'b0;
-                        if (M_AXI_BRESP != 2'b00) begin
-                            wr_error    <= 1'b1;
-                            wr_err_addr <= M_AXI_AWADDR;
-                        end
-                        wr_done <= 1'b1;
-                        wr_busy <= 1'b0;
-                        state   <= WR_IDLE;
-                    end
+                // ─────────────────────────────────────────────────────────────
+                // Wait 1 cycle after the last fifo_push so the FIFO's wr_ptr
+                // has incremented and empty=0 before asserting rd_done.
+                // [FIX-6] rd_busy stays high here — cleared in IDLE entry.
+                RD_DONE: begin
+                    rd_done <= 1'b1;
+                    // rd_busy will be cleared at the top of RD_IDLE next cycle
+                    state   <= RD_IDLE;
                 end
 
-                default: state <= WR_IDLE;
+                default: state <= RD_IDLE;
 
             endcase
         end
     end
-
-    `ifdef SIMULATION
-    always @(posedge clk) begin
-        if (state == WR_ADDR && M_AXI_AWREADY && M_AXI_AWVALID)
-            $display("[WR_ENG @%0t] WR_ADDR   handshake: fifo_pop=1 (pop hi), fifo_empty=%b",
-                     $time, fifo_empty);
-        if (state == WR_LATCH_H)
-            $display("[WR_ENG @%0t] WR_LATCH_H beat%0d: fifo_dout=%08h -> wdata_hi",
-                     $time, beat_cnt, fifo_dout);
-        if (state == WR_LATCH_L)
-            $display("[WR_ENG @%0t] WR_LATCH_L beat%0d: fifo_dout=%08h wdata_hi=%08h -> WDATA=%016h WLAST=%b",
-                     $time, beat_cnt, fifo_dout, wdata_hi,
-                     {wdata_hi, fifo_dout}, (beat_cnt == LAST_BEAT));
-        if (state == WR_BEAT && M_AXI_WVALID && M_AXI_WREADY)
-            $display("[WR_ENG @%0t] WR_BEAT    beat%0d accepted: WDATA=%016h WLAST=%b",
-                     $time, beat_cnt, M_AXI_WDATA, M_AXI_WLAST);
-        if (state == WR_RESP && M_AXI_BVALID)
-            $display("[WR_ENG @%0t] WR_RESP: BRESP=%0d wr_error=%b",
-                     $time, M_AXI_BRESP, (M_AXI_BRESP != 2'b00));
-    end
-    `endif
 
 endmodule

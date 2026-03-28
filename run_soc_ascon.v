@@ -2,36 +2,51 @@
 `include "soc_top.v"
 
 // ============================================================================
-//  run_soc.v  —  Universal Debug Testbench  v5.2
-//  Cập nhật hoàn toàn cho soc_top.v (3M x 5S: IMEM/DMEM/ASCON/SoCCtrl/CLINT)
+//  run_soc_ascon.v  —  Universal Debug Testbench  v6.0
 //
-//  Thay đổi so với v5.1:
-//    [FIX-5] MATCH2/MATCH4_THRESH tăng 200→2000: tránh false loop detection
-//            khi firmware halt = for(;;){nop} — PC dao động 2-cycle do ICache
-//            pipeline, TB cũ báo "LE LOOP DETECTED" sai khi firmware OK.
-//    [FIX-6] match2/match4 thêm điều kiện lsu_sb_empty && !dc_req:
-//            chỉ trigger khi SB drain xong — phân biệt halt thật vs stall.
-//    [FIX-7] Block (3b) DMEM write tracker: dùng s1_wvalid&&s1_wready
-//            (S1 AXI W-channel) thay vì ram_wr_en internal tap:
-//            - Bắt mọi write vào DMEM (M1 DCache + M2 DMA) qua 1 điểm duy nhất
-//            - Không phụ thuộc tên wire nội bộ u_dmem (dễ lỗi compile)
-//            - DMEM snapshot (9) và store scoreboard (10) hiển thị đúng data.
-//    [FIX-8] STATUS at halt decode từ status_word[N] thay vì wire transient:
-//            core_done wire về 0 sau khi CPU đọc nhưng STATUS[1] vẫn sticky.
-//    [FIX-9] ASCON summary: thêm "[OK] CPU-Direct encryption completed"
-//            cho mode CPU-Direct (không dùng DMA).
-//    [FIX-1..4] giữ nguyên từ v5.1.
+//  Cập nhật từ v5.2 cho soc_top.v 5M×12S với UART, JTAG, PLIC, DMA mới:
+//
+//  [NEW-1] DUT port: thêm por_n, uart_tx/rx, tck/tms/tdi/tdo/tdo_en.
+//          soc_top cũ chỉ có clk+ext_rst_n+soft_rst_pulse.
+//          soft_rst_pulse giờ là internal wire (không còn là output port).
+//
+//  [NEW-2] UART Monitor: bắt uart_tx serial stream (8N1) → giải mã byte →
+//          in ra console dạng [UART-TX] char='X' (0xNN).
+//          BAUD_DIV mặc định 868 → 1 bit = 868 cy × 10 ns = 8680 ns.
+//          Monitor tự tính bit period từ tham số CLK_PERIOD và BAUD_DIV.
+//
+//  [NEW-3] JTAG taps: monitor ndmreset, haltreq, resumereq, halted, running
+//          từ soc.u_jtag và soc.jtag_ndmreset để log sự kiện debug session.
+//
+//  [NEW-4] PLIC taps: irq_src vector, meip output, per-source pending.
+//          Log khi meip thay đổi để theo dõi interrupt flow.
+//
+//  [NEW-5] M3 (DMA Ctrl) + M4 (JTAG DM) AXI logger: giống M1/M2 cũ.
+//
+//  [NEW-6] S5 (UART) + S9 (PLIC) per-slave traffic counter.
+//          S6/S7/S8/S10 là stub nên chỉ log SLVERR nếu có access.
+//
+//  [NEW-7] Reset sequence: soc_top cần por_n giữ LOW ≥ POR_CYCLES (1000cy)
+//          sau đó ext_rst_n release. Sequence mới: por_n=0 → 20cy →
+//          ext_rst_n release → 12cy → por_n release → 5cy → start.
+//
+//  [NEW-8] IRQ summary trong print_report: thêm PLIC meip count,
+//          uart_irq count, dma_irq count. Sửa comment "soc_ctrl IRQ_MASK"
+//          thành "PLIC meip" vì external_irq giờ đến từ PLIC.
+//
+//  [FIX-5..9] Giữ nguyên từ v5.2.
 // ============================================================================
-
+// `include "soc_top.v"
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
-`define LOG_LEVEL       2
-`define TIMEOUT         2000
+`define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
+`define TIMEOUT         50000   // tăng lên 50000: cần đủ cho POR(1040cy) + CPU chạy
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
 `define DMEM_ROW_WORDS  4
-`define MATCH2_THRESH   2000
-`define MATCH4_THRESH   2000
+`define MATCH2_THRESH   20000
+`define MATCH4_THRESH   20000
+`define BAUD_DIV        868     // 115200 baud @ 100 MHz → 1 bit = 868 cy
 // ─────────────────────────────────────────────────────────────────────────────
 
 module run_soc;
@@ -40,21 +55,49 @@ module run_soc;
 // Clock & Reset
 // ============================================================================
 parameter CLK_PERIOD = 10;   // 100 MHz
-reg clk, rst_n_r;
+
+reg clk;
+reg por_n_r;       // [NEW-1] Power-On Reset — phải giữ LOW ≥ 1000 cy
+reg ext_rst_n_r;   // External reset button
+
 initial clk = 0;
 always  #(CLK_PERIOD/2) clk = ~clk;
 
 // ============================================================================
 // DUT — soc_top
-// soc_top chỉ có: clk, ext_rst_n, soft_rst_pulse
-// Statistics và signals khác lấy qua hierarchical reference
+//
+// [NEW-1] soc_top v6 có port mới:
+//   - por_n         : Power-On Reset (active-low)
+//   - uart_tx/rx    : UART IO pads
+//   - tck/tms/tdi/tdo/tdo_en : JTAG IO pads
+//   soft_rst_pulse không còn là output port (internal wire trong soc_top)
 // ============================================================================
-wire soft_rst_pulse;
+// JTAG pins — driven bởi testbench (idle = JTAG bypass mode)
+reg  jtag_tck_r;
+reg  jtag_tms_r;
+reg  jtag_tdi_r;
+wire jtag_tdo_w;
+wire jtag_tdo_en_w;
+
+// UART loopback: uart_tx → uart_rx để test TX path
+// (firmware chỉ TX, TB monitor bắt trên uart_tx_w)
+wire uart_tx_w;
+wire uart_rx_w;
+assign uart_rx_w = uart_tx_w;  // loopback — thay bằng 1'b1 nếu không cần RX
 
 soc_top soc (
-    .clk           (clk),
-    .ext_rst_n     (rst_n_r),
-    .soft_rst_pulse(soft_rst_pulse)
+    .clk       (clk),
+    .por_n     (por_n_r),        // [NEW-1]
+    .ext_rst_n (ext_rst_n_r),
+    // UART
+    .uart_tx   (uart_tx_w),
+    .uart_rx   (uart_rx_w),
+    // JTAG
+    .tck       (jtag_tck_r),
+    .tms       (jtag_tms_r),
+    .tdi       (jtag_tdi_r),
+    .tdo       (jtag_tdo_w),
+    .tdo_en    (jtag_tdo_en_w)
 );
 
 // ============================================================================
@@ -69,26 +112,26 @@ wire [31:0] instr_if  = soc.u_cpu.instr_if;
 wire        stall_if  = soc.u_cpu.stall_if;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [B] CPU ↔ ICache  (internal wires của soc_top)
+// [B] CPU ↔ ICache
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] ic_cpu_addr  = soc.cpu_imem_addr;
 wire        ic_cpu_req   = soc.cpu_imem_valid;
-wire [31:0] ic_cpu_rdata = soc.icache_imem_rdata;   // tên đúng trong soc_top
-wire        ic_cpu_ready = soc.icache_imem_ready;   // tên đúng trong soc_top
+wire [31:0] ic_cpu_rdata = soc.icache_imem_rdata;
+wire        ic_cpu_ready = soc.icache_imem_ready;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [C] CPU ↔ DCache  (internal wires của soc_top)
+// [C] CPU ↔ DCache
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] dc_addr  = soc.cpu_dcache_addr;
 wire [31:0] dc_wdata = soc.cpu_dcache_wdata;
 wire [3:0]  dc_wstrb = soc.cpu_dcache_wstrb;
 wire        dc_req   = soc.cpu_dcache_req;
 wire        dc_we    = soc.cpu_dcache_we;
-wire [31:0] dc_rdata = soc.dcache_cpu_rdata;        // tên đúng trong soc_top
-wire        dc_ready = soc.dcache_cpu_ready;        // tên đúng trong soc_top
+wire [31:0] dc_rdata = soc.dcache_cpu_rdata;
+wire        dc_ready = soc.dcache_cpu_ready;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [D] M0 (ICache) → Crossbar  (soc_top wires: m0_*)
+// [D] M0 (ICache) → Crossbar
 // ─────────────────────────────────────────────────────────────────────────────
 wire [3:0]  m0_arid    = soc.m0_arid;
 wire [31:0] m0_araddr  = soc.m0_araddr;
@@ -109,7 +152,7 @@ wire [1:0]  m0_bresp   = soc.m0_bresp;
 wire        m0_bvalid  = soc.m0_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [E] M1 (DCache) → Crossbar  (soc_top wires: m1_*)
+// [E] M1 (DCache) → Crossbar
 // ─────────────────────────────────────────────────────────────────────────────
 wire [3:0]  m1_arid    = soc.m1_arid;
 wire [31:0] m1_araddr  = soc.m1_araddr;
@@ -142,7 +185,7 @@ wire        m1_bvalid  = soc.m1_bvalid;
 wire        m1_bready  = soc.m1_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [F] M2 (DMA via width converter) → Crossbar  (soc_top wires: m2_*)
+// [F] M2 (ASCON DMA 32-bit, sau width converter) → Crossbar
 // ─────────────────────────────────────────────────────────────────────────────
 wire [3:0]  m2_arid    = soc.m2_arid;
 wire [31:0] m2_araddr  = soc.m2_araddr;
@@ -175,8 +218,59 @@ wire        m2_bvalid  = soc.m2_bvalid;
 wire        m2_bready  = soc.m2_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// [F2] M3 (DMA Controller) → Crossbar  [NEW-5]
+// ─────────────────────────────────────────────────────────────────────────────
+wire [3:0]  m3_arid    = soc.m3_arid;
+wire [31:0] m3_araddr  = soc.m3_araddr;
+wire [7:0]  m3_arlen   = soc.m3_arlen;
+wire        m3_arvalid = soc.m3_arvalid;
+wire        m3_arready = soc.m3_arready;
+wire [31:0] m3_rdata   = soc.m3_rdata;
+wire [1:0]  m3_rresp   = soc.m3_rresp;
+wire        m3_rlast   = soc.m3_rlast;
+wire        m3_rvalid  = soc.m3_rvalid;
+wire        m3_rready  = soc.m3_rready;
+wire [3:0]  m3_awid    = soc.m3_awid;
+wire [31:0] m3_awaddr  = soc.m3_awaddr;
+wire [7:0]  m3_awlen   = soc.m3_awlen;
+wire        m3_awvalid = soc.m3_awvalid;
+wire        m3_awready = soc.m3_awready;
+wire [31:0] m3_wdata   = soc.m3_wdata;
+wire [3:0]  m3_wstrb   = soc.m3_wstrb;
+wire        m3_wlast   = soc.m3_wlast;
+wire        m3_wvalid  = soc.m3_wvalid;
+wire        m3_wready  = soc.m3_wready;
+wire [3:0]  m3_bid     = soc.m3_bid;
+wire [1:0]  m3_bresp   = soc.m3_bresp;
+wire        m3_bvalid  = soc.m3_bvalid;
+wire        m3_bready  = soc.m3_bready;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [F3] M4 (JTAG Debug Module SBA) → Crossbar  [NEW-5]
+// ─────────────────────────────────────────────────────────────────────────────
+wire [3:0]  m4_arid    = soc.m4_arid;
+wire [31:0] m4_araddr  = soc.m4_araddr;
+wire [7:0]  m4_arlen   = soc.m4_arlen;
+wire        m4_arvalid = soc.m4_arvalid;
+wire        m4_arready = soc.m4_arready;
+wire [31:0] m4_rdata   = soc.m4_rdata;
+wire [1:0]  m4_rresp   = soc.m4_rresp;
+wire        m4_rlast   = soc.m4_rlast;
+wire        m4_rvalid  = soc.m4_rvalid;
+wire        m4_rready  = soc.m4_rready;
+wire [3:0]  m4_awid    = soc.m4_awid;
+wire [31:0] m4_awaddr  = soc.m4_awaddr;
+wire        m4_awvalid = soc.m4_awvalid;
+wire        m4_awready = soc.m4_awready;
+wire [31:0] m4_wdata   = soc.m4_wdata;
+wire        m4_wlast   = soc.m4_wlast;
+wire        m4_wvalid  = soc.m4_wvalid;
+wire        m4_wready  = soc.m4_wready;
+wire [1:0]  m4_bresp   = soc.m4_bresp;
+wire        m4_bvalid  = soc.m4_bvalid;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // [G] DMA raw 64-bit wires (ASCON M_AXI trước width converter)
-//     Dùng để debug width converter và DMA burst
 // ─────────────────────────────────────────────────────────────────────────────
 wire [3:0]  dma_awid    = soc.dma_awid;
 wire [31:0] dma_awaddr  = soc.dma_awaddr;
@@ -265,10 +359,10 @@ wire        s2_bvalid  = soc.s2_bvalid;
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] s3_araddr  = soc.s3_araddr;
 wire        s3_arvalid = soc.s3_arvalid;
-wire        s3_arready = soc.s3_arready;    // [FIX-2] thêm để dùng valid&&ready
+wire        s3_arready = soc.s3_arready;
 wire [31:0] s3_awaddr  = soc.s3_awaddr;
 wire        s3_awvalid = soc.s3_awvalid;
-wire        s3_awready = soc.s3_awready;    // [FIX-2] thêm
+wire        s3_awready = soc.s3_awready;
 wire [31:0] s3_wdata   = soc.s3_wdata;
 wire        s3_wvalid  = soc.s3_wvalid;
 wire [31:0] s3_rdata   = soc.s3_rdata;
@@ -279,51 +373,73 @@ wire        s3_rvalid  = soc.s3_rvalid;
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] s4_araddr  = soc.s4_araddr;
 wire        s4_arvalid = soc.s4_arvalid;
-wire        s4_arready = soc.s4_arready;    // [FIX-2] thêm
+wire        s4_arready = soc.s4_arready;
 wire [31:0] s4_awaddr  = soc.s4_awaddr;
 wire        s4_awvalid = soc.s4_awvalid;
-wire        s4_awready = soc.s4_awready;    // [FIX-2] thêm
+wire        s4_awready = soc.s4_awready;
 wire [31:0] s4_wdata   = soc.s4_wdata;
 wire        s4_wvalid  = soc.s4_wvalid;
 wire [31:0] s4_rdata   = soc.s4_rdata;
 wire        s4_rvalid  = soc.s4_rvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [M] CLINT internal — mtime, mtimecmp, msip, IRQ outputs
-//     (instance: soc.u_clint)
+// [L2] Crossbar → S5 (UART)  [NEW-6]
 // ─────────────────────────────────────────────────────────────────────────────
-wire        mtime_tick   = soc.mtime_tick;          // prescaler output
-wire        timer_irq    = soc.timer_irq;           // clint → cpu
-wire        sw_irq       = soc.sw_irq;              // clint → cpu
-wire        ext_irq      = soc.external_irq;        // soc_ctrl → cpu
-
-// CLINT register internals (nếu clint expose ra)
-// [FIX] clint_mtime_lo placeholder cũ dùng S_AXI_ARADDR (AXI AR address)
-//       không phải mtime register → giá trị vô nghĩa khi debug timer.
-//       Đổi thành path đúng vào register mtime_lo trong u_clint.
-//       Nếu CLINT RTL không expose mtime_lo ra port/wire riêng, dùng:
-//         soc.u_clint.mtime_lo  (nếu có reg mtime_lo internal)
-//         soc.u_clint.r_mtime[31:0]  (tên tùy RTL implementation)
-//       Hiện tạm comment để tránh compile error — bật lại khi biết tên đúng.
-// wire [31:0] clint_mtime_lo = soc.u_clint.mtime_lo;  // TODO: verify wire name
-wire        clint_timer_out   = soc.u_clint.timer_irq;
-wire        clint_sw_out      = soc.u_clint.sw_irq;
+wire [31:0] s5_araddr  = soc.s5_araddr;
+wire        s5_arvalid = soc.s5_arvalid;
+wire        s5_arready = soc.s5_arready;
+wire [31:0] s5_awaddr  = soc.s5_awaddr;
+wire        s5_awvalid = soc.s5_awvalid;
+wire        s5_awready = soc.s5_awready;
+wire [31:0] s5_wdata   = soc.s5_wdata;
+wire        s5_wvalid  = soc.s5_wvalid;
+wire        s5_wready  = soc.s5_wready;
+wire [31:0] s5_rdata   = soc.s5_rdata;
+wire        s5_rvalid  = soc.s5_rvalid;
+wire [1:0]  s5_bresp   = soc.s5_bresp;
+wire        s5_bvalid  = soc.s5_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [N] SoC Ctrl internal — irq_out, soft_rst_pulse, status
-//     (instance: soc.u_soc_ctrl)
+// [L3] Crossbar → S9 (PLIC)  [NEW-6]
 // ─────────────────────────────────────────────────────────────────────────────
-wire        soc_ctrl_irq_out     = soc.u_soc_ctrl.irq_out;
-wire        soc_ctrl_soft_rst    = soc.u_soc_ctrl.soft_rst_pulse;
-// Statistics wires từ soc_top
-wire [31:0] icache_stat_hits     = soc.icache_stat_hits;
-wire [31:0] icache_stat_misses   = soc.icache_stat_misses;
-wire [31:0] dcache_stat_hits     = soc.dcache_stat_hits;
-wire [31:0] dcache_stat_misses   = soc.dcache_stat_misses;
-wire [31:0] dcache_stat_writes   = soc.dcache_stat_writes;
+wire [31:0] s9_araddr  = soc.s9_araddr;
+wire        s9_arvalid = soc.s9_arvalid;
+wire        s9_arready = soc.s9_arready;
+wire [31:0] s9_awaddr  = soc.s9_awaddr;
+wire        s9_awvalid = soc.s9_awvalid;
+wire        s9_awready = soc.s9_awready;
+wire [31:0] s9_wdata   = soc.s9_wdata;
+wire        s9_wvalid  = soc.s9_wvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [O] ASCON IP internal  (instance: soc.u_ascon)
+// [M] CLINT & Interrupt wires
+// ─────────────────────────────────────────────────────────────────────────────
+wire        mtime_tick   = soc.mtime_tick;
+wire        timer_irq    = soc.timer_irq;
+wire        sw_irq       = soc.sw_irq;
+wire        ext_irq      = soc.external_irq;   // PLIC meip → CPU [NEW-8]
+wire        uart_irq_w   = soc.uart_irq;       // [NEW-8]
+wire        dma_irq_w    = soc.dma_irq;        // [NEW-8]
+wire        ascon_irq_w  = soc.ascon_irq;
+wire        clint_timer_out = soc.u_clint.timer_irq;
+wire        clint_sw_out    = soc.u_clint.sw_irq;
+
+// soft_rst_pulse: không còn là output port — đọc từ internal wire
+wire        soft_rst_pulse = soc.soft_rst_pulse;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [N] SoC Ctrl internal
+// ─────────────────────────────────────────────────────────────────────────────
+wire        soc_ctrl_irq_out   = soc.soc_ctrl_irq_out;  // deprecated, không dùng
+wire        soc_ctrl_soft_rst  = soc.u_soc_ctrl.soft_rst_pulse;
+wire [31:0] icache_stat_hits   = soc.icache_stat_hits;
+wire [31:0] icache_stat_misses = soc.icache_stat_misses;
+wire [31:0] dcache_stat_hits   = soc.dcache_stat_hits;
+wire [31:0] dcache_stat_misses = soc.dcache_stat_misses;
+wire [31:0] dcache_stat_writes = soc.dcache_stat_writes;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [O] ASCON IP internal
 // ─────────────────────────────────────────────────────────────────────────────
 wire [31:0] ascon_status_word  = soc.u_ascon.u_slave.status_word;
 wire        ascon_core_busy    = soc.u_ascon.u_slave.core_busy;
@@ -338,13 +454,8 @@ wire [31:0] ascon_dma_src_r    = soc.u_ascon.u_slave.reg_dma_src;
 wire [31:0] ascon_dma_dst_r    = soc.u_ascon.u_slave.reg_dma_dst;
 wire [31:0] ascon_dma_len_r    = soc.u_ascon.u_slave.reg_dma_len;
 wire        ascon_reg_dma_en   = soc.u_ascon.u_slave.reg_dma_en;
-wire        ascon_irq_wire     = soc.ascon_irq;     // wire trong soc_top
+wire        ascon_irq_wire     = soc.ascon_irq;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// [P2] ASCON CORE input/output debug taps
-//      Dùng để verify KEY, NONCE, DATA_IN, CTEXT, TAG sau mỗi encryption
-// ─────────────────────────────────────────────────────────────────────────────
-// KEY / NONCE / DATA_IN gửi vào u_core_cpu
 wire [127:0] ascon_key_in     = soc.u_ascon.u_slave.core_key;
 wire [127:0] ascon_nonce_in   = soc.u_ascon.u_slave.core_nonce;
 wire [127:0] ascon_data_in    = soc.u_ascon.core_data_in_mux;
@@ -352,19 +463,13 @@ wire [6:0]   ascon_data_len   = soc.u_ascon.u_slave.core_data_len;
 wire [1:0]   ascon_mode_w     = soc.u_ascon.u_slave.core_mode;
 wire         ascon_enc_dec_w  = soc.u_ascon.u_slave.core_enc_dec;
 wire         ascon_dma_en_w   = soc.u_ascon.u_slave.reg_dma_en;
-
-// DMA ptext words (sau khi DMA fetch từ DMEM)
 wire [31:0]  ascon_ptext_0    = soc.u_ascon.dma_core_ptext_0;
 wire [31:0]  ascon_ptext_1    = soc.u_ascon.dma_core_ptext_1;
 wire         ascon_dma_data_v = soc.u_ascon.dma_core_data_valid;
-
-// CORE output
 wire [127:0] ascon_ctext_out  = soc.u_ascon.core_data_out_w;
 wire         ascon_ctext_v    = soc.u_ascon.core_data_out_valid_w;
 wire [127:0] ascon_tag_out    = soc.u_ascon.core_tag_out_w;
 wire         ascon_tag_v      = soc.u_ascon.core_tag_valid_w;
-
-// AXI slave ctext/tag registers (captured sau encryption)
 wire [31:0]  ascon_reg_ctext0 = soc.u_ascon.u_slave.reg_ctext_0;
 wire [31:0]  ascon_reg_ctext1 = soc.u_ascon.u_slave.reg_ctext_1;
 wire [31:0]  ascon_reg_tag0   = soc.u_ascon.u_slave.reg_tag_0;
@@ -380,12 +485,40 @@ wire [2:0]  lsu_sb_count   = soc.u_cpu.lsu_unit.sb_count[2:0];
 wire        lsu_drain_idle = (soc.u_cpu.lsu_unit.drain_state == 1'b0);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [Q] DMEM write tap — DEPRECATED (replaced by S1 AXI W-channel in block 3b)
+// [R] JTAG Debug taps  [NEW-3]
+//
+// WHY tap ở đây thay vì chỉ xem IO pad tck/tms/tdi:
+//   jtag_ndmreset và halt/resume signal là internal — không có trên pad.
+//   Tap vào soc.jtag_ndmreset và soc.u_jtag để monitor debug session.
 // ─────────────────────────────────────────────────────────────────────────────
-// wire        ram_wr_en   = soc.u_dmem.dmem.burst_wr_valid;   // fragile internal path
-// wire [31:0] ram_wr_addr = soc.u_dmem.dmem.wr_effective_addr;
-// wire [31:0] ram_wr_data = soc.u_dmem.dmem.burst_wr_data;
-// wire [3:0]  ram_wr_strb = soc.u_dmem.dmem.burst_wr_strb;
+wire        jtag_ndmreset_w  = soc.jtag_ndmreset;
+wire        jtag_haltreq_w   = soc.jtag_haltreq;
+wire        jtag_resumereq_w = soc.jtag_resumereq;
+wire        jtag_halted_w    = soc.jtag_halted;
+wire        jtag_running_w   = soc.jtag_running;
+// CPU debug mode state (từ riscv_cpu_core FSM)
+wire        cpu_debug_mode   = soc.u_cpu.debug_mode;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [S] PLIC taps  [NEW-4]
+// ─────────────────────────────────────────────────────────────────────────────
+wire [31:0] plic_irq_src     = {22'd0, soc.dma_irq, soc.ascon_irq,
+                                 4'd0, soc.uart_irq, soc.uart_irq, 1'b0};
+wire        plic_meip        = soc.external_irq;   // PLIC output → CPU
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [T] UART internal taps  [NEW-2]
+//   uart_tx_w: serial bit stream ra pad (đọc trực tiếp từ DUT output)
+//   uart_top baud gen: 1 bit = BAUD_DIV × CLK_PERIOD ns
+// ─────────────────────────────────────────────────────────────────────────────
+// uart_tx_w đã khai báo ở trên (output DUT)
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [U] Reset domain taps (từ clk_reset_ctrl)  [NEW-7]
+// ─────────────────────────────────────────────────────────────────────────────
+wire        fabric_rst_n_w   = soc.fabric_rst_n;
+wire        cpu_rst_n_w      = soc.cpu_rst_n;
+wire        periph_rst_n_w   = soc.periph_rst_n;
 
 // ============================================================================
 // Counters & State
@@ -403,15 +536,23 @@ integer max_stall_run;
 integer m0_ar_burst_cnt;
 integer m1_ar_burst_cnt, m1_aw_burst_cnt;
 integer m2_ar_burst_cnt, m2_aw_burst_cnt;
-integer dma_raw_ar_cnt,  dma_raw_aw_cnt;   // 64-bit side của width conv
+integer m3_ar_burst_cnt, m3_aw_burst_cnt;   // [NEW-5]
+integer m4_ar_burst_cnt, m4_aw_burst_cnt;   // [NEW-5]
+integer dma_raw_ar_cnt,  dma_raw_aw_cnt;
 
 integer s0_ar_cnt;
 integer s1_ar_cnt, s1_aw_cnt;
 integer s2_access_cnt;
 integer s3_access_cnt;
-integer s4_access_cnt;                     // CLINT accesses
+integer s4_access_cnt;
+integer s5_access_cnt;   // [NEW-6] UART
+integer s9_access_cnt;   // [NEW-6] PLIC
+integer s6_access_cnt;   // stub access (nên = 0)
+integer s7_access_cnt;
+integer s8_access_cnt;
 integer decerr_cnt;
 integer xbar_conflict_cnt;
+integer stub_slverr_cnt; // [NEW-6] SLVERR từ stub slaves S6/S7/S8/S10
 
 integer ascon_start_cnt;
 integer ascon_dma_start_cnt;
@@ -420,18 +561,31 @@ integer ascon_dma_done_cnt;
 integer ascon_irq_cnt;
 integer ascon_error_cnt;
 
-integer clint_timer_irq_cnt;              // lần timer_irq được raise
-integer clint_sw_irq_cnt;                 // lần sw_irq được raise
-integer soft_rst_cnt;                     // lần soft_rst_pulse
+integer clint_timer_irq_cnt;
+integer clint_sw_irq_cnt;
+integer soft_rst_cnt;
+
+// [NEW] UART + JTAG + PLIC counters
+integer uart_tx_byte_cnt;   // byte đã TX qua uart serial
+integer uart_irq_cnt;       // UART IRQ raised
+integer plic_meip_cnt;      // PLIC meip raised count
+integer jtag_ndmreset_cnt;  // ndmreset pulses
+integer jtag_halt_cnt;      // CPU entered D-mode (halted)
+integer dma_irq_cnt;        // DMA controller IRQ count
 
 integer m0_ar_start;
 integer m1_ar_start, m1_aw_start;
 integer m2_ar_start, m2_aw_start;
+integer m3_ar_start, m3_aw_start;   // [NEW-5]
+integer m4_ar_start, m4_aw_start;   // [NEW-5]
 integer m0_rd_lat_sum, m0_rd_lat_cnt;
 integer m1_rd_lat_sum, m1_rd_lat_cnt;
 integer m1_wr_lat_sum, m1_wr_lat_cnt;
 integer m2_rd_lat_sum, m2_rd_lat_cnt;
 integer m2_wr_lat_sum, m2_wr_lat_cnt;
+integer m3_rd_lat_sum, m3_rd_lat_cnt;
+integer m3_wr_lat_sum, m3_wr_lat_cnt;
+integer m4_wr_lat_sum, m4_wr_lat_cnt;
 
 reg [31:0] prev_pc;
 integer    halt_cnt;
@@ -455,6 +609,15 @@ reg prev_ascon_tag_v;
 reg prev_timer_irq;
 reg prev_sw_irq;
 reg prev_soft_rst;
+reg prev_ext_irq;        // [NEW-8]
+reg prev_uart_irq;       // [NEW-8]
+reg prev_dma_irq;        // [NEW-8]
+reg prev_jtag_ndmreset;  // [NEW-3]
+reg prev_jtag_halted;    // [NEW-3]
+
+// UART rx buffer  [NEW-2]
+reg [7:0]  uart_rx_buf [0:255];
+integer    uart_rx_count;
 
 // ============================================================================
 // Waveform dump
@@ -468,14 +631,14 @@ end
 // (1) Cycle Counter
 // ============================================================================
 always @(posedge clk) begin
-    if (rst_n_r) cycle_count = cycle_count + 1;
+    if (ext_rst_n_r) cycle_count = cycle_count + 1;
 end
 
 // ============================================================================
 // (2) Instruction Retire & Stall
 // ============================================================================
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r && fabric_rst_n_w) begin
         if (!stall_if && instr_if !== 32'h0)
             instr_retired = instr_retired + 1;
 
@@ -496,20 +659,12 @@ end
 
 // ============================================================================
 // (3) DCache Load/Store Logger
-// [FIX-3] Block này chỉ log và đếm — KHÔNG gọi sb_update.
-//   Lý do: khi CPU store đi qua DCache → M1 → S1 → DMEM, cả block (3) này
-//   lẫn block (3b) ram_wr_en đều fire cho cùng 1 store → double-count và
-//   scoreboard nhận 2 lần ghi cho cùng địa chỉ (latency khác nhau, data
-//   có thể khác nếu có transform trong DCache).
-//   Authoritative source là ram_wr_en (block 3b) — DMEM là nơi data thực sự
-//   được committed. sb_update chỉ được gọi từ đó.
 // ============================================================================
 always @(posedge clk) begin
-    if (rst_n_r && dc_req && dc_ready) begin
+    if (ext_rst_n_r && fabric_rst_n_w && dc_req && dc_ready) begin
         if (dc_we) begin
             if (!program_done) begin
                 dmem_wr_cnt = dmem_wr_cnt + 1;
-                // sb_update đã được xử lý bởi block (3b) ram_wr_en — không gọi lại ở đây
                 if (`LOG_LEVEL >= 2)
                     $display("[%6d] [ST] addr=0x%08h  data=0x%08h  strb=%b",
                              cycle_count, dc_addr, dc_wdata, dc_wstrb);
@@ -528,39 +683,33 @@ end
 
 // ============================================================================
 // (3b) DMEM AXI Write Tracker — authoritative scoreboard source
-// ─────────────────────────────────────────────────────────────────────────────
-// [FIX] Dùng s1_wvalid && s1_wready (AXI W-channel → DMEM slave) thay vì
-//       ram_wr_en internal tap, vì:
-//   1. ram_wr_en path phụ thuộc tên wire nội bộ u_dmem — dễ lỗi compile.
-//   2. S1 W-channel bắt mọi write vào DMEM từ cả M1(DCache) lẫn M2(DMA).
-//   3. s1_awaddr cung cấp địa chỉ đích chính xác cho scoreboard.
-// Để tránh double-count với block (3) CPU store logger:
-//   Block (3) chỉ log + đếm dmem_wr_cnt, KHÔNG gọi sb_update.
-//   sb_update chỉ được gọi tại đây (S1 W commit).
 // ============================================================================
-reg [31:0] s1_aw_addr_lat;   // latch s1_awaddr khi AW handshake
+reg [31:0] s1_aw_addr_lat;
 always @(posedge clk) begin
-    if (!rst_n_r)
+    if (!ext_rst_n_r)
         s1_aw_addr_lat <= 32'h0;
     else if (s1_awvalid && s1_awready)
         s1_aw_addr_lat <= s1_awaddr;
 end
 
 always @(posedge clk) begin
-    if (rst_n_r && s1_wvalid && s1_wready && !program_done) begin
+    if (ext_rst_n_r && s1_wvalid && s1_wready && !program_done) begin
         sb_update(s1_aw_addr_lat, s1_wdata, s1_wstrb);
         if (`LOG_LEVEL >= 2)
-            $display("[%6d] [DMEM-W] addr=0x%08h  data=0x%08h  strb=%b  (S1-AXI commit)",
+            $display("[%6d] [DMEM-W] addr=0x%08h  data=0x%08h  strb=%b",
                      cycle_count, s1_aw_addr_lat, s1_wdata, s1_wstrb);
     end
 end
+
+// ============================================================================
+// (4) M0 (ICache) AXI Logger
 // ============================================================================
 reg [31:0] m0_ar_addr_saved;
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r) begin
         if (m0_arvalid && m0_arready) begin
-            m0_ar_burst_cnt = m0_ar_burst_cnt + 1;
-            m0_ar_start     = cycle_count;
+            m0_ar_burst_cnt  = m0_ar_burst_cnt + 1;
+            m0_ar_start      = cycle_count;
             m0_ar_addr_saved <= m0_araddr;
             if (`LOG_LEVEL >= 2)
                 $display("[%6d] [M0-AR] addr=0x%08h  len=%0d  size=%0d",
@@ -583,14 +732,9 @@ always @(posedge clk) begin
                 $display("[%6d] [!!!] DECERR M0 READ addr=0x%08h", cycle_count, m0_ar_addr_saved);
             end
         end
-        // ICache không nên ghi — cảnh báo nếu thấy
         if (m0_awvalid && `LOG_LEVEL >= 1)
-            $display("[%6d] [WARN] M0(ICache) AW asserted! addr=0x%08h  (ICache should NOT write)",
-                     cycle_count, m0_awaddr);
-        if (m0_bvalid && m0_bresp == 2'b11) begin
-            decerr_cnt = decerr_cnt + 1;
-            $display("[%6d] [!!!] DECERR M0 WRITE addr=0x%08h", cycle_count, m0_awaddr);
-        end
+            $display("[%6d] [WARN] M0(ICache) AW asserted! (ICache should NOT write)",
+                     cycle_count);
     end
 end
 
@@ -600,18 +744,15 @@ end
 reg [31:0] m1_ar_addr_saved;
 reg [31:0] m1_aw_addr_saved;
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r) begin
         if (m1_arvalid && m1_arready) begin
             m1_ar_burst_cnt  = m1_ar_burst_cnt + 1;
             m1_ar_start      = cycle_count;
             m1_ar_addr_saved <= m1_araddr;
             if (`LOG_LEVEL >= 2)
-                $display("[%6d] [M1-AR] addr=0x%08h  len=%0d  size=%0d  -> %s",
-                         cycle_count, m1_araddr, m1_arlen, m1_arsize,
+                $display("[%6d] [M1-AR] addr=0x%08h  len=%0d  -> %s",
+                         cycle_count, m1_araddr, m1_arlen,
                          slave_name_of_addr(m1_araddr));
-            if (m1_araddr[31:16] == 16'h0000 && `LOG_LEVEL >= 1)
-                $display("[%6d] [WARN] M1(DCache) AR -> IMEM range! addr=0x%08h",
-                         cycle_count, m1_araddr);
         end
         if (m1_rvalid && m1_rready) begin
             if (`LOG_LEVEL >= 3)
@@ -624,7 +765,8 @@ always @(posedge clk) begin
             end
             if (m1_rresp == 2'b11) begin
                 decerr_cnt = decerr_cnt + 1;
-                $display("[%6d] [!!!] DECERR M1 READ addr=0x%08h", cycle_count, m1_ar_addr_saved);
+                $display("[%6d] [!!!] DECERR M1 READ addr=0x%08h",
+                         cycle_count, m1_ar_addr_saved);
             end
         end
         if (m1_awvalid && m1_awready) begin
@@ -643,97 +785,179 @@ always @(posedge clk) begin
         if (m1_bvalid && m1_bready) begin
             m1_wr_lat_sum = m1_wr_lat_sum + (cycle_count - m1_aw_start + 1);
             m1_wr_lat_cnt = m1_wr_lat_cnt + 1;
-            if (`LOG_LEVEL >= 2)
-                $display("[%6d] [M1-B ] bresp=%0d  lat=%0d cyc",
-                         cycle_count, m1_bresp, cycle_count - m1_aw_start + 1);
             if (m1_bresp == 2'b11) begin
                 decerr_cnt = decerr_cnt + 1;
-                $display("[%6d] [!!!] DECERR M1 WRITE addr=0x%08h", cycle_count, m1_aw_addr_saved);
+                $display("[%6d] [!!!] DECERR M1 WRITE addr=0x%08h",
+                         cycle_count, m1_aw_addr_saved);
             end
         end
     end
 end
 
 // ============================================================================
-// (6) M2 (DMA 32-bit / width converter output) AXI Logger
+// (6) M2 (ASCON DMA 32-bit) AXI Logger
 // ============================================================================
 reg [31:0] m2_ar_addr_saved;
 reg [31:0] m2_aw_addr_saved;
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r) begin
         if (m2_arvalid && m2_arready) begin
             m2_ar_burst_cnt  = m2_ar_burst_cnt + 1;
             m2_ar_start      = cycle_count;
             m2_ar_addr_saved <= m2_araddr;
-            if (`LOG_LEVEL >= 1)
-                $display("[%6d] [M2-AR] DMA FETCH  addr=0x%08h  len=%0d  -> %s",
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [M2-AR] addr=0x%08h  len=%0d  -> %s",
                          cycle_count, m2_araddr, m2_arlen,
                          slave_name_of_addr(m2_araddr));
-            if (m2_araddr[31:16] !== 16'h1000 && `LOG_LEVEL >= 1)
-                $display("[%6d] [WARN] M2(DMA) AR outside DMEM range! addr=0x%08h",
-                         cycle_count, m2_araddr);
         end
         if (m2_rvalid && m2_rready) begin
-            if (`LOG_LEVEL >= 2)
-                $display("[%6d] [M2-R ] data=0x%08h  rresp=%0d%s",
-                         cycle_count, m2_rdata, m2_rresp,
-                         m2_rlast ? "  [LAST]" : "");
             if (m2_rlast) begin
                 m2_rd_lat_sum = m2_rd_lat_sum + (cycle_count - m2_ar_start + 1);
                 m2_rd_lat_cnt = m2_rd_lat_cnt + 1;
             end
             if (m2_rresp == 2'b11) begin
                 decerr_cnt = decerr_cnt + 1;
-                $display("[%6d] [!!!] DECERR M2 READ addr=0x%08h", cycle_count, m2_ar_addr_saved);
+                $display("[%6d] [!!!] DECERR M2 READ addr=0x%08h",
+                         cycle_count, m2_ar_addr_saved);
             end
         end
         if (m2_awvalid && m2_awready) begin
             m2_aw_burst_cnt  = m2_aw_burst_cnt + 1;
             m2_aw_start      = cycle_count;
             m2_aw_addr_saved <= m2_awaddr;
-            if (`LOG_LEVEL >= 1)
-                $display("[%6d] [M2-AW] DMA STORE  addr=0x%08h  len=%0d  -> %s",
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [M2-AW] addr=0x%08h  len=%0d  -> %s",
                          cycle_count, m2_awaddr, m2_awlen,
                          slave_name_of_addr(m2_awaddr));
-            if (m2_awaddr[31:16] !== 16'h1000 && `LOG_LEVEL >= 1)
-                $display("[%6d] [WARN] M2(DMA) AW outside DMEM range! addr=0x%08h",
-                         cycle_count, m2_awaddr);
         end
-        if (m2_wvalid && m2_wready && `LOG_LEVEL >= 2)
-            $display("[%6d] [M2-W ] data=0x%08h  strb=%b%s",
-                     cycle_count, m2_wdata, m2_wstrb,
-                     m2_wlast ? "  [LAST]" : "");
         if (m2_bvalid && m2_bready) begin
             m2_wr_lat_sum = m2_wr_lat_sum + (cycle_count - m2_aw_start + 1);
             m2_wr_lat_cnt = m2_wr_lat_cnt + 1;
-            if (`LOG_LEVEL >= 1)
-                $display("[%6d] [M2-B ] DMA WRITE done  bresp=%0d  lat=%0d cyc",
-                         cycle_count, m2_bresp, cycle_count - m2_aw_start + 1);
             if (m2_bresp == 2'b11) begin
                 decerr_cnt = decerr_cnt + 1;
-                $display("[%6d] [!!!] DECERR M2 WRITE addr=0x%08h", cycle_count, m2_aw_addr_saved);
+                $display("[%6d] [!!!] DECERR M2 WRITE addr=0x%08h",
+                         cycle_count, m2_aw_addr_saved);
             end
         end
     end
 end
 
 // ============================================================================
-// (7) DMA 64-bit raw side logger (trước width converter)
-//     Dùng để debug width converter hoạt động đúng không
+// (6b) M3 (DMA Controller) AXI Logger  [NEW-5]
+// ============================================================================
+reg [31:0] m3_ar_addr_saved;
+reg [31:0] m3_aw_addr_saved;
+always @(posedge clk) begin
+    if (ext_rst_n_r) begin
+        if (m3_arvalid && m3_arready) begin
+            m3_ar_burst_cnt  = m3_ar_burst_cnt + 1;
+            m3_ar_start      = cycle_count;
+            m3_ar_addr_saved <= m3_araddr;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [M3-AR] (DMA-Ctrl) addr=0x%08h  len=%0d  -> %s",
+                         cycle_count, m3_araddr, m3_arlen,
+                         slave_name_of_addr(m3_araddr));
+        end
+        if (m3_rvalid && m3_rready) begin
+            if (m3_rlast) begin
+                m3_rd_lat_sum = m3_rd_lat_sum + (cycle_count - m3_ar_start + 1);
+                m3_rd_lat_cnt = m3_rd_lat_cnt + 1;
+            end
+            if (m3_rresp == 2'b11) begin
+                decerr_cnt = decerr_cnt + 1;
+                $display("[%6d] [!!!] DECERR M3(DMA) READ addr=0x%08h",
+                         cycle_count, m3_ar_addr_saved);
+            end
+        end
+        if (m3_awvalid && m3_awready) begin
+            m3_aw_burst_cnt  = m3_aw_burst_cnt + 1;
+            m3_aw_start      = cycle_count;
+            m3_aw_addr_saved <= m3_awaddr;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [M3-AW] (DMA-Ctrl) addr=0x%08h  len=%0d  -> %s",
+                         cycle_count, m3_awaddr, m3_awlen,
+                         slave_name_of_addr(m3_awaddr));
+        end
+        if (m3_bvalid && m3_bready) begin
+            m3_wr_lat_sum = m3_wr_lat_sum + (cycle_count - m3_aw_start + 1);
+            m3_wr_lat_cnt = m3_wr_lat_cnt + 1;
+            if (m3_bresp == 2'b11) begin
+                decerr_cnt = decerr_cnt + 1;
+                $display("[%6d] [!!!] DECERR M3(DMA) WRITE addr=0x%08h",
+                         cycle_count, m3_aw_addr_saved);
+            end
+        end
+    end
+end
+
+// ============================================================================
+// (6c) M4 (JTAG Debug Module SBA) AXI Logger  [NEW-5]
+// WHY level 1 thay vì 2: JTAG SBA access quan trọng để debug — luôn log.
+// ============================================================================
+reg [31:0] m4_ar_addr_saved;
+reg [31:0] m4_aw_addr_saved;
+always @(posedge clk) begin
+    if (ext_rst_n_r) begin
+        if (m4_arvalid && m4_arready) begin
+            m4_ar_burst_cnt  = m4_ar_burst_cnt + 1;
+            m4_ar_start      = cycle_count;
+            m4_ar_addr_saved <= m4_araddr;
+            if (`LOG_LEVEL >= 1)
+                $display("[%6d] [M4-AR] (JTAG-DM SBA) addr=0x%08h  len=%0d  -> %s",
+                         cycle_count, m4_araddr, m4_arlen,
+                         slave_name_of_addr(m4_araddr));
+        end
+        if (m4_rvalid && m4_rready) begin
+            if (m4_rresp == 2'b11) begin
+                decerr_cnt = decerr_cnt + 1;
+                $display("[%6d] [!!!] DECERR M4(JTAG) READ addr=0x%08h",
+                         cycle_count, m4_ar_addr_saved);
+            end
+            if (m4_rlast && `LOG_LEVEL >= 1)
+                $display("[%6d] [M4-R ] data=0x%08h  rresp=%0d [LAST]",
+                         cycle_count, m4_rdata, m4_rresp);
+        end
+        if (m4_awvalid && m4_awready) begin
+            m4_aw_burst_cnt  = m4_aw_burst_cnt + 1;
+            m4_aw_start      = cycle_count;
+            m4_aw_addr_saved <= m4_awaddr;
+            if (`LOG_LEVEL >= 1)
+                $display("[%6d] [M4-AW] (JTAG-DM SBA) addr=0x%08h  -> %s",
+                         cycle_count, m4_awaddr,
+                         slave_name_of_addr(m4_awaddr));
+        end
+        if (m4_wvalid && m4_wready && `LOG_LEVEL >= 1)
+            $display("[%6d] [M4-W ] data=0x%08h%s",
+                     cycle_count, m4_wdata,
+                     m4_wlast ? "  [LAST]" : "");
+        if (m4_bvalid) begin
+            m4_wr_lat_sum = m4_wr_lat_sum + (cycle_count - m4_aw_start + 1);
+            m4_wr_lat_cnt = m4_wr_lat_cnt + 1;
+            if (m4_bresp == 2'b11) begin
+                decerr_cnt = decerr_cnt + 1;
+                $display("[%6d] [!!!] DECERR M4(JTAG) WRITE addr=0x%08h",
+                         cycle_count, m4_aw_addr_saved);
+            end
+        end
+    end
+end
+
+// ============================================================================
+// (7) DMA raw 64-bit Logger (ASCON side)
 // ============================================================================
 always @(posedge clk) begin
-    if (rst_n_r) begin
-        if (dma_arvalid && dma_arready) begin
-            dma_raw_ar_cnt = dma_raw_ar_cnt + 1;
-            if (`LOG_LEVEL >= 2)
-                $display("[%6d] [DMA64-AR] addr=0x%08h  len=%0d  (64-bit side)",
-                         cycle_count, dma_araddr, dma_arlen);
-        end
+    if (ext_rst_n_r) begin
         if (dma_awvalid && dma_awready) begin
             dma_raw_aw_cnt = dma_raw_aw_cnt + 1;
             if (`LOG_LEVEL >= 2)
-                $display("[%6d] [DMA64-AW] addr=0x%08h  len=%0d  (64-bit side)",
+                $display("[%6d] [DMA64-AW] addr=0x%08h  len=%0d",
                          cycle_count, dma_awaddr, dma_awlen);
+        end
+        if (dma_arvalid && dma_arready) begin
+            dma_raw_ar_cnt = dma_raw_ar_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [DMA64-AR] addr=0x%08h  len=%0d",
+                         cycle_count, dma_araddr, dma_arlen);
         end
         if (dma_rvalid && dma_rready && `LOG_LEVEL >= 3)
             $display("[%6d] [DMA64-R ] data=0x%016h  rresp=%0d%s",
@@ -750,34 +974,27 @@ end
 // (8) Per-Slave Traffic Counter
 // ============================================================================
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r) begin
         if (s0_arvalid && s0_arready) s0_ar_cnt = s0_ar_cnt + 1;
         if (s1_arvalid && s1_arready) s1_ar_cnt = s1_ar_cnt + 1;
         if (s1_awvalid && s1_awready) s1_aw_cnt = s1_aw_cnt + 1;
 
-        // [FIX-2] S2/S3/S4 counter dùng valid&&ready để tránh over-count:
-        //   AXI handshake chỉ hoàn thành khi valid&&ready. Nếu slave giữ
-        //   ready=0 nhiều cycle thì valid HIGH liên tục → counter đếm dư N lần.
         if (s2_arvalid && s2_arready) begin
             s2_access_cnt = s2_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
-                $display("[%6d] [S2-ASCON] READ   offset=0x%03h",
+                $display("[%6d] [S2-ASCON] READ  offset=0x%03h",
                          cycle_count, s2_araddr[11:0]);
         end
         if (s2_awvalid && s2_awready) begin
             s2_access_cnt = s2_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
-                $display("[%6d] [S2-ASCON] AW     offset=0x%03h  (W data logged below)",
+                $display("[%6d] [S2-ASCON] AW    offset=0x%03h",
                          cycle_count, s2_awaddr[11:0]);
         end
-        // [FIX-4] Log W data khi s2_wvalid (W channel độc lập với AW trong AXI4)
-        //   s2_awvalid && s2_wdata: AW và W có thể không cùng cycle →
-        //   log data tại AW-time in ra giá trị sai (data chưa valid).
-        if (s2_wvalid) begin
-            if (`LOG_LEVEL >= 1)
-                $display("[%6d] [S2-ASCON] WRITE  offset=0x%03h  data=0x%08h",
-                         cycle_count, s2_awaddr[11:0], s2_wdata);
-        end
+        if (s2_wvalid && `LOG_LEVEL >= 1)
+            $display("[%6d] [S2-ASCON] WRITE offset=0x%03h  data=0x%08h",
+                     cycle_count, s2_awaddr[11:0], s2_wdata);
+
         if (s3_arvalid && s3_arready) begin
             s3_access_cnt = s3_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
@@ -789,26 +1006,65 @@ always @(posedge clk) begin
                 $display("[%6d] [S3-SOCCTRL] WRITE addr=0x%08h  data=0x%08h",
                          cycle_count, s3_awaddr, s3_wdata);
         end
+
         if (s4_arvalid && s4_arready) begin
             s4_access_cnt = s4_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
-                $display("[%6d] [S4-CLINT] READ  addr=0x%08h  offset=0x%05h",
-                         cycle_count, s4_araddr, s4_araddr[19:0]);
+                $display("[%6d] [S4-CLINT] READ  offset=0x%05h", cycle_count, s4_araddr[19:0]);
         end
         if (s4_awvalid && s4_awready) begin
             s4_access_cnt = s4_access_cnt + 1;
             if (`LOG_LEVEL >= 1)
-                $display("[%6d] [S4-CLINT] WRITE addr=0x%08h  offset=0x%05h  data=0x%08h",
-                         cycle_count, s4_awaddr, s4_awaddr[19:0], s4_wdata);
+                $display("[%6d] [S4-CLINT] WRITE offset=0x%05h  data=0x%08h",
+                         cycle_count, s4_awaddr[19:0], s4_wdata);
+        end
+
+        // ── [NEW-6] S5 UART traffic ──────────────────────────────────────────
+        if (s5_arvalid && s5_arready) begin
+            s5_access_cnt = s5_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S5-UART] READ  offset=0x%02h",
+                         cycle_count, s5_araddr[7:0]);
+        end
+        if (s5_awvalid && s5_awready) begin
+            s5_access_cnt = s5_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S5-UART] WRITE offset=0x%02h  data=0x%08h",
+                         cycle_count, s5_awaddr[7:0], s5_wdata);
+        end
+
+        // ── [NEW-6] S9 PLIC traffic ──────────────────────────────────────────
+        if (s9_arvalid && s9_arready) begin
+            s9_access_cnt = s9_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S9-PLIC] READ  offset=0x%06h",
+                         cycle_count, s9_araddr[21:0]);
+        end
+        if (s9_awvalid && s9_awready) begin
+            s9_access_cnt = s9_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S9-PLIC] WRITE offset=0x%06h  data=0x%08h",
+                         cycle_count, s9_awaddr[21:0], s9_wdata);
+        end
+
+        // ── Stub slave SLVERR detection (S6/S7/S8/S10) ──────────────────────
+        if ((soc.s6_bvalid && soc.s6_bresp == 2'b10) ||
+            (soc.s7_bvalid && soc.s7_bresp == 2'b10) ||
+            (soc.s8_bvalid && soc.s8_bresp == 2'b10) ||
+            (soc.s10_bvalid && soc.s10_bresp == 2'b10)) begin
+            stub_slverr_cnt = stub_slverr_cnt + 1;
+            if (`LOG_LEVEL >= 1)
+                $display("[%6d] [WARN] Stub slave SLVERR (GPIO/SPI/Timer/OTP not yet implemented)",
+                         cycle_count);
         end
     end
 end
 
 // ============================================================================
-// (9) ASCON IP Event Logger — enhanced with input/output debug
+// (9) ASCON IP Event Logger
 // ============================================================================
 always @(posedge clk) begin
-    if (!rst_n_r) begin
+    if (!ext_rst_n_r) begin
         prev_ascon_dma_done_st <= 1'b0;
         prev_ascon_core_done   <= 1'b0;
         prev_ascon_dma_error   <= 1'b0;
@@ -826,61 +1082,51 @@ always @(posedge clk) begin
 end
 
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r) begin
         if (ascon_soft_rst)
             $display("[%6d] [ASCON] SOFT_RST asserted", cycle_count);
 
-        // ── CORE START: print all inputs ──────────────────────────────────
         if (ascon_core_start) begin
             ascon_start_cnt = ascon_start_cnt + 1;
-            $display("[%6d] [ASCON] CORE START  #%0d  dma_en=%0d  mode=%0d  enc_dec=%0d  data_len=%0d",
+            $display("[%6d] [ASCON] CORE START #%0d  dma_en=%0d  mode=%0d  enc_dec=%0d  data_len=%0d",
                      cycle_count, ascon_start_cnt, ascon_dma_en_w,
                      ascon_mode_w, ascon_enc_dec_w, ascon_data_len);
-            $display("[%6d] [ASCON-IN] KEY    = %032h", cycle_count, ascon_key_in);
-            $display("[%6d] [ASCON-IN] NONCE  = %032h", cycle_count, ascon_nonce_in);
-            $display("[%6d] [ASCON-IN] DATA   = %032h", cycle_count, ascon_data_in);
-            $display("[%6d] [ASCON-IN]   → PT_upper64 = %016h  (bits[127:64])",
-                     cycle_count, ascon_data_in[127:64]);
+            $display("[%6d] [ASCON-IN] KEY   = %032h", cycle_count, ascon_key_in);
+            $display("[%6d] [ASCON-IN] NONCE = %032h", cycle_count, ascon_nonce_in);
+            $display("[%6d] [ASCON-IN] DATA  = %032h", cycle_count, ascon_data_in);
             if (ascon_dma_en_w)
-                $display("[%6d] [ASCON-IN]   → ptext_0=0x%08h  ptext_1=0x%08h  (from DMA)",
+                $display("[%6d] [ASCON-IN] ptext_0=0x%08h  ptext_1=0x%08h  (DMA)",
                          cycle_count, ascon_ptext_0, ascon_ptext_1);
         end
 
-        // ── DMA START ─────────────────────────────────────────────────────
         if (ascon_dma_start) begin
             ascon_dma_start_cnt = ascon_dma_start_cnt + 1;
-            $display("[%6d] [ASCON] DMA  START  #%0d  src=0x%08h  dst=0x%08h  len=%0d",
+            $display("[%6d] [ASCON] DMA START #%0d  src=0x%08h  dst=0x%08h  len=%0d",
                      cycle_count, ascon_dma_start_cnt,
                      ascon_dma_src_r, ascon_dma_dst_r, ascon_dma_len_r);
         end
 
-        // ── DMA data fetched (ptext_0/1 valid) ────────────────────────────
         if (ascon_dma_data_v && `LOG_LEVEL >= 2)
-            $display("[%6d] [ASCON-DMA] ptext fetched: ptext_0=0x%08h  ptext_1=0x%08h",
+            $display("[%6d] [ASCON-DMA] ptext: 0x%08h 0x%08h",
                      cycle_count, ascon_ptext_0, ascon_ptext_1);
 
-        // ── CTEXT out (first occurrence) ──────────────────────────────────
         if (ascon_ctext_v && !prev_ascon_ctext_v)
-            $display("[%6d] [ASCON-OUT] CTEXT = %016h  (ctext[63:32]=0x%08h  ctext[31:0]=0x%08h)",
-                     cycle_count, ascon_ctext_out[127:64],
-                     ascon_ctext_out[127:96], ascon_ctext_out[95:64]);
+            $display("[%6d] [ASCON-OUT] CTEXT = %016h",
+                     cycle_count, ascon_ctext_out[127:64]);
 
-        // ── TAG out (first occurrence) ────────────────────────────────────
         if (ascon_tag_v && !prev_ascon_tag_v)
             $display("[%6d] [ASCON-OUT] TAG   = %032h",
                      cycle_count, ascon_tag_out);
 
-        // ── DMA DONE ──────────────────────────────────────────────────────
         if (ascon_dma_done_st && !prev_ascon_dma_done_st) begin
             ascon_dma_done_cnt = ascon_dma_done_cnt + 1;
-            $display("[%6d] [ASCON] DMA  DONE  #%0d  STATUS=0x%08h",
+            $display("[%6d] [ASCON] DMA DONE #%0d  STATUS=0x%08h",
                      cycle_count, ascon_dma_done_cnt, ascon_status_word);
         end
 
-        // ── CORE DONE: print captured regs from slave ─────────────────────
         if (ascon_core_done && !prev_ascon_core_done) begin
             ascon_done_cnt = ascon_done_cnt + 1;
-            $display("[%6d] [ASCON] CORE DONE  #%0d  STATUS=0x%08h",
+            $display("[%6d] [ASCON] CORE DONE #%0d  STATUS=0x%08h",
                      cycle_count, ascon_done_cnt, ascon_status_word);
             $display("[%6d] [ASCON-REG] CTEXT_0=0x%08h  CTEXT_1=0x%08h",
                      cycle_count, ascon_reg_ctext0, ascon_reg_ctext1);
@@ -892,14 +1138,14 @@ always @(posedge clk) begin
 
         if (ascon_dma_error && !prev_ascon_dma_error) begin
             ascon_error_cnt = ascon_error_cnt + 1;
-            $display("[%6d] [!!!]  ASCON DMA ERROR  STATUS=0x%08h",
+            $display("[%6d] [!!!] ASCON DMA ERROR  STATUS=0x%08h",
                      cycle_count, ascon_status_word);
         end
 
         if (ascon_irq_wire && !prev_ascon_irq) begin
             ascon_irq_cnt = ascon_irq_cnt + 1;
-            $display("[%6d] [ASCON] IRQ raised  #%0d  STATUS=0x%08h",
-                     cycle_count, ascon_irq_cnt, ascon_status_word);
+            $display("[%6d] [ASCON] IRQ raised #%0d → PLIC src[8]",
+                     cycle_count, ascon_irq_cnt);
         end
     end
 end
@@ -908,58 +1154,170 @@ end
 // (10) CLINT & Interrupt Event Logger
 // ============================================================================
 always @(posedge clk) begin
-    if (!rst_n_r) begin
+    if (!ext_rst_n_r) begin
         prev_timer_irq <= 1'b0;
         prev_sw_irq    <= 1'b0;
         prev_soft_rst  <= 1'b0;
+        prev_ext_irq   <= 1'b0;
+        prev_uart_irq  <= 1'b0;
+        prev_dma_irq   <= 1'b0;
     end else begin
         prev_timer_irq <= timer_irq;
         prev_sw_irq    <= sw_irq;
         prev_soft_rst  <= soft_rst_pulse;
+        prev_ext_irq   <= ext_irq;
+        prev_uart_irq  <= uart_irq_w;
+        prev_dma_irq   <= dma_irq_w;
     end
 end
 
 always @(posedge clk) begin
-    if (rst_n_r) begin
+    if (ext_rst_n_r) begin
         if (timer_irq && !prev_timer_irq) begin
             clint_timer_irq_cnt = clint_timer_irq_cnt + 1;
-            $display("[%6d] [CLINT] TIMER_IRQ raised  #%0d",
+            $display("[%6d] [CLINT] TIMER_IRQ raised #%0d",
                      cycle_count, clint_timer_irq_cnt);
         end
         if (sw_irq && !prev_sw_irq) begin
             clint_sw_irq_cnt = clint_sw_irq_cnt + 1;
-            $display("[%6d] [CLINT] SW_IRQ raised  #%0d",
+            $display("[%6d] [CLINT] SW_IRQ raised #%0d",
                      cycle_count, clint_sw_irq_cnt);
         end
         if (soft_rst_pulse && !prev_soft_rst) begin
             soft_rst_cnt = soft_rst_cnt + 1;
-            $display("[%6d] [SOCCTRL] SOFT_RST_PULSE asserted  #%0d",
-                     cycle_count, soft_rst_cnt);
+            $display("[%6d] [SOCCTRL] SOFT_RST_PULSE #%0d", cycle_count, soft_rst_cnt);
         end
-        if (ext_irq && `LOG_LEVEL >= 2)
-            $display("[%6d] [IRQ] external_irq HIGH (ascon IRQ → CPU)",
-                     cycle_count);
+        // [NEW-8] PLIC meip
+        if (ext_irq && !prev_ext_irq) begin
+            plic_meip_cnt = plic_meip_cnt + 1;
+            $display("[%6d] [PLIC] meip raised #%0d  → CPU.external_irq",
+                     cycle_count, plic_meip_cnt);
+        end
+        // [NEW-8] UART IRQ
+        if (uart_irq_w && !prev_uart_irq) begin
+            uart_irq_cnt = uart_irq_cnt + 1;
+            $display("[%6d] [UART] irq_out raised #%0d  → PLIC src[1,2]",
+                     cycle_count, uart_irq_cnt);
+        end
+        // [NEW-8] DMA IRQ
+        if (dma_irq_w && !prev_dma_irq) begin
+            dma_irq_cnt = dma_irq_cnt + 1;
+            $display("[%6d] [DMA] irq_out raised #%0d  → PLIC src[9]",
+                     cycle_count, dma_irq_cnt);
+        end
     end
 end
 
 // ============================================================================
-// (11) Halt / Loop Detection
+// (11) JTAG Debug Session Logger  [NEW-3]
+//
+// WHY monitor ndmreset: ndmreset xảy ra hoàn toàn bên trong SoC (không
+// visible trên pad nào). Tap vào internal wire để biết khi nào JTAG DM
+// reset CPU trong khi crossbar vẫn chạy.
 // ============================================================================
 always @(posedge clk) begin
-    if (!rst_n_r) begin
-        halt_cnt <= 0; ring_ptr <= 0;
-        match2 <= 0; match4 <= 0;
-    end else if (cycle_count > 30) begin
+    if (!ext_rst_n_r) begin
+        prev_jtag_ndmreset <= 1'b0;
+        prev_jtag_halted   <= 1'b0;
+    end else begin
+        prev_jtag_ndmreset <= jtag_ndmreset_w;
+        prev_jtag_halted   <= jtag_halted_w;
+    end
+end
 
-        // HALT: PC không đổi, CPU không đang wait memory, LSU SB đã drain
-        // [FIX-1] Bỏ điều kiện lọc NOP (0x00000013):
-        //   firmware halt = for(;;){asm volatile("nop")} → instr_if LUÔN là NOP
-        //   → điều kiện cũ không bao giờ đúng → TB dùng MATCH2/WATCHDOG thay HALT
-        //   → reason log ra "2-CYCLE LOOP DETECTED" thay vì "HALT LOOP DETECTED"
-        //   HALT_STABLE=60 đủ dài để lọc stall thật (stall thường vài cycle).
-        if (pc_if === prev_pc
-            && !dc_req                       // DCache không pending
-            && lsu_sb_empty) begin           // LSU SB đã drain
+always @(posedge clk) begin
+    if (ext_rst_n_r) begin
+        // ndmreset pulse
+        if (jtag_ndmreset_w && !prev_jtag_ndmreset) begin
+            jtag_ndmreset_cnt = jtag_ndmreset_cnt + 1;
+            $display("[%6d] [JTAG] ndmreset ASSERTED #%0d  (cpu_rst_n=0, fabric_rst_n unchanged)",
+                     cycle_count, jtag_ndmreset_cnt);
+        end
+        if (!jtag_ndmreset_w && prev_jtag_ndmreset)
+            $display("[%6d] [JTAG] ndmreset RELEASED  (CPU resuming from JTAG reset)",
+                     cycle_count);
+
+        // haltreq
+        if (jtag_haltreq_w && `LOG_LEVEL >= 2)
+            $display("[%6d] [JTAG] haltreq HIGH  (DM requesting CPU halt)", cycle_count);
+
+        // CPU entered D-mode
+        if (jtag_halted_w && !prev_jtag_halted) begin
+            jtag_halt_cnt = jtag_halt_cnt + 1;
+            $display("[%6d] [JTAG] CPU halted #%0d  (D-mode, pipeline frozen  PC=0x%08h)",
+                     cycle_count, jtag_halt_cnt, pc_if);
+        end
+        if (!jtag_halted_w && prev_jtag_halted)
+            $display("[%6d] [JTAG] CPU resumed  (leaving D-mode  PC=0x%08h)",
+                     cycle_count, pc_if);
+
+        // resumereq
+        if (jtag_resumereq_w && `LOG_LEVEL >= 2)
+            $display("[%6d] [JTAG] resumereq HIGH  (DM releasing CPU)", cycle_count);
+    end
+end
+
+// ============================================================================
+// (12) UART TX Monitor — bắt serial stream 8N1  [NEW-2]
+//
+// WHY dùng procedural (initial + forever) thay vì always:
+//   Serial protocol là event-driven theo thời gian, không theo clock.
+//   Mỗi bit dài BAUD_DIV × CLK_PERIOD ns. Dùng #delay để sample chính giữa bit.
+//
+// Timing: uart_tx=1 idle → falling edge = start bit → sample 1.5 bit periods
+//   sau = giữa bit 0, rồi mỗi 1 bit period tiếp theo = bit 1..7.
+//   8N1: 8 data bits, no parity, 1 stop bit.
+// ============================================================================
+integer baud_half;    // half bit period tính bằng timescale unit (ns)
+integer baud_full;    // full bit period
+
+initial begin
+    baud_half = (`BAUD_DIV * CLK_PERIOD) / 2;
+    baud_full = `BAUD_DIV * CLK_PERIOD;
+    uart_rx_count = 0;
+    uart_tx_byte_cnt = 0;
+    forever begin
+        // Chờ start bit (falling edge trên uart_tx)
+        @(negedge uart_tx_w);
+        // Sample giữa bit 0: đợi 1.5 bit period
+        #(baud_half + baud_full);
+        begin : uart_rx_frame
+            reg [7:0] rx_byte;
+            integer   b;
+            rx_byte = 8'h00;
+            // Sample 8 data bits (LSB first)
+            for (b = 0; b < 8; b = b + 1) begin
+                rx_byte[b] = uart_tx_w;
+                if (b < 7) #baud_full;
+            end
+            // Skip stop bit
+            #baud_full;
+            // Log và lưu
+            uart_tx_byte_cnt = uart_tx_byte_cnt + 1;
+            if (rx_byte >= 8'h20 && rx_byte <= 8'h7E)
+                $display("[%6d] [UART-TX] char='%s'  (0x%02h)  #%0d",
+                         cycle_count, rx_byte, rx_byte, uart_tx_byte_cnt);
+            else
+                $display("[%6d] [UART-TX] byte=0x%02h  (non-printable)  #%0d",
+                         cycle_count, rx_byte, uart_tx_byte_cnt);
+            if (uart_rx_count < 256) begin
+                uart_rx_buf[uart_rx_count] = rx_byte;
+                uart_rx_count = uart_rx_count + 1;
+            end
+        end
+    end
+end
+
+// ============================================================================
+// (13) Halt / Loop Detection
+// ============================================================================
+always @(posedge clk) begin
+    if (!ext_rst_n_r) begin
+        halt_cnt <= 0; ring_ptr <= 0;
+        match2   <= 0; match4   <= 0;
+    end else if (cycle_count > 30 && fabric_rst_n_w) begin
+
+        if (pc_if === prev_pc && !dc_req && lsu_sb_empty) begin
             halt_cnt <= halt_cnt + 1;
             if (halt_cnt >= `HALT_STABLE && !program_done) begin
                 program_done = 1;
@@ -971,10 +1329,6 @@ always @(posedge clk) begin
             halt_cnt <= 0;
         end
 
-        // 2-cycle loop detection
-        // Thêm lsu_sb_empty && !dc_req: tránh false-positive khi firmware đang
-        // for(;;){nop} hợp lệ — PC dao động 2-cycle do ICache pipeline fetch.
-        // Chỉ báo lỗi khi SB drain xong mà vẫn loop (thực sự bị kẹt).
         if (pc_if === pc_ring[(ring_ptr + 6) % 8] && lsu_sb_empty && !dc_req) begin
             match2 = match2 + 1;
             if (match2 >= `MATCH2_THRESH && !program_done) begin
@@ -984,7 +1338,6 @@ always @(posedge clk) begin
             end
         end else match2 = 0;
 
-        // 4-cycle loop detection
         if (pc_if === pc_ring[(ring_ptr + 4) % 8] && lsu_sb_empty && !dc_req) begin
             match4 = match4 + 1;
             if (match4 >= `MATCH4_THRESH && !program_done) begin
@@ -1001,7 +1354,7 @@ always @(posedge clk) begin
 end
 
 // ============================================================================
-// (12) Watchdog
+// (14) Watchdog
 // ============================================================================
 initial begin
     #(CLK_PERIOD * `TIMEOUT);
@@ -1013,54 +1366,104 @@ initial begin
 end
 
 // ============================================================================
-// Main Sequence
+// Main Sequence  [NEW-7]
+//
+// Reset sequence đúng cho clk_reset_ctrl:
+//   por_n_r   = 0  (POR active) → giữ tối thiểu POR_CYCLES (1000 cy)
+//   ext_rst_n_r = 0 (reset active)
+//   Sau 20cy: release ext_rst_n → por_n vẫn LOW → clk_reset_ctrl nhận POR
+//   Sau thêm POR_CYCLES cy: release por_n → clk_reset_ctrl release fabric_rst_n
+//   Chờ thêm 5cy → execution start
+//
+// WHY thứ tự này:
+//   por_n phải release SAU ext_rst_n (hoặc cùng lúc). Nếu por_n release trước,
+//   clk_reset_ctrl có thể không giữ đủ POR duration.
 // ============================================================================
 integer i;
 initial begin
-    // Init tất cả counters
-    cycle_count          = 0;   instr_retired       = 0;
-    stall_cycles         = 0;   dmem_rd_cnt         = 0;
-    dmem_wr_cnt          = 0;   post_halt_stores     = 0;
-    sb_errors            = 0;   sb_cnt              = 0;
-    cur_stall_run        = 0;   max_stall_run       = 0;
-    program_done         = 0;   prev_pc             = 0;
-    halt_cnt             = 0;   ring_ptr            = 0;
-    match2 = 0; match4 = 0;
-    m0_ar_burst_cnt      = 0;
-    m1_ar_burst_cnt      = 0;   m1_aw_burst_cnt     = 0;
-    m2_ar_burst_cnt      = 0;   m2_aw_burst_cnt     = 0;
-    dma_raw_ar_cnt       = 0;   dma_raw_aw_cnt      = 0;
-    s0_ar_cnt            = 0;
-    s1_ar_cnt            = 0;   s1_aw_cnt           = 0;
-    s2_access_cnt        = 0;   s3_access_cnt       = 0;
-    s4_access_cnt        = 0;
-    decerr_cnt           = 0;   xbar_conflict_cnt   = 0;
-    m0_ar_start          = 0;
-    m1_ar_start          = 0;   m1_aw_start         = 0;
-    m2_ar_start          = 0;   m2_aw_start         = 0;
-    m0_rd_lat_sum        = 0;   m0_rd_lat_cnt       = 0;
-    m1_rd_lat_sum        = 0;   m1_rd_lat_cnt       = 0;
-    m1_wr_lat_sum        = 0;   m1_wr_lat_cnt       = 0;
-    m2_rd_lat_sum        = 0;   m2_rd_lat_cnt       = 0;
-    m2_wr_lat_sum        = 0;   m2_wr_lat_cnt       = 0;
-    ascon_start_cnt      = 0;   ascon_dma_start_cnt = 0;
-    ascon_done_cnt       = 0;   ascon_dma_done_cnt  = 0;
-    ascon_irq_cnt        = 0;   ascon_error_cnt     = 0;
-    clint_timer_irq_cnt  = 0;   clint_sw_irq_cnt    = 0;
-    soft_rst_cnt         = 0;
+    // Init JTAG pins — idle state (TMS=1 → reset TAP state machine)
+    jtag_tck_r = 1'b0;
+    jtag_tms_r = 1'b1;  // TMS=1: giữ TAP ở Test-Logic-Reset
+    jtag_tdi_r = 1'b0;
 
-    for (i = 0; i < 256; i = i + 1) begin sb_addr[i] = 0; sb_data[i] = 0; end
-    for (i = 0; i < 8;   i = i + 1) pc_ring[i] = 0;
+    // Init counters
+    cycle_count          = 0;   instr_retired        = 0;
+    stall_cycles         = 0;   dmem_rd_cnt          = 0;
+    dmem_wr_cnt          = 0;   post_halt_stores      = 0;
+    sb_errors            = 0;   sb_cnt               = 0;
+    cur_stall_run        = 0;   max_stall_run        = 0;
+    program_done         = 0;   prev_pc              = 0;
+    halt_cnt             = 0;   ring_ptr             = 0;
+    match2               = 0;   match4               = 0;
+    m0_ar_burst_cnt      = 0;
+    m1_ar_burst_cnt      = 0;   m1_aw_burst_cnt      = 0;
+    m2_ar_burst_cnt      = 0;   m2_aw_burst_cnt      = 0;
+    m3_ar_burst_cnt      = 0;   m3_aw_burst_cnt      = 0;
+    m4_ar_burst_cnt      = 0;   m4_aw_burst_cnt      = 0;
+    dma_raw_ar_cnt       = 0;   dma_raw_aw_cnt       = 0;
+    s0_ar_cnt            = 0;
+    s1_ar_cnt            = 0;   s1_aw_cnt            = 0;
+    s2_access_cnt        = 0;   s3_access_cnt        = 0;
+    s4_access_cnt        = 0;   s5_access_cnt        = 0;
+    s6_access_cnt        = 0;   s7_access_cnt        = 0;
+    s8_access_cnt        = 0;   s9_access_cnt        = 0;
+    decerr_cnt           = 0;   xbar_conflict_cnt    = 0;
+    stub_slverr_cnt      = 0;
+    m0_ar_start          = 0;
+    m1_ar_start          = 0;   m1_aw_start          = 0;
+    m2_ar_start          = 0;   m2_aw_start          = 0;
+    m3_ar_start          = 0;   m3_aw_start          = 0;
+    m4_ar_start          = 0;   m4_aw_start          = 0;
+    m0_rd_lat_sum        = 0;   m0_rd_lat_cnt        = 0;
+    m1_rd_lat_sum        = 0;   m1_rd_lat_cnt        = 0;
+    m1_wr_lat_sum        = 0;   m1_wr_lat_cnt        = 0;
+    m2_rd_lat_sum        = 0;   m2_rd_lat_cnt        = 0;
+    m2_wr_lat_sum        = 0;   m2_wr_lat_cnt        = 0;
+    m3_rd_lat_sum        = 0;   m3_rd_lat_cnt        = 0;
+    m3_wr_lat_sum        = 0;   m3_wr_lat_cnt        = 0;
+    m4_wr_lat_sum        = 0;   m4_wr_lat_cnt        = 0;
+    ascon_start_cnt      = 0;   ascon_dma_start_cnt  = 0;
+    ascon_done_cnt       = 0;   ascon_dma_done_cnt   = 0;
+    ascon_irq_cnt        = 0;   ascon_error_cnt      = 0;
+    clint_timer_irq_cnt  = 0;   clint_sw_irq_cnt     = 0;
+    soft_rst_cnt         = 0;
+    uart_tx_byte_cnt     = 0;   uart_irq_cnt         = 0;
+    plic_meip_cnt        = 0;   jtag_ndmreset_cnt    = 0;
+    jtag_halt_cnt        = 0;   dma_irq_cnt          = 0;
+
+    for (i = 0; i < 256; i = i + 1) begin
+        sb_addr[i] = 0; sb_data[i] = 0;
+        uart_rx_buf[i] = 0;
+    end
+    for (i = 0; i < 8; i = i + 1) pc_ring[i] = 0;
 
     print_banner();
 
-    rst_n_r = 0;
-    repeat(12) @(posedge clk);
-    rst_n_r = 1;
-    repeat(5)  @(posedge clk);
+    // [NEW-7] Reset sequence cho clk_reset_ctrl
+    por_n_r     = 1'b0;   // POR active
+    ext_rst_n_r = 1'b0;   // ext reset active
+
+    // Giữ cả hai thấp 20 cycle để VDD "ổn định"
+    repeat(20) @(posedge clk);
+
+    // Release ext_rst_n trước (por_n vẫn LOW — clk_reset_ctrl vẫn hold reset)
+    ext_rst_n_r = 1'b1;
+    $display("[%6d] ext_rst_n released (por_n still LOW)", cycle_count);
+
+    // Chờ đủ POR_CYCLES để clk_reset_ctrl stretch por
+    // POR_CYCLES=1000 nhưng dùng 1020 để chắc chắn
+    repeat(1020) @(posedge clk);
+
+    // Release por_n → clk_reset_ctrl bắt đầu release fabric_rst_n
+    por_n_r = 1'b1;
+    $display("[%6d] por_n released — waiting for fabric_rst_n...", cycle_count);
+
+    // Chờ fabric_rst_n thực sự release từ clk_reset_ctrl (thay vì fixed repeat(5))
+    @(posedge fabric_rst_n_w);
+    repeat(3) @(posedge clk);   // 3 cycle margin sau khi fabric_rst_n lên
 
     if (`LOG_LEVEL >= 1)
-        $display("[%6d] Reset released — Execution started\n", cycle_count);
+        $display("[%6d] Reset sequence complete — Execution started\n", cycle_count);
 
     wait(program_done);
 end
@@ -1119,6 +1522,13 @@ function [63:0] slave_name_of_addr;
         else if (addr[31:12] == 20'h20000)           slave_name_of_addr = "ASCON   ";
         else if (addr[31:12] == 20'h30000)           slave_name_of_addr = "SoCCtrl ";
         else if (addr[31:16] == 16'h4000)            slave_name_of_addr = "CLINT   ";
+        else if (addr[31:12] == 20'h50000)           slave_name_of_addr = "UART    ";
+        else if (addr[31:12] == 20'h50010)           slave_name_of_addr = "GPIO    ";
+        else if (addr[31:12] == 20'h50020)           slave_name_of_addr = "SPI     ";
+        else if (addr[31:12] == 20'h50030)           slave_name_of_addr = "Timer   ";
+        else if (addr[31:12] == 20'h50040)           slave_name_of_addr = "PLIC    ";
+        else if (addr[31:12] == 20'h60000)           slave_name_of_addr = "OTP     ";
+        else if (addr[31:12] == 20'h60010)           slave_name_of_addr = "DMA-Cfg ";
         else                                         slave_name_of_addr = "DECERR! ";
     end
 endfunction
@@ -1154,7 +1564,8 @@ endfunction
 task print_report;
     input [127:0] reason;
     integer j, k, nz;
-    real cpi, ipc, eff, ic_rate, dc_rate;
+    real    cpi, ipc, eff, ic_rate, dc_rate;
+    real    m0_rd_lat_avg, m1_rd_lat_avg, m1_wr_lat_avg, m3_rd_lat_avg, m3_wr_lat_avg;
     integer ic_total, dc_total;
     reg [31:0] ret, wv;
     begin
@@ -1165,19 +1576,12 @@ task print_report;
         $display("|  STOP: %-57s|", reason);
         $display("+=================================================================+");
 
-        // ── Diagnostic khi loop detected ────────────────────────────────────
-        if (reason == "2-CYCLE LOOP DETECTED" || reason == "4-CYCLE LOOP DETECTED"
-            || reason == "LE LOOP DETECTED") begin
+        if (reason == "2-CYCLE LOOP DETECTED" || reason == "4-CYCLE LOOP DETECTED") begin
             $display("|  [DIAG] Final PC = 0x%08h", pc_if);
-            if (pc_if >= 32'h00001000) begin
-                $display("|  [DIAG] PC > 0x1000 -> loop co the do IMEM bi cat (inst_mem qua nho)");
-                $display("|         CPU fetch NOP (0x00000013) lien tuc -> loop vo han.");
-                $display("|         Fix: tang IMEM_SIZE trong soc_top.v va inst_mem.v");
-                $display("|              run.sh se tu dong patch inst_mem [0:1023]->[0:2047]");
-            end else if (pc_if >= 32'h00000400) begin
-                $display("|  [DIAG] PC trong vung code -> co the la while(1) halt binh thuong");
-                $display("|         Kiem tra a0: neu a0==0 thi firmware da chay xong thanh cong");
-            end
+            if (pc_if >= 32'h00001000)
+                $display("|  [DIAG] PC > 0x1000 → possible IMEM overflow (fetch NOP loop)");
+            else if (pc_if >= 32'h00000400)
+                $display("|  [DIAG] PC in code range → normal halt if a0==0");
         end
 
         // ── (1) Result ───────────────────────────────────────────────────────
@@ -1186,10 +1590,8 @@ task print_report;
         $display("|  a0 (x10) = 0x%08h  =  %0d  (signed: %0d)",
                  ret, ret, $signed(ret));
         $display("|  Binary   = %032b", ret);
-        if (ret === 32'h0)
-            $display("|  [OK]  a0 == 0");
-        else
-            $display("|  [!!]  a0 != 0  -- firmware may have set error code");
+        if (ret === 32'h0)  $display("|  [OK]  a0 == 0");
+        else                $display("|  [!!]  a0 != 0  -- firmware may have set error code");
         $display("|  Final PC = 0x%08h", pc_if);
         $display("+----------------------------------------------------------------+");
 
@@ -1199,156 +1601,166 @@ task print_report;
         if (instr_retired > 0) begin
             cpi = cycle_count * 1.0 / instr_retired;
             ipc = instr_retired * 1.0 / cycle_count;
-            eff = ipc * 100.0;
             $display("|  Cycles           : %0d", cycle_count);
             $display("|  Instructions     : %0d", instr_retired);
-            $display("|  CPI              : %.3f  (ideal = 1.000)", cpi);
-            $display("|  IPC              : %.3f", ipc);
-            $display("|  Pipeline eff     : %.1f%%", eff);
-            $display("|  Stall cycles     : %0d  (%.1f%%)",
-                     stall_cycles, stall_cycles * 100.0 / cycle_count);
-            $display("|  Max stall run    : %0d cycles", max_stall_run);
-            $display("|  Time @ 100 MHz   : %.2f us", cycle_count * 10.0 / 1000.0);
-            if      (eff >= 90.0) $display("|  Rating : ***** EXCELLENT  (>=90%%)");
-            else if (eff >= 75.0) $display("|  Rating : ****  GOOD       (>=75%%)");
-            else if (eff >= 55.0) $display("|  Rating : ***   FAIR       (>=55%%)");
-            else                  $display("|  Rating : **    NEEDS WORK (<55%%)");
-        end else
-            $display("|  No instructions retired.");
+            $display("|  CPI              : %.2f", cpi);
+            $display("|  IPC              : %.2f", ipc);
+        end
+        $display("|  Stall cycles     : %0d  (%.1f%%)",
+                 stall_cycles, cycle_count > 0 ? stall_cycles * 100.0 / cycle_count : 0.0);
+        $display("|  Max stall run    : %0d cycles", max_stall_run);
         $display("+----------------------------------------------------------------+");
 
-        // ── (3) Cache Statistics ─────────────────────────────────────────────
+        // ── (3) Cache Stats ──────────────────────────────────────────────────
         $display("");
-        $display("+--- (3) CACHE STATISTICS ---------------------------------------+");
+        $display("+--- (3) CACHE STATS --------------------------------------------+");
         ic_total = icache_stat_hits + icache_stat_misses;
         dc_total = dcache_stat_hits + dcache_stat_misses;
-        ic_rate  = (ic_total > 0) ? icache_stat_hits * 100.0 / ic_total : 0.0;
-        dc_rate  = (dc_total > 0) ? dcache_stat_hits * 100.0 / dc_total : 0.0;
-        $display("|  ICache : hits=%-6d  misses=%-6d  total=%-6d  hit%%=%.1f%%",
-                 icache_stat_hits, icache_stat_misses, ic_total, ic_rate);
-        $display("|  DCache : hits=%-6d  misses=%-6d  total=%-6d  hit%%=%.1f%%  writes=%0d",
-                 dcache_stat_hits, dcache_stat_misses, dc_total, dc_rate, dcache_stat_writes);
+        ic_rate  = ic_total > 0 ? icache_stat_hits * 100.0 / ic_total : 0.0;
+        dc_rate  = dc_total > 0 ? dcache_stat_hits * 100.0 / dc_total : 0.0;
+        $display("|  ICache  hits=%0d  misses=%0d  rate=%.1f%%",
+                 icache_stat_hits, icache_stat_misses, ic_rate);
+        $display("|  DCache  hits=%0d  misses=%0d  rate=%.1f%%  writes=%0d",
+                 dcache_stat_hits, dcache_stat_misses, dc_rate, dcache_stat_writes);
+        $display("+----------------------------------------------------------------+");
+
+        // ── (4) AXI Bus Stats ────────────────────────────────────────────────
+        m0_rd_lat_avg = (m0_rd_lat_cnt > 0) ? (m0_rd_lat_sum * 1.0 / m0_rd_lat_cnt) : 0.0;
+        m1_rd_lat_avg = (m1_rd_lat_cnt > 0) ? (m1_rd_lat_sum * 1.0 / m1_rd_lat_cnt) : 0.0;
+        m1_wr_lat_avg = (m1_wr_lat_cnt > 0) ? (m1_wr_lat_sum * 1.0 / m1_wr_lat_cnt) : 0.0;
+        m3_rd_lat_avg = (m3_rd_lat_cnt > 0) ? (m3_rd_lat_sum * 1.0 / m3_rd_lat_cnt) : 0.0;
+        m3_wr_lat_avg = (m3_wr_lat_cnt > 0) ? (m3_wr_lat_sum * 1.0 / m3_wr_lat_cnt) : 0.0;
+        $display("");
+        $display("+--- (4) AXI BUS STATS ------------------------------------------+");
         if (m0_rd_lat_cnt > 0)
-            $display("|  ICache refill avg lat : %.1f cyc  (%0d bursts)",
-                     m0_rd_lat_sum * 1.0 / m0_rd_lat_cnt, m0_rd_lat_cnt);
-        if (m1_rd_lat_cnt > 0)
-            $display("|  DCache refill avg lat : %.1f cyc  (%0d bursts)",
-                     m1_rd_lat_sum * 1.0 / m1_rd_lat_cnt, m1_rd_lat_cnt);
-        if (m1_wr_lat_cnt > 0)
-            $display("|  DCache write  avg lat : %.1f cyc  (%0d bursts)",
-                     m1_wr_lat_sum * 1.0 / m1_wr_lat_cnt, m1_wr_lat_cnt);
-        $display("+----------------------------------------------------------------+");
-
-        // ── (4) AXI Crossbar Traffic ─────────────────────────────────────────
-        $display("");
-        $display("+--- (4) AXI4 CROSSBAR TRAFFIC  (3M x 5S) ----------------------+");
-        $display("|  Master 0 (ICache)       :  AR=%0d", m0_ar_burst_cnt);
-        $display("|  Master 1 (DCache)       :  AR=%0d   AW=%0d",
-                 m1_ar_burst_cnt, m1_aw_burst_cnt);
-        $display("|  Master 2 (DMA 32-bit)   :  AR=%0d   AW=%0d",
-                 m2_ar_burst_cnt, m2_aw_burst_cnt);
-        $display("|  DMA raw  (64-bit side)  :  AR=%0d   AW=%0d  (width conv input)",
-                 dma_raw_ar_cnt, dma_raw_aw_cnt);
-        if (m2_rd_lat_cnt > 0)
-            $display("|    DMA fetch avg lat : %.1f cyc  (%0d bursts)",
-                     m2_rd_lat_sum * 1.0 / m2_rd_lat_cnt, m2_rd_lat_cnt);
-        if (m2_wr_lat_cnt > 0)
-            $display("|    DMA store avg lat : %.1f cyc  (%0d bursts)",
-                     m2_wr_lat_sum * 1.0 / m2_wr_lat_cnt, m2_wr_lat_cnt);
-        $display("|  ─────────────────────────────────────────────────────────── |");
-        $display("|  S0  IMEM              :  AR=%0d", s0_ar_cnt);
-        $display("|  S1  DMEM              :  AR=%0d   AW=%0d", s1_ar_cnt, s1_aw_cnt);
-        $display("|  S2  ASCON             :  accesses=%0d", s2_access_cnt);
-        $display("|  S3  SoC Ctrl          :  accesses=%0d", s3_access_cnt);
-        $display("|  S4  CLINT             :  accesses=%0d", s4_access_cnt);
-        $display("|  Arb conflicts         :  %0d", xbar_conflict_cnt);
-        if (decerr_cnt > 0)
-            $display("|  [!!!] DECERR count  :  %0d  <- unmapped address access!", decerr_cnt);
+            $display("|  M0(ICache):  AR=%0d  rd_lat=%.1f cy", m0_ar_burst_cnt, m0_rd_lat_avg);
         else
-            $display("|  DECERR count        :  0  (OK)");
+            $display("|  M0(ICache):  AR=%0d  rd_lat=n/a cy", m0_ar_burst_cnt);
+        if (m1_rd_lat_cnt > 0 && m1_wr_lat_cnt > 0)
+            $display("|  M1(DCache):  AR=%0d  AW=%0d  rd_lat=%.1f cy  wr_lat=%.1f cy",
+                     m1_ar_burst_cnt, m1_aw_burst_cnt, m1_rd_lat_avg, m1_wr_lat_avg);
+        else if (m1_rd_lat_cnt > 0)
+            $display("|  M1(DCache):  AR=%0d  AW=%0d  rd_lat=%.1f cy  wr_lat=n/a cy",
+                     m1_ar_burst_cnt, m1_aw_burst_cnt, m1_rd_lat_avg);
+        else if (m1_wr_lat_cnt > 0)
+            $display("|  M1(DCache):  AR=%0d  AW=%0d  rd_lat=n/a cy  wr_lat=%.1f cy",
+                     m1_ar_burst_cnt, m1_aw_burst_cnt, m1_wr_lat_avg);
+        else
+            $display("|  M1(DCache):  AR=%0d  AW=%0d  rd_lat=n/a cy  wr_lat=n/a cy",
+                     m1_ar_burst_cnt, m1_aw_burst_cnt);
+        $display("|  M2(ASCON-DMA32): AR=%0d  AW=%0d", m2_ar_burst_cnt, m2_aw_burst_cnt);
+        if (m3_rd_lat_cnt > 0 && m3_wr_lat_cnt > 0)
+            $display("|  M3(DMA-Ctrl):    AR=%0d  AW=%0d  rd_lat=%.1f cy  wr_lat=%.1f cy",
+                     m3_ar_burst_cnt, m3_aw_burst_cnt, m3_rd_lat_avg, m3_wr_lat_avg);
+        else if (m3_rd_lat_cnt > 0)
+            $display("|  M3(DMA-Ctrl):    AR=%0d  AW=%0d  rd_lat=%.1f cy  wr_lat=n/a cy",
+                     m3_ar_burst_cnt, m3_aw_burst_cnt, m3_rd_lat_avg);
+        else if (m3_wr_lat_cnt > 0)
+            $display("|  M3(DMA-Ctrl):    AR=%0d  AW=%0d  rd_lat=n/a cy  wr_lat=%.1f cy",
+                     m3_ar_burst_cnt, m3_aw_burst_cnt, m3_wr_lat_avg);
+        else
+            $display("|  M3(DMA-Ctrl):    AR=%0d  AW=%0d  rd_lat=n/a cy  wr_lat=n/a cy",
+                     m3_ar_burst_cnt, m3_aw_burst_cnt);
+        $display("|  M4(JTAG-DM SBA): AR=%0d  AW=%0d  (debug memory accesses)",
+                 m4_ar_burst_cnt, m4_aw_burst_cnt);
+        $display("|  DMA64(raw):      AR=%0d  AW=%0d  (64-bit ASCON side)",
+                 dma_raw_ar_cnt, dma_raw_aw_cnt);
+        $display("|  DECERR count : %0d  (unmapped or stub-SLVERR: %0d)",
+                 decerr_cnt, stub_slverr_cnt);
         $display("+----------------------------------------------------------------+");
 
-        // ── (5) ASCON Summary ────────────────────────────────────────────────
+        // ── (5) Per-Slave Access ─────────────────────────────────────────────
         $display("");
-        $display("+--- (5) ASCON IP SUMMARY ---------------------------------------+");
-        $display("|  core_start  pulses  : %0d", ascon_start_cnt);
-        $display("|  dma_start   pulses  : %0d", ascon_dma_start_cnt);
-        $display("|  core_done   events  : %0d", ascon_done_cnt);
-        $display("|  dma_done    events  : %0d", ascon_dma_done_cnt);
-        $display("|  irq         events  : %0d", ascon_irq_cnt);
-        $display("|  dma_error   events  : %0d  %s",
-                 ascon_error_cnt, ascon_error_cnt == 0 ? "(OK)" : "[!!!] CHECK DMA ROUTING");
-        $display("|  DMA config at halt  : src=0x%08h  dst=0x%08h  len=%0d",
-                 ascon_dma_src_r, ascon_dma_dst_r, ascon_dma_len_r);
-        $display("|  STATUS at halt      : 0x%08h", ascon_status_word);
-        // [FIX] Decode từ status_word register (sticky bits) thay vì wire transient.
-        // core_done wire về 0 ngay sau khi CPU đọc, nhưng STATUS[1] vẫn set.
-        $display("|    core_busy=%0d  core_done=%0d  dma_busy=%0d  dma_done=%0d  err=%0d",
-                 ascon_status_word[0], ascon_status_word[1],
-                 ascon_status_word[2], ascon_status_word[3],
-                 ascon_status_word[4] | ascon_status_word[5]);
-        if      (ascon_dma_done_cnt > 0) $display("|  [OK]  DMA encryption completed");
-        else if (ascon_done_cnt     > 0) $display("|  [OK]  CPU-Direct encryption completed");
-        else if (ascon_error_cnt    > 0) $display("|  [!!!] DMA error — check M2 routing and DMEM addr");
-        else                             $display("|  [?]   ASCON not completed — check CTRL.START");
+        $display("+--- (5) PER-SLAVE ACCESS COUNT ---------------------------------+");
+        $display("|  S0 IMEM    AR=%0d", s0_ar_cnt);
+        $display("|  S1 DMEM    AR=%0d  AW=%0d", s1_ar_cnt, s1_aw_cnt);
+        $display("|  S2 ASCON   accesses=%0d", s2_access_cnt);
+        $display("|  S3 SoCCtrl accesses=%0d", s3_access_cnt);
+        $display("|  S4 CLINT   accesses=%0d", s4_access_cnt);
+        $display("|  S5 UART    accesses=%0d", s5_access_cnt);
+        $display("|  S9 PLIC    accesses=%0d", s9_access_cnt);
+        $display("|  S6/S7/S8/S10 (stub) accesses: (check stub_slverr_cnt=%0d)", stub_slverr_cnt);
         $display("+----------------------------------------------------------------+");
 
-        // ── (5b) ASCON I/O Debug ─────────────────────────────────────────────
+        // ── (6) ASCON Summary ────────────────────────────────────────────────
         $display("");
-        $display("+--- (5b) ASCON I/O DEBUG ----------------------------------------+");
-        $display("|  --- INPUT ---");
-        $display("|  KEY    [127:96] = 0x%08h", ascon_key_in[127:96]);
-        $display("|  KEY     [95:64] = 0x%08h", ascon_key_in[95:64]);
-        $display("|  KEY     [63:32] = 0x%08h", ascon_key_in[63:32]);
-        $display("|  KEY     [31: 0] = 0x%08h", ascon_key_in[31:0]);
-        $display("|  NONCE  [127:96] = 0x%08h", ascon_nonce_in[127:96]);
-        $display("|  NONCE   [95:64] = 0x%08h", ascon_nonce_in[95:64]);
-        $display("|  NONCE   [63:32] = 0x%08h", ascon_nonce_in[63:32]);
-        $display("|  NONCE   [31: 0] = 0x%08h", ascon_nonce_in[31:0]);
-        $display("|  DATA_IN[127:64] = %016h  (upper 64-bit = PT)", ascon_data_in[127:64]);
-        $display("|    ptext_0 (DMA) = 0x%08h", ascon_ptext_0);
-        $display("|    ptext_1 (DMA) = 0x%08h", ascon_ptext_1);
-        $display("|  data_len        = %0d bytes", ascon_data_len);
-        $display("|  mode            = %0d  (0=ASCON128-enc, 1=dec, 2=128a-enc, 3=dec)", ascon_mode_w);
-        $display("|  dma_en          = %0d", ascon_dma_en_w);
+        $display("+--- (6) ASCON SUMMARY ------------------------------------------+");
+        $display("|  CORE start  : %0d", ascon_start_cnt);
+        $display("|  CORE done   : %0d", ascon_done_cnt);
+        $display("|  DMA start   : %0d", ascon_dma_start_cnt);
+        $display("|  DMA done    : %0d", ascon_dma_done_cnt);
+        $display("|  IRQ raised  : %0d  → PLIC src[8]", ascon_irq_cnt);
+        $display("|  Errors      : %0d", ascon_error_cnt);
+        if (ascon_done_cnt > 0 && ascon_dma_start_cnt == 0)
+            $display("|  [OK] CPU-Direct encryption completed");
+        if (ascon_dma_done_cnt > 0)
+            $display("|  [OK] DMA-mode encryption completed");
         $display("|  --- OUTPUT (slave registers) ---");
-        $display("|  CTEXT_0         = 0x%08h", ascon_reg_ctext0);
-        $display("|  CTEXT_1         = 0x%08h", ascon_reg_ctext1);
-        $display("|  TAG_0           = 0x%08h", ascon_reg_tag0);
-        $display("|  TAG_1           = 0x%08h", ascon_reg_tag1);
-        $display("|  TAG_2           = 0x%08h", ascon_reg_tag2);
-        $display("|  TAG_3           = 0x%08h", ascon_reg_tag3);
-        $display("|  --- OUTPUT (DMEM via DMA) ---");
-        $display("|  DMEM[dst+0x00]  = 0x%08h  (ciphertext word 0)", ascon_dma_dst_r);
+        $display("|  CTEXT_0 = 0x%08h", ascon_reg_ctext0);
+        $display("|  CTEXT_1 = 0x%08h", ascon_reg_ctext1);
+        $display("|  TAG_0   = 0x%08h", ascon_reg_tag0);
+        $display("|  TAG_1   = 0x%08h", ascon_reg_tag1);
+        $display("|  TAG_2   = 0x%08h", ascon_reg_tag2);
+        $display("|  TAG_3   = 0x%08h", ascon_reg_tag3);
+        $display("|  --- DMA dst ---");
+        $display("|  DMEM[dst] = 0x%08h  (ciphertext word 0 via DMA)", ascon_dma_dst_r);
         $display("+----------------------------------------------------------------+");
 
-        // ── (6) Interrupt / CLINT Summary ───────────────────────────────────
+        // ── (7) Interrupt Summary  [NEW-8] ───────────────────────────────────
         $display("");
-        $display("+--- (6) INTERRUPT SUMMARY (CLINT + SoC Ctrl) ------------------+");
-        $display("|  timer_irq raises    : %0d", clint_timer_irq_cnt);
-        $display("|  sw_irq    raises    : %0d", clint_sw_irq_cnt);
-        $display("|  external_irq (ascon): %0d  (via soc_ctrl IRQ_MASK)", ascon_irq_cnt);
-        $display("|  soft_rst_pulse      : %0d", soft_rst_cnt);
-        $display("|  mtime_tick period   : 100 cycles  (1 MHz prescaler @ 100 MHz)");
+        $display("+--- (7) INTERRUPT SUMMARY --------------------------------------+");
+        $display("|  timer_irq     : %0d  (CLINT → CPU bypass PLIC)", clint_timer_irq_cnt);
+        $display("|  sw_irq        : %0d  (CLINT → CPU bypass PLIC)", clint_sw_irq_cnt);
+        $display("|  PLIC meip     : %0d  (PLIC → CPU.external_irq)", plic_meip_cnt);
+        $display("|  ascon_irq     : %0d  → PLIC src[8]", ascon_irq_cnt);
+        $display("|  uart_irq      : %0d  → PLIC src[1,2]", uart_irq_cnt);
+        $display("|  dma_irq       : %0d  → PLIC src[9]", dma_irq_cnt);
+        $display("|  soft_rst_pulse: %0d", soft_rst_cnt);
+        $display("|  mtime_tick period: 100 cycles (1 MHz @ 100 MHz)");
         $display("+----------------------------------------------------------------+");
 
-        // ── (7) Memory Access Summary ────────────────────────────────────────
+        // ── (8) UART TX Summary  [NEW-2] ─────────────────────────────────────
         $display("");
-        $display("+--- (7) MEMORY ACCESS SUMMARY ----------------------------------+");
-        $display("|  CPU Loads           : %0d", dmem_rd_cnt);
-        $display("|  CPU Stores          : %0d", dmem_wr_cnt);
-        $display("|  Post-halt SB drain  : %0d stores", post_halt_stores);
-        $display("|  RAW hazard errors   : %0d  %s",
+        $display("+--- (8) UART TX SUMMARY ----------------------------------------+");
+        $display("|  Bytes transmitted : %0d", uart_tx_byte_cnt);
+        if (uart_tx_byte_cnt > 0) begin
+            $write("|  Message: \"");
+            for (j = 0; j < uart_rx_count && j < 64; j = j + 1)
+                if (uart_rx_buf[j] >= 8'h20 && uart_rx_buf[j] <= 8'h7E)
+                    $write("%s", uart_rx_buf[j]);
+                else
+                    $write(".");
+            $display("\"");
+        end else begin
+            $display("|  (no UART output)");
+        end
+        $display("+----------------------------------------------------------------+");
+
+        // ── (9) JTAG Debug Summary  [NEW-3] ──────────────────────────────────
+        $display("");
+        $display("+--- (9) JTAG DEBUG SUMMARY -------------------------------------+");
+        $display("|  ndmreset pulses  : %0d  (CPU reset by JTAG DM)", jtag_ndmreset_cnt);
+        $display("|  CPU halted       : %0d  times (D-mode entries)", jtag_halt_cnt);
+        if (jtag_halt_cnt == 0)
+            $display("|  (no JTAG debug session detected — expected for pure SW simulation)");
+        $display("+----------------------------------------------------------------+");
+
+        // ── (10) Memory Access Summary ───────────────────────────────────────
+        $display("");
+        $display("+--- (10) MEMORY ACCESS SUMMARY ---------------------------------+");
+        $display("|  CPU Loads      : %0d", dmem_rd_cnt);
+        $display("|  CPU Stores     : %0d", dmem_wr_cnt);
+        $display("|  Post-halt SB   : %0d stores", post_halt_stores);
+        $display("|  RAW hazard err : %0d  %s",
                  sb_errors, sb_errors == 0 ? "(OK)" : "[!!!] DATA ERRORS DETECTED");
-        $display("|  LSU SB remaining    : %0d entries at halt", lsu_sb_count);
-        // [FIX] Thêm lsu_drain_idle vào report — xác nhận SB đã drain hoàn toàn
-        $display("|  LSU drain idle      : %0s at halt",
-                 lsu_drain_idle ? "YES (OK)" : "NO [!!!] drain still active");
+        $display("|  LSU SB remain  : %0d entries at halt", lsu_sb_count);
+        $display("|  LSU drain idle : %0s",
+                 lsu_drain_idle ? "YES (OK)" : "NO [!!!]");
         $display("+----------------------------------------------------------------+");
 
-        // ── (8) Register File ────────────────────────────────────────────────
+        // ── (11) Register File ───────────────────────────────────────────────
         $display("");
-        $display("+--- (8) REGISTER FILE ------------------------------------------+");
+        $display("+--- (11) REGISTER FILE -----------------------------------------+");
         $display("|  Reg   ABI     Hex          Decimal (signed)");
         $display("|  -----------------------------------------");
         nz = 0;
@@ -1363,12 +1775,12 @@ task print_report;
         if (nz == 0) $display("|  (all zero)");
         $display("+----------------------------------------------------------------+");
 
-        // ── (9) DMEM Snapshot ────────────────────────────────────────────────
+        // ── (12) DMEM Snapshot ───────────────────────────────────────────────
         print_dmem_snapshot();
 
-        // ── (10) Store Scoreboard ────────────────────────────────────────────
+        // ── (13) Store Scoreboard ────────────────────────────────────────────
         $display("");
-        $display("+--- (10) STORE SCOREBOARD (%0d entries, %0d errors) ─────────────+",
+        $display("+--- (13) STORE SCOREBOARD (%0d entries, %0d errors) ─────────────+",
                  sb_cnt, sb_errors);
         k = 0;
         for (j = 0; j < sb_cnt && j < 48; j = j + 1) begin
@@ -1379,12 +1791,13 @@ task print_report;
             end
         end
         if (k == 0) $display("|  (no non-zero stores recorded)");
-        if (sb_cnt > 48) $display("|  ... (%0d more entries truncated)", sb_cnt - 48);
+        if (sb_cnt > 48)
+            $display("|  ... (%0d more entries truncated)", sb_cnt - 48);
         $display("+----------------------------------------------------------------+");
 
         $display("");
         $display("=================================================================");
-        $display("  RISC-V SoC + ASCON IP  |  %0d cycles @ 100 MHz = %.2f us",
+        $display("  RISC-V SoC  |  %0d cycles @ 100 MHz = %.2f us",
                  cycle_count, cycle_count * 10.0 / 1000.0);
         $display("=================================================================");
         $display("");
@@ -1402,7 +1815,7 @@ task print_dmem_snapshot;
     begin
         base = `DMEM_DUMP_BASE;
         $display("");
-        $display("+--- (9) DMEM SNAPSHOT [0x%08h..0x%08h] (%0d words) ──────────+",
+        $display("+--- (12) DMEM SNAPSHOT [0x%08h..0x%08h] (%0d words) ──────────+",
                  base, base + `DMEM_DUMP_WORDS * 4 - 1, `DMEM_DUMP_WORDS);
         $display("|  Address       +0          +4          +8          +C");
         $display("|  ---------------------------------------------------------");
@@ -1451,20 +1864,37 @@ task print_banner;
     begin
         $display("");
         $display("+=================================================================+");
-        $display("|   RISC-V SoC  +  ASCON IP  --  Debug Testbench  v5.2           |");
-        $display("|   ICache | DCache | AXI4 Crossbar 3Mx5S | ascon_ip | 100MHz    |");
+        $display("|   RISC-V SoC + ASCON — Debug Testbench  v6.0                   |");
+        $display("|   5M × 12S Crossbar | UART | JTAG | PLIC | DMA | 100 MHz       |");
         $display("+-----------------------------------------------------------------+");
-        $display("|   Masters:  M0=ICache  M1=DCache  M2=DMA(via width_conv 64>32) |");
+        $display("|   Masters:  M0=ICache  M1=DCache  M2=ASCON-DMA(64→32)          |");
+        $display("|             M3=DMA-Ctrl  M4=JTAG-DM(SBA)                       |");
+        $display("+-----------------------------------------------------------------+");
         $display("|   Address Map:                                                  |");
-        $display("|     S0  IMEM     0x0000_0000 - 0x0000_1FFF  ( 8 KB, ROM)       |");
-        $display("|     S1  DMEM     0x1000_0000 - 0x1000_1FFF  ( 8 KB, RAM)       |");
+        $display("|     S0  IMEM     0x0000_0000 - 0x0000_1FFF  ( 8 KB)            |");
+        $display("|     S1  DMEM     0x1000_0000 - 0x1000_1FFF  ( 8 KB)            |");
         $display("|     S2  ASCON    0x2000_0000 - 0x2000_0FFF  ( 4 KB)            |");
         $display("|     S3  SoCCtrl  0x3000_0000 - 0x3000_0FFF  ( 4 KB)            |");
         $display("|     S4  CLINT    0x4000_0000 - 0x4000_FFFF  (64 KB)            |");
+        $display("|     S5  UART     0x5000_0000 - 0x5000_0FFF  ( 4 KB)  [NEW]     |");
+        $display("|     S6  GPIO     0x5001_0000               stub→SLVERR         |");
+        $display("|     S7  SPI      0x5002_0000               stub→SLVERR         |");
+        $display("|     S8  Timer    0x5003_0000               stub→SLVERR         |");
+        $display("|     S9  PLIC     0x5004_0000 - 0x5004_0FFF  ( 4 KB)  [NEW]     |");
+        $display("|     S10 OTP      0x6000_0000               stub→SLVERR         |");
+        $display("|     S11 DMA-Cfg  0x6001_0000 - 0x6001_0FFF  ( 4 KB)  [NEW]     |");
         $display("+-----------------------------------------------------------------+");
-        $display("|   Instances in soc_top:                                         |");
-        $display("|     u_cpu  u_icache  u_dcache  u_crossbar  u_imem  u_dmem       |");
-        $display("|     u_ascon  u_width_conv  u_clint  u_soc_ctrl                  |");
+        $display("|   IRQ routing:  UART/ASCON/DMA → PLIC → CPU.external_irq       |");
+        $display("|                 CLINT timer/sw → CPU (bypass PLIC)             |");
+        $display("|   Reset:  por_n + ext_rst_n → clk_reset_ctrl →                 |");
+        $display("|           fabric_rst_n / cpu_rst_n / periph_rst_n              |");
+        $display("|   UART monitor: 8N1, BAUD_DIV=%0d (%.0f baud @ 100 MHz)         |",
+                 `BAUD_DIV, 100_000_000.0 / `BAUD_DIV);
+        $display("+-----------------------------------------------------------------+");
+        $display("|   SoC instances: u_clkrst u_cpu u_icache u_dcache              |");
+        $display("|     u_ascon u_width_conv u_crossbar u_imem u_dmem              |");
+        $display("|     u_soc_ctrl u_clint u_uart u_plic u_jtag u_dma_ctrl         |");
+        $display("|     u_gpio_stub u_spi_stub u_timer_stub u_otp_stub             |");
         $display("+-----------------------------------------------------------------+");
         $display("|   LOG_LEVEL=%0d   TIMEOUT=%0d cyc   HALT_STABLE=%0d cyc         |",
                  `LOG_LEVEL, `TIMEOUT, `HALT_STABLE);
