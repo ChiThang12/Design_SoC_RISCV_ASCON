@@ -50,7 +50,9 @@ module dma_write_engine #(
     // ── WR FIFO pop interface (32-bit entries) ────────────────────────────────
     input  wire [31:0]                 fifo_dout,
     output reg                         fifo_pop,
-    input  wire                        fifo_empty,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire                        fifo_empty,  // write engine pre-loads all words
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // ── AXI4 Write Address Channel ────────────────────────────────────────────
     output reg  [AXI_ID_WIDTH-1:0]     M_AXI_AWID,
@@ -71,7 +73,9 @@ module dma_write_engine #(
     input  wire                        M_AXI_WREADY,
 
     // ── AXI4 Write Response Channel ───────────────────────────────────────────
-    input  wire [AXI_ID_WIDTH-1:0]     M_AXI_BID,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [AXI_ID_WIDTH-1:0]     M_AXI_BID,   // ID not checked (single outstanding)
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [1:0]                  M_AXI_BRESP,
     input  wire                        M_AXI_BVALID,
     output reg                         M_AXI_BREADY

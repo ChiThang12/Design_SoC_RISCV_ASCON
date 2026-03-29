@@ -68,7 +68,9 @@ module dma_read_engine #(
     input  wire                       M_AXI_ARREADY,
 
     // ── AXI4 Read Data Channel ────────────────────────────────────────────────
-    input  wire [AXI_ID_WIDTH-1:0]    M_AXI_RID,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [AXI_ID_WIDTH-1:0]    M_AXI_RID,   // ID not checked (single outstanding)
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [AXI_DATA_WIDTH-1:0]  M_AXI_RDATA,
     input  wire [1:0]                 M_AXI_RRESP,
     input  wire                       M_AXI_RLAST,
@@ -96,7 +98,9 @@ module dma_read_engine #(
     reg [7:0] beat_cnt;
 
     // ─── Registered burst_len (latched on rd_start so it cannot change mid-burst)
-    reg [7:0] burst_len_r;
+    /* verilator lint_off UNUSEDSIGNAL */
+    reg [7:0] burst_len_r;  // safety latch, not read back in FSM
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // ─── Current beat address (base + beat_cnt * bytes_per_beat) ─────────────
     // Used only for rd_err_addr capture; AXI INCR addressing is done by slave.

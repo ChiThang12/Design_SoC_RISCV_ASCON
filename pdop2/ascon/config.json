@@ -1,5 +1,5 @@
 {
-  "DESIGN_NAME": "ascon_top",
+  "DESIGN_NAME": "ascon_ip_top",
   "VERILOG_FILES": [
     "dir::src/sync_fifo.v",
     "dir::src/ascon_SBOX_PIPELINED.v",
@@ -37,5 +37,5 @@
   "RT_MAX_LAYER": "met5",
   "RUN_MAGIC_STREAMOUT": true,
   "RUN_KLAYOUT_STREAMOUT": true,
-  "ERROR_ON_SYNTH_CHECKS": false
+  "ERROR_ON_SYNTH_CHECKS": true
 }

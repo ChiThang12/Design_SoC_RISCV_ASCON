@@ -23,6 +23,9 @@
 // PRESENT/WAIT riêng biệt, nhưng để đảm bảo correctness trước, dùng =0.
 // ============================================================================
 
+// `include "ascon/rtl/PERMUTATION/ascon_CONSTANT_ADDITION.v"
+// `include "ascon/rtl/PERMUTATION/ascon_SUBTITUTION_LAYER.v"
+// `include "ascon/rtl/PERMUTATION/ascon_LINEAR_DIFFUSION.v"
 
 module ascon_PERMUTATION #(
     parameter G_SBOX_PIPELINE = 0    // FIX: default 0 (combinational, correct)
@@ -35,7 +38,9 @@ module ascon_PERMUTATION #(
     input  wire [3:0]   rounds,
     input  wire [3:0]   start_rc,
     input  wire         start_perm,
-    input  wire         mode,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         mode,  // reserved for future variant selection
+    /* verilator lint_on UNUSEDSIGNAL */
 
     output reg  [319:0] state_out,
     output reg          valid,

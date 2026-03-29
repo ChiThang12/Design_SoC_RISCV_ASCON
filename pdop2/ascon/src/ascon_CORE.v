@@ -32,7 +32,9 @@ module ascon_CORE #(
     parameter G_COMB_RND_128A = 4,
     parameter G_SBOX_PIPELINE = 0,
     parameter G_DUAL_RATE     = 1,
-    parameter G_AXI_DATA_W    = 64
+    /* verilator lint_off UNUSEDPARAM */
+    parameter G_AXI_DATA_W    = 64  // passed to submodules for future use
+    /* verilator lint_on UNUSEDPARAM */
 ) (
     input  wire         clk,
     input  wire         rst_n,
@@ -79,7 +81,9 @@ module ascon_CORE #(
     wire [3:0]  ctrl_perm_start_rc;
     wire        ctrl_perm_start;
     wire        ctrl_gen_tag, ctrl_compare_tag;
-    wire        ctrl_data_out_valid;
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire        ctrl_data_out_valid; // shadowed by dp_data_out_valid
+    /* verilator lint_on UNUSEDSIGNAL */
     wire        ctrl_done_sig;
     wire        ctrl_busy_sig;
     wire        ctrl_post_init_key_xor;
@@ -94,7 +98,10 @@ module ascon_CORE #(
     wire         dp_data_out_valid;
     wire         dp_extra_pad;
     wire [319:0] perm_state_out;
-    wire         perm_done, perm_valid;
+    wire         perm_done;
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire         perm_valid; // not used in current pipeline
+    /* verilator lint_on UNUSEDSIGNAL */
     wire [127:0] tag_gen_out;
     wire         tag_gen_valid;
     wire         tag_cmp_match, tag_cmp_done;

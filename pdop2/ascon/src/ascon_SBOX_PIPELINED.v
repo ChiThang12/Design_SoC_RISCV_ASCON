@@ -29,8 +29,10 @@
 module ASCON_SBOX_PIPELINED #(
     parameter G_SBOX_PIPELINE = 1    // 1=pipeline, 0=combinational
 ) (
-    input  wire       clk,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire       clk,    // reserved for pipelined variant (G_SBOX_PIPELINE=1)
     input  wire       rst_n,
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [4:0] in,
     output reg  [4:0] out
 );

@@ -84,13 +84,17 @@ module ascon_AXIS_WRAPPER #(
     reg        core_ad_last;
     reg        core_data_last;
     reg [6:0]  core_data_len;
-    reg [6:0]  core_ad_len_r;
+    /* verilator lint_off UNUSEDSIGNAL */
+    reg [6:0]  core_ad_len_r;  // captured for debug; not forwarded to CORE
+    /* verilator lint_on UNUSEDSIGNAL */
 
     wire [127:0] core_data_out;
     wire         core_data_out_valid;
     wire [127:0] core_tag_out;
     wire         core_tag_valid;
-    wire         core_tag_match;
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire         core_tag_match;  // available on o_tag_valid; not re-exported here
+    /* verilator lint_on UNUSEDSIGNAL */
     wire         core_done;
     wire         core_busy;
 

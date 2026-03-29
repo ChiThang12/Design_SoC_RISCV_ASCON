@@ -46,11 +46,15 @@ module ascon_axi_slave #(
 
     // ── AXI4-Full Write Address Channel
     input  wire [ID_WIDTH-1:0]     S_AXI_AWID,
-    input  wire [ADDR_WIDTH-1:0]   S_AXI_AWADDR,
-    input  wire [7:0]              S_AXI_AWLEN,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [ADDR_WIDTH-1:0]   S_AXI_AWADDR,   // [31:12] unused (12-bit offset only)
+    /* verilator lint_on UNUSEDSIGNAL */
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [7:0]              S_AXI_AWLEN,    // AXI4-Full port, not decoded (single-reg)
     input  wire [2:0]              S_AXI_AWSIZE,
     input  wire [1:0]              S_AXI_AWBURST,
     input  wire [2:0]              S_AXI_AWPROT,
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire                    S_AXI_AWVALID,
     output reg                     S_AXI_AWREADY,
 
@@ -69,11 +73,15 @@ module ascon_axi_slave #(
 
     // ── AXI4-Full Read Address Channel
     input  wire [ID_WIDTH-1:0]     S_AXI_ARID,
-    input  wire [ADDR_WIDTH-1:0]   S_AXI_ARADDR,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [ADDR_WIDTH-1:0]   S_AXI_ARADDR,   // [31:12] unused (12-bit offset only)
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [7:0]              S_AXI_ARLEN,
-    input  wire [2:0]              S_AXI_ARSIZE,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [2:0]              S_AXI_ARSIZE,   // AXI4-Full port, not decoded (fixed-reg read)
     input  wire [1:0]              S_AXI_ARBURST,
     input  wire [2:0]              S_AXI_ARPROT,
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire                    S_AXI_ARVALID,
     output reg                     S_AXI_ARREADY,
 
@@ -98,7 +106,9 @@ module ascon_axi_slave #(
     input  wire                    core_busy,
     input  wire                    core_done,
     input  wire                    core_data_out_valid,
-    input  wire [127:0]            core_data_out,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [127:0]            core_data_out,  // [63:0] zero in ASCON-128 mode
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [127:0]            core_tag_out,
     input  wire                    core_tag_valid,
 
@@ -174,18 +184,23 @@ module ascon_axi_slave #(
     reg [ID_WIDTH-1:0] wr_id_lat;
     reg [31:0]         wr_data_lat;
     reg [3:0]          wr_strb_lat;
-    reg [7:0]          wr_len_lat;    // FIX-BUG1: burst length latch
-    reg [7:0]          wr_beat_cnt;   // FIX-BUG1: beat counter
+    // wr_len_lat removed (unused)
+    // wr_beat_cnt removed (unused)
     reg                wr_wlast_lat;  // [FIX-WLAST] latch WLAST khi pre-latch W
 
-    // module-level decode temporaries
-    reg [31:0] wr_exec_data;
-    reg [3:0]  wr_exec_strb;
+    // module-level decode wires (combinational, FIX-BLKSEQ: was blocking reg in seq block)
+    wire [31:0] wr_exec_data;
+    wire [3:0]  wr_exec_strb;
+    // Combinational mux: select bus data (case B) or latched data (case A)
+    assign wr_exec_data = (S_AXI_WVALID && S_AXI_WREADY) ? S_AXI_WDATA : wr_data_lat;
+    assign wr_exec_strb = (S_AXI_WVALID && S_AXI_WREADY) ? S_AXI_WSTRB : wr_strb_lat;
 
     // =========================================================================
     // Read channel pipeline registers
     // =========================================================================
-    reg [11:0]           rd_addr_lat;
+    /* verilator lint_off UNUSEDSIGNAL */
+    reg [11:0]           rd_addr_lat;  // latched but read via rd_data_lat
+    /* verilator lint_on UNUSEDSIGNAL */
     reg [ID_WIDTH-1:0]   rd_id_lat;
     reg [DATA_WIDTH-1:0] rd_data_lat;
     reg [7:0]            rd_len_lat;   // FIX-BUG1: burst length latch
@@ -285,13 +300,9 @@ module ascon_axi_slave #(
             wr_id_lat     <= {ID_WIDTH{1'b0}};
             wr_data_lat   <= 32'h0;
             wr_strb_lat   <= 4'h0;
-            wr_len_lat    <= 8'h0;
-            wr_beat_cnt   <= 8'h0;
+            // wr_len_lat removed
+            // wr_beat_cnt removed
             wr_wlast_lat  <= 1'b0;
-            // NOTE: wr_exec_data / wr_exec_strb are combinational temporaries
-            // (blocking-assigned inside the WR_DATA branch). They must NOT be
-            // initialised here with <= to avoid mixing blocking and non-blocking
-            // assignments on the same variable (%Error-BLKANDNBLK).
             // Storage registers
             reg_mode      <= 2'h0;
             reg_irq_en    <= 3'h0;
@@ -316,6 +327,11 @@ module ascon_axi_slave #(
             dma_start     <= 1'b0;
             dma_soft_rst  <= 1'b0;
 
+            // [BUG3-FIX] Clear reg_dma_en on soft_rst (moved here from status block
+            // to avoid multiple-driver conflict on reg_dma_en).
+            if (core_soft_rst)
+                reg_dma_en <= 1'b0;
+
             case (wr_state)
 
                 // ── WR_IDLE ──────────────────────────────────────────────────
@@ -332,8 +348,8 @@ module ascon_axi_slave #(
                     if (S_AXI_AWVALID && S_AXI_AWREADY) begin
                         wr_addr_lat   <= S_AXI_AWADDR[11:0];
                         wr_id_lat     <= S_AXI_AWID;
-                        wr_len_lat    <= S_AXI_AWLEN;
-                        wr_beat_cnt   <= 8'h0;
+                        // wr_len_lat removed
+                        // wr_beat_cnt removed
                         S_AXI_AWREADY <= 1'b0;
                         wr_state      <= WR_DATA;
                     end
@@ -355,12 +371,7 @@ module ascon_axi_slave #(
                     if ((!S_AXI_WREADY && wr_wlast_lat) ||
                         (S_AXI_WVALID && S_AXI_WREADY && S_AXI_WLAST)) begin
 
-                        // Lấy data từ bus (case B) hoặc từ latch (case A)
-                        wr_exec_data = (S_AXI_WVALID && S_AXI_WREADY) ?
-                                        S_AXI_WDATA : wr_data_lat;
-                        wr_exec_strb = (S_AXI_WVALID && S_AXI_WREADY) ?
-                                        S_AXI_WSTRB : wr_strb_lat;
-
+                        // wr_exec_data/strb are now combinational wires (FIX-BLKSEQ)
                         case (wr_addr_lat)
                             ADDR_CTRL: begin
                                 if (wr_exec_strb[0]) begin
@@ -458,13 +469,9 @@ module ascon_axi_slave #(
                 status_dma_done  <= 1'b0;
                 status_error     <= 1'b0;
                 status_dma_error <= 1'b0;
-                // [BUG3-FIX] Clear reg_dma_en on soft_rst.
-                // Nếu không clear: sau khi firmware ghi CTRL_SOFT_RST cuối vòng,
-                // reg_dma_en vẫn=1. Lần tiếp theo bất kỳ giá trị nào được ghi vào
-                // CTRL đều có thể trigger dma_start do điều kiện:
-                //   if ((wr_exec_data[2] || reg_dma_en) && !dma_busy) dma_start<=1
-                // → DMA kick với src/dst stale → DECERR trên AXI crossbar.
-                reg_dma_en <= 1'b0;
+                // [BUG3-FIX] reg_dma_en clear on soft_rst được xử lý trong
+                // Write FSM block (always @posedge clk or negedge rst_n tại dòng 291)
+                // để tránh multiple-driver conflict (Yosys synth check error).
             end
             if (core_data_out_valid) begin
                 reg_ctext_0 <= core_data_out[127:96];
