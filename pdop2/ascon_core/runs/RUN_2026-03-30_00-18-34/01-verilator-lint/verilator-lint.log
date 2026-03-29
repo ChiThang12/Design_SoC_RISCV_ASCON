@@ -1,0 +1,14 @@
+%Error: /home/chithang/pdop2/ascon_core/src/ascon_CORE.v:207:5: Cannot find file containing module: 'ascon_DATAPATH'
+  207 |     ascon_DATAPATH #(
+      |     ^~~~~~~~~~~~~~
+%Error: /home/chithang/pdop2/ascon_core/src/ascon_CORE.v:207:5: This may be because there's no search path specified with -I<dir>.
+  207 |     ascon_DATAPATH #(
+      |     ^~~~~~~~~~~~~~
+        ... Looked in:
+             ascon_DATAPATH
+             ascon_DATAPATH.v
+             ascon_DATAPATH.sv
+             obj_dir/ascon_DATAPATH
+             obj_dir/ascon_DATAPATH.v
+             obj_dir/ascon_DATAPATH.sv
+%Error: Exiting due to 2 error(s)

@@ -1,0 +1,1438 @@
+
+ /----------------------------------------------------------------------------\
+ |  yosys -- Yosys Open SYnthesis Suite                                       |
+ |  Copyright (C) 2012 - 2024  Claire Xenia Wolf <claire@yosyshq.com>         |
+ |  Distributed under an ISC-like license, type "license" to see terms        |
+ \----------------------------------------------------------------------------/
+ Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)
+Loaded SDC plugin
+
+1. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/runs/RUN_2026-03-30_00-19-23/tmp/dd59340c8b2f47c7856999ab24339e68.bb.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/runs/RUN_2026-03-30_00-19-23/tmp/dd59340c8b2f47c7856999ab24339e68.bb.v' to AST representation.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__decap_12'.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__fill_12'.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__fill_4'.
+Generating RTLIL representation for module `\sky130_ef_sc_hd__fill_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2111oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a211oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21bo_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21bo_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21bo_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21boi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a21oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a221oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a222oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a22oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a2bb2oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a311oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a31oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a32oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41o_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41o_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41o_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41oi_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41oi_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__a41oi_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__and4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__buf_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufbuf_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufbuf_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufinv_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__bufinv_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkbuf_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s15_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s15_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s18_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s18_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s25_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s25_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s50_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkdlybuf4s50_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinv_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinvlp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__clkinvlp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__conb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_3'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__decap_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfbbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfbbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfbbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfrtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfsbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfsbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfstp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfstp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfstp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dfxtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__diode_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlclkp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlclkp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlclkp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlrtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlygate4sd1_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlygate4sd2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlygate4sd3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlymetal6s2s_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlymetal6s4s_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__dlymetal6s6s_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ebufn_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__edfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__edfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvn_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__einvp_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fa_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fa_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fa_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fah_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fahcin_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fahcon_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__fill_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ha_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ha_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__ha_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__inv_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_bleeder_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkbufkapwr_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_clkinvkapwr_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_12'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_3'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_6'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_decapkapwr_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso0n_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso0p_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso1n_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputiso1p_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_inputisolatch_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrc_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_isobufsrckapwr_16'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_hl_isowell_tap_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_hl_isowell_tap_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_hl_isowell_tap_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_tap_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_tap_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__lpflow_lsbuf_lh_isowell_tap_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__macro_sparecell'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__maj3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__maj3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__maj3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2i_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2i_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux2i_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__mux4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nand4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__nor4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2111ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o211ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ba_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ba_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21ba_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21bai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21bai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o21bai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o221ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o22ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o2bb2ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o311ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o31ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o32ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41a_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41a_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41a_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41ai_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41ai_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__o41ai_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_0'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or2b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or3b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4b_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4b_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4b_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4bb_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4bb_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__or4bb_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__probe_p_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__probec_p_8'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfbbn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfbbn_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfbbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtn_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfrtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfsbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfsbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfstp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfstp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfstp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdfxtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdlclkp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdlclkp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sdlclkp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxbp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxbp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxtp_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxtp_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__sedfxtp_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tap_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tap_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tapvgnd2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tapvgnd_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__tapvpwrvgnd_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xnor3_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor2_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor2_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor2_4'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor3_1'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor3_2'.
+Generating RTLIL representation for module `\sky130_fd_sc_hd__xor3_4'.
+Successfully finished Verilog frontend.
+
+2. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_SBOX_PIPELINED.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_SBOX_PIPELINED.v' to AST representation.
+Storing AST representation for module `$abstract\ASCON_SBOX_PIPELINED'.
+Successfully finished Verilog frontend.
+
+3. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_TAG_COMPARATOR'.
+Successfully finished Verilog frontend.
+
+4. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_CONSTANT_ADDITION.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_CONSTANT_ADDITION.v' to AST representation.
+Storing AST representation for module `$abstract\CONSTANT_ADDITION'.
+Successfully finished Verilog frontend.
+
+5. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_SUBTITUTION_LAYER.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_SUBTITUTION_LAYER.v' to AST representation.
+Storing AST representation for module `$abstract\SUBSTITUTION_LAYER_PIPELINED'.
+Successfully finished Verilog frontend.
+
+6. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_INITIALIZATION'.
+Successfully finished Verilog frontend.
+
+7. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_PERMUTATION'.
+Successfully finished Verilog frontend.
+
+8. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_CONTROLLER'.
+Successfully finished Verilog frontend.
+
+9. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_TAG_GENERATOR'.
+Successfully finished Verilog frontend.
+
+10. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v' to AST representation.
+Storing AST representation for module `$abstract\LINEAR_DIFFUSION'.
+Successfully finished Verilog frontend.
+
+11. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_STATE_REGISTER'.
+Successfully finished Verilog frontend.
+
+12. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_CORE.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_CORE.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_CORE'.
+Successfully finished Verilog frontend.
+
+13. Executing Verilog-2005 frontend: /home/chithang/pdop2/ascon_core/src/ascon_datapath.v
+Parsing SystemVerilog input from `/home/chithang/pdop2/ascon_core/src/ascon_datapath.v' to AST representation.
+Storing AST representation for module `$abstract\ascon_DATAPATH'.
+Successfully finished Verilog frontend.
+
+14. Executing HIERARCHY pass (managing design hierarchy).
+
+15. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_CORE'.
+Generating RTLIL representation for module `\ascon_CORE'.
+
+15.1. Analyzing design hierarchy..
+Top module:  \ascon_CORE
+Parameter \G_COMB_RND_128 = 6
+Parameter \G_COMB_RND_128A = 4
+Parameter \G_SBOX_PIPELINE = 0
+
+15.2. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_CONTROLLER'.
+Parameter \G_COMB_RND_128 = 6
+Parameter \G_COMB_RND_128A = 4
+Parameter \G_SBOX_PIPELINE = 0
+Generating RTLIL representation for module `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER'.
+
+15.3. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_TAG_COMPARATOR'.
+Generating RTLIL representation for module `\ascon_TAG_COMPARATOR'.
+
+15.4. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_TAG_GENERATOR'.
+Generating RTLIL representation for module `\ascon_TAG_GENERATOR'.
+Parameter \G_SBOX_PIPELINE = 0
+
+15.5. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_PERMUTATION'.
+Parameter \G_SBOX_PIPELINE = 0
+Generating RTLIL representation for module `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_DUAL_RATE = 1
+
+15.6. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_DATAPATH'.
+Parameter \G_DUAL_RATE = 1
+Generating RTLIL representation for module `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001'.
+
+15.7. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_STATE_REGISTER'.
+Generating RTLIL representation for module `\ascon_STATE_REGISTER'.
+
+15.8. Executing AST frontend in derive mode using pre-parsed AST for module `\ascon_INITIALIZATION'.
+Generating RTLIL representation for module `\ascon_INITIALIZATION'.
+
+15.9. Analyzing design hierarchy..
+Top module:  \ascon_CORE
+Used module:     $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER
+Used module:     \ascon_TAG_COMPARATOR
+Used module:     \ascon_TAG_GENERATOR
+Used module:     $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:     $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001
+Used module:     \ascon_STATE_REGISTER
+Used module:     \ascon_INITIALIZATION
+
+15.10. Executing AST frontend in derive mode using pre-parsed AST for module `\LINEAR_DIFFUSION'.
+Generating RTLIL representation for module `\LINEAR_DIFFUSION'.
+Parameter \G_SBOX_PIPELINE = 0
+
+15.11. Executing AST frontend in derive mode using pre-parsed AST for module `\SUBSTITUTION_LAYER_PIPELINED'.
+Parameter \G_SBOX_PIPELINE = 0
+Generating RTLIL representation for module `$paramod\SUBSTITUTION_LAYER_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+
+15.12. Executing AST frontend in derive mode using pre-parsed AST for module `\CONSTANT_ADDITION'.
+Generating RTLIL representation for module `\CONSTANT_ADDITION'.
+
+15.13. Analyzing design hierarchy..
+Top module:  \ascon_CORE
+Used module:     $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER
+Used module:     \ascon_TAG_COMPARATOR
+Used module:     \ascon_TAG_GENERATOR
+Used module:     $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:         \LINEAR_DIFFUSION
+Used module:         $paramod\SUBSTITUTION_LAYER_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:         \CONSTANT_ADDITION
+Used module:     $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001
+Used module:     \ascon_STATE_REGISTER
+Used module:     \ascon_INITIALIZATION
+Parameter \G_SBOX_PIPELINE = 0
+
+15.14. Executing AST frontend in derive mode using pre-parsed AST for module `\ASCON_SBOX_PIPELINED'.
+Parameter \G_SBOX_PIPELINE = 0
+Generating RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+Parameter \G_SBOX_PIPELINE = 0
+Found cached RTLIL representation for module `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000'.
+
+15.15. Analyzing design hierarchy..
+Top module:  \ascon_CORE
+Used module:     $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER
+Used module:     \ascon_TAG_COMPARATOR
+Used module:     \ascon_TAG_GENERATOR
+Used module:     $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:         \LINEAR_DIFFUSION
+Used module:         $paramod\SUBSTITUTION_LAYER_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:             $paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:         \CONSTANT_ADDITION
+Used module:     $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001
+Used module:     \ascon_STATE_REGISTER
+Used module:     \ascon_INITIALIZATION
+
+15.16. Analyzing design hierarchy..
+Top module:  \ascon_CORE
+Used module:     $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER
+Used module:     \ascon_TAG_COMPARATOR
+Used module:     \ascon_TAG_GENERATOR
+Used module:     $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:         \LINEAR_DIFFUSION
+Used module:         $paramod\SUBSTITUTION_LAYER_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:             $paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000
+Used module:         \CONSTANT_ADDITION
+Used module:     $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001
+Used module:     \ascon_STATE_REGISTER
+Used module:     \ascon_INITIALIZATION
+Removing unused module `$abstract\ascon_DATAPATH'.
+Removing unused module `$abstract\ascon_CORE'.
+Removing unused module `$abstract\ascon_STATE_REGISTER'.
+Removing unused module `$abstract\LINEAR_DIFFUSION'.
+Removing unused module `$abstract\ascon_TAG_GENERATOR'.
+Removing unused module `$abstract\ascon_CONTROLLER'.
+Removing unused module `$abstract\ascon_PERMUTATION'.
+Removing unused module `$abstract\ascon_INITIALIZATION'.
+Removing unused module `$abstract\SUBSTITUTION_LAYER_PIPELINED'.
+Removing unused module `$abstract\CONSTANT_ADDITION'.
+Removing unused module `$abstract\ascon_TAG_COMPARATOR'.
+Removing unused module `$abstract\ASCON_SBOX_PIPELINED'.
+Removed 12 unused modules.
+Renaming module ascon_CORE to ascon_CORE.
+
+16. Executing PROC pass (convert processes to netlists).
+
+16.1. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Cleaned up 0 empty switches.
+
+16.2. Executing PROC_RMDEAD pass (remove dead branches from decision trees).
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_CORE.v:131$3 in module ascon_CORE.
+Marked 3 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419 in module ascon_INITIALIZATION.
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:59$417 in module ascon_INITIALIZATION.
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:54$415 in module ascon_INITIALIZATION.
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v:32$397 in module ascon_STATE_REGISTER.
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361 in module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+Marked 16 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323 in module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303 in module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+Marked 5 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237 in module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+Marked 33 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120 in module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+Marked 3 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79 in module $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+Marked 2 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60 in module ascon_TAG_GENERATOR.
+Marked 2 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56 in module ascon_TAG_COMPARATOR.
+Marked 1 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49 in module $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.
+Marked 12 switch rules as full_case in process $proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31 in module $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.
+Removed a total of 0 dead cases.
+
+16.3. Executing PROC_PRUNE pass (remove redundant assignments in processes).
+Removed 7 redundant assignments.
+Promoted 163 assignments to connections.
+
+16.4. Executing PROC_INIT pass (extract init attributes).
+
+16.5. Executing PROC_ARST pass (detect async resets in processes).
+Found async reset \rst_n in `\ascon_CORE.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CORE.v:131$3'.
+Found async reset \rst_n in `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+Found async reset \rst_n in `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:59$417'.
+Found async reset \rst_n in `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:54$415'.
+Found async reset \rst_n in `\ascon_STATE_REGISTER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v:32$397'.
+Found async reset \rst_n in `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303'.
+Found async reset \rst_n in `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+Found async reset \rst_n in `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+Found async reset \rst_n in `\ascon_TAG_COMPARATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56'.
+Found async reset \rst_n in `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+
+16.6. Executing PROC_ROM pass (convert switches to ROMs).
+Converted 0 switches.
+<suppressed ~87 debug messages>
+
+16.7. Executing PROC_MUX pass (convert decision trees to multiplexers).
+Creating decoders for process `\ascon_CORE.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CORE.v:131$3'.
+     1/1: $0\dp_extra_pad_r[0:0]
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$642'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$635'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$628'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$621'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$614'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$607'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$600'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$593'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$586'.
+Creating decoders for process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$579'.
+Creating decoders for process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+     1/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.$result[63:0]$523
+     2/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.x[63:0]$524
+     3/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.$result[63:0]$521
+     4/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.x[63:0]$522
+     5/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.$result[63:0]$519
+     6/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.x[63:0]$520
+     7/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.$result[63:0]$517
+     8/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.x[63:0]$518
+     9/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.x[63:0]$548
+    10/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.$result[63:0]$547
+    11/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.x[63:0]$546
+    12/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.$result[63:0]$545
+    13/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.x[63:0]$544
+    14/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.$result[63:0]$543
+    15/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.x[63:0]$542
+    16/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.$result[63:0]$541
+    17/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.x[63:0]$540
+    18/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.$result[63:0]$539
+    19/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.x[63:0]$538
+    20/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.$result[63:0]$537
+    21/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.x[63:0]$536
+    22/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.$result[63:0]$535
+    23/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.x[63:0]$534
+    24/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.$result[63:0]$533
+    25/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.x[63:0]$532
+    26/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.$result[63:0]$531
+    27/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.x[63:0]$530
+    28/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.$result[63:0]$529
+    29/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.x[63:0]$528
+    30/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.$result[63:0]$527
+    31/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.x[63:0]$526
+    32/98: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.$result[63:0]$525
+    33/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.x[63:0]$516
+    34/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.$result[63:0]$515
+    35/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.x[63:0]$514
+    36/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.$result[63:0]$513
+    37/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.x[63:0]$512
+    38/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.$result[63:0]$511
+    39/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.x[63:0]$510
+    40/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.$result[63:0]$509
+    41/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.x[63:0]$508
+    42/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.$result[63:0]$507
+    43/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.x[63:0]$506
+    44/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.$result[63:0]$505
+    45/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.x[63:0]$504
+    46/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.$result[63:0]$503
+    47/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.x[63:0]$502
+    48/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.$result[63:0]$501
+    49/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.x[63:0]$500
+    50/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.$result[63:0]$499
+    51/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.x[63:0]$498
+    52/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.$result[63:0]$497
+    53/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.x[63:0]$496
+    54/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.$result[63:0]$495
+    55/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.x[63:0]$494
+    56/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.$result[63:0]$493
+    57/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.x[63:0]$492
+    58/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.$result[63:0]$491
+    59/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.x[63:0]$490
+    60/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.$result[63:0]$489
+    61/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.x[63:0]$488
+    62/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.$result[63:0]$487
+    63/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.x[63:0]$486
+    64/98: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.$result[63:0]$485
+    65/98: $0\init_valid[0:0]
+    66/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.x[63:0]$484
+    67/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.$result[63:0]$483
+    68/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.x[63:0]$482
+    69/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.$result[63:0]$481
+    70/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.x[63:0]$480
+    71/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.$result[63:0]$479
+    72/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.x[63:0]$478
+    73/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.$result[63:0]$477
+    74/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.x[63:0]$476
+    75/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.$result[63:0]$475
+    76/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.x[63:0]$474
+    77/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.$result[63:0]$473
+    78/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.x[63:0]$472
+    79/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.$result[63:0]$471
+    80/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.x[63:0]$470
+    81/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.$result[63:0]$469
+    82/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.x[63:0]$468
+    83/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.$result[63:0]$467
+    84/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.x[63:0]$466
+    85/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.$result[63:0]$465
+    86/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.x[63:0]$464
+    87/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.$result[63:0]$463
+    88/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.x[63:0]$462
+    89/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.$result[63:0]$461
+    90/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.x[63:0]$460
+    91/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.$result[63:0]$459
+    92/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.x[63:0]$458
+    93/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.$result[63:0]$457
+    94/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.x[63:0]$456
+    95/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.$result[63:0]$455
+    96/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.x[63:0]$454
+    97/98: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.$result[63:0]$453
+    98/98: $0\init_state_out[319:0]
+Creating decoders for process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:59$417'.
+     1/1: $0\nonce_reg[127:0]
+Creating decoders for process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:54$415'.
+     1/1: $0\key_reg[127:0]
+Creating decoders for process `\ascon_STATE_REGISTER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v:32$397'.
+     1/1: $0\state_out[319:0]
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$393'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$389'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$385'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$381'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+     1/2: $1\build_dec_padx$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:156$110.p[127:0]$368
+     2/2: $1$bitselwrite$pos$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:128$111[31:0]$369
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+     1/16: $16\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[7:0]$360
+     2/16: $15\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[15:8]$358
+     3/16: $14\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[23:16]$356
+     4/16: $13\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[31:24]$354
+     5/16: $12\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[39:32]$352
+     6/16: $11\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[47:40]$350
+     7/16: $10\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[55:48]$348
+     8/16: $9\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[63:56]$346
+     9/16: $8\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[71:64]$344
+    10/16: $7\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[79:72]$342
+    11/16: $6\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[87:80]$340
+    12/16: $5\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[95:88]$338
+    13/16: $4\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[103:96]$336
+    14/16: $3\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[111:104]$334
+    15/16: $2\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[119:112]$332
+    16/16: $1\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m[127:120]$330
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$319'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$315'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$311'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$307'.
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303'.
+     1/2: $0\data_out_valid[0:0]
+     2/2: $0\data_out[127:0]
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+     1/51: $5\state_temp[319:192] [63:0]
+     2/51: $5\state_temp[319:192] [127:64]
+     3/51: $4\data_out_comb[127:0] [63:0]
+     4/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.$result[63:0]$291
+     5/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.x[63:0]$292
+     6/51: $4\data_out_comb[127:0] [127:64]
+     7/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.$result[63:0]$289
+     8/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.x[63:0]$290
+     9/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.x[63:0]$296
+    10/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.$result[63:0]$295
+    11/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.x[63:0]$294
+    12/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.$result[63:0]$293
+    13/51: $4\state_temp[319:192] [63:0]
+    14/51: $4\state_temp[319:192] [127:64]
+    15/51: $3\data_out_comb[127:0] [63:0]
+    16/51: $3\data_out_comb[127:0] [127:64]
+    17/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.$result[63:0]$281
+    18/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.x[63:0]$282
+    19/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.x[63:0]$284
+    20/51: $3\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.$result[63:0]$283
+    21/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.x[63:0]$271
+    22/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.$result[63:0]$270
+    23/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.x[63:0]$269
+    24/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.$result[63:0]$268
+    25/51: $3\state_temp[319:192]
+    26/51: $2\data_out_comb[127:0]
+    27/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.x[63:0]$279
+    28/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.$result[63:0]$278
+    29/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.x[63:0]$277
+    30/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.$result[63:0]$276
+    31/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.x[63:0]$275
+    32/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.$result[63:0]$274
+    33/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.x[63:0]$273
+    34/51: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.$result[63:0]$272
+    35/51: $2\state_temp[319:192] [63:0]
+    36/51: $2\state_temp[319:192] [127:64]
+    37/51: $1\data_out_valid_comb[0:0]
+    38/51: $1\state_temp[319:192]
+    39/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.x[63:0]$262
+    40/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.$result[63:0]$261
+    41/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.x[63:0]$260
+    42/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.$result[63:0]$259
+    43/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.x[63:0]$258
+    44/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.$result[63:0]$257
+    45/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.x[63:0]$256
+    46/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.$result[63:0]$255
+    47/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.x[63:0]$254
+    48/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.$result[63:0]$253
+    49/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.x[63:0]$252
+    50/51: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.$result[63:0]$251
+    51/51: $1\data_out_comb[127:0]
+Creating decoders for process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+     1/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [127:120]
+     2/54: $32\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[7:0]$224
+     3/54: $31\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[15:8]$222
+     4/54: $30\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[15:8]$218
+     5/54: $29\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[23:16]$216
+     6/54: $28\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[23:16]$212
+     7/54: $27\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[31:24]$210
+     8/54: $26\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[31:24]$206
+     9/54: $25\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[39:32]$204
+    10/54: $24\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[39:32]$200
+    11/54: $23\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[47:40]$198
+    12/54: $22\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[47:40]$194
+    13/54: $21\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[55:48]$192
+    14/54: $20\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[55:48]$188
+    15/54: $19\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[63:56]$186
+    16/54: $18\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[63:56]$182
+    17/54: $17\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[71:64]$180
+    18/54: $16\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[71:64]$176
+    19/54: $15\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[79:72]$174
+    20/54: $14\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[79:72]$170
+    21/54: $13\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[87:80]$168
+    22/54: $12\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[87:80]$164
+    23/54: $11\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[95:88]$162
+    24/54: $10\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[95:88]$158
+    25/54: $9\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[103:96]$156
+    26/54: $8\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[103:96]$152
+    27/54: $7\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[111:104]$150
+    28/54: $6\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[111:104]$146
+    29/54: $5\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[119:112]$144
+    30/54: $4\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[119:112]$140
+    31/54: $3\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:120]$138
+    32/54: $2\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:120]$134
+    33/54: $1\padded_data[127:0]
+    34/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.$result[127:0]$127
+    35/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.i[31:0]$131
+    36/54: $33\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[7:0]$228
+    37/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [7:0]
+    38/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [15:8]
+    39/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [23:16]
+    40/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [31:24]
+    41/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [39:32]
+    42/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [47:40]
+    43/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [55:48]
+    44/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [63:56]
+    45/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [71:64]
+    46/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [79:72]
+    47/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [87:80]
+    48/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [95:88]
+    49/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [103:96]
+    50/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [111:104]
+    51/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out[127:0]$132 [119:112]
+    52/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.rate[6:0]$130
+    53/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.len[6:0]$129
+    54/54: $1\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.blk[127:0]$128
+Creating decoders for process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+     1/8: $0\done[0:0]
+     2/8: $0\valid[0:0]
+     3/8: $0\running[0:0]
+     4/8: $0\done_cnt[3:0]
+     5/8: $0\rounds_reg[3:0]
+     6/8: $0\rc[3:0]
+     7/8: $0\cur[319:0]
+     8/8: $0\state_out[319:0]
+Creating decoders for process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+     1/10: $0\tag_valid[0:0]
+     2/10: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:50$59.$result[63:0]$72
+     3/10: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:50$59.x[63:0]$73
+     4/10: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:51$58.$result[63:0]$70
+     5/10: $2\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:51$58.x[63:0]$71
+     6/10: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:50$59.x[63:0]$69
+     7/10: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:50$59.$result[63:0]$68
+     8/10: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:51$58.x[63:0]$67
+     9/10: $1\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:51$58.$result[63:0]$66
+    10/10: $0\tag_out[127:0]
+Creating decoders for process `\ascon_TAG_COMPARATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56'.
+     1/2: $0\tag_done[0:0]
+     2/2: $0\tag_match[0:0]
+Creating decoders for process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+     1/18: $1\busy[0:0]
+     2/18: $1\do_dom_sep[0:0]
+     3/18: $1\do_pre_fin_key_xor[0:0]
+     4/18: $1\do_post_init_key_xor[0:0]
+     5/18: $1\compare_tag[0:0]
+     6/18: $1\perm_start[0:0]
+     7/18: $1\perm_start_rc[3:0]
+     8/18: $1\perm_rounds[3:0]
+     9/18: $1\dp_block_sel[1:0]
+    10/18: $1\dp_pad_enable[0:0]
+    11/18: $1\state_load[0:0]
+    12/18: $1\state_src_sel[1:0]
+    13/18: $1\gen_tag[0:0]
+    14/18: $1\init_start[0:0]
+    15/18: $1\load_nonce[0:0]
+    16/18: $1\load_key[0:0]
+    17/18: $1\done[0:0]
+    18/18: $1\data_out_valid[0:0]
+Creating decoders for process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+     1/5: $0\extra_pad_r[0:0]
+     2/5: $0\data_last_r[0:0]
+     3/5: $0\ad_last_r[0:0]
+     4/5: $0\cnt[3:0]
+     5/5: $0\state[5:0]
+Creating decoders for process `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_SBOX_PIPELINED.v:114$670'.
+
+16.8. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:42$558.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$642'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:42$568.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$642'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:42$568.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$642'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:42$557.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$635'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:42$567.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$635'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:42$567.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$635'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:39$556.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$628'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:39$566.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$628'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:39$566.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$628'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:39$555.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$621'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:39$565.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$621'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:39$565.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$621'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:36$554.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$614'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:36$564.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$614'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:36$564.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$614'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:36$553.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$607'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:36$563.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$607'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:36$563.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$607'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:33$552.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$600'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:33$562.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$600'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:33$562.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$600'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:33$551.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$593'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:33$561.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$593'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:33$561.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$593'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:30$550.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$586'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:30$560.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$586'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:30$560.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$586'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:30$549.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$579'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:30$559.$result' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$579'.
+No latch inferred for signal `\LINEAR_DIFFUSION.\ROR$func$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:30$559.value' from process `\LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$579'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:160$98.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$393'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:160$115.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$393'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:160$115.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$393'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:159$97.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$389'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:159$114.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$389'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:159$114.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$389'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:158$96.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$385'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:158$113.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$385'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:158$113.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$385'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:157$95.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$381'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:157$112.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$381'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:157$112.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$381'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_padx$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:156$94.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_padx$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:156$110.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_padx$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:156$110.len' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_padx$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:156$110.p' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$bitselwrite$pos$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:128$111' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$93.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.len' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.i' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\build_dec_mask$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:155$109.m' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:152$92.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$319'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:152$108.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$319'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:152$108.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$319'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:151$91.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$315'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:151$107.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$315'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:151$107.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$315'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:147$90.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$311'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:147$106.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$311'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:147$106.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$311'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:146$89.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$307'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:146$105.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$307'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:146$105.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$307'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\state_xored' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\data_out_comb' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\data_out_valid_comb' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\state_temp' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:215$99.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:221$100.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:230$101.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:231$102.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:236$103.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:237$104.x' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\padded_data' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.$result' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.blk' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.len' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.rate' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.i' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\apply_padding$func$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:141$88.out' from process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\data_out_valid' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\done' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\busy' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\load_key' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\load_nonce' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\init_start' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\gen_tag' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\state_src_sel' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\state_load' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\dp_pad_enable' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\dp_block_sel' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\dp_enc_dec' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\perm_rounds' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\perm_start_rc' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\perm_start' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\compare_tag' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\do_post_init_key_xor' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\do_pre_fin_key_xor' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\do_dom_sep' from process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+No latch inferred for signal `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\out' from process `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_SBOX_PIPELINED.v:114$670'.
+
+16.9. Executing PROC_DFF pass (convert process syncs to FFs).
+Creating register for signal `\ascon_CORE.\dp_extra_pad_r' using process `\ascon_CORE.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CORE.v:131$3'.
+  created $adff cell `$procdff$2210' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\init_state_out' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2215' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\init_valid' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2220' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2225' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:76$399.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2230' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2235' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:75$400.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2240' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2245' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:74$401.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2250' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2255' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:73$402.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2260' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2265' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:83$403.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2270' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2275' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:82$404.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2280' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2285' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:81$405.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2290' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2295' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:80$406.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2300' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2305' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:90$407.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2310' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2315' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:89$408.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2320' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2325' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:88$409.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2330' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2335' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:87$410.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2340' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2345' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:97$411.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2350' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2355' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:96$412.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2360' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2365' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:95$413.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2370' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.$result' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2375' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:94$414.x' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+  created $adff cell `$procdff$2380' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\nonce_reg' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:59$417'.
+  created $adff cell `$procdff$2385' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_INITIALIZATION.\key_reg' using process `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:54$415'.
+  created $adff cell `$procdff$2390' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_STATE_REGISTER.\state_out' using process `\ascon_STATE_REGISTER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v:32$397'.
+  created $adff cell `$procdff$2395' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\data_out' using process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303'.
+  created $adff cell `$procdff$2400' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.\data_out_valid' using process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303'.
+  created $adff cell `$procdff$2405' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\done' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2410' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\state_out' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2415' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\valid' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2420' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\cur' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2425' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\rc' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2430' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\rounds_reg' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2435' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\done_cnt' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2440' with positive edge clock and positive level reset.
+Creating register for signal `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.\running' using process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+  created $adff cell `$procdff$2445' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_GENERATOR.\tag_out' using process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+  created $adff cell `$procdff$2450' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_GENERATOR.\tag_valid' using process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+  created $adff cell `$procdff$2455' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_GENERATOR.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:51$58.$result' using process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+  created $adff cell `$procdff$2460' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_GENERATOR.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:51$58.x' using process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+  created $adff cell `$procdff$2465' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_GENERATOR.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:50$59.$result' using process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+  created $adff cell `$procdff$2470' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_GENERATOR.\bswap64$func$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:50$59.x' using process `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+  created $adff cell `$procdff$2475' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_COMPARATOR.\tag_match' using process `\ascon_TAG_COMPARATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56'.
+  created $adff cell `$procdff$2480' with positive edge clock and positive level reset.
+Creating register for signal `\ascon_TAG_COMPARATOR.\tag_done' using process `\ascon_TAG_COMPARATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56'.
+  created $adff cell `$procdff$2485' with positive edge clock and positive level reset.
+Creating register for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\state' using process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+  created $adff cell `$procdff$2490' with positive edge clock and positive level reset.
+Creating register for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\cnt' using process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+  created $adff cell `$procdff$2495' with positive edge clock and positive level reset.
+Creating register for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\ad_last_r' using process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+  created $adff cell `$procdff$2500' with positive edge clock and positive level reset.
+Creating register for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\data_last_r' using process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+  created $adff cell `$procdff$2505' with positive edge clock and positive level reset.
+Creating register for signal `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.\extra_pad_r' using process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+  created $adff cell `$procdff$2510' with positive edge clock and positive level reset.
+
+16.10. Executing PROC_MEMWR pass (convert process memory writes to cells).
+
+16.11. Executing PROC_CLEAN pass (remove empty switches from decision trees).
+Removing empty process `ascon_CORE.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CORE.v:131$3'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$642'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$635'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$628'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$621'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$614'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$607'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$600'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$593'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$586'.
+Removing empty process `LINEAR_DIFFUSION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_LINEAR_DIFFUSION.v:0$579'.
+Found and cleaned up 2 empty switches in `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+Removing empty process `ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:64$419'.
+Found and cleaned up 1 empty switch in `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:59$417'.
+Removing empty process `ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:59$417'.
+Found and cleaned up 1 empty switch in `\ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:54$415'.
+Removing empty process `ascon_INITIALIZATION.$proc$/home/chithang/pdop2/ascon_core/src/ascon_INITIALIZATION.v:54$415'.
+Found and cleaned up 1 empty switch in `\ascon_STATE_REGISTER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v:32$397'.
+Removing empty process `ascon_STATE_REGISTER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_STATE_REGISTER.v:32$397'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$393'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$389'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$385'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$381'.
+Found and cleaned up 1 empty switch in `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$361'.
+Found and cleaned up 16 empty switches in `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$323'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$319'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$315'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$311'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:0$307'.
+Found and cleaned up 1 empty switch in `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:249$303'.
+Found and cleaned up 5 empty switches in `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:179$237'.
+Found and cleaned up 33 empty switches in `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+Removing empty process `$paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.$proc$/home/chithang/pdop2/ascon_core/src/ascon_datapath.v:139$120'.
+Found and cleaned up 4 empty switches in `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+Removing empty process `$paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_PERMUTATION.v:103$79'.
+Found and cleaned up 1 empty switch in `\ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+Removing empty process `ascon_TAG_GENERATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_GENERATOR.v:44$60'.
+Found and cleaned up 1 empty switch in `\ascon_TAG_COMPARATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56'.
+Removing empty process `ascon_TAG_COMPARATOR.$proc$/home/chithang/pdop2/ascon_core/src/ascon_TAG_COMPARATOR.v:25$56'.
+Found and cleaned up 1 empty switch in `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+Removing empty process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:290$49'.
+Found and cleaned up 19 empty switches in `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+Removing empty process `$paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.$proc$/home/chithang/pdop2/ascon_core/src/ascon_CONTROLLER.v:140$31'.
+Removing empty process `$paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.$proc$/home/chithang/pdop2/ascon_core/src/ascon_SBOX_PIPELINED.v:114$670'.
+Cleaned up 87 empty switches.
+
+16.12. Executing OPT_EXPR pass (perform const folding).
+Optimizing module ascon_CORE.
+<suppressed ~3 debug messages>
+Optimizing module CONSTANT_ADDITION.
+Optimizing module $paramod\SUBSTITUTION_LAYER_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+Optimizing module LINEAR_DIFFUSION.
+<suppressed ~20 debug messages>
+Optimizing module ascon_INITIALIZATION.
+<suppressed ~88 debug messages>
+Optimizing module ascon_STATE_REGISTER.
+<suppressed ~2 debug messages>
+Optimizing module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+<suppressed ~107 debug messages>
+Optimizing module $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+<suppressed ~24 debug messages>
+Optimizing module ascon_TAG_GENERATOR.
+<suppressed ~12 debug messages>
+Optimizing module ascon_TAG_COMPARATOR.
+<suppressed ~5 debug messages>
+Optimizing module $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.
+<suppressed ~19 debug messages>
+Optimizing module $paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+
+17. Executing FLATTEN pass (flatten design).
+Deleting now unused module CONSTANT_ADDITION.
+Deleting now unused module $paramod\SUBSTITUTION_LAYER_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+Deleting now unused module LINEAR_DIFFUSION.
+Deleting now unused module ascon_INITIALIZATION.
+Deleting now unused module ascon_STATE_REGISTER.
+Deleting now unused module $paramod\ascon_DATAPATH\G_DUAL_RATE=s32'00000000000000000000000000000001.
+Deleting now unused module $paramod\ascon_PERMUTATION\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+Deleting now unused module ascon_TAG_GENERATOR.
+Deleting now unused module ascon_TAG_COMPARATOR.
+Deleting now unused module $paramod$0e8356bf87449acae89d34eb6fb4f54d3be2c194\ascon_CONTROLLER.
+Deleting now unused module $paramod\ASCON_SBOX_PIPELINED\G_SBOX_PIPELINE=s32'00000000000000000000000000000000.
+<suppressed ~74 debug messages>
+
+18. Executing OPT_CLEAN pass (remove unused cells and wires).
+Finding unused cells or wires in module \ascon_CORE..
+Removed 443 unused cells and 3031 unused wires.
+<suppressed ~1033 debug messages>

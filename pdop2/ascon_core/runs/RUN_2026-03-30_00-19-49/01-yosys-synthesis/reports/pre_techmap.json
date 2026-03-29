@@ -1,0 +1,61 @@
+{
+   "creator": "Yosys 0.46 (git sha1 e97731b9dda91fa5fa53ed87df7c34163ba59a41, clang++ 17.0.6 -fPIC -O3)",
+   "invocation": "stat -json -liberty /home/chithang/pdop2/ascon_core/runs/RUN_2026-03-30_00-19-49/tmp/084ccf48631f4c38a8499fec04e5bc07.lib ",
+   "modules": {
+      "\\ascon_CORE": {
+         "num_wires":         7044,
+         "num_wire_bits":     10585,
+         "num_pub_wires":     53,
+         "num_pub_wire_bits": 3577,
+         "num_ports":         21,
+         "num_port_bits":     917,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         9542,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 600,
+            "$_AND_": 31,
+            "$_DFFE_PN0N_": 448,
+            "$_DFFE_PN0P_": 1308,
+            "$_DFF_PN0_": 6,
+            "$_MUX_": 3123,
+            "$_NAND_": 18,
+            "$_NOR_": 144,
+            "$_NOT_": 1098,
+            "$_ORNOT_": 114,
+            "$_OR_": 397,
+            "$_XNOR_": 800,
+            "$_XOR_": 1455
+         }
+      }
+   },
+      "design": {
+         "num_wires":         7044,
+         "num_wire_bits":     10585,
+         "num_pub_wires":     53,
+         "num_pub_wire_bits": 3577,
+         "num_ports":         21,
+         "num_port_bits":     917,
+         "num_memories":      0,
+         "num_memory_bits":   0,
+         "num_processes":     0,
+         "num_cells":         9542,
+         "num_cells_by_type": {
+            "$_ANDNOT_": 600,
+            "$_AND_": 31,
+            "$_DFFE_PN0N_": 448,
+            "$_DFFE_PN0P_": 1308,
+            "$_DFF_PN0_": 6,
+            "$_MUX_": 3123,
+            "$_NAND_": 18,
+            "$_NOR_": 144,
+            "$_NOT_": 1098,
+            "$_ORNOT_": 114,
+            "$_OR_": 397,
+            "$_XNOR_": 800,
+            "$_XOR_": 1455
+         }
+      }
+}
+

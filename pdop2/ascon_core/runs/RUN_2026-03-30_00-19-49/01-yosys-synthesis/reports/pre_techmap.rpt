@@ -1,0 +1,42 @@
+142. Printing statistics.
+
+=== ascon_CORE ===
+
+   Number of wires:               7044
+   Number of wire bits:          10585
+   Number of public wires:          53
+   Number of public wire bits:    3577
+   Number of ports:                 21
+   Number of port bits:            917
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:               9542
+     $_ANDNOT_                     600
+     $_AND_                         31
+     $_DFFE_PN0N_                  448
+     $_DFFE_PN0P_                 1308
+     $_DFF_PN0_                      6
+     $_MUX_                       3123
+     $_NAND_                        18
+     $_NOR_                        144
+     $_NOT_                       1098
+     $_ORNOT_                      114
+     $_OR_                         397
+     $_XNOR_                       800
+     $_XOR_                       1455
+
+   Area for cell type $_NOT_ is unknown!
+   Area for cell type $_AND_ is unknown!
+   Area for cell type $_NAND_ is unknown!
+   Area for cell type $_OR_ is unknown!
+   Area for cell type $_NOR_ is unknown!
+   Area for cell type $_XOR_ is unknown!
+   Area for cell type $_XNOR_ is unknown!
+   Area for cell type $_ANDNOT_ is unknown!
+   Area for cell type $_ORNOT_ is unknown!
+   Area for cell type $_MUX_ is unknown!
+   Area for cell type $_DFF_PN0_ is unknown!
+   Area for cell type $_DFFE_PN0N_ is unknown!
+   Area for cell type $_DFFE_PN0P_ is unknown!
+

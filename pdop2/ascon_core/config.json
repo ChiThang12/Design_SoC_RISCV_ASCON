@@ -1,0 +1,35 @@
+{
+  "DESIGN_NAME": "ascon_CORE",
+  "VERILOG_FILES": [
+    "dir::src/ascon_SBOX_PIPELINED.v",
+    "dir::src/ascon_TAG_COMPARATOR.v",
+    "dir::src/ascon_CONSTANT_ADDITION.v",
+    "dir::src/ascon_SUBTITUTION_LAYER.v",
+    "dir::src/ascon_INITIALIZATION.v",
+    "dir::src/ascon_PERMUTATION.v",
+    "dir::src/ascon_CONTROLLER.v",
+    "dir::src/ascon_TAG_GENERATOR.v",
+    "dir::src/ascon_LINEAR_DIFFUSION.v",
+    "dir::src/ascon_STATE_REGISTER.v",
+    "dir::src/ascon_CORE.v",
+     "dir::src/ascon_datapath.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 10.0,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": [
+    0,
+    0,
+    450,
+    450
+  ],
+  "PL_TARGET_DENSITY_PCT": 45,
+  "FP_CORE_UTIL": 40,
+  "SYNTH_STRATEGY": "DELAY 1",
+  "PL_TIME_DRIVEN": true,
+  "RUN_POST_CTS_RESIZER_TIMING": true,
+  "RUN_ANTENNA_REPAIR": true,
+  "RT_MAX_LAYER": "met5",
+  "RUN_MAGIC_STREAMOUT": true,
+  "RUN_KLAYOUT_STREAMOUT": true
+}
