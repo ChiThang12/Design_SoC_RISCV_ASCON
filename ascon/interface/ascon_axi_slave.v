@@ -327,6 +327,11 @@ module ascon_axi_slave #(
             dma_start     <= 1'b0;
             dma_soft_rst  <= 1'b0;
 
+            // [BUG3-FIX] Clear reg_dma_en on soft_rst (moved here from status block
+            // to avoid multiple-driver conflict on reg_dma_en).
+            if (core_soft_rst)
+                reg_dma_en <= 1'b0;
+
             case (wr_state)
 
                 // ── WR_IDLE ──────────────────────────────────────────────────
@@ -464,13 +469,9 @@ module ascon_axi_slave #(
                 status_dma_done  <= 1'b0;
                 status_error     <= 1'b0;
                 status_dma_error <= 1'b0;
-                // [BUG3-FIX] Clear reg_dma_en on soft_rst.
-                // Nếu không clear: sau khi firmware ghi CTRL_SOFT_RST cuối vòng,
-                // reg_dma_en vẫn=1. Lần tiếp theo bất kỳ giá trị nào được ghi vào
-                // CTRL đều có thể trigger dma_start do điều kiện:
-                //   if ((wr_exec_data[2] || reg_dma_en) && !dma_busy) dma_start<=1
-                // → DMA kick với src/dst stale → DECERR trên AXI crossbar.
-                reg_dma_en <= 1'b0;
+                // [BUG3-FIX] reg_dma_en clear on soft_rst được xử lý trong
+                // Write FSM block (always @posedge clk or negedge rst_n tại dòng 291)
+                // để tránh multiple-driver conflict (Yosys synth check error).
             end
             if (core_data_out_valid) begin
                 reg_ctext_0 <= core_data_out[127:96];
