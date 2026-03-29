@@ -1,0 +1,4 @@
+
+15. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `\soc_ctrl_slave.\rdata_mux' from process `\soc_ctrl_slave.$proc$/home/chithang/pdop2/controller/src/soc_ctrl_slave.v:280$57'.
+No latch inferred for signal `\soc_ctrl_slave.\irq_w1c_mask' from process `\soc_ctrl_slave.$proc$/home/chithang/pdop2/controller/src/soc_ctrl_slave.v:218$40'.

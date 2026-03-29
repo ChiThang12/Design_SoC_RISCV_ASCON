@@ -1,0 +1,28 @@
+{
+  "DESIGN_NAME": "dma_ctrl",
+  "VERILOG_FILES": [
+    "dir::src/dma_channel.v",
+    "dir::src/dma_arbiter.v",
+    "dir::src/dma_axi_master.v",
+    "dir::src/dma_reg_slave.v",
+    "dir::src/dma_ctrl.v"
+  ],
+  "CLOCK_PORT": "clk",
+  "CLOCK_PERIOD": 10.0,
+  "FP_SIZING": "absolute",
+  "DIE_AREA": [
+    0,
+    0,
+    450,
+    450
+  ],
+  "PL_TARGET_DENSITY_PCT": 45,
+  "FP_CORE_UTIL": 40,
+  "SYNTH_STRATEGY": "DELAY 1",
+  "PL_TIME_DRIVEN": true,
+  "RUN_POST_CTS_RESIZER_TIMING": true,
+  "RUN_ANTENNA_REPAIR": true,
+  "RT_MAX_LAYER": "met5",
+  "RUN_MAGIC_STREAMOUT": true,
+  "RUN_KLAYOUT_STREAMOUT": true
+}

@@ -1,0 +1,4 @@
+
+19. Executing PROC_DLATCH pass (convert process syncs to latches).
+No latch inferred for signal `$paramod\dma_arbiter\NUM_CH=s32'00000000000000000000000000000100.\wr_next_grant' from process `$paramod\dma_arbiter\NUM_CH=s32'00000000000000000000000000000100.$proc$/home/chithang/pdop2/dma/src/dma_arbiter.v:141$86'.
+No latch inferred for signal `$paramod\dma_arbiter\NUM_CH=s32'00000000000000000000000000000100.\rd_next_grant' from process `$paramod\dma_arbiter\NUM_CH=s32'00000000000000000000000000000100.$proc$/home/chithang/pdop2/dma/src/dma_arbiter.v:64$79'.

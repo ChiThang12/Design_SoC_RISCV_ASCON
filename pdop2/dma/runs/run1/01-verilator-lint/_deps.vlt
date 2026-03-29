@@ -1,0 +1,5 @@
+`verilator_config
+lint_off -rule DECLFILENAME
+lint_off -rule EOFNEWLINE
+lint_off -rule UNDRIVEN -file "/home/chithang/pdop2/dma/runs/run1/tmp/9955f8a7a02342aa853fce521f979970.bb.v"
+lint_off -rule UNUSEDSIGNAL -file "/home/chithang/pdop2/dma/runs/run1/tmp/9955f8a7a02342aa853fce521f979970.bb.v"

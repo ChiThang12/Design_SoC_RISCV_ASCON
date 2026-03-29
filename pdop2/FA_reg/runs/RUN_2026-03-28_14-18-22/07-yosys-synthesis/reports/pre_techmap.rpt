@@ -1,0 +1,26 @@
+94. Printing statistics.
+
+=== FA_Reg ===
+
+   Number of wires:                 12
+   Number of wire bits:             12
+   Number of public wires:           9
+   Number of public wire bits:       9
+   Number of ports:                  7
+   Number of port bits:              7
+   Number of memories:               0
+   Number of memory bits:            0
+   Number of processes:              0
+   Number of cells:                  7
+     $_ANDNOT_                       1
+     $_AND_                          1
+     $_DFF_PN0_                      2
+     $_OR_                           1
+     $_XNOR_                         2
+
+   Area for cell type $_AND_ is unknown!
+   Area for cell type $_OR_ is unknown!
+   Area for cell type $_XNOR_ is unknown!
+   Area for cell type $_ANDNOT_ is unknown!
+   Area for cell type $_DFF_PN0_ is unknown!
+

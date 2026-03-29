@@ -1,0 +1,90 @@
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:249:10: Cell pin connected by name with empty reference: 'rd_data_rdy'
+  249 |         .rd_data_rdy(),
+      |          ^~~~~~~~~~~
+                          ... For warning description see https://verilator.org/warn/PINCONNECTEMPTY?v=5.018
+                          ... Use "/* verilator lint_off PINCONNECTEMPTY */" and lint_on around source to disable this message.
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:255:37: Cell pin connected by name with empty reference: 'wr_bready'
+  255 |         .wr_bvalid(ch0_wr_bvalid), .wr_bready()
+      |                                     ^~~~~~~~~
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:268:10: Cell pin connected by name with empty reference: 'rd_data_rdy'
+  268 |         .rd_data_rdy(),
+      |          ^~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:274:37: Cell pin connected by name with empty reference: 'wr_bready'
+  274 |         .wr_bvalid(ch1_wr_bvalid), .wr_bready()
+      |                                     ^~~~~~~~~
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:287:10: Cell pin connected by name with empty reference: 'rd_data_rdy'
+  287 |         .rd_data_rdy(),
+      |          ^~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:293:37: Cell pin connected by name with empty reference: 'wr_bready'
+  293 |         .wr_bvalid(ch2_wr_bvalid), .wr_bready()
+      |                                     ^~~~~~~~~
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:306:10: Cell pin connected by name with empty reference: 'rd_data_rdy'
+  306 |         .rd_data_rdy(),
+      |          ^~~~~~~~~~~
+%Warning-PINCONNECTEMPTY: /home/chithang/pdop2/dma/src/dma_ctrl.v:312:37: Cell pin connected by name with empty reference: 'wr_bready'
+  312 |         .wr_bvalid(ch3_wr_bvalid), .wr_bready()
+      |                                     ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_axi_master.v:54:34: Signal is not used: 'm_axi_rid'
+                                                                          : ... note: In instance 'dma_ctrl.u_axi_master'
+   54 |     input  wire [ID_WIDTH-1:0]   m_axi_rid,
+      |                                  ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_axi_master.v:56:34: Signal is not used: 'm_axi_rresp'
+                                                                          : ... note: In instance 'dma_ctrl.u_axi_master'
+   56 |     input  wire [1:0]            m_axi_rresp,
+      |                                  ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_axi_master.v:76:34: Signal is not used: 'm_axi_bid'
+                                                                          : ... note: In instance 'dma_ctrl.u_axi_master'
+   76 |     input  wire [ID_WIDTH-1:0]   m_axi_bid,
+      |                                  ^~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_axi_master.v:90:34: Signal is not used: 'rd_data_rdy'
+                                                                          : ... note: In instance 'dma_ctrl.u_axi_master'
+   90 |     input  wire                  rd_data_rdy,
+      |                                  ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:68:34: Signal is not used: 's_axi_awlen'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   68 |     input  wire [7:0]            s_axi_awlen,
+      |                                  ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:69:34: Signal is not used: 's_axi_awsize'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   69 |     input  wire [2:0]            s_axi_awsize,
+      |                                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:70:34: Signal is not used: 's_axi_awburst'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   70 |     input  wire [1:0]            s_axi_awburst,
+      |                                  ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:71:34: Signal is not used: 's_axi_awprot'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   71 |     input  wire [2:0]            s_axi_awprot,    
+      |                                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:77:34: Signal is not used: 's_axi_wlast'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   77 |     input  wire                  s_axi_wlast,
+      |                                  ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:88:34: Signal is not used: 's_axi_arlen'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   88 |     input  wire [7:0]            s_axi_arlen,
+      |                                  ^~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:89:34: Signal is not used: 's_axi_arsize'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   89 |     input  wire [2:0]            s_axi_arsize,
+      |                                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:90:34: Signal is not used: 's_axi_arburst'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   90 |     input  wire [1:0]            s_axi_arburst,
+      |                                  ^~~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:91:34: Signal is not used: 's_axi_arprot'
+                                                                         : ... note: In instance 'dma_ctrl.u_reg_slave'
+   91 |     input  wire [2:0]            s_axi_arprot,    
+      |                                  ^~~~~~~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:184:26: Bits of signal are not used: 'wr_addr'[31:8]
+                                                                          : ... note: In instance 'dma_ctrl.u_reg_slave'
+  184 |     reg [ADDR_WIDTH-1:0] wr_addr;
+      |                          ^~~~~~~
+%Warning-UNUSEDSIGNAL: /home/chithang/pdop2/dma/src/dma_reg_slave.v:197:32: Bits of signal are not used: 'addr'[31:8]
+                                                                          : ... note: In instance 'dma_ctrl.u_reg_slave'
+  197 |         input [ADDR_WIDTH-1:0] addr;
+      |                                ^~~~
+%Warning-BLKSEQ: /home/chithang/pdop2/dma/src/dma_reg_slave.v:203:20: Blocking assignment '=' in sequential logic process
+                                                                    : ... Suggest using delayed assignment '<='
+  203 |                 ch = addr[5:4];   
+      |                    ^
