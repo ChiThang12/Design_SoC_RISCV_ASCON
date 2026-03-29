@@ -13,14 +13,19 @@
 module ascon_CONTROLLER #(
     parameter G_COMB_RND_128  = 6,
     parameter G_COMB_RND_128A = 4,
+    /* verilator lint_off UNUSEDPARAM */
     parameter G_SBOX_PIPELINE = 0
+    /* verilator lint_on UNUSEDPARAM */
 ) (
     input  wire         clk,
     input  wire         rst_n,
 
     input  wire         start,
-    input  wire [1:0]   mode,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [1:0]   mode,   // mode[1] unused (only mode[0] decoded)
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         enc_dec,
+    /* verilator lint_off UNUSEDSIGNAL */
     input  wire [127:0] key_in,
     input  wire [127:0] nonce_in,
     input  wire [127:0] ad_in,
@@ -30,6 +35,7 @@ module ascon_CONTROLLER #(
     input  wire         data_last,
     input  wire [6:0]   data_len,
     input  wire [127:0] tag_received,
+    /* verilator lint_on UNUSEDSIGNAL */
 
     output reg          data_out_valid,
     output reg          done,
@@ -57,7 +63,9 @@ module ascon_CONTROLLER #(
     output reg          do_pre_fin_key_xor,
     output reg          do_dom_sep,
 
-    input  wire         init_done,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         init_done,  // reserved for future pipeline use
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         perm_done,
     input  wire         tag_gen_valid,
     input  wire         tag_cmp_done,

@@ -193,7 +193,9 @@ module ascon_ip_top #(
     wire         slave_core_enc_dec;
     wire [1:0]   slave_core_mode;
     wire         slave_core_start;
-    wire         slave_core_soft_rst;
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire         slave_core_soft_rst;  // output of slave, not forwarded
+    /* verilator lint_on UNUSEDSIGNAL */  // connected to slave but not forwarded (intentional)
 
     wire         core_busy_w;
     wire         core_done_w;
@@ -221,7 +223,9 @@ module ascon_ip_top #(
     // =========================================================================
     wire [31:0]  dma_core_ptext_0;
     wire [31:0]  dma_core_ptext_1;
-    wire         dma_core_data_valid;
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire         dma_core_data_valid;  // DMA→CORE handshake, not used by CORE directly
+    /* verilator lint_on UNUSEDSIGNAL */  // DMA→CORE data valid (not used by CORE directly)
     wire         dma_core_data_ready;
     wire         dma_core_start;
 
@@ -360,6 +364,12 @@ module ascon_ip_top #(
     // mode truyền trực tiếp — CORE v12 dùng mode_int=mode (không đảo bit)
     // mode[0] chọn 128 vs 128a, mode[1] không dùng trong CORE (chỉ dùng ở top)
     // =========================================================================
+    // tag_match: kết quả so sánh tag trong decrypt mode
+    // FIX-PINCONNECTEMPTY: kết nối vào wire thay vì bỏ trống
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire core_tag_match_w;  // available for future use (decrypt tag check)
+    /* verilator lint_on UNUSEDSIGNAL */
+
     ascon_CORE #(
         .G_COMB_RND_128 (G_COMB_RND_128),
         .G_COMB_RND_128A(G_COMB_RND_128A),
@@ -385,7 +395,7 @@ module ascon_ip_top #(
         .data_out_valid(core_data_out_valid_w),
         .tag_out      (core_tag_out_w),
         .tag_valid    (core_tag_valid_w),
-        .tag_match    (),
+        .tag_match    (core_tag_match_w),
         .done         (core_done_w),
         .busy         (core_busy_w)
     );
@@ -459,12 +469,14 @@ module ascon_ip_top #(
         .dma_done             (dma_done_w),
         .dma_error            (dma_error_w),
 
+        /* verilator lint_off PINCONNECTEMPTY */
         .status_rd_done       (),
         .status_wr_done       (),
         .status_rd_error      (),
         .status_wr_error      (),
         .status_fifo_overflow (),
         .dma_err_addr         (),
+        /* verilator lint_on PINCONNECTEMPTY */
 
         .core_ptext_0         (dma_core_ptext_0),
         .core_ptext_1         (dma_core_ptext_1),

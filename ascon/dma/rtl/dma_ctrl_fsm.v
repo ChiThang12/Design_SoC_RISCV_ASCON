@@ -47,22 +47,30 @@ module dma_ctrl_fsm (
 
     // ── Read engine ───────────────────────────────────────────────────────────
     output reg          rd_start,
-    input  wire         rd_busy,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         rd_busy,   // monitored externally via dma_busy
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         rd_done,
     input  wire         rd_error,
 
     // ── RD FIFO ───────────────────────────────────────────────────────────────
     input  wire [63:0]  rd_fifo_dout,
     output reg          rd_fifo_pop,
-    input  wire         rd_fifo_empty,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         rd_fifo_empty,  // back-pressure handled in read engine
+    /* verilator lint_on UNUSEDSIGNAL */
 
     // ── ascon_CORE ────────────────────────────────────────────────────────────
     output reg  [31:0]  core_ptext_0,
     output reg  [31:0]  core_ptext_1,
     output reg          core_data_valid,
-    input  wire         core_data_ready,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         core_data_ready,  // always tied high in ascon_top
+    /* verilator lint_on UNUSEDSIGNAL */
     output reg          core_start,
-    input  wire         core_busy,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         core_busy,   // done signal sufficient for FSM
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         core_done,
 
     // ── Result capture ────────────────────────────────────────────────────────
@@ -80,7 +88,9 @@ module dma_ctrl_fsm (
 
     // ── Write engine ──────────────────────────────────────────────────────────
     output reg          wr_start,
-    input  wire         wr_busy,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         wr_busy,   // done signal sufficient for FSM
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         wr_done,
     input  wire         wr_error,
 

@@ -53,10 +53,10 @@
 //      explicit cache flush. DMA bypasses DCache and reads SRAM directly.
 // ============================================================================
 
-`include "ascon_accelerator/dma/rtl/sync_fifo.v"
-`include "ascon_accelerator/dma/rtl/dma_read_engine.v"
-`include "ascon_accelerator/dma/rtl/dma_write_engine.v"
-`include "ascon_accelerator/dma/rtl/dma_ctrl_fsm.v"
+`include "ascon/dma/rtl/sync_fifo.v"
+`include "ascon/dma/rtl/dma_read_engine.v"
+`include "ascon/dma/rtl/dma_write_engine.v"
+`include "ascon/dma/rtl/dma_ctrl_fsm.v"
 
 module ascon_dma #(
     parameter ADDR_WIDTH     = 32,
@@ -75,7 +75,9 @@ module ascon_dma #(
     // =========================================================================
     input  wire [ADDR_WIDTH-1:0]  src_addr,      // DMA_SRC_ADDR
     input  wire [ADDR_WIDTH-1:0]  dst_addr,      // DMA_DST_ADDR
-    input  wire [31:0]            byte_len,      // DMA_BYTE_LEN (Phase 1: = 8)
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [31:0]            byte_len,      // DMA_BYTE_LEN — reserved for multi-block
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [7:0]             burst_len,     // DMA_BURST_LEN[7:0]
 
     input  wire                   dma_start,     // from DMA_CTRL[0] pulse
@@ -232,7 +234,9 @@ module ascon_dma #(
         .dout  (rd_fifo_dout),
         .pop   (rd_fifo_pop),
         .empty (rd_fifo_empty),
+        /* verilator lint_off PINCONNECTEMPTY */
         .count ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // =========================================================================
@@ -250,7 +254,9 @@ module ascon_dma #(
         .dout  (wr_fifo_dout),
         .pop   (wr_fifo_pop),
         .empty (wr_fifo_empty),
+        /* verilator lint_off PINCONNECTEMPTY */
         .count ()
+        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // =========================================================================

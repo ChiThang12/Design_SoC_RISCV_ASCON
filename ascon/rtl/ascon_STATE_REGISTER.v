@@ -12,15 +12,19 @@ module ascon_STATE_REGISTER (
     input  wire         clk,
     input  wire         rst_n,
 
-    input  wire [1:0]   src_sel,    // giữ cho tương thích port, không dùng
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [1:0]   src_sel,    // legacy port, not used (mux done in CORE)
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         load,
 
-    input  wire [319:0] state_in,   // đã muxed từ CORE (state_next_final)
+    input  wire [319:0] state_in,   // already muxed in CORE (state_next_final)
 
-    // Legacy ports — giữ để không đổi top-level interface
+    // Legacy ports — kept for interface compatibility
+    /* verilator lint_off UNUSEDSIGNAL */
     input  wire [319:0] init_state,
     input  wire [319:0] dp_state,
     input  wire [319:0] perm_state,
+    /* verilator lint_on UNUSEDSIGNAL */
 
     output reg  [319:0] state_out
 );

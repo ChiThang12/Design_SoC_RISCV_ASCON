@@ -22,7 +22,9 @@ module ascon_TAG_GENERATOR (
     input  wire         rst_n,
 
     input  wire         gen_tag,
-    input  wire [319:0] state_in,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [319:0] state_in,  // [319:128] unused; tag uses x3/x4 = [127:0]
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire [127:0] key_in,
 
     output reg  [127:0] tag_out,

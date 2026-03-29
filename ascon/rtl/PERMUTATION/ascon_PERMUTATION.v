@@ -38,7 +38,9 @@ module ascon_PERMUTATION #(
     input  wire [3:0]   rounds,
     input  wire [3:0]   start_rc,
     input  wire         start_perm,
-    input  wire         mode,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         mode,  // reserved for future variant selection
+    /* verilator lint_on UNUSEDSIGNAL */
 
     output reg  [319:0] state_out,
     output reg          valid,

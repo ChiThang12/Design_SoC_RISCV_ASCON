@@ -30,7 +30,9 @@ module ascon_DATAPATH #(
     input  wire         clk,
     input  wire         rst_n,
 
-    input  wire [1:0]   mode,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [1:0]   mode,  // mode[1] unused; mode[0] selects 128 vs 128a rate
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         enc_dec,
     input  wire         pad_enable,
     input  wire [1:0]   block_sel,
@@ -93,9 +95,9 @@ module ascon_DATAPATH #(
         begin
             out = 128'b0;
             for (i = 0; i < 16; i = i + 1) begin
-                if (i < len)
+                if (i < {{25{1'b0}}, len})          // FIX-WIDTHEXPAND: cast len to 32-bit
                     out[127 - i*8 -: 8] = blk[127 - i*8 -: 8];
-                else if (i == len && len < rate)
+                else if (i == {{25{1'b0}}, len} && len < rate) // FIX-WIDTHEXPAND: cast len to 32-bit
                     out[127 - i*8 -: 8] = 8'h01;
             end
             apply_padding = out;
@@ -112,18 +114,18 @@ module ascon_DATAPATH #(
         begin
             m = 128'b0;
             for (i = 0; i < 16; i = i + 1)
-                if (i >= len) m[127 - i*8 -: 8] = 8'hFF;
+                if (i >= {{25{1'b0}}, len}) m[127 - i*8 -: 8] = 8'hFF; // FIX-WIDTHEXPAND
             build_dec_mask = m;
         end
     endfunction
 
     function [127:0] build_dec_padx;
         input [6:0] len;
-        integer i;
+        // integer i removed (unused, FIX-UNUSEDSIGNAL)
         reg [127:0] p;
         begin
             p = 128'b0;
-            if (len < 16) p[127 - len*8 -: 8] = 8'h01;
+            if (len < 7'd16) p[127 - {{25{1'b0}}, len}*8 -: 8] = 8'h01; // FIX-WIDTHEXPAND
             build_dec_padx = p;
         end
     endfunction
