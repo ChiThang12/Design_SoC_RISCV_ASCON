@@ -1,31 +1,39 @@
 /*
- * main_v13.c  —  ASCON-128 DMA Firmware
+ * main_v14.c  —  ASCON-128 DMA Firmware with Cache Coherency Fix
  *
  * ============================================================================
- * FIXES SO VỚI v12
+ * FIXES SO VỚI v13
  * ============================================================================
  *
- * FIX-J (CRITICAL — UART_TX offset sai):
- *   v12: #define UART_TX (*((volatile uint32_t *)(UART_BASE + 0x00UL)))
- *   TB debug_data.v log S5-UART: không thấy write nào → offset 0x00 sai.
- *   uart_drv.h (v6) đã dùng đúng offset 0x04 (AXI UART Lite / Xilinx style).
- *   FIX: đổi UART_TX offset sang 0x04.
- *   Xác nhận: TB log phải thấy [S5-UART] WRITE offset=0x04.
+ * FIX-M (CRITICAL — Cache Coherency: CPU write vs DMA read):
+ *   v13: CPU writes plaintext to DMEM via DCache (M1), but DMA reads directly
+ *        from SRAM (M2) bypassing cache. NO cache flush between CPU write and
+ *        DMA read → DMA may read stale/zero data instead of plaintext.
+ *   
+ *   Root cause: fence w,w (write-write fence) ensures write ordering but NOT
+ *        DCache writeback to main memory. Need fence w,r or full fence.
+ *   
+ *   FIX: 
+ *     - step1_write_ptext_to_dmem(): Changed "fence w,w" → full "fence"
+ *       (ensures DCache writeback to SRAM before DMA access)
+ *     - step3_kick_dma(): Added full "fence" before CTRL_DMA_START pulse
+ *       (ensures all MMIO config + DCache writeback complete before DMA begins)
+ *   
+ *   Timeline (CORRECT after fix):
+ *      step1: CPU writes ptext_0, ptext_1 → fence → writeback to SRAM ✓
+ *      step2: Config ASCON (modes, keys, nonce)
+ *      step3: Write DMA config → fence w,w × 3 + 32 NOP → full fence → START
+ *      DMA: Reads from SRAM (guaranteed fresh data)
  *
- * FIX-K (_Static_assert hardcode địa chỉ stack cũ):
- *   v12 có: assert (RETCODE addr) < 0x10001F00UL
- *   0x10001F00 là __stack_top của crt0 cũ (addi sp,-256).
- *   compile_c_to_hex.sh v2.7: __stack_top = 0x10002000, stack bottom = 0x10001000.
- *   FIX: đổi ngưỡng assert thành 0x10001000UL (= DMEM_STACK bottom).
+ * FIX-J (UART_TX offset):
+ *   v12: offset 0x00 sai → v13+: offset 0x04 đúng (Xilinx AXI UART Lite)
  *
- * FIX-L (CTEXT snapshot thiếu trong DMEM):
- *   v12 step5 chỉ copy TAG từ ASCON vào DMEM, không copy CTEXT_0/CTEXT_1.
- *   DMA đã ghi CTEXT vào DMEM->CTEXT_0/1 (0x10000010/14) trực tiếp.
- *   Nhưng để TB scoreboard đọc được CTEXT qua DMEM struct đúng:
- *   Thêm snapshot CTEXT_0/1 từ DMEM (DMA output) vào step5 debug log.
- *   Không cần đọc lại từ ASCON->CTEXT vì DMA đã ghi vào DMEM.
+ * FIX-K (Stack bottom assertion):
+ *   v12: 0x10001F00 sai → v13+: 0x10001000 đúng (DMEM_STACK bottom)
  *
- * Không thay đổi nào khác so với v12.
+ * FIX-L (CTEXT snapshot):
+ *   v12: Missing CTEXT snapshot → v13+: Added (though DMA already wrote to DMEM)
+ *
  * ============================================================================
  *
  * COMPILE:
@@ -165,6 +173,16 @@ static void uart_puthex32(uint32_t v)
 
 /* ==========================================================================
  * SECTION 5: STEP 1 — GHI PLAINTEXT VÀO DMEM
+ *
+ * FIX: Cache Coherency
+ *   CPU writes to DMEM via DCache (M1). DMA reads directly from SRAM (M2).
+ *   MUST use fence w,r (or full fence) to ensure DCache writeback to SRAM
+ *   before DMA access. Otherwise DMA may read stale/zero data.
+ *
+ * Fence hierarchy:
+ *   fence w,w  → write-write ordering (insufficient for cache coherency)
+ *   fence w,r  → write-read fence (ensures writeback before DMA read)
+ *   fence      → full fence (safest, rw,rw ordering)
  * ========================================================================== */
 
 __attribute__((optimize("O0"), noinline))
@@ -173,7 +191,10 @@ static void step1_write_ptext_to_dmem(void)
     DMEM->PTEXT_0 = PTEXT_WORD0;   /* 0x10000000 ← 0x6C6C6548 */
     MB();
     DMEM->PTEXT_1 = PTEXT_WORD1;   /* 0x10000004 ← 0x0000216F */
-    __asm__ volatile ("fence w,w" ::: "memory");
+    
+    /* [FIX-CACHE] Write-read fence: ensure DCache writeback to SRAM
+       before DMA (M2) reads plaintext. Full fence guarantees all ordering. */
+    __asm__ volatile ("fence" ::: "memory");
 }
 
 /* ==========================================================================
@@ -240,9 +261,19 @@ static int step2_reset_and_config(void)
 /* ==========================================================================
  * SECTION 7: STEP 3 — KICK ASCON DMA
  *
- * Thứ tự bắt buộc: DMA_SRC → DMA_DST → DMA_LEN → fence → CTRL_DMA_START
- * DMA_LEN = DMEM_DMA_INPUT_LEN = 8 (input semantics).
- * Nếu RTL dùng output semantics: đổi thành DMEM_DMA_OUTPUT_LEN = 24.
+ * Sequence: DMA_SRC → DMA_DST → DMA_LEN → [BARRIER] → CTRL_DMA_START
+ *
+ * [FIX-CACHE] Barrier ordering:
+ *   - ASCON_WRITE() macro includes fence w,w + 32 NOP for each register
+ *   - Before pulsing DMA_START, ensure all prior writes are globally visible
+ *   - 3× fence + 32 NOP + full fence before START ensures:
+ *     1. All MMIO writes to ASCON config registers (S2) are complete
+ *     2. All DCache writebacks for DMA registers are flushed to main memory
+ *     3. DMA engine sees consistent state before being kicked
+ *
+ * DMA_LEN semantics:
+ *   = 8: input (only plaintext), RTL outputs ciphertext + tag = 24 bytes
+ *   = 24: output (all), if different RTL interpretation used 
  * ========================================================================== */
 
 __attribute__((optimize("O0"), noinline))
@@ -252,7 +283,7 @@ static void step3_kick_dma(void)
     ASCON_WRITE(ASCON->DMA_DST, DMEM_DMA_OUTPUT_ADDR);             /* CTEXT_0 */
     ASCON_WRITE(ASCON->DMA_LEN, DMEM_DMA_INPUT_LEN);               /* = 8     */
 
-    /* Triple fence + 32 NOP barrier trước START */
+    /* Triple fence barrier (write-write) + 32 NOP gap */
     __asm__ volatile ("fence w,w" ::: "memory");
     __asm__ volatile ("fence w,w" ::: "memory");
     __asm__ volatile ("fence w,w" ::: "memory");
@@ -263,6 +294,9 @@ static void step3_kick_dma(void)
         "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
         ::: "memory"
     );
+
+    /* Full fence before START pulse to guarantee all prior ordering */
+    __asm__ volatile ("fence" ::: "memory");
 
     /* CTRL = DMA_EN | START = 0x05 */
     ASCON_WRITE(ASCON->CTRL, CTRL_DMA_START);
