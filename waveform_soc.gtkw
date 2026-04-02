@@ -1,0 +1,140 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Tue Mar 24 07:57:21 2026
+[*]
+[dumpfile] "/home/chithang/Project/SoC_full/waveform_soc.vcd"
+[dumpfile_mtime] "Tue Mar 24 07:52:58 2026"
+[dumpfile_size] 2654919
+[savefile] "/home/chithang/Project/SoC_full/waveform_soc.gtkw"
+[timestart] 0
+[size] 1920 1031
+[pos] -46 -30
+*-22.100000 20800000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] run_soc.
+[treeopen] run_soc.soc.
+[treeopen] run_soc.soc.u_ascon.
+[treeopen] run_soc.soc.u_dmem.
+[sst_width] 248
+[signals_width] 343
+[sst_expanded] 1
+[sst_vpaned_height] 342
+@200
+-CPU
+@22
+run_soc.soc.u_cpu.imem_rdata[31:0]
+run_soc.soc.u_cpu.imem_addr[31:0]
+@28
+run_soc.soc.u_cpu.imem_ready
+@22
+run_soc.soc.u_cpu.instr_if[31:0]
+@200
+-
+@22
+run_soc.soc.u_cpu.dcache_rdata[31:0]
+run_soc.soc.u_cpu.dcache_addr[31:0]
+run_soc.soc.u_cpu.dcache_wdata[31:0]
+@28
+run_soc.soc.u_cpu.dcache_we
+@200
+-
+-DCACHE
+@22
+run_soc.soc.u_dcache.cpu_addr[31:0]
+run_soc.soc.u_dcache.cpu_rdata[31:0]
+@28
+run_soc.soc.u_dcache.cpu_ready
+@200
+-
+@22
+run_soc.soc.u_dcache.mem_araddr[31:0]
+run_soc.soc.u_dcache.mem_rdata[31:0]
+[color] 7
+run_soc.soc.u_dcache.mem_awaddr[31:0]
+@28
+[color] 7
+run_soc.soc.u_dcache.mem_awvalid
+[color] 7
+run_soc.soc.u_dcache.mem_awready
+@c00022
+[color] 1
+run_soc.soc.u_dcache.mem_wdata[31:0]
+@28
+(0)run_soc.soc.u_dcache.mem_wdata[31:0]
+(1)run_soc.soc.u_dcache.mem_wdata[31:0]
+(2)run_soc.soc.u_dcache.mem_wdata[31:0]
+(3)run_soc.soc.u_dcache.mem_wdata[31:0]
+(4)run_soc.soc.u_dcache.mem_wdata[31:0]
+(5)run_soc.soc.u_dcache.mem_wdata[31:0]
+(6)run_soc.soc.u_dcache.mem_wdata[31:0]
+(7)run_soc.soc.u_dcache.mem_wdata[31:0]
+(8)run_soc.soc.u_dcache.mem_wdata[31:0]
+(9)run_soc.soc.u_dcache.mem_wdata[31:0]
+(10)run_soc.soc.u_dcache.mem_wdata[31:0]
+(11)run_soc.soc.u_dcache.mem_wdata[31:0]
+(12)run_soc.soc.u_dcache.mem_wdata[31:0]
+(13)run_soc.soc.u_dcache.mem_wdata[31:0]
+(14)run_soc.soc.u_dcache.mem_wdata[31:0]
+(15)run_soc.soc.u_dcache.mem_wdata[31:0]
+(16)run_soc.soc.u_dcache.mem_wdata[31:0]
+(17)run_soc.soc.u_dcache.mem_wdata[31:0]
+(18)run_soc.soc.u_dcache.mem_wdata[31:0]
+(19)run_soc.soc.u_dcache.mem_wdata[31:0]
+(20)run_soc.soc.u_dcache.mem_wdata[31:0]
+(21)run_soc.soc.u_dcache.mem_wdata[31:0]
+(22)run_soc.soc.u_dcache.mem_wdata[31:0]
+(23)run_soc.soc.u_dcache.mem_wdata[31:0]
+(24)run_soc.soc.u_dcache.mem_wdata[31:0]
+(25)run_soc.soc.u_dcache.mem_wdata[31:0]
+(26)run_soc.soc.u_dcache.mem_wdata[31:0]
+(27)run_soc.soc.u_dcache.mem_wdata[31:0]
+(28)run_soc.soc.u_dcache.mem_wdata[31:0]
+(29)run_soc.soc.u_dcache.mem_wdata[31:0]
+(30)run_soc.soc.u_dcache.mem_wdata[31:0]
+(31)run_soc.soc.u_dcache.mem_wdata[31:0]
+@1401200
+-group_end
+@28
+[color] 1
+run_soc.soc.u_dcache.mem_wready
+[color] 1
+run_soc.soc.u_dcache.mem_wvalid
+@200
+-
+-DMEM
+@22
+run_soc.soc.u_dmem.S_AXI_ARADDR[31:0]
+run_soc.soc.u_dmem.S_AXI_AWADDR[31:0]
+@200
+-input
+@22
+run_soc.soc.u_dmem.S_AXI_WDATA[31:0]
+@200
+-output
+@22
+run_soc.soc.u_dmem.S_AXI_RDATA[31:0]
+@28
+run_soc.soc.u_dmem.S_AXI_RREADY
+run_soc.soc.u_dmem.S_AXI_RVALID
+@200
+-
+@28
+run_soc.soc.u_dmem.S_AXI_ARREADY
+run_soc.soc.u_dmem.S_AXI_ARVALID
+run_soc.soc.u_dmem.clk
+@200
+-ASCON
+@22
+run_soc.soc.u_ascon.u_core_cpu.ad_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.data_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.key_in[127:0]
+@28
+run_soc.soc.u_ascon.u_core_cpu.mode[1:0]
+@22
+run_soc.soc.u_ascon.u_core_cpu.nonce_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.tag_out[127:0]
+@23
+run_soc.soc.u_ascon.u_core_cpu.data_out[127:0]
+@200
+-
+[pattern_trace] 1
+[pattern_trace] 0
