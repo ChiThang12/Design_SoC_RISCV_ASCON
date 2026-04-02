@@ -36,10 +36,9 @@
 //
 //  [FIX-5..9] Giữ nguyên từ v5.2.
 // ============================================================================
-// `include "soc_top.v"
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
-`define TIMEOUT         50000   // tăng lên 50000: cần đủ cho POR(1040cy) + CPU chạy
+`define TIMEOUT         4000   // tăng lên 50000: cần đủ cho POR(1040cy) + CPU chạy
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
@@ -268,6 +267,7 @@ wire        m4_wvalid  = soc.m4_wvalid;
 wire        m4_wready  = soc.m4_wready;
 wire [1:0]  m4_bresp   = soc.m4_bresp;
 wire        m4_bvalid  = soc.m4_bvalid;
+wire        m4_bready  = soc.m4_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [G] DMA raw 64-bit wires (ASCON M_AXI trước width converter)
@@ -482,7 +482,7 @@ wire [31:0]  ascon_reg_tag3   = soc.u_ascon.u_slave.reg_tag_3;
 // ─────────────────────────────────────────────────────────────────────────────
 wire        lsu_sb_empty   = soc.u_cpu.lsu_unit.sb_empty;
 wire [2:0]  lsu_sb_count   = soc.u_cpu.lsu_unit.sb_count[2:0];
-wire        lsu_drain_idle = (soc.u_cpu.lsu_unit.drain_state == 1'b0);
+wire        lsu_drain_idle = (soc.u_cpu.lsu_unit.drain_state == 0);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [R] JTAG Debug taps  [NEW-3]
@@ -502,8 +502,11 @@ wire        cpu_debug_mode   = soc.u_cpu.debug_mode;
 // ─────────────────────────────────────────────────────────────────────────────
 // [S] PLIC taps  [NEW-4]
 // ─────────────────────────────────────────────────────────────────────────────
+// IRQ source vector theo PLIC spec:
+//   bit[0] = reserved, bit[1]=uart_irq, bit[2..7]=unused,
+//   bit[8]=ascon_irq, bit[9]=dma_irq
 wire [31:0] plic_irq_src     = {22'd0, soc.dma_irq, soc.ascon_irq,
-                                 4'd0, soc.uart_irq, soc.uart_irq, 1'b0};
+                                 5'd0, soc.uart_irq, 1'b0};
 wire        plic_meip        = soc.external_irq;   // PLIC output → CPU
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -930,7 +933,7 @@ always @(posedge clk) begin
             $display("[%6d] [M4-W ] data=0x%08h%s",
                      cycle_count, m4_wdata,
                      m4_wlast ? "  [LAST]" : "");
-        if (m4_bvalid) begin
+        if (m4_bvalid && m4_bready) begin   // AXI: latch chỉ khi cả BVALID+BREADY
             m4_wr_lat_sum = m4_wr_lat_sum + (cycle_count - m4_aw_start + 1);
             m4_wr_lat_cnt = m4_wr_lat_cnt + 1;
             if (m4_bresp == 2'b11) begin
@@ -993,7 +996,7 @@ always @(posedge clk) begin
         end
         if (s2_wvalid && `LOG_LEVEL >= 1)
             $display("[%6d] [S2-ASCON] WRITE offset=0x%03h  data=0x%08h",
-                     cycle_count, s2_awaddr[11:0], s2_wdata);
+                     cycle_count, s2_awaddr[11:0], s2_wdata);   // NOTE: s2_awaddr valid tại AW beat; nếu AW≠W cycle thì dùng s2_aw_addr_lat
 
         if (s3_arvalid && s3_arready) begin
             s3_access_cnt = s3_access_cnt + 1;
@@ -1268,8 +1271,8 @@ end
 //   sau = giữa bit 0, rồi mỗi 1 bit period tiếp theo = bit 1..7.
 //   8N1: 8 data bits, no parity, 1 stop bit.
 // ============================================================================
-integer baud_half;    // half bit period tính bằng timescale unit (ns)
-integer baud_full;    // full bit period
+time baud_half;    // half bit period (ns) — dùng `time` để #delay chính xác
+time baud_full;    // full bit period  (ns)
 
 initial begin
     baud_half = (`BAUD_DIV * CLK_PERIOD) / 2;
@@ -1464,6 +1467,10 @@ initial begin
 
     if (`LOG_LEVEL >= 1)
         $display("[%6d] Reset sequence complete — Execution started\n", cycle_count);
+
+    // IRQ path monitor: phát hiện ascon_irq=1 nhưng plic_meip=0 (PLIC threshold/enable bug)
+    $monitor("[MON %0t] ascon_irq=%b  plic_meip=%b  uart_irq=%b  dma_irq=%b",
+             $time, ascon_irq_w, plic_meip, uart_irq_w, dma_irq_w);
 
     wait(program_done);
 end

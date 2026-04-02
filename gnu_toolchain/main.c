@@ -77,22 +77,22 @@ static void uart_puthex32(uint32_t v)
 /* ============================================================
  * SECTION 2: TEST DATA
  *
- * 4 blocks × 8 bytes = 32 bytes plaintext.
- * Layout: ptext[block*8 .. block*8+7]
+ * 4 blocks × 4 bytes = 16 bytes plaintext.
+ * Layout: ptext[block*4 .. block*4+3]  (ASCON_BLOCK_SIZE = 4)
  * Dùng chung key/nonce cho tất cả blocks (demo).
  * Production: nên increment nonce mỗi block.
  * ============================================================ */
 #define N_BLOCKS  4u
 
 static const uint8_t g_plaintext[N_BLOCKS * ASCON_BLOCK_SIZE] = {
-    /* Block 0: "Hello!  " */
-    0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x21, 0x00, 0x00,
-    /* Block 1: "Block01 " */
-    0x42, 0x6C, 0x6F, 0x63, 0x6B, 0x30, 0x31, 0x20,
-    /* Block 2: "Block02 " */
-    0x42, 0x6C, 0x6F, 0x63, 0x6B, 0x30, 0x32, 0x20,
-    /* Block 3: "Block03 " */
-    0x42, 0x6C, 0x6F, 0x63, 0x6B, 0x30, 0x33, 0x20,
+    /* Block 0: "Hell" */
+    0x48, 0x65, 0x6C, 0x6C,
+    /* Block 1: "Blk1" */
+    0x42, 0x6C, 0x6B, 0x31,
+    /* Block 2: "Blk2" */
+    0x42, 0x6C, 0x6B, 0x32,
+    /* Block 3: "Blk3" */
+    0x42, 0x6C, 0x6B, 0x33,
 };
 
 static const uint32_t g_key[4] = {

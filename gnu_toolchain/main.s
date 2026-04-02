@@ -174,60 +174,40 @@ ascon_feed_block_cpu:
 	addi	s0,sp,48	#,,
 	sw	a0,-36(s0)	# block_idx, block_idx
 # ascon_stream.h:75:     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
-	lui	a5,%hi(g_stream)	# tmp141,
-	addi	a5,a5,%lo(g_stream)	# tmp142, tmp141,
+	lui	a5,%hi(g_stream)	# tmp138,
+	addi	a5,a5,%lo(g_stream)	# tmp139, tmp138,
 	lw	a4,0(a5)		# _1, g_stream.ptext
 # ascon_stream.h:75:     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
-	lw	a5,-36(s0)		# tmp143, block_idx
-	slli	a5,a5,2	#, _2, tmp143
+	lw	a5,-36(s0)		# tmp140, block_idx
+	slli	a5,a5,2	#, _2, tmp140
 # ascon_stream.h:75:     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
-	add	a5,a4,a5	# _2, tmp144, _1
-	sw	a5,-20(s0)	# tmp144, src
-# ascon_stream.h:79:     __builtin_memcpy(&w0, src + 0, 4);
-	addi	a5,s0,-24	#, tmp145,
-	lw	a4,-20(s0)		# tmp146, src
-	lbu	a3,0(a4)	# tmp148, MEM <char[1:4]> [(void *)src_10]
-	mv	a1,a3	# tmp147, tmp148
-	lbu	a3,1(a4)	# tmp150, MEM <char[1:4]> [(void *)src_10]
-	mv	a2,a3	# tmp149, tmp150
-	lbu	a3,2(a4)	# tmp152, MEM <char[1:4]> [(void *)src_10]
-	lbu	a4,3(a4)	# tmp154, MEM <char[1:4]> [(void *)src_10]
-	sb	a1,0(a5)	# tmp147, MEM <char[1:4]> [(void *)&w0]
-	sb	a2,1(a5)	# tmp149, MEM <char[1:4]> [(void *)&w0]
-	sb	a3,2(a5)	# tmp151, MEM <char[1:4]> [(void *)&w0]
-	sb	a4,3(a5)	# tmp153, MEM <char[1:4]> [(void *)&w0]
-# ascon_stream.h:80:     __builtin_memcpy(&w1, src + 4, 4);
-	lw	a5,-20(s0)		# tmp155, src
-	addi	a4,a5,4	#, _3, tmp155
-# ascon_stream.h:80:     __builtin_memcpy(&w1, src + 4, 4);
-	addi	a5,s0,-28	#, tmp156,
-	lbu	a3,0(a4)	# tmp158, MEM <char[1:4]> [(void *)_3]
-	mv	a1,a3	# tmp157, tmp158
-	lbu	a3,1(a4)	# tmp160, MEM <char[1:4]> [(void *)_3]
-	mv	a2,a3	# tmp159, tmp160
-	lbu	a3,2(a4)	# tmp162, MEM <char[1:4]> [(void *)_3]
-	lbu	a4,3(a4)	# tmp164, MEM <char[1:4]> [(void *)_3]
-	sb	a1,0(a5)	# tmp157, MEM <char[1:4]> [(void *)&w1]
-	sb	a2,1(a5)	# tmp159, MEM <char[1:4]> [(void *)&w1]
-	sb	a3,2(a5)	# tmp161, MEM <char[1:4]> [(void *)&w1]
-	sb	a4,3(a5)	# tmp163, MEM <char[1:4]> [(void *)&w1]
-# ascon_stream.h:82:     DMEM->PTEXT_0 = w0;
-	li	a5,268435456		# _4,
-# ascon_stream.h:82:     DMEM->PTEXT_0 = w0;
-	lw	a4,-24(s0)		# w0.0_5, w0
-	sw	a4,0(a5)	# w0.0_5, _4->PTEXT_0
-# ascon_stream.h:83:     __asm__ volatile ("" ::: "memory");
-# ascon_stream.h:84:     DMEM->PTEXT_1 = w1;
-	li	a5,268435456		# _6,
-# ascon_stream.h:84:     DMEM->PTEXT_1 = w1;
-	lw	a4,-28(s0)		# w1.1_7, w1
-	sw	a4,4(a5)	# w1.1_7, _6->PTEXT_1
-# ascon_stream.h:90:     __asm__ volatile ("fence" ::: "memory");
+	add	a5,a4,a5	# _2, tmp141, _1
+	sw	a5,-20(s0)	# tmp141, src
+# ascon_stream.h:79:     __builtin_memcpy(&w0, src, 4);
+	addi	a5,s0,-24	#, tmp142,
+	lw	a4,-20(s0)		# tmp143, src
+	lbu	a3,0(a4)	# tmp145, MEM <char[1:4]> [(void *)src_7]
+	mv	a1,a3	# tmp144, tmp145
+	lbu	a3,1(a4)	# tmp147, MEM <char[1:4]> [(void *)src_7]
+	mv	a2,a3	# tmp146, tmp147
+	lbu	a3,2(a4)	# tmp149, MEM <char[1:4]> [(void *)src_7]
+	lbu	a4,3(a4)	# tmp151, MEM <char[1:4]> [(void *)src_7]
+	sb	a1,0(a5)	# tmp144, MEM <char[1:4]> [(void *)&w0]
+	sb	a2,1(a5)	# tmp146, MEM <char[1:4]> [(void *)&w0]
+	sb	a3,2(a5)	# tmp148, MEM <char[1:4]> [(void *)&w0]
+	sb	a4,3(a5)	# tmp150, MEM <char[1:4]> [(void *)&w0]
+# ascon_stream.h:81:     DMEM->PTEXT_0 = w0;
+	li	a5,268435456		# tmp152,
+	addi	a5,a5,448	#, _3, tmp152
+# ascon_stream.h:81:     DMEM->PTEXT_0 = w0;
+	lw	a4,-24(s0)		# w0.0_4, w0
+	sw	a4,0(a5)	# w0.0_4, _3->PTEXT_0
+# ascon_stream.h:87:     __asm__ volatile ("fence" ::: "memory");
  #APP
-# 90 "ascon_stream.h" 1
+# 87 "ascon_stream.h" 1
 	fence	
 # 0 "" 2
-# ascon_stream.h:91: }
+# ascon_stream.h:88: }
  #NO_APP
 	nop	
 	lw	s0,44(sp)		#,
@@ -240,69 +220,69 @@ ascon_config_block:
 	addi	sp,sp,-16	#,,
 	sw	s0,12(sp)	#,
 	addi	s0,sp,16	#,,
-# ascon_stream.h:99:     ASCON_WRITE(ASCON->MODE,    MODE_ENCRYPT);
+# ascon_stream.h:96:     ASCON_WRITE(ASCON->MODE,    MODE_ENCRYPT);
 	li	a5,536870912		# _1,
 	li	a4,1		# tmp155,
 	sw	a4,0(a5)	# tmp155, _1->MODE
-# ascon_stream.h:100:     ASCON_WRITE(ASCON->IRQ_EN,  IRQ_EN_DMA_DONE);  /* FIXED: Struct updated to match RTL */
+# ascon_stream.h:97:     ASCON_WRITE(ASCON->IRQ_EN,  IRQ_EN_DMA_DONE);  /* FIXED: Struct updated to match RTL */
 	li	a5,536870912		# _2,
 	li	a4,2		# tmp156,
 	sw	a4,12(a5)	# tmp156, _2->IRQ_EN
-# ascon_stream.h:101:     ASCON_WRITE(ASCON->KEY_0,   g_stream.key[0]);
+# ascon_stream.h:98:     ASCON_WRITE(ASCON->KEY_0,   g_stream.key[0]);
 	li	a5,536870912		# _3,
 	lui	a4,%hi(g_stream)	# tmp157,
 	addi	a4,a4,%lo(g_stream)	# tmp158, tmp157,
 	lw	a4,8(a4)		# _4, g_stream.key[0]
 	sw	a4,16(a5)	# _4, _3->KEY_0
-# ascon_stream.h:102:     ASCON_WRITE(ASCON->KEY_1,   g_stream.key[1]);
+# ascon_stream.h:99:     ASCON_WRITE(ASCON->KEY_1,   g_stream.key[1]);
 	li	a5,536870912		# _5,
 	lui	a4,%hi(g_stream)	# tmp159,
 	addi	a4,a4,%lo(g_stream)	# tmp160, tmp159,
 	lw	a4,12(a4)		# _6, g_stream.key[1]
 	sw	a4,20(a5)	# _6, _5->KEY_1
-# ascon_stream.h:103:     ASCON_WRITE(ASCON->KEY_2,   g_stream.key[2]);
+# ascon_stream.h:100:     ASCON_WRITE(ASCON->KEY_2,   g_stream.key[2]);
 	li	a5,536870912		# _7,
 	lui	a4,%hi(g_stream)	# tmp161,
 	addi	a4,a4,%lo(g_stream)	# tmp162, tmp161,
 	lw	a4,16(a4)		# _8, g_stream.key[2]
 	sw	a4,24(a5)	# _8, _7->KEY_2
-# ascon_stream.h:104:     ASCON_WRITE(ASCON->KEY_3,   g_stream.key[3]);
+# ascon_stream.h:101:     ASCON_WRITE(ASCON->KEY_3,   g_stream.key[3]);
 	li	a5,536870912		# _9,
 	lui	a4,%hi(g_stream)	# tmp163,
 	addi	a4,a4,%lo(g_stream)	# tmp164, tmp163,
 	lw	a4,20(a4)		# _10, g_stream.key[3]
 	sw	a4,28(a5)	# _10, _9->KEY_3
-# ascon_stream.h:105:     ASCON_WRITE(ASCON->NONCE_0, g_stream.nonce[0]);
+# ascon_stream.h:102:     ASCON_WRITE(ASCON->NONCE_0, g_stream.nonce[0]);
 	li	a5,536870912		# _11,
 	lui	a4,%hi(g_stream)	# tmp165,
 	addi	a4,a4,%lo(g_stream)	# tmp166, tmp165,
 	lw	a4,24(a4)		# _12, g_stream.nonce[0]
 	sw	a4,36(a5)	# _12, _11->NONCE_0
-# ascon_stream.h:106:     ASCON_WRITE(ASCON->NONCE_1, g_stream.nonce[1]);
+# ascon_stream.h:103:     ASCON_WRITE(ASCON->NONCE_1, g_stream.nonce[1]);
 	li	a5,536870912		# _13,
 	lui	a4,%hi(g_stream)	# tmp167,
 	addi	a4,a4,%lo(g_stream)	# tmp168, tmp167,
 	lw	a4,28(a4)		# _14, g_stream.nonce[1]
 	sw	a4,40(a5)	# _14, _13->NONCE_1
-# ascon_stream.h:107:     ASCON_WRITE(ASCON->NONCE_2, g_stream.nonce[2]);
+# ascon_stream.h:104:     ASCON_WRITE(ASCON->NONCE_2, g_stream.nonce[2]);
 	li	a5,536870912		# _15,
 	lui	a4,%hi(g_stream)	# tmp169,
 	addi	a4,a4,%lo(g_stream)	# tmp170, tmp169,
 	lw	a4,32(a4)		# _16, g_stream.nonce[2]
 	sw	a4,44(a5)	# _16, _15->NONCE_2
-# ascon_stream.h:108:     ASCON_WRITE(ASCON->NONCE_3, g_stream.nonce[3]);
+# ascon_stream.h:105:     ASCON_WRITE(ASCON->NONCE_3, g_stream.nonce[3]);
 	li	a5,536870912		# _17,
 	lui	a4,%hi(g_stream)	# tmp171,
 	addi	a4,a4,%lo(g_stream)	# tmp172, tmp171,
 	lw	a4,36(a4)		# _18, g_stream.nonce[3]
 	sw	a4,48(a5)	# _18, _17->NONCE_3
-# ascon_stream.h:109:     ASCON_WRITE(ASCON->DATA_LEN, (uint32_t)(ASCON_BLOCK_SIZE & DATA_LEN_MASK));
+# ascon_stream.h:106:     ASCON_WRITE(ASCON->DATA_LEN, (uint32_t)(ASCON_BLOCK_SIZE & DATA_LEN_MASK));
 	li	a5,536870912		# _19,
 	li	a4,4		# tmp173,
 	sw	a4,60(a5)	# tmp173, _19->DATA_LEN
-# ascon_stream.h:111:     return 0;
+# ascon_stream.h:108:     return 0;
 	li	a5,0		# _43,
-# ascon_stream.h:112: }
+# ascon_stream.h:109: }
 	mv	a0,a5	#, <retval>
 	lw	s0,12(sp)		#,
 	addi	sp,sp,16	#,,
@@ -314,34 +294,35 @@ ascon_kick_dma:
 	addi	sp,sp,-16	#,,
 	sw	s0,12(sp)	#,
 	addi	s0,sp,16	#,,
-# ascon_stream.h:119:     ASCON_WRITE(ASCON->DMA_SRC, DMEM_DMA_SRC_ADDR);     /* PTEXT_0 */
+# ascon_stream.h:116:     ASCON_WRITE(ASCON->DMA_SRC, DMEM_DMA_SRC_ADDR);     /* PTEXT_0 */
 	li	a5,536870912		# _1,
-	li	a4,268435456		# tmp138,
+	li	a4,268435456		# tmp139,
+	addi	a4,a4,448	#, tmp138, tmp139
 	sw	a4,256(a5)	# tmp138, _1->DMA_SRC
-# ascon_stream.h:120:     ASCON_WRITE(ASCON->DMA_DST, DMEM_DMA_OUTPUT_ADDR);  /* CTEXT_0 */
+# ascon_stream.h:117:     ASCON_WRITE(ASCON->DMA_DST, DMEM_DMA_OUTPUT_ADDR);  /* CTEXT_0 */
 	li	a5,536870912		# _2,
-	li	a4,268435456		# tmp140,
-	addi	a4,a4,16	#, tmp139, tmp140
-	sw	a4,260(a5)	# tmp139, _2->DMA_DST
-# ascon_stream.h:121:     ASCON_WRITE(ASCON->DMA_LEN, DMEM_DMA_INPUT_LEN);    /* 8 bytes */
+	li	a4,268435456		# tmp141,
+	addi	a4,a4,464	#, tmp140, tmp141
+	sw	a4,260(a5)	# tmp140, _2->DMA_DST
+# ascon_stream.h:118:     ASCON_WRITE(ASCON->DMA_LEN, DMEM_DMA_INPUT_LEN);    /* 8 bytes */
 	li	a5,536870912		# _3,
-	li	a4,8		# tmp141,
-	sw	a4,264(a5)	# tmp141, _3->DMA_LEN
-# ascon_stream.h:124:     __asm__ volatile ("fence w,w" ::: "memory");
+	li	a4,4		# tmp142,
+	sw	a4,264(a5)	# tmp142, _3->DMA_LEN
+# ascon_stream.h:121:     __asm__ volatile ("fence w,w" ::: "memory");
  #APP
+# 121 "ascon_stream.h" 1
+	fence w,w
+# 0 "" 2
+# ascon_stream.h:122:     __asm__ volatile ("fence w,w" ::: "memory");
+# 122 "ascon_stream.h" 1
+	fence w,w
+# 0 "" 2
+# ascon_stream.h:123:     __asm__ volatile ("fence w,w" ::: "memory");
+# 123 "ascon_stream.h" 1
+	fence w,w
+# 0 "" 2
+# ascon_stream.h:124:     __asm__ volatile (
 # 124 "ascon_stream.h" 1
-	fence w,w
-# 0 "" 2
-# ascon_stream.h:125:     __asm__ volatile ("fence w,w" ::: "memory");
-# 125 "ascon_stream.h" 1
-	fence w,w
-# 0 "" 2
-# ascon_stream.h:126:     __asm__ volatile ("fence w,w" ::: "memory");
-# 126 "ascon_stream.h" 1
-	fence w,w
-# 0 "" 2
-# ascon_stream.h:127:     __asm__ volatile (
-# 127 "ascon_stream.h" 1
 	nop
 nop
 nop
@@ -376,16 +357,16 @@ nop
 nop
 
 # 0 "" 2
-# ascon_stream.h:134:     __asm__ volatile ("fence" ::: "memory");
-# 134 "ascon_stream.h" 1
+# ascon_stream.h:131:     __asm__ volatile ("fence" ::: "memory");
+# 131 "ascon_stream.h" 1
 	fence	
 # 0 "" 2
-# ascon_stream.h:136:     ASCON_WRITE(ASCON->CTRL, CTRL_DMA_START);
+# ascon_stream.h:133:     ASCON_WRITE(ASCON->CTRL, CTRL_DMA_START);
  #NO_APP
 	li	a5,536870912		# _4,
-	li	a4,5		# tmp142,
-	sw	a4,32(a5)	# tmp142, _4->CTRL
-# ascon_stream.h:137: }
+	li	a4,5		# tmp143,
+	sw	a4,32(a5)	# tmp143, _4->CTRL
+# ascon_stream.h:134: }
 	nop	
 	lw	s0,12(sp)		#,
 	addi	sp,sp,16	#,,
@@ -398,47 +379,47 @@ ascon_stream_start:
 	sw	ra,28(sp)	#,
 	sw	s0,24(sp)	#,
 	addi	s0,sp,32	#,,
-# ascon_stream.h:148:     g_stream.cur_block = 0u;
+# ascon_stream.h:145:     g_stream.cur_block = 0u;
 	lui	a5,%hi(g_stream)	# tmp136,
 	addi	a5,a5,%lo(g_stream)	# tmp137, tmp136,
 	sw	zero,424(a5)	#, g_stream.cur_block
-# ascon_stream.h:149:     g_stream.done      = 0u;
+# ascon_stream.h:146:     g_stream.done      = 0u;
 	lui	a5,%hi(g_stream)	# tmp138,
 	addi	a5,a5,%lo(g_stream)	# tmp139, tmp138,
 	sw	zero,428(a5)	#, g_stream.done
-# ascon_stream.h:150:     g_stream.error     = 0u;
+# ascon_stream.h:147:     g_stream.error     = 0u;
 	lui	a5,%hi(g_stream)	# tmp140,
 	addi	a5,a5,%lo(g_stream)	# tmp141, tmp140,
 	sw	zero,432(a5)	#, g_stream.error
-# ascon_stream.h:152:     ascon_feed_block_cpu(0u);
+# ascon_stream.h:149:     ascon_feed_block_cpu(0u);
 	li	a0,0		#,
 	call	ascon_feed_block_cpu		#
-# ascon_stream.h:154:     int r = ascon_config_block();
+# ascon_stream.h:151:     int r = ascon_config_block();
 	call	ascon_config_block		#
 	sw	a0,-20(s0)	#, r
-# ascon_stream.h:155:     if (r != 0) {
+# ascon_stream.h:152:     if (r != 0) {
 	lw	a5,-20(s0)		# tmp142, r
 	beq	a5,zero,.L15	#, tmp142,,
-# ascon_stream.h:156:         g_stream.error = (uint32_t)(uint32_t)(-3);
+# ascon_stream.h:153:         g_stream.error = (uint32_t)(uint32_t)(-3);
 	lui	a5,%hi(g_stream)	# tmp143,
 	addi	a5,a5,%lo(g_stream)	# tmp144, tmp143,
 	li	a4,-3		# tmp145,
 	sw	a4,432(a5)	# tmp145, g_stream.error
-# ascon_stream.h:157:         g_stream.done  = 1u;
+# ascon_stream.h:154:         g_stream.done  = 1u;
 	lui	a5,%hi(g_stream)	# tmp146,
 	addi	a5,a5,%lo(g_stream)	# tmp147, tmp146,
 	li	a4,1		# tmp148,
 	sw	a4,428(a5)	# tmp148, g_stream.done
-# ascon_stream.h:158:         return r;
+# ascon_stream.h:155:         return r;
 	lw	a5,-20(s0)		# _1, r
 	j	.L16		#
 .L15:
-# ascon_stream.h:161:     ascon_kick_dma();
+# ascon_stream.h:158:     ascon_kick_dma();
 	call	ascon_kick_dma		#
-# ascon_stream.h:162:     return 0;
+# ascon_stream.h:159:     return 0;
 	li	a5,0		# _1,
 .L16:
-# ascon_stream.h:163: }
+# ascon_stream.h:160: }
 	mv	a0,a5	#, <retval>
 	lw	ra,28(sp)		#,
 	lw	s0,24(sp)		#,
@@ -503,11 +484,11 @@ uart_puts:
 	j	.L19		#
 .L20:
 # main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
-	lw	a5,-20(s0)		# s.2_1, s
-	addi	a4,a5,1	#, tmp137, s.2_1
+	lw	a5,-20(s0)		# s.1_1, s
+	addi	a4,a5,1	#, tmp137, s.1_1
 	sw	a4,-20(s0)	# tmp137, s
 # main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
-	lbu	a5,0(a5)	# _2, *s.2_1
+	lbu	a5,0(a5)	# _2, *s.1_1
 	mv	a0,a5	#, _2
 	call	uart_putc		#
 .L19:
@@ -652,9 +633,7 @@ uart_puthex32:
 	.type	g_plaintext, @object
 	.size	g_plaintext, 16
 g_plaintext:
-	.string	"Hello!"
-	.string	""
-	.ascii	"Block01 "
+	.ascii	"HellBlk1Blk2Blk3"
 	.align	2
 	.type	g_key, @object
 	.size	g_key, 16
@@ -753,71 +732,73 @@ ascon_isr:
 	addi	a5,a5,8	#, tmp175, tmp172
 	sw	a5,-32(s0)	# tmp175, out
 # main.c:158:         out->ctext[0] = DMEM->CTEXT_0;
-	li	a5,268435456		# _3,
+	li	a5,268435456		# tmp176,
+	addi	a5,a5,448	#, _3, tmp176
 	lw	a4,16(a5)		# _4, _3->CTEXT_0
 # main.c:158:         out->ctext[0] = DMEM->CTEXT_0;
-	lw	a5,-32(s0)		# tmp176, out
+	lw	a5,-32(s0)		# tmp177, out
 	sw	a4,0(a5)	# _4, out_27->ctext[0]
 # main.c:159:         __asm__ volatile ("" ::: "memory");
 # main.c:160:         out->ctext[1] = DMEM->CTEXT_1;
-	li	a5,268435456		# _5,
+	li	a5,268435456		# tmp178,
+	addi	a5,a5,448	#, _5, tmp178
 	lw	a4,20(a5)		# _6, _5->CTEXT_1
 # main.c:160:         out->ctext[1] = DMEM->CTEXT_1;
-	lw	a5,-32(s0)		# tmp177, out
+	lw	a5,-32(s0)		# tmp179, out
 	sw	a4,4(a5)	# _6, out_27->ctext[1]
 # main.c:161:         __asm__ volatile ("" ::: "memory");
 # main.c:167:         out->tag[0] = ASCON->TAG_0;
 	li	a5,536870912		# _7,
 	lw	a4,72(a5)		# _8, _7->TAG_0
 # main.c:167:         out->tag[0] = ASCON->TAG_0;
-	lw	a5,-32(s0)		# tmp178, out
+	lw	a5,-32(s0)		# tmp180, out
 	sw	a4,8(a5)	# _8, out_27->tag[0]
 # main.c:168:         __asm__ volatile ("" ::: "memory");
 # main.c:169:         out->tag[1] = ASCON->TAG_1;
 	li	a5,536870912		# _9,
 	lw	a4,76(a5)		# _10, _9->TAG_1
 # main.c:169:         out->tag[1] = ASCON->TAG_1;
-	lw	a5,-32(s0)		# tmp179, out
+	lw	a5,-32(s0)		# tmp181, out
 	sw	a4,12(a5)	# _10, out_27->tag[1]
 # main.c:170:         __asm__ volatile ("" ::: "memory");
 # main.c:171:         out->tag[2] = ASCON->TAG_2;
 	li	a5,536870912		# _11,
 	lw	a4,80(a5)		# _12, _11->TAG_2
 # main.c:171:         out->tag[2] = ASCON->TAG_2;
-	lw	a5,-32(s0)		# tmp180, out
+	lw	a5,-32(s0)		# tmp182, out
 	sw	a4,16(a5)	# _12, out_27->tag[2]
 # main.c:172:         __asm__ volatile ("" ::: "memory");
 # main.c:173:         out->tag[3] = ASCON->TAG_3;
 	li	a5,536870912		# _13,
 	lw	a4,84(a5)		# _14, _13->TAG_3
 # main.c:173:         out->tag[3] = ASCON->TAG_3;
-	lw	a5,-32(s0)		# tmp181, out
+	lw	a5,-32(s0)		# tmp183, out
 	sw	a4,20(a5)	# _14, out_27->tag[3]
 # main.c:174:         __asm__ volatile ("" ::: "memory");
 .L29:
 # main.c:178:     ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
 	li	a5,536870912		# _15,
-	li	a4,2		# tmp182,
-	sw	a4,32(a5)	# tmp182, _15->CTRL
+	li	a4,2		# tmp184,
+	sw	a4,32(a5)	# tmp184, _15->CTRL
 # main.c:181:     plic_complete(src);
 	lw	a0,-20(s0)		#, src
 	call	plic_complete		#
 # main.c:184:     uint32_t next = blk + 1u;
-	lw	a5,-28(s0)		# tmp184, blk
-	addi	a5,a5,1	#, tmp183, tmp184
-	sw	a5,-36(s0)	# tmp183, next
+	lw	a5,-28(s0)		# tmp186, blk
+	addi	a5,a5,1	#, tmp185, tmp186
+	sw	a5,-36(s0)	# tmp185, next
 # main.c:185:     g_stream.cur_block = next;
-	lui	a5,%hi(g_stream)	# tmp185,
-	addi	a5,a5,%lo(g_stream)	# tmp186, tmp185,
-	lw	a4,-36(s0)		# tmp187, next
-	sw	a4,424(a5)	# tmp187, g_stream.cur_block
+	lui	a5,%hi(g_stream)	# tmp187,
+	addi	a5,a5,%lo(g_stream)	# tmp188, tmp187,
+	lw	a4,-36(s0)		# tmp189, next
+	sw	a4,424(a5)	# tmp189, g_stream.cur_block
 # main.c:187:     if (next < g_stream.n_blocks) {
-	lui	a5,%hi(g_stream)	# tmp188,
-	addi	a5,a5,%lo(g_stream)	# tmp189, tmp188,
+	lui	a5,%hi(g_stream)	# tmp190,
+	addi	a5,a5,%lo(g_stream)	# tmp191, tmp190,
 	lw	a5,4(a5)		# _16, g_stream.n_blocks
 # main.c:187:     if (next < g_stream.n_blocks) {
-	lw	a4,-36(s0)		# tmp190, next
-	bgeu	a4,a5,.L30	#, tmp190, _16,
+	lw	a4,-36(s0)		# tmp192, next
+	bgeu	a4,a5,.L30	#, tmp192, _16,
 # main.c:192:         ascon_feed_block_cpu(next);
 	lw	a0,-36(s0)		#, next
 	call	ascon_feed_block_cpu		#
@@ -825,19 +806,19 @@ ascon_isr:
 	call	ascon_config_block		#
 	sw	a0,-40(s0)	#, r
 # main.c:195:         if (r != 0) {
-	lw	a5,-40(s0)		# tmp191, r
-	beq	a5,zero,.L31	#, tmp191,,
+	lw	a5,-40(s0)		# tmp193, r
+	beq	a5,zero,.L31	#, tmp193,,
 # main.c:196:             g_stream.error = (uint32_t)(int32_t)r;
-	lw	a4,-40(s0)		# r.3_17, r
+	lw	a4,-40(s0)		# r.2_17, r
 # main.c:196:             g_stream.error = (uint32_t)(int32_t)r;
-	lui	a5,%hi(g_stream)	# tmp192,
-	addi	a5,a5,%lo(g_stream)	# tmp193, tmp192,
-	sw	a4,432(a5)	# r.3_17, g_stream.error
-# main.c:197:             g_stream.done  = 1u;
 	lui	a5,%hi(g_stream)	# tmp194,
 	addi	a5,a5,%lo(g_stream)	# tmp195, tmp194,
-	li	a4,1		# tmp196,
-	sw	a4,428(a5)	# tmp196, g_stream.done
+	sw	a4,432(a5)	# r.2_17, g_stream.error
+# main.c:197:             g_stream.done  = 1u;
+	lui	a5,%hi(g_stream)	# tmp196,
+	addi	a5,a5,%lo(g_stream)	# tmp197, tmp196,
+	li	a4,1		# tmp198,
+	sw	a4,428(a5)	# tmp198, g_stream.done
 # main.c:198:             return;
 	j	.L24		#
 .L31:
@@ -846,10 +827,10 @@ ascon_isr:
 	j	.L24		#
 .L30:
 # main.c:206:         g_stream.done = 1u;
-	lui	a5,%hi(g_stream)	# tmp197,
-	addi	a5,a5,%lo(g_stream)	# tmp198, tmp197,
-	li	a4,1		# tmp199,
-	sw	a4,428(a5)	# tmp199, g_stream.done
+	lui	a5,%hi(g_stream)	# tmp199,
+	addi	a5,a5,%lo(g_stream)	# tmp200, tmp199,
+	li	a4,1		# tmp201,
+	sw	a4,428(a5)	# tmp201, g_stream.done
 	j	.L24		#
 .L32:
 # main.c:134:         return;
@@ -892,9 +873,9 @@ trap_handler:
  #NO_APP
 	sw	a5,-84(s0)	# mcause, mcause
 # main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
-	lw	a5,-84(s0)		# mcause.4_1, mcause
+	lw	a5,-84(s0)		# mcause.3_1, mcause
 # main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
-	bge	a5,zero,.L35	#, mcause.4_1,,
+	bge	a5,zero,.L35	#, mcause.3_1,,
 # main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
 	lw	a4,-84(s0)		# tmp137, mcause
 	li	a5,65536		# tmp139,

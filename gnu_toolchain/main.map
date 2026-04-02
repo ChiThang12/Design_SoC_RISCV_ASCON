@@ -1,11 +1,11 @@
 
 Discarded input sections
 
- .comment       0x00000000       0x23 /tmp/ccP1JmYf.o
+ .comment       0x00000000       0x23 /tmp/ccBru6OU.o
  .riscv.attributes
-                0x00000000       0x37 /tmp/ccP1JmYf.o
+                0x00000000       0x37 /tmp/ccBru6OU.o
  .riscv.attributes
-                0x00000000       0x35 /tmp/ccUqxLHC.o
+                0x00000000       0x35 /tmp/ccrGqSny.o
 
 Memory Configuration
 
@@ -17,47 +17,47 @@ DMEM_STACK       0x10001000         0x00001000         xrw
 
 Linker script and memory map
 
-LOAD /tmp/ccP1JmYf.o
-LOAD /tmp/ccUqxLHC.o
+LOAD /tmp/ccBru6OU.o
+LOAD /tmp/ccrGqSny.o
                 0x00000000                        . = 0x0
 
-.text           0x00000000      0xdb0
+.text           0x00000000      0xd80
  *(.text.start)
- .text.start    0x00000000       0x7c /tmp/ccUqxLHC.o
+ .text.start    0x00000000       0x7c /tmp/ccrGqSny.o
                 0x00000000                _start
  *(.text*)
- .text          0x0000007c      0xcd0 /tmp/ccP1JmYf.o
-                0x000006f0                ascon_isr
-                0x000008ec                trap_handler
-                0x00000bfc                main
- .text          0x00000d4c        0x0 /tmp/ccUqxLHC.o
-                0x00000d4c                        . = ALIGN (0x4)
+ .text          0x0000007c      0xca0 /tmp/ccBru6OU.o
+                0x000006b8                ascon_isr
+                0x000008bc                trap_handler
+                0x00000bcc                main
+ .text          0x00000d1c        0x0 /tmp/ccrGqSny.o
+                0x00000d1c                        . = ALIGN (0x4)
  *(.rodata*)
- .rodata        0x00000d4c       0x64 /tmp/ccP1JmYf.o
+ .rodata        0x00000d1c       0x64 /tmp/ccBru6OU.o
  *(.srodata*)
  *(.sdata2*)
-                0x00000db0                        . = ALIGN (0x4)
-                0x00000db0                        __data_load = LOADADDR (.data)
+                0x00000d80                        . = ALIGN (0x4)
+                0x00000d80                        __data_load = LOADADDR (.data)
 
-.rela.dyn       0x00000db0        0x0
+.rela.dyn       0x00000d80        0x0
  .rela.text.start
-                0x00000db0        0x0 /tmp/ccP1JmYf.o
+                0x00000d80        0x0 /tmp/ccBru6OU.o
 
-.data           0x10000000        0x0 load address 0x00000db0
+.data           0x10000000        0x0 load address 0x00000d80
                 0x10000000                        __data_start = .
  *(.data*)
- .data          0x10000000        0x0 /tmp/ccP1JmYf.o
- .data          0x10000000        0x0 /tmp/ccUqxLHC.o
+ .data          0x10000000        0x0 /tmp/ccBru6OU.o
+ .data          0x10000000        0x0 /tmp/ccrGqSny.o
  *(.sdata*)
                 0x10000000                        . = ALIGN (0x4)
                 0x10000000                        __data_end = .
 
-.bss            0x10000000      0x1b4 load address 0x00000db0
+.bss            0x10000000      0x1b4 load address 0x00000d80
                 0x10000000                        __bss_start = .
  *(.bss*)
- .bss           0x10000000      0x1b4 /tmp/ccP1JmYf.o
+ .bss           0x10000000      0x1b4 /tmp/ccBru6OU.o
                 0x10000000                g_stream
- .bss           0x100001b4        0x0 /tmp/ccUqxLHC.o
+ .bss           0x100001b4        0x0 /tmp/ccrGqSny.o
  *(.sbss*)
  *(COMMON)
                 0x100001b4                        . = ALIGN (0x4)

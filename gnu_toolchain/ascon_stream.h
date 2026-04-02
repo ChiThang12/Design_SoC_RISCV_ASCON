@@ -74,14 +74,11 @@ static void ascon_feed_block_cpu(uint32_t block_idx)
 {
     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
 
-    /* Copy 8 bytes (2 words) vào DMEM PTEXT region */
-    uint32_t w0, w1;
-    __builtin_memcpy(&w0, src + 0, 4);
-    __builtin_memcpy(&w1, src + 4, 4);
+    /* Copy đúng 4 bytes (1 word = ASCON_BLOCK_SIZE) vào DMEM PTEXT_0 */
+    uint32_t w0;
+    __builtin_memcpy(&w0, src, 4);
 
     DMEM->PTEXT_0 = w0;
-    __asm__ volatile ("" ::: "memory");
-    DMEM->PTEXT_1 = w1;
 
     /*
      * Full fence: đảm bảo DCache writeback về SRAM trước khi
