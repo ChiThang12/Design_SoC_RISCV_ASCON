@@ -11,6 +11,10 @@ _start:
     nop
     nop
 
+    # Set trap vector early
+    la   t0, trap_handler
+    csrw mtvec, t0
+
     # Copy .data từ ROM (LMA) sang DMEM_DATA (VMA)
     la   t0, __data_load
     la   t1, __data_start

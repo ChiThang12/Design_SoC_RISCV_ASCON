@@ -29,10 +29,33 @@
 #include <stdint.h>
 
 #define UART_BASE    0x50000000UL
-#define UART_TX_REG  (*((volatile uint32_t *)(UART_BASE + 0x04)))
+#define UART_TX_REG  (*((volatile uint32_t *)(UART_BASE + 0x00)))
+#define UART_RX_REG  (*((volatile uint32_t *)(UART_BASE + 0x04)))
+#define UART_STATUS  (*((volatile uint32_t *)(UART_BASE + 0x08)))
+#define UART_CTRL    (*((volatile uint32_t *)(UART_BASE + 0x0C)))
+#define UART_BAUD    (*((volatile uint32_t *)(UART_BASE + 0x10)))
+#define UART_IRQ_ST  (*((volatile uint32_t *)(UART_BASE + 0x14)))
+
+/* UART BAUD_DIV for 115200 @ 100MHz = 867 */
+#define UART_BAUD_115200 867u
 
 /* Delay ~8800 cycles = ~1 UART byte time @ 115200 baud, 100MHz clock */
 #define UART_TX_DELAY_CYCLES  8800u
+
+/* --------------------------------------------------------------------------
+ * uart_init — initialize UART with baud rate and enable TX
+ * -------------------------------------------------------------------------- */
+__attribute__((optimize("O0")))
+static void uart_init(void)
+{
+    /* Set baud rate for 115200 @ 100MHz */
+    UART_BAUD = UART_BAUD_115200;
+    __asm__ volatile ("fence w,w" ::: "memory");
+    
+    /* Enable TX (bit 0 = tx_irq_en, but we just set it to enable) */
+    UART_CTRL = 0x1;  /* tx_irq_en = 1 */
+    __asm__ volatile ("fence w,w" ::: "memory");
+}
 
 /* --------------------------------------------------------------------------
  * uart_putc — ghi 1 byte, không poll, thêm delay đủ cho UART TX complete

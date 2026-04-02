@@ -268,6 +268,10 @@ _start:
     nop
     nop
 
+    # Set trap vector early
+    la   t0, trap_handler
+    csrw mtvec, t0
+
     call main
 
 _halt:
@@ -293,6 +297,10 @@ _start:
     la   sp, __stack_top
     nop
     nop
+
+    # Set trap vector early
+    la   t0, trap_handler
+    csrw mtvec, t0
 
     # Copy .data từ ROM (LMA) sang DMEM_DATA (VMA)
     la   t0, __data_load
@@ -337,7 +345,7 @@ fi
 echo -e "${YELLOW}[3/6] Compiling...${NC}"
 
 COMMON_FLAGS=(
-    -march=rv32im
+    -march=rv32im_zicsr
     -mabi=ilp32
     -mno-relax
     -misa-spec=20191213
@@ -366,7 +374,7 @@ if [ "$EXT" = "c" ]; then
     riscv64-unknown-elf-gcc "${COMPILE_FLAGS[@]}"
 
     riscv64-unknown-elf-gcc \
-        -S -march=rv32im -mabi=ilp32 -mno-relax -misa-spec=20191213 \
+        -S -march=rv32im_zicsr -mabi=ilp32 -mno-relax -misa-spec=20191213 \
         ${OPTIMIZE:--O0} -ffreestanding \
         -fverbose-asm -o "$ASM_FILE" "$INPUT_FILE" 2>/dev/null || true
 

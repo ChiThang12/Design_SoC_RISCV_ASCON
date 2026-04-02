@@ -132,21 +132,21 @@ module ascon_axi_slave #(
     // Address offset localparams  (12-bit offset from base)
     // =========================================================================
     localparam [11:0]
-        ADDR_CTRL      = 12'h000,
+        ADDR_CTRL      = 12'h020,
         ADDR_STATUS    = 12'h004,
-        ADDR_MODE      = 12'h008,
+        ADDR_MODE      = 12'h000,
         ADDR_IRQ_EN    = 12'h00C,
         ADDR_KEY_0     = 12'h010,
         ADDR_KEY_1     = 12'h014,
         ADDR_KEY_2     = 12'h018,
         ADDR_KEY_3     = 12'h01C,
-        ADDR_NONCE_0   = 12'h020,
-        ADDR_NONCE_1   = 12'h024,
-        ADDR_NONCE_2   = 12'h028,
-        ADDR_NONCE_3   = 12'h02C,
-        ADDR_PTEXT_0   = 12'h030,
-        ADDR_PTEXT_1   = 12'h034,
-        ADDR_DATA_LEN  = 12'h05C,   // FIX-BUG2: số byte thực của PT (max 16)
+        ADDR_NONCE_0   = 12'h024,
+        ADDR_NONCE_1   = 12'h028,
+        ADDR_NONCE_2   = 12'h02C,
+        ADDR_NONCE_3   = 12'h030,
+        ADDR_PTEXT_0   = 12'h034,
+        ADDR_PTEXT_1   = 12'h038,
+        ADDR_DATA_LEN  = 12'h03C,   // Changed
         ADDR_CTEXT_0   = 12'h040,
         ADDR_CTEXT_1   = 12'h044,
         ADDR_TAG_0     = 12'h048,

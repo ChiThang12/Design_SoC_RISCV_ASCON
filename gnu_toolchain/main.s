@@ -1,14 +1,14 @@
 	.file	"main.c"
 	.option nopic
 	.option norelax
-	.attribute arch, "rv32i2p1_m2p0"
+	.attribute arch, "rv32i2p1_m2p0_zicsr2p0"
 	.attribute unaligned_access, 0
 	.attribute stack_align, 16
 # GNU C17 (13.2.0-11ubuntu1+12) version 13.2.0 (riscv64-unknown-elf)
 #	compiled by GNU C version 13.2.0, GMP version 6.3.0, MPFR version 4.2.1, MPC version 1.3.1, isl version isl-0.26-GMP
 
 # GGC heuristics: --param ggc-min-expand=100 --param ggc-min-heapsize=131072
-# options passed: -mabi=ilp32 -mno-relax -misa-spec=20191213 -march=rv32im -O0 -ffreestanding
+# options passed: -mabi=ilp32 -mno-relax -misa-spec=20191213 -march=rv32im_zicsr -O0 -ffreestanding
 	.text
 	.align	2
 	.type	ascon_read_status, @function
@@ -16,20 +16,435 @@ ascon_read_status:
 	addi	sp,sp,-32	#,,
 	sw	s0,28(sp)	#,
 	addi	s0,sp,32	#,,
-# ascon_regs.h:147:     uint32_t s = ASCON->STATUS;
+# ascon_regs.h:161:     uint32_t s = ASCON->STATUS;
 	li	a5,536870912		# _1,
-# ascon_regs.h:147:     uint32_t s = ASCON->STATUS;
-	lw	a5,60(a5)		# tmp137, _1->STATUS
+# ascon_regs.h:161:     uint32_t s = ASCON->STATUS;
+	lw	a5,4(a5)		# tmp137, _1->STATUS
 	sw	a5,-20(s0)	# tmp137, s
-# ascon_regs.h:148:     __asm__ volatile ("" ::: "memory");
-# ascon_regs.h:149:     return s;
+# ascon_regs.h:162:     __asm__ volatile ("" ::: "memory");
+# ascon_regs.h:163:     return s;
 	lw	a5,-20(s0)		# _5, s
-# ascon_regs.h:150: }
+# ascon_regs.h:164: }
 	mv	a0,a5	#, <retval>
 	lw	s0,28(sp)		#,
 	addi	sp,sp,32	#,,
 	jr	ra		#
 	.size	ascon_read_status, .-ascon_read_status
+	.align	2
+	.type	plic_init_ascon, @function
+plic_init_ascon:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# plic_drv.h:35:     PLIC_PRIORITY(PLIC_SRC_ASCON) = 1u;
+	li	a5,1342439424		# tmp137,
+	addi	a5,a5,32	#, _1, tmp137
+# plic_drv.h:35:     PLIC_PRIORITY(PLIC_SRC_ASCON) = 1u;
+	li	a4,1		# tmp138,
+	sw	a4,0(a5)	# tmp138, *_1
+# plic_drv.h:38:     PLIC_ENABLE = (1u << PLIC_SRC_ASCON);
+	li	a5,1342439424		# tmp139,
+	addi	a5,a5,256	#, _2, tmp139
+# plic_drv.h:38:     PLIC_ENABLE = (1u << PLIC_SRC_ASCON);
+	li	a4,256		# tmp140,
+	sw	a4,0(a5)	# tmp140, *_2
+# plic_drv.h:41:     PLIC_THRESHOLD = 0u;
+	li	a5,1342439424		# tmp141,
+	addi	a5,a5,512	#, _3, tmp141
+# plic_drv.h:41:     PLIC_THRESHOLD = 0u;
+	sw	zero,0(a5)	#, *_3
+# plic_drv.h:43:     __asm__ volatile ("fence w,w" ::: "memory");
+ #APP
+# 43 "plic_drv.h" 1
+	fence w,w
+# 0 "" 2
+# plic_drv.h:44: }
+ #NO_APP
+	nop	
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	plic_init_ascon, .-plic_init_ascon
+	.align	2
+	.type	plic_claim, @function
+plic_claim:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# plic_drv.h:49:     return PLIC_CLAIM;
+	li	a5,1342439424		# tmp137,
+	addi	a5,a5,516	#, _1, tmp137
+	lw	a5,0(a5)		# _3, *_1
+# plic_drv.h:50: }
+	mv	a0,a5	#, <retval>
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	plic_claim, .-plic_claim
+	.align	2
+	.type	plic_complete, @function
+plic_complete:
+	addi	sp,sp,-32	#,,
+	sw	s0,28(sp)	#,
+	addi	s0,sp,32	#,,
+	sw	a0,-20(s0)	# source_id, source_id
+# plic_drv.h:55:     PLIC_COMPLETE = source_id;
+	li	a5,1342439424		# tmp135,
+	addi	a5,a5,516	#, _1, tmp135
+# plic_drv.h:55:     PLIC_COMPLETE = source_id;
+	lw	a4,-20(s0)		# tmp136, source_id
+	sw	a4,0(a5)	# tmp136, *_1
+# plic_drv.h:56:     __asm__ volatile ("fence w,w" ::: "memory");
+ #APP
+# 56 "plic_drv.h" 1
+	fence w,w
+# 0 "" 2
+# plic_drv.h:57: }
+ #NO_APP
+	nop	
+	lw	s0,28(sp)		#,
+	addi	sp,sp,32	#,,
+	jr	ra		#
+	.size	plic_complete, .-plic_complete
+	.align	2
+	.type	mie_enable_external, @function
+mie_enable_external:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# plic_drv.h:63:     __asm__ volatile (
+ #APP
+# 63 "plic_drv.h" 1
+	li   t0, 0x800
+csrs mie, t0
+
+# 0 "" 2
+# plic_drv.h:68: }
+ #NO_APP
+	nop	
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	mie_enable_external, .-mie_enable_external
+	.align	2
+	.type	mstatus_enable_irq, @function
+mstatus_enable_irq:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# plic_drv.h:73:     __asm__ volatile (
+ #APP
+# 73 "plic_drv.h" 1
+	li   t0, 0x8
+csrs mstatus, t0
+
+# 0 "" 2
+# plic_drv.h:78: }
+ #NO_APP
+	nop	
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	mstatus_enable_irq, .-mstatus_enable_irq
+	.align	2
+	.type	mstatus_disable_irq, @function
+mstatus_disable_irq:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# plic_drv.h:82:     __asm__ volatile (
+ #APP
+# 82 "plic_drv.h" 1
+	li   t0, 0x8
+csrc mstatus, t0
+
+# 0 "" 2
+# plic_drv.h:87: }
+ #NO_APP
+	nop	
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	mstatus_disable_irq, .-mstatus_disable_irq
+	.align	2
+	.type	ascon_feed_block_cpu, @function
+ascon_feed_block_cpu:
+	addi	sp,sp,-48	#,,
+	sw	s0,44(sp)	#,
+	addi	s0,sp,48	#,,
+	sw	a0,-36(s0)	# block_idx, block_idx
+# ascon_stream.h:75:     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
+	lui	a5,%hi(g_stream)	# tmp141,
+	addi	a5,a5,%lo(g_stream)	# tmp142, tmp141,
+	lw	a4,0(a5)		# _1, g_stream.ptext
+# ascon_stream.h:75:     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
+	lw	a5,-36(s0)		# tmp143, block_idx
+	slli	a5,a5,2	#, _2, tmp143
+# ascon_stream.h:75:     const uint8_t *src = g_stream.ptext + block_idx * ASCON_BLOCK_SIZE;
+	add	a5,a4,a5	# _2, tmp144, _1
+	sw	a5,-20(s0)	# tmp144, src
+# ascon_stream.h:79:     __builtin_memcpy(&w0, src + 0, 4);
+	addi	a5,s0,-24	#, tmp145,
+	lw	a4,-20(s0)		# tmp146, src
+	lbu	a3,0(a4)	# tmp148, MEM <char[1:4]> [(void *)src_10]
+	mv	a1,a3	# tmp147, tmp148
+	lbu	a3,1(a4)	# tmp150, MEM <char[1:4]> [(void *)src_10]
+	mv	a2,a3	# tmp149, tmp150
+	lbu	a3,2(a4)	# tmp152, MEM <char[1:4]> [(void *)src_10]
+	lbu	a4,3(a4)	# tmp154, MEM <char[1:4]> [(void *)src_10]
+	sb	a1,0(a5)	# tmp147, MEM <char[1:4]> [(void *)&w0]
+	sb	a2,1(a5)	# tmp149, MEM <char[1:4]> [(void *)&w0]
+	sb	a3,2(a5)	# tmp151, MEM <char[1:4]> [(void *)&w0]
+	sb	a4,3(a5)	# tmp153, MEM <char[1:4]> [(void *)&w0]
+# ascon_stream.h:80:     __builtin_memcpy(&w1, src + 4, 4);
+	lw	a5,-20(s0)		# tmp155, src
+	addi	a4,a5,4	#, _3, tmp155
+# ascon_stream.h:80:     __builtin_memcpy(&w1, src + 4, 4);
+	addi	a5,s0,-28	#, tmp156,
+	lbu	a3,0(a4)	# tmp158, MEM <char[1:4]> [(void *)_3]
+	mv	a1,a3	# tmp157, tmp158
+	lbu	a3,1(a4)	# tmp160, MEM <char[1:4]> [(void *)_3]
+	mv	a2,a3	# tmp159, tmp160
+	lbu	a3,2(a4)	# tmp162, MEM <char[1:4]> [(void *)_3]
+	lbu	a4,3(a4)	# tmp164, MEM <char[1:4]> [(void *)_3]
+	sb	a1,0(a5)	# tmp157, MEM <char[1:4]> [(void *)&w1]
+	sb	a2,1(a5)	# tmp159, MEM <char[1:4]> [(void *)&w1]
+	sb	a3,2(a5)	# tmp161, MEM <char[1:4]> [(void *)&w1]
+	sb	a4,3(a5)	# tmp163, MEM <char[1:4]> [(void *)&w1]
+# ascon_stream.h:82:     DMEM->PTEXT_0 = w0;
+	li	a5,268435456		# _4,
+# ascon_stream.h:82:     DMEM->PTEXT_0 = w0;
+	lw	a4,-24(s0)		# w0.0_5, w0
+	sw	a4,0(a5)	# w0.0_5, _4->PTEXT_0
+# ascon_stream.h:83:     __asm__ volatile ("" ::: "memory");
+# ascon_stream.h:84:     DMEM->PTEXT_1 = w1;
+	li	a5,268435456		# _6,
+# ascon_stream.h:84:     DMEM->PTEXT_1 = w1;
+	lw	a4,-28(s0)		# w1.1_7, w1
+	sw	a4,4(a5)	# w1.1_7, _6->PTEXT_1
+# ascon_stream.h:90:     __asm__ volatile ("fence" ::: "memory");
+ #APP
+# 90 "ascon_stream.h" 1
+	fence	
+# 0 "" 2
+# ascon_stream.h:91: }
+ #NO_APP
+	nop	
+	lw	s0,44(sp)		#,
+	addi	sp,sp,48	#,,
+	jr	ra		#
+	.size	ascon_feed_block_cpu, .-ascon_feed_block_cpu
+	.align	2
+	.type	ascon_config_block, @function
+ascon_config_block:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# ascon_stream.h:99:     ASCON_WRITE(ASCON->MODE,    MODE_ENCRYPT);
+	li	a5,536870912		# _1,
+	li	a4,1		# tmp155,
+	sw	a4,0(a5)	# tmp155, _1->MODE
+# ascon_stream.h:100:     ASCON_WRITE(ASCON->IRQ_EN,  IRQ_EN_DMA_DONE);  /* FIXED: Struct updated to match RTL */
+	li	a5,536870912		# _2,
+	li	a4,2		# tmp156,
+	sw	a4,12(a5)	# tmp156, _2->IRQ_EN
+# ascon_stream.h:101:     ASCON_WRITE(ASCON->KEY_0,   g_stream.key[0]);
+	li	a5,536870912		# _3,
+	lui	a4,%hi(g_stream)	# tmp157,
+	addi	a4,a4,%lo(g_stream)	# tmp158, tmp157,
+	lw	a4,8(a4)		# _4, g_stream.key[0]
+	sw	a4,16(a5)	# _4, _3->KEY_0
+# ascon_stream.h:102:     ASCON_WRITE(ASCON->KEY_1,   g_stream.key[1]);
+	li	a5,536870912		# _5,
+	lui	a4,%hi(g_stream)	# tmp159,
+	addi	a4,a4,%lo(g_stream)	# tmp160, tmp159,
+	lw	a4,12(a4)		# _6, g_stream.key[1]
+	sw	a4,20(a5)	# _6, _5->KEY_1
+# ascon_stream.h:103:     ASCON_WRITE(ASCON->KEY_2,   g_stream.key[2]);
+	li	a5,536870912		# _7,
+	lui	a4,%hi(g_stream)	# tmp161,
+	addi	a4,a4,%lo(g_stream)	# tmp162, tmp161,
+	lw	a4,16(a4)		# _8, g_stream.key[2]
+	sw	a4,24(a5)	# _8, _7->KEY_2
+# ascon_stream.h:104:     ASCON_WRITE(ASCON->KEY_3,   g_stream.key[3]);
+	li	a5,536870912		# _9,
+	lui	a4,%hi(g_stream)	# tmp163,
+	addi	a4,a4,%lo(g_stream)	# tmp164, tmp163,
+	lw	a4,20(a4)		# _10, g_stream.key[3]
+	sw	a4,28(a5)	# _10, _9->KEY_3
+# ascon_stream.h:105:     ASCON_WRITE(ASCON->NONCE_0, g_stream.nonce[0]);
+	li	a5,536870912		# _11,
+	lui	a4,%hi(g_stream)	# tmp165,
+	addi	a4,a4,%lo(g_stream)	# tmp166, tmp165,
+	lw	a4,24(a4)		# _12, g_stream.nonce[0]
+	sw	a4,36(a5)	# _12, _11->NONCE_0
+# ascon_stream.h:106:     ASCON_WRITE(ASCON->NONCE_1, g_stream.nonce[1]);
+	li	a5,536870912		# _13,
+	lui	a4,%hi(g_stream)	# tmp167,
+	addi	a4,a4,%lo(g_stream)	# tmp168, tmp167,
+	lw	a4,28(a4)		# _14, g_stream.nonce[1]
+	sw	a4,40(a5)	# _14, _13->NONCE_1
+# ascon_stream.h:107:     ASCON_WRITE(ASCON->NONCE_2, g_stream.nonce[2]);
+	li	a5,536870912		# _15,
+	lui	a4,%hi(g_stream)	# tmp169,
+	addi	a4,a4,%lo(g_stream)	# tmp170, tmp169,
+	lw	a4,32(a4)		# _16, g_stream.nonce[2]
+	sw	a4,44(a5)	# _16, _15->NONCE_2
+# ascon_stream.h:108:     ASCON_WRITE(ASCON->NONCE_3, g_stream.nonce[3]);
+	li	a5,536870912		# _17,
+	lui	a4,%hi(g_stream)	# tmp171,
+	addi	a4,a4,%lo(g_stream)	# tmp172, tmp171,
+	lw	a4,36(a4)		# _18, g_stream.nonce[3]
+	sw	a4,48(a5)	# _18, _17->NONCE_3
+# ascon_stream.h:109:     ASCON_WRITE(ASCON->DATA_LEN, (uint32_t)(ASCON_BLOCK_SIZE & DATA_LEN_MASK));
+	li	a5,536870912		# _19,
+	li	a4,4		# tmp173,
+	sw	a4,60(a5)	# tmp173, _19->DATA_LEN
+# ascon_stream.h:111:     return 0;
+	li	a5,0		# _43,
+# ascon_stream.h:112: }
+	mv	a0,a5	#, <retval>
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	ascon_config_block, .-ascon_config_block
+	.align	2
+	.type	ascon_kick_dma, @function
+ascon_kick_dma:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# ascon_stream.h:119:     ASCON_WRITE(ASCON->DMA_SRC, DMEM_DMA_SRC_ADDR);     /* PTEXT_0 */
+	li	a5,536870912		# _1,
+	li	a4,268435456		# tmp138,
+	sw	a4,256(a5)	# tmp138, _1->DMA_SRC
+# ascon_stream.h:120:     ASCON_WRITE(ASCON->DMA_DST, DMEM_DMA_OUTPUT_ADDR);  /* CTEXT_0 */
+	li	a5,536870912		# _2,
+	li	a4,268435456		# tmp140,
+	addi	a4,a4,16	#, tmp139, tmp140
+	sw	a4,260(a5)	# tmp139, _2->DMA_DST
+# ascon_stream.h:121:     ASCON_WRITE(ASCON->DMA_LEN, DMEM_DMA_INPUT_LEN);    /* 8 bytes */
+	li	a5,536870912		# _3,
+	li	a4,8		# tmp141,
+	sw	a4,264(a5)	# tmp141, _3->DMA_LEN
+# ascon_stream.h:124:     __asm__ volatile ("fence w,w" ::: "memory");
+ #APP
+# 124 "ascon_stream.h" 1
+	fence w,w
+# 0 "" 2
+# ascon_stream.h:125:     __asm__ volatile ("fence w,w" ::: "memory");
+# 125 "ascon_stream.h" 1
+	fence w,w
+# 0 "" 2
+# ascon_stream.h:126:     __asm__ volatile ("fence w,w" ::: "memory");
+# 126 "ascon_stream.h" 1
+	fence w,w
+# 0 "" 2
+# ascon_stream.h:127:     __asm__ volatile (
+# 127 "ascon_stream.h" 1
+	nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+nop
+
+# 0 "" 2
+# ascon_stream.h:134:     __asm__ volatile ("fence" ::: "memory");
+# 134 "ascon_stream.h" 1
+	fence	
+# 0 "" 2
+# ascon_stream.h:136:     ASCON_WRITE(ASCON->CTRL, CTRL_DMA_START);
+ #NO_APP
+	li	a5,536870912		# _4,
+	li	a4,5		# tmp142,
+	sw	a4,32(a5)	# tmp142, _4->CTRL
+# ascon_stream.h:137: }
+	nop	
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	ascon_kick_dma, .-ascon_kick_dma
+	.align	2
+	.type	ascon_stream_start, @function
+ascon_stream_start:
+	addi	sp,sp,-32	#,,
+	sw	ra,28(sp)	#,
+	sw	s0,24(sp)	#,
+	addi	s0,sp,32	#,,
+# ascon_stream.h:148:     g_stream.cur_block = 0u;
+	lui	a5,%hi(g_stream)	# tmp136,
+	addi	a5,a5,%lo(g_stream)	# tmp137, tmp136,
+	sw	zero,424(a5)	#, g_stream.cur_block
+# ascon_stream.h:149:     g_stream.done      = 0u;
+	lui	a5,%hi(g_stream)	# tmp138,
+	addi	a5,a5,%lo(g_stream)	# tmp139, tmp138,
+	sw	zero,428(a5)	#, g_stream.done
+# ascon_stream.h:150:     g_stream.error     = 0u;
+	lui	a5,%hi(g_stream)	# tmp140,
+	addi	a5,a5,%lo(g_stream)	# tmp141, tmp140,
+	sw	zero,432(a5)	#, g_stream.error
+# ascon_stream.h:152:     ascon_feed_block_cpu(0u);
+	li	a0,0		#,
+	call	ascon_feed_block_cpu		#
+# ascon_stream.h:154:     int r = ascon_config_block();
+	call	ascon_config_block		#
+	sw	a0,-20(s0)	#, r
+# ascon_stream.h:155:     if (r != 0) {
+	lw	a5,-20(s0)		# tmp142, r
+	beq	a5,zero,.L15	#, tmp142,,
+# ascon_stream.h:156:         g_stream.error = (uint32_t)(uint32_t)(-3);
+	lui	a5,%hi(g_stream)	# tmp143,
+	addi	a5,a5,%lo(g_stream)	# tmp144, tmp143,
+	li	a4,-3		# tmp145,
+	sw	a4,432(a5)	# tmp145, g_stream.error
+# ascon_stream.h:157:         g_stream.done  = 1u;
+	lui	a5,%hi(g_stream)	# tmp146,
+	addi	a5,a5,%lo(g_stream)	# tmp147, tmp146,
+	li	a4,1		# tmp148,
+	sw	a4,428(a5)	# tmp148, g_stream.done
+# ascon_stream.h:158:         return r;
+	lw	a5,-20(s0)		# _1, r
+	j	.L16		#
+.L15:
+# ascon_stream.h:161:     ascon_kick_dma();
+	call	ascon_kick_dma		#
+# ascon_stream.h:162:     return 0;
+	li	a5,0		# _1,
+.L16:
+# ascon_stream.h:163: }
+	mv	a0,a5	#, <retval>
+	lw	ra,28(sp)		#,
+	lw	s0,24(sp)		#,
+	addi	sp,sp,32	#,,
+	jr	ra		#
+	.size	ascon_stream_start, .-ascon_stream_start
 	.align	2
 	.type	uart_putc, @function
 uart_putc:
@@ -38,20 +453,19 @@ uart_putc:
 	addi	s0,sp,32	#,,
 	mv	a5,a0	# tmp136, c
 	sb	a5,-17(s0)	# tmp137, c
-# main.c:133:     UART_TX = (uint32_t)(uint8_t)c;
-	li	a5,1342177280		# tmp138,
-	addi	a5,a5,4	#, _1, tmp138
-# main.c:133:     UART_TX = (uint32_t)(uint8_t)c;
+# main.c:36:     UART_TX = (uint32_t)(uint8_t)c;
+	li	a5,1342177280		# _1,
+# main.c:36:     UART_TX = (uint32_t)(uint8_t)c;
 	lbu	a4,-17(s0)	# _2, c
-# main.c:133:     UART_TX = (uint32_t)(uint8_t)c;
+# main.c:36:     UART_TX = (uint32_t)(uint8_t)c;
 	sw	a4,0(a5)	# _2, *_1
-# main.c:134:     __asm__ volatile ("fence w,w" ::: "memory");
+# main.c:37:     __asm__ volatile ("fence w,w" ::: "memory");
  #APP
-# 134 "main.c" 1
+# 37 "main.c" 1
 	fence w,w
 # 0 "" 2
-# main.c:135:     __asm__ volatile (
-# 135 "main.c" 1
+# main.c:38:     __asm__ volatile (
+# 38 "main.c" 1
 	nop
 nop
 nop
@@ -70,7 +484,7 @@ nop
 nop
 
 # 0 "" 2
-# main.c:140: }
+# main.c:43: }
  #NO_APP
 	nop	
 	lw	s0,28(sp)		#,
@@ -85,23 +499,23 @@ uart_puts:
 	sw	s0,24(sp)	#,
 	addi	s0,sp,32	#,,
 	sw	a0,-20(s0)	# s, s
-# main.c:145:     while (*s)
-	j	.L5		#
-.L6:
-# main.c:146:         uart_putc(*s++);
-	lw	a5,-20(s0)		# s.0_1, s
-	addi	a4,a5,1	#, tmp137, s.0_1
+# main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
+	j	.L19		#
+.L20:
+# main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
+	lw	a5,-20(s0)		# s.2_1, s
+	addi	a4,a5,1	#, tmp137, s.2_1
 	sw	a4,-20(s0)	# tmp137, s
-# main.c:146:         uart_putc(*s++);
-	lbu	a5,0(a5)	# _2, *s.0_1
+# main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
+	lbu	a5,0(a5)	# _2, *s.2_1
 	mv	a0,a5	#, _2
 	call	uart_putc		#
-.L5:
-# main.c:145:     while (*s)
+.L19:
+# main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
 	lw	a5,-20(s0)		# tmp138, s
 	lbu	a5,0(a5)	# _3, *s_4
-	bne	a5,zero,.L6	#, _3,,
-# main.c:147: }
+	bne	a5,zero,.L20	#, _3,,
+# main.c:46: static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
 	nop	
 	nop	
 	lw	ra,28(sp)		#,
@@ -109,6 +523,42 @@ uart_puts:
 	addi	sp,sp,32	#,,
 	jr	ra		#
 	.size	uart_puts, .-uart_puts
+	.align	2
+	.type	uart_init, @function
+uart_init:
+	addi	sp,sp,-16	#,,
+	sw	s0,12(sp)	#,
+	addi	s0,sp,16	#,,
+# main.c:52:     *((volatile uint32_t *)(UART_BASE + 0x10)) = 867u;
+	li	a5,1342177280		# tmp136,
+	addi	a5,a5,16	#, _1, tmp136
+# main.c:52:     *((volatile uint32_t *)(UART_BASE + 0x10)) = 867u;
+	li	a4,867		# tmp137,
+	sw	a4,0(a5)	# tmp137, *_1
+# main.c:53:     __asm__ volatile ("fence w,w" ::: "memory");
+ #APP
+# 53 "main.c" 1
+	fence w,w
+# 0 "" 2
+# main.c:56:     *((volatile uint32_t *)(UART_BASE + 0x0C)) = 0x1;
+ #NO_APP
+	li	a5,1342177280		# tmp138,
+	addi	a5,a5,12	#, _2, tmp138
+# main.c:56:     *((volatile uint32_t *)(UART_BASE + 0x0C)) = 0x1;
+	li	a4,1		# tmp139,
+	sw	a4,0(a5)	# tmp139, *_2
+# main.c:57:     __asm__ volatile ("fence w,w" ::: "memory");
+ #APP
+# 57 "main.c" 1
+	fence w,w
+# 0 "" 2
+# main.c:58: }
+ #NO_APP
+	nop	
+	lw	s0,12(sp)		#,
+	addi	sp,sp,16	#,,
+	jr	ra		#
+	.size	uart_init, .-uart_init
 	.section	.rodata
 	.align	2
 .LC0:
@@ -123,33 +573,33 @@ uart_puthex8:
 	addi	s0,sp,48	#,,
 	mv	a5,a0	# tmp143, v
 	sb	a5,-33(s0)	# tmp144, v
-# main.c:152:     const char *h = "0123456789ABCDEF";
+# main.c:63:     const char *h = "0123456789ABCDEF";
 	lui	a5,%hi(.LC0)	# tmp146,
 	addi	a5,a5,%lo(.LC0)	# tmp145, tmp146,
 	sw	a5,-20(s0)	# tmp145, h
-# main.c:153:     uart_putc(h[(v >> 4) & 0xFu]);
+# main.c:64:     uart_putc(h[(v >> 4) & 0xFu]);
 	lbu	a5,-33(s0)	# tmp147, v
 	srli	a5,a5,4	#, tmp148, tmp147
 	andi	a5,a5,0xff	# _1, tmp148
 	andi	a5,a5,15	#, _3, _2
-# main.c:153:     uart_putc(h[(v >> 4) & 0xFu]);
+# main.c:64:     uart_putc(h[(v >> 4) & 0xFu]);
 	lw	a4,-20(s0)		# tmp149, h
 	add	a5,a4,a5	# _3, _4, tmp149
-# main.c:153:     uart_putc(h[(v >> 4) & 0xFu]);
+# main.c:64:     uart_putc(h[(v >> 4) & 0xFu]);
 	lbu	a5,0(a5)	# _5, *_4
 	mv	a0,a5	#, _5
 	call	uart_putc		#
-# main.c:154:     uart_putc(h[v & 0xFu]);
+# main.c:65:     uart_putc(h[v & 0xFu]);
 	lbu	a5,-33(s0)	# _6, v
 	andi	a5,a5,15	#, _7, _6
-# main.c:154:     uart_putc(h[v & 0xFu]);
+# main.c:65:     uart_putc(h[v & 0xFu]);
 	lw	a4,-20(s0)		# tmp150, h
 	add	a5,a4,a5	# _7, _8, tmp150
-# main.c:154:     uart_putc(h[v & 0xFu]);
+# main.c:65:     uart_putc(h[v & 0xFu]);
 	lbu	a5,0(a5)	# _9, *_8
 	mv	a0,a5	#, _9
 	call	uart_putc		#
-# main.c:155: }
+# main.c:66: }
 	nop	
 	lw	ra,44(sp)		#,
 	lw	s0,40(sp)		#,
@@ -164,1266 +614,504 @@ uart_puthex32:
 	sw	s0,24(sp)	#,
 	addi	s0,sp,32	#,,
 	sw	a0,-20(s0)	# v, v
-# main.c:160:     uart_puthex8((uint8_t)(v >> 24));
+# main.c:71:     uart_puthex8((uint8_t)(v >> 24));
 	lw	a5,-20(s0)		# tmp141, v
 	srli	a5,a5,24	#, _1, tmp141
-# main.c:160:     uart_puthex8((uint8_t)(v >> 24));
+# main.c:71:     uart_puthex8((uint8_t)(v >> 24));
 	andi	a5,a5,0xff	# _2, _1
 	mv	a0,a5	#, _2
 	call	uart_puthex8		#
-# main.c:161:     uart_puthex8((uint8_t)(v >> 16));
+# main.c:72:     uart_puthex8((uint8_t)(v >> 16));
 	lw	a5,-20(s0)		# tmp142, v
 	srli	a5,a5,16	#, _3, tmp142
-# main.c:161:     uart_puthex8((uint8_t)(v >> 16));
+# main.c:72:     uart_puthex8((uint8_t)(v >> 16));
 	andi	a5,a5,0xff	# _4, _3
 	mv	a0,a5	#, _4
 	call	uart_puthex8		#
-# main.c:162:     uart_puthex8((uint8_t)(v >>  8));
+# main.c:73:     uart_puthex8((uint8_t)(v >>  8));
 	lw	a5,-20(s0)		# tmp143, v
 	srli	a5,a5,8	#, _5, tmp143
-# main.c:162:     uart_puthex8((uint8_t)(v >>  8));
+# main.c:73:     uart_puthex8((uint8_t)(v >>  8));
 	andi	a5,a5,0xff	# _6, _5
 	mv	a0,a5	#, _6
 	call	uart_puthex8		#
-# main.c:163:     uart_puthex8((uint8_t)(v      ));
+# main.c:74:     uart_puthex8((uint8_t)(v      ));
 	lw	a5,-20(s0)		# tmp144, v
 	andi	a5,a5,0xff	# _7, tmp144
 	mv	a0,a5	#, _7
 	call	uart_puthex8		#
-# main.c:164: }
+# main.c:75: }
 	nop	
 	lw	ra,28(sp)		#,
 	lw	s0,24(sp)		#,
 	addi	sp,sp,32	#,,
 	jr	ra		#
 	.size	uart_puthex32, .-uart_puthex32
+	.section	.rodata
 	.align	2
-	.type	step1_write_ptext_to_dmem, @function
-step1_write_ptext_to_dmem:
-	addi	sp,sp,-16	#,,
-	sw	s0,12(sp)	#,
-	addi	s0,sp,16	#,,
-# main.c:173:     DMEM->PTEXT_0 = PTEXT_WORD0;   /* 0x10000000 ← 0x6C6C6548 */
-	li	a5,268435456		# _1,
-# main.c:173:     DMEM->PTEXT_0 = PTEXT_WORD0;   /* 0x10000000 ← 0x6C6C6548 */
-	li	a4,1819041792		# tmp137,
-	addi	a4,a4,1352	#, tmp136, tmp137
-	sw	a4,0(a5)	# tmp136, _1->PTEXT_0
-# main.c:174:     MB();
-# main.c:175:     DMEM->PTEXT_1 = PTEXT_WORD1;   /* 0x10000004 ← 0x0000216F */
-	li	a5,268435456		# _2,
-# main.c:175:     DMEM->PTEXT_1 = PTEXT_WORD1;   /* 0x10000004 ← 0x0000216F */
-	li	a4,8192		# tmp139,
-	addi	a4,a4,367	#, tmp138, tmp139
-	sw	a4,4(a5)	# tmp138, _2->PTEXT_1
-# main.c:176:     __asm__ volatile ("fence w,w" ::: "memory");
- #APP
-# 176 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:177: }
- #NO_APP
-	nop	
-	lw	s0,12(sp)		#,
-	addi	sp,sp,16	#,,
-	jr	ra		#
-	.size	step1_write_ptext_to_dmem, .-step1_write_ptext_to_dmem
+	.type	g_plaintext, @object
+	.size	g_plaintext, 16
+g_plaintext:
+	.string	"Hello!"
+	.string	""
+	.ascii	"Block01 "
 	.align	2
-	.type	step2_reset_and_config, @function
-step2_reset_and_config:
-	addi	sp,sp,-32	#,,
-	sw	ra,28(sp)	#,
-	sw	s0,24(sp)	#,
-	addi	s0,sp,32	#,,
-# main.c:193:     ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
-	li	a5,536870912		# _1,
-	li	a4,2		# tmp152,
-	sw	a4,0(a5)	# tmp152, _1->CTRL
- #APP
-# 193 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 193 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:196:     __asm__ volatile (
-# 196 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:209:     to = RESET_POLL_TIMEOUT;
- #NO_APP
-	li	a5,256		# tmp153,
-	sw	a5,-20(s0)	# tmp153, to
-.L13:
-# main.c:211:         st = ascon_read_status();
+	.type	g_key, @object
+	.size	g_key, 16
+g_key:
+	.word	1122867
+	.word	1146447479
+	.word	-2003195205
+	.word	-857870593
+	.align	2
+	.type	g_nonce, @object
+	.size	g_nonce, 16
+g_nonce:
+	.word	-559038737
+	.word	-889275714
+	.word	19088743
+	.word	-1985229329
+	.globl	g_stream
+	.bss
+	.align	2
+	.type	g_stream, @object
+	.size	g_stream, 436
+g_stream:
+	.zero	436
+	.text
+	.align	2
+	.globl	ascon_isr
+	.type	ascon_isr, @function
+ascon_isr:
+	addi	sp,sp,-48	#,,
+	sw	ra,44(sp)	#,
+	sw	s0,40(sp)	#,
+	addi	s0,sp,48	#,,
+# main.c:129:     uint32_t src = plic_claim();
+	call	plic_claim		#
+	sw	a0,-20(s0)	#, src
+# main.c:132:     if (src != PLIC_SRC_ASCON) {
+	lw	a4,-20(s0)		# tmp151, src
+	li	a5,8		# tmp152,
+	beq	a4,a5,.L25	#, tmp151, tmp152,
+# main.c:133:         if (src != 0u) plic_complete(src);
+	lw	a5,-20(s0)		# tmp153, src
+	beq	a5,zero,.L32	#, tmp153,,
+# main.c:133:         if (src != 0u) plic_complete(src);
+	lw	a0,-20(s0)		#, src
+	call	plic_complete		#
+# main.c:134:         return;
+	j	.L32		#
+.L25:
+# main.c:138:     uint32_t st = ascon_read_status();
 	call	ascon_read_status		#
 	sw	a0,-24(s0)	#, st
-# main.c:212:         if (!(st & STATUS_CORE_BUSY)) break;
+# main.c:141:     if (st & STATUS_ANY_ERROR) {
 	lw	a5,-24(s0)		# tmp154, st
-	andi	a5,a5,1	#, _2, tmp154
-# main.c:212:         if (!(st & STATUS_CORE_BUSY)) break;
-	beq	a5,zero,.L16	#, _2,,
-# main.c:213:         __asm__ volatile ("nop\nnop\nnop\nnop\n" ::: "memory");
- #APP
-# 213 "main.c" 1
-	nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:214:         to--;
- #NO_APP
-	lw	a5,-20(s0)		# tmp156, to
-	addi	a5,a5,-1	#, tmp155, tmp156
-	sw	a5,-20(s0)	# tmp155, to
-# main.c:215:     } while (to > 0u);
-	lw	a5,-20(s0)		# tmp157, to
-	bne	a5,zero,.L13	#, tmp157,,
-	j	.L12		#
-.L16:
-# main.c:212:         if (!(st & STATUS_CORE_BUSY)) break;
-	nop	
-.L12:
-# main.c:217:     if (st & STATUS_CORE_BUSY) {
-	lw	a5,-24(s0)		# tmp158, st
-	andi	a5,a5,1	#, _3, tmp158
-# main.c:217:     if (st & STATUS_CORE_BUSY) {
-	beq	a5,zero,.L14	#, _3,,
-# main.c:218:         DMEM->STATUS  = st;
-	li	a5,268435456		# _4,
-# main.c:218:         DMEM->STATUS  = st;
-	lw	a4,-24(s0)		# tmp159, st
-	sw	a4,84(a5)	# tmp159, _4->STATUS
-# main.c:219:         DMEM->RETCODE = (uint32_t)(int32_t)(-3);
-	li	a5,268435456		# _5,
-# main.c:219:         DMEM->RETCODE = (uint32_t)(int32_t)(-3);
-	li	a4,-3		# tmp160,
-	sw	a4,88(a5)	# tmp160, _5->RETCODE
-# main.c:220:         __asm__ volatile ("fence w,w" ::: "memory");
- #APP
-# 220 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:221:         return -3;
- #NO_APP
-	li	a5,-3		# _18,
-	j	.L15		#
-.L14:
-# main.c:225:     ASCON_WRITE(ASCON->MODE,     MODE_ENCRYPT);
-	li	a5,536870912		# _6,
-	li	a4,1		# tmp161,
-	sw	a4,4(a5)	# tmp161, _6->MODE
- #APP
-# 225 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 225 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:226:     ASCON_WRITE(ASCON->IRQ_EN,   0u);
- #NO_APP
-	li	a5,536870912		# _7,
-	sw	zero,8(a5)	#, _7->IRQ_EN
- #APP
-# 226 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 226 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:227:     ASCON_WRITE(ASCON->KEY_0,    CFG_KEY_0);
- #NO_APP
-	li	a5,536870912		# _8,
-	li	a4,1122304		# tmp163,
-	addi	a4,a4,563	#, tmp162, tmp163
-	sw	a4,16(a5)	# tmp162, _8->KEY_0
- #APP
-# 227 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 227 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:228:     ASCON_WRITE(ASCON->KEY_1,    CFG_KEY_1);
- #NO_APP
-	li	a5,536870912		# _9,
-	li	a4,1146445824		# tmp165,
-	addi	a4,a4,1655	#, tmp164, tmp165
-	sw	a4,20(a5)	# tmp164, _9->KEY_1
- #APP
-# 228 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 228 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:229:     ASCON_WRITE(ASCON->KEY_2,    CFG_KEY_2);
- #NO_APP
-	li	a5,536870912		# _10,
-	li	a4,-2003193856		# tmp167,
-	addi	a4,a4,-1349	#, tmp166, tmp167
-	sw	a4,24(a5)	# tmp166, _10->KEY_2
- #APP
-# 229 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 229 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:230:     ASCON_WRITE(ASCON->KEY_3,    CFG_KEY_3);
- #NO_APP
-	li	a5,536870912		# _11,
-	li	a4,-857870336		# tmp169,
-	addi	a4,a4,-257	#, tmp168, tmp169
-	sw	a4,28(a5)	# tmp168, _11->KEY_3
- #APP
-# 230 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 230 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:231:     ASCON_WRITE(ASCON->NONCE_0,  CFG_NONCE_0);
- #NO_APP
-	li	a5,536870912		# _12,
-	li	a4,-559038464		# tmp171,
-	addi	a4,a4,-273	#, tmp170, tmp171
-	sw	a4,32(a5)	# tmp170, _12->NONCE_0
- #APP
-# 231 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 231 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:232:     ASCON_WRITE(ASCON->NONCE_1,  CFG_NONCE_1);
- #NO_APP
-	li	a5,536870912		# _13,
-	li	a4,-889274368		# tmp173,
-	addi	a4,a4,-1346	#, tmp172, tmp173
-	sw	a4,36(a5)	# tmp172, _13->NONCE_1
- #APP
-# 232 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 232 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:233:     ASCON_WRITE(ASCON->NONCE_2,  CFG_NONCE_2);
- #NO_APP
-	li	a5,536870912		# _14,
-	li	a4,19087360		# tmp175,
-	addi	a4,a4,1383	#, tmp174, tmp175
-	sw	a4,40(a5)	# tmp174, _14->NONCE_2
- #APP
-# 233 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 233 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:234:     ASCON_WRITE(ASCON->NONCE_3,  CFG_NONCE_3);
- #NO_APP
-	li	a5,536870912		# _15,
-	li	a4,-1985228800		# tmp177,
-	addi	a4,a4,-529	#, tmp176, tmp177
-	sw	a4,44(a5)	# tmp176, _15->NONCE_3
- #APP
-# 234 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 234 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:235:     ASCON_WRITE(ASCON->DATA_LEN, (uint32_t)(PTEXT_LEN & DATA_LEN_MASK));
- #NO_APP
-	li	a5,536870912		# _16,
-	li	a4,8		# tmp178,
-	sw	a4,48(a5)	# tmp178, _16->DATA_LEN
- #APP
-# 235 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 235 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:237:     return 0;
- #NO_APP
-	li	a5,0		# _18,
-.L15:
-# main.c:238: }
-	mv	a0,a5	#, <retval>
-	lw	ra,28(sp)		#,
-	lw	s0,24(sp)		#,
-	addi	sp,sp,32	#,,
-	jr	ra		#
-	.size	step2_reset_and_config, .-step2_reset_and_config
-	.align	2
-	.type	step3_kick_dma, @function
-step3_kick_dma:
-	addi	sp,sp,-16	#,,
-	sw	s0,12(sp)	#,
-	addi	s0,sp,16	#,,
-# main.c:251:     ASCON_WRITE(ASCON->DMA_SRC, (uint32_t)(DMEM_BASE + 0x0000UL)); /* PTEXT_0 */
-	li	a5,536870912		# _1,
-	li	a4,268435456		# tmp138,
-	sw	a4,256(a5)	# tmp138, _1->DMA_SRC
- #APP
-# 251 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 251 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:252:     ASCON_WRITE(ASCON->DMA_DST, DMEM_DMA_OUTPUT_ADDR);             /* CTEXT_0 */
- #NO_APP
+	andi	a5,a5,48	#, _1, tmp154
+# main.c:141:     if (st & STATUS_ANY_ERROR) {
+	beq	a5,zero,.L28	#, _1,,
+# main.c:142:         g_stream.error = st;
+	lui	a5,%hi(g_stream)	# tmp155,
+	addi	a5,a5,%lo(g_stream)	# tmp156, tmp155,
+	lw	a4,-24(s0)		# tmp157, st
+	sw	a4,432(a5)	# tmp157, g_stream.error
+# main.c:143:         ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
 	li	a5,536870912		# _2,
-	li	a4,268435456		# tmp140,
-	addi	a4,a4,16	#, tmp139, tmp140
-	sw	a4,260(a5)	# tmp139, _2->DMA_DST
- #APP
-# 252 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 252 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:253:     ASCON_WRITE(ASCON->DMA_LEN, DMEM_DMA_INPUT_LEN);               /* = 8     */
- #NO_APP
-	li	a5,536870912		# _3,
-	li	a4,8		# tmp141,
-	sw	a4,264(a5)	# tmp141, _3->DMA_LEN
- #APP
-# 253 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 253 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:256:     __asm__ volatile ("fence w,w" ::: "memory");
-# 256 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:257:     __asm__ volatile ("fence w,w" ::: "memory");
-# 257 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:258:     __asm__ volatile ("fence w,w" ::: "memory");
-# 258 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:259:     __asm__ volatile (
-# 259 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:268:     ASCON_WRITE(ASCON->CTRL, CTRL_DMA_START);
- #NO_APP
-	li	a5,536870912		# _4,
-	li	a4,5		# tmp142,
-	sw	a4,0(a5)	# tmp142, _4->CTRL
- #APP
-# 268 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 268 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:271:     __asm__ volatile (
-# 271 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:276: }
- #NO_APP
-	nop	
-	lw	s0,12(sp)		#,
-	addi	sp,sp,16	#,,
-	jr	ra		#
-	.size	step3_kick_dma, .-step3_kick_dma
-	.align	2
-	.type	step4_poll_done, @function
-step4_poll_done:
-	addi	sp,sp,-32	#,,
-	sw	ra,28(sp)	#,
-	sw	s0,24(sp)	#,
-	addi	s0,sp,32	#,,
-# main.c:286:     uint32_t to = POLL_TIMEOUT;
-	li	a5,4096		# tmp139,
-	addi	a5,a5,904	#, tmp138, tmp139
-	sw	a5,-20(s0)	# tmp138, to
-.L22:
-# main.c:289:         st = ascon_read_status();
-	call	ascon_read_status		#
-	sw	a0,-24(s0)	#, st
-# main.c:290:         if (st & STATUS_ANY_ERROR) return st;
-	lw	a5,-24(s0)		# tmp140, st
-	andi	a5,a5,4	#, _1, tmp140
-# main.c:290:         if (st & STATUS_ANY_ERROR) return st;
-	beq	a5,zero,.L19	#, _1,,
-# main.c:290:         if (st & STATUS_ANY_ERROR) return st;
-	lw	a5,-24(s0)		# _4, st
-# main.c:290:         if (st & STATUS_ANY_ERROR) return st;
-	j	.L20		#
-.L19:
-# main.c:291:         if (st & STATUS_DMA_DONE)  return st;
-	lw	a5,-24(s0)		# tmp141, st
-	andi	a5,a5,2	#, _2, tmp141
-# main.c:291:         if (st & STATUS_DMA_DONE)  return st;
-	beq	a5,zero,.L21	#, _2,,
-# main.c:291:         if (st & STATUS_DMA_DONE)  return st;
-	lw	a5,-24(s0)		# _4, st
-# main.c:291:         if (st & STATUS_DMA_DONE)  return st;
-	j	.L20		#
-.L21:
-# main.c:292:         to--;
-	lw	a5,-20(s0)		# tmp143, to
-	addi	a5,a5,-1	#, tmp142, tmp143
-	sw	a5,-20(s0)	# tmp142, to
-# main.c:293:     } while (to > 0u);
-	lw	a5,-20(s0)		# tmp144, to
-	bne	a5,zero,.L22	#, tmp144,,
-# main.c:295:     return 0u;  /* timeout */
-	li	a5,0		# _4,
-.L20:
-# main.c:296: }
-	mv	a0,a5	#, <retval>
-	lw	ra,28(sp)		#,
-	lw	s0,24(sp)		#,
-	addi	sp,sp,32	#,,
-	jr	ra		#
-	.size	step4_poll_done, .-step4_poll_done
-	.align	2
-	.type	step5_copy_results_to_dmem, @function
-step5_copy_results_to_dmem:
-	addi	sp,sp,-32	#,,
-	sw	s0,28(sp)	#,
-	addi	s0,sp,32	#,,
-	sw	a0,-20(s0)	# status_val, status_val
-	sw	a1,-24(s0)	# retcode, retcode
-# main.c:314:     DMEM->TAG_0 = ASCON->TAG_0;  MB();
-	li	a4,536870912		# _1,
-# main.c:314:     DMEM->TAG_0 = ASCON->TAG_0;  MB();
-	li	a5,268435456		# _2,
-# main.c:314:     DMEM->TAG_0 = ASCON->TAG_0;  MB();
-	lw	a4,64(a4)		# _3, _1->TAG_0
-# main.c:314:     DMEM->TAG_0 = ASCON->TAG_0;  MB();
-	sw	a4,24(a5)	# _3, _2->TAG_0
-# main.c:314:     DMEM->TAG_0 = ASCON->TAG_0;  MB();
-# main.c:315:     DMEM->TAG_1 = ASCON->TAG_1;  MB();
-	li	a4,536870912		# _4,
-# main.c:315:     DMEM->TAG_1 = ASCON->TAG_1;  MB();
+	li	a4,2		# tmp158,
+	sw	a4,32(a5)	# tmp158, _2->CTRL
+# main.c:144:         plic_complete(src);
+	lw	a0,-20(s0)		#, src
+	call	plic_complete		#
+# main.c:145:         g_stream.done = 1u;
+	lui	a5,%hi(g_stream)	# tmp159,
+	addi	a5,a5,%lo(g_stream)	# tmp160, tmp159,
+	li	a4,1		# tmp161,
+	sw	a4,428(a5)	# tmp161, g_stream.done
+# main.c:146:         return;
+	j	.L24		#
+.L28:
+# main.c:150:     uint32_t blk = g_stream.cur_block;
+	lui	a5,%hi(g_stream)	# tmp162,
+	addi	a5,a5,%lo(g_stream)	# tmp163, tmp162,
+	lw	a5,424(a5)		# tmp164, g_stream.cur_block
+	sw	a5,-28(s0)	# tmp164, blk
+# main.c:151:     if (blk < STREAM_MAX_BLOCKS) {
+	lw	a4,-28(s0)		# tmp165, blk
+	li	a5,15		# tmp166,
+	bgtu	a4,a5,.L29	#, tmp165, tmp166,
+# main.c:152:         AsconBlockOut_t *out = &g_stream.out[blk];
+	lw	a4,-28(s0)		# tmp167, blk
+	mv	a5,a4	# tmp168, tmp167
+	slli	a5,a5,1	#, tmp169, tmp168
+	add	a5,a5,a4	# tmp167, tmp168, tmp168
+	slli	a5,a5,3	#, tmp170, tmp168
+	addi	a4,a5,32	#, tmp171, tmp168
+	lui	a5,%hi(g_stream)	# tmp174,
+	addi	a5,a5,%lo(g_stream)	# tmp173, tmp174,
+	add	a5,a4,a5	# tmp173, tmp172, tmp171
+	addi	a5,a5,8	#, tmp175, tmp172
+	sw	a5,-32(s0)	# tmp175, out
+# main.c:158:         out->ctext[0] = DMEM->CTEXT_0;
+	li	a5,268435456		# _3,
+	lw	a4,16(a5)		# _4, _3->CTEXT_0
+# main.c:158:         out->ctext[0] = DMEM->CTEXT_0;
+	lw	a5,-32(s0)		# tmp176, out
+	sw	a4,0(a5)	# _4, out_27->ctext[0]
+# main.c:159:         __asm__ volatile ("" ::: "memory");
+# main.c:160:         out->ctext[1] = DMEM->CTEXT_1;
 	li	a5,268435456		# _5,
-# main.c:315:     DMEM->TAG_1 = ASCON->TAG_1;  MB();
-	lw	a4,68(a4)		# _6, _4->TAG_1
-# main.c:315:     DMEM->TAG_1 = ASCON->TAG_1;  MB();
-	sw	a4,28(a5)	# _6, _5->TAG_1
-# main.c:315:     DMEM->TAG_1 = ASCON->TAG_1;  MB();
-# main.c:316:     DMEM->TAG_2 = ASCON->TAG_2;  MB();
-	li	a4,536870912		# _7,
-# main.c:316:     DMEM->TAG_2 = ASCON->TAG_2;  MB();
-	li	a5,268435456		# _8,
-# main.c:316:     DMEM->TAG_2 = ASCON->TAG_2;  MB();
-	lw	a4,72(a4)		# _9, _7->TAG_2
-# main.c:316:     DMEM->TAG_2 = ASCON->TAG_2;  MB();
-	sw	a4,32(a5)	# _9, _8->TAG_2
-# main.c:316:     DMEM->TAG_2 = ASCON->TAG_2;  MB();
-# main.c:317:     DMEM->TAG_3 = ASCON->TAG_3;  MB();
-	li	a4,536870912		# _10,
-# main.c:317:     DMEM->TAG_3 = ASCON->TAG_3;  MB();
-	li	a5,268435456		# _11,
-# main.c:317:     DMEM->TAG_3 = ASCON->TAG_3;  MB();
-	lw	a4,76(a4)		# _12, _10->TAG_3
-# main.c:317:     DMEM->TAG_3 = ASCON->TAG_3;  MB();
-	sw	a4,36(a5)	# _12, _11->TAG_3
-# main.c:317:     DMEM->TAG_3 = ASCON->TAG_3;  MB();
-# main.c:319:     DMEM->DATALEN = PTEXT_LEN;
-	li	a5,268435456		# _13,
-# main.c:319:     DMEM->DATALEN = PTEXT_LEN;
-	li	a4,8		# tmp150,
-	sw	a4,80(a5)	# tmp150, _13->DATALEN
-# main.c:320:     DMEM->STATUS  = status_val;
-	li	a5,268435456		# _14,
-# main.c:320:     DMEM->STATUS  = status_val;
-	lw	a4,-20(s0)		# tmp151, status_val
-	sw	a4,84(a5)	# tmp151, _14->STATUS
-# main.c:321:     DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	li	a5,268435456		# _15,
-# main.c:321:     DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	lw	a4,-24(s0)		# retcode.1_16, retcode
-# main.c:321:     DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	sw	a4,88(a5)	# retcode.1_16, _15->RETCODE
-# main.c:323:     __asm__ volatile ("fence w,w" ::: "memory");
- #APP
-# 323 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:324: }
- #NO_APP
+	lw	a4,20(a5)		# _6, _5->CTEXT_1
+# main.c:160:         out->ctext[1] = DMEM->CTEXT_1;
+	lw	a5,-32(s0)		# tmp177, out
+	sw	a4,4(a5)	# _6, out_27->ctext[1]
+# main.c:161:         __asm__ volatile ("" ::: "memory");
+# main.c:167:         out->tag[0] = ASCON->TAG_0;
+	li	a5,536870912		# _7,
+	lw	a4,72(a5)		# _8, _7->TAG_0
+# main.c:167:         out->tag[0] = ASCON->TAG_0;
+	lw	a5,-32(s0)		# tmp178, out
+	sw	a4,8(a5)	# _8, out_27->tag[0]
+# main.c:168:         __asm__ volatile ("" ::: "memory");
+# main.c:169:         out->tag[1] = ASCON->TAG_1;
+	li	a5,536870912		# _9,
+	lw	a4,76(a5)		# _10, _9->TAG_1
+# main.c:169:         out->tag[1] = ASCON->TAG_1;
+	lw	a5,-32(s0)		# tmp179, out
+	sw	a4,12(a5)	# _10, out_27->tag[1]
+# main.c:170:         __asm__ volatile ("" ::: "memory");
+# main.c:171:         out->tag[2] = ASCON->TAG_2;
+	li	a5,536870912		# _11,
+	lw	a4,80(a5)		# _12, _11->TAG_2
+# main.c:171:         out->tag[2] = ASCON->TAG_2;
+	lw	a5,-32(s0)		# tmp180, out
+	sw	a4,16(a5)	# _12, out_27->tag[2]
+# main.c:172:         __asm__ volatile ("" ::: "memory");
+# main.c:173:         out->tag[3] = ASCON->TAG_3;
+	li	a5,536870912		# _13,
+	lw	a4,84(a5)		# _14, _13->TAG_3
+# main.c:173:         out->tag[3] = ASCON->TAG_3;
+	lw	a5,-32(s0)		# tmp181, out
+	sw	a4,20(a5)	# _14, out_27->tag[3]
+# main.c:174:         __asm__ volatile ("" ::: "memory");
+.L29:
+# main.c:178:     ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
+	li	a5,536870912		# _15,
+	li	a4,2		# tmp182,
+	sw	a4,32(a5)	# tmp182, _15->CTRL
+# main.c:181:     plic_complete(src);
+	lw	a0,-20(s0)		#, src
+	call	plic_complete		#
+# main.c:184:     uint32_t next = blk + 1u;
+	lw	a5,-28(s0)		# tmp184, blk
+	addi	a5,a5,1	#, tmp183, tmp184
+	sw	a5,-36(s0)	# tmp183, next
+# main.c:185:     g_stream.cur_block = next;
+	lui	a5,%hi(g_stream)	# tmp185,
+	addi	a5,a5,%lo(g_stream)	# tmp186, tmp185,
+	lw	a4,-36(s0)		# tmp187, next
+	sw	a4,424(a5)	# tmp187, g_stream.cur_block
+# main.c:187:     if (next < g_stream.n_blocks) {
+	lui	a5,%hi(g_stream)	# tmp188,
+	addi	a5,a5,%lo(g_stream)	# tmp189, tmp188,
+	lw	a5,4(a5)		# _16, g_stream.n_blocks
+# main.c:187:     if (next < g_stream.n_blocks) {
+	lw	a4,-36(s0)		# tmp190, next
+	bgeu	a4,a5,.L30	#, tmp190, _16,
+# main.c:192:         ascon_feed_block_cpu(next);
+	lw	a0,-36(s0)		#, next
+	call	ascon_feed_block_cpu		#
+# main.c:194:         int r = ascon_config_block();
+	call	ascon_config_block		#
+	sw	a0,-40(s0)	#, r
+# main.c:195:         if (r != 0) {
+	lw	a5,-40(s0)		# tmp191, r
+	beq	a5,zero,.L31	#, tmp191,,
+# main.c:196:             g_stream.error = (uint32_t)(int32_t)r;
+	lw	a4,-40(s0)		# r.3_17, r
+# main.c:196:             g_stream.error = (uint32_t)(int32_t)r;
+	lui	a5,%hi(g_stream)	# tmp192,
+	addi	a5,a5,%lo(g_stream)	# tmp193, tmp192,
+	sw	a4,432(a5)	# r.3_17, g_stream.error
+# main.c:197:             g_stream.done  = 1u;
+	lui	a5,%hi(g_stream)	# tmp194,
+	addi	a5,a5,%lo(g_stream)	# tmp195, tmp194,
+	li	a4,1		# tmp196,
+	sw	a4,428(a5)	# tmp196, g_stream.done
+# main.c:198:             return;
+	j	.L24		#
+.L31:
+# main.c:201:         ascon_kick_dma();
+	call	ascon_kick_dma		#
+	j	.L24		#
+.L30:
+# main.c:206:         g_stream.done = 1u;
+	lui	a5,%hi(g_stream)	# tmp197,
+	addi	a5,a5,%lo(g_stream)	# tmp198, tmp197,
+	li	a4,1		# tmp199,
+	sw	a4,428(a5)	# tmp199, g_stream.done
+	j	.L24		#
+.L32:
+# main.c:134:         return;
 	nop	
-	lw	s0,28(sp)		#,
-	addi	sp,sp,32	#,,
+.L24:
+# main.c:208: }
+	lw	ra,44(sp)		#,
+	lw	s0,40(sp)		#,
+	addi	sp,sp,48	#,,
 	jr	ra		#
-	.size	step5_copy_results_to_dmem, .-step5_copy_results_to_dmem
+	.size	ascon_isr, .-ascon_isr
+	.align	2
+	.globl	trap_handler
+	.type	trap_handler, @function
+trap_handler:
+	addi	sp,sp,-96	#,,
+	sw	ra,92(sp)	#,
+	sw	t0,88(sp)	#,
+	sw	t1,84(sp)	#,
+	sw	t2,80(sp)	#,
+	sw	s0,76(sp)	#,
+	sw	a0,72(sp)	#,
+	sw	a1,68(sp)	#,
+	sw	a2,64(sp)	#,
+	sw	a3,60(sp)	#,
+	sw	a4,56(sp)	#,
+	sw	a5,52(sp)	#,
+	sw	a6,48(sp)	#,
+	sw	a7,44(sp)	#,
+	sw	t3,40(sp)	#,
+	sw	t4,36(sp)	#,
+	sw	t5,32(sp)	#,
+	sw	t6,28(sp)	#,
+	addi	s0,sp,96	#,,
+# main.c:223:     __asm__ volatile ("csrr %0, mcause" : "=r"(mcause));
+ #APP
+# 223 "main.c" 1
+	csrr a5, mcause	# mcause
+# 0 "" 2
+ #NO_APP
+	sw	a5,-84(s0)	# mcause, mcause
+# main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
+	lw	a5,-84(s0)		# mcause.4_1, mcause
+# main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
+	bge	a5,zero,.L35	#, mcause.4_1,,
+# main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
+	lw	a4,-84(s0)		# tmp137, mcause
+	li	a5,65536		# tmp139,
+	addi	a5,a5,-1	#, tmp138, tmp139
+	and	a4,a4,a5	# tmp138, _2, tmp137
+# main.c:226:     if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
+	li	a5,11		# tmp140,
+	bne	a4,a5,.L35	#, _2, tmp140,
+# main.c:227:         ascon_isr();
+	call	ascon_isr		#
+.L35:
+# main.c:230: }
+	nop	
+	lw	ra,92(sp)		#,
+	lw	t0,88(sp)		#,
+	lw	t1,84(sp)		#,
+	lw	t2,80(sp)		#,
+	lw	s0,76(sp)		#,
+	lw	a0,72(sp)		#,
+	lw	a1,68(sp)		#,
+	lw	a2,64(sp)		#,
+	lw	a3,60(sp)		#,
+	lw	a4,56(sp)		#,
+	lw	a5,52(sp)		#,
+	lw	a6,48(sp)		#,
+	lw	a7,44(sp)		#,
+	lw	t3,40(sp)		#,
+	lw	t4,36(sp)		#,
+	lw	t5,32(sp)		#,
+	lw	t6,28(sp)		#,
+	addi	sp,sp,96	#,,
+	mret	
+	.size	trap_handler, .-trap_handler
 	.section	.rodata
 	.align	2
 .LC1:
-	.string	"E:RST\r\n"
+	.string	"E:STS="
 	.align	2
 .LC2:
-	.string	"E:TMO\r\n"
-	.align	2
-.LC3:
-	.string	"E:"
-	.align	2
-.LC4:
 	.string	"\r\n"
 	.align	2
+.LC3:
+	.string	"OK n="
+	.align	2
+.LC4:
+	.string	"B"
+	.align	2
 .LC5:
-	.string	"OK\r\n"
+	.string	" C:"
 	.align	2
 .LC6:
-	.string	"C:"
-	.align	2
-.LC7:
-	.string	"T:"
+	.string	" T:"
 	.text
 	.align	2
-	.type	step6_print_result, @function
-step6_print_result:
+	.type	print_results, @function
+print_results:
 	addi	sp,sp,-32	#,,
 	sw	ra,28(sp)	#,
 	sw	s0,24(sp)	#,
 	addi	s0,sp,32	#,,
-	sw	a0,-20(s0)	# status_val, status_val
-	sw	a1,-24(s0)	# retcode, retcode
-# main.c:341:     if (retcode != 0) {
-	lw	a5,-24(s0)		# tmp147, retcode
-	beq	a5,zero,.L25	#, tmp147,,
-# main.c:342:         if (retcode == -3) {
-	lw	a4,-24(s0)		# tmp148, retcode
-	li	a5,-3		# tmp149,
-	bne	a4,a5,.L26	#, tmp148, tmp149,
-# main.c:343:             uart_puts("E:RST\r\n");
-	lui	a5,%hi(.LC1)	# tmp150,
-	addi	a0,a5,%lo(.LC1)	#, tmp150,
+# main.c:237:     if (g_stream.error != 0u) {
+	lui	a5,%hi(g_stream)	# tmp146,
+	addi	a5,a5,%lo(g_stream)	# tmp147, tmp146,
+	lw	a5,432(a5)		# _1, g_stream.error
+# main.c:237:     if (g_stream.error != 0u) {
+	beq	a5,zero,.L37	#, _1,,
+# main.c:238:         uart_puts("E:STS=");
+	lui	a5,%hi(.LC1)	# tmp148,
+	addi	a0,a5,%lo(.LC1)	#, tmp148,
 	call	uart_puts		#
-# main.c:351:         return;
-	j	.L24		#
-.L26:
-# main.c:344:         } else if (retcode == -2) {
-	lw	a4,-24(s0)		# tmp151, retcode
-	li	a5,-2		# tmp152,
-	bne	a4,a5,.L28	#, tmp151, tmp152,
-# main.c:345:             uart_puts("E:TMO\r\n");
-	lui	a5,%hi(.LC2)	# tmp153,
-	addi	a0,a5,%lo(.LC2)	#, tmp153,
+# main.c:239:         uart_puthex32(g_stream.error);
+	lui	a5,%hi(g_stream)	# tmp149,
+	addi	a5,a5,%lo(g_stream)	# tmp150, tmp149,
+	lw	a5,432(a5)		# _2, g_stream.error
+# main.c:239:         uart_puthex32(g_stream.error);
+	mv	a0,a5	#, _2
+	call	uart_puthex32		#
+# main.c:240:         uart_puts("\r\n");
+	lui	a5,%hi(.LC2)	# tmp151,
+	addi	a0,a5,%lo(.LC2)	#, tmp151,
 	call	uart_puts		#
-# main.c:351:         return;
-	j	.L24		#
-.L28:
-# main.c:347:             uart_puts("E:");
-	lui	a5,%hi(.LC3)	# tmp154,
-	addi	a0,a5,%lo(.LC3)	#, tmp154,
+# main.c:241:         return;
+	j	.L36		#
+.L37:
+# main.c:244:     uart_puts("OK n=");
+	lui	a5,%hi(.LC3)	# tmp152,
+	addi	a0,a5,%lo(.LC3)	#, tmp152,
 	call	uart_puts		#
-# main.c:348:             uart_puthex8((uint8_t)(status_val & 0xFFu));
-	lw	a5,-20(s0)		# tmp155, status_val
-	andi	a5,a5,0xff	# _1, tmp155
-	mv	a0,a5	#, _1
+# main.c:245:     uart_puthex8((uint8_t)g_stream.n_blocks);
+	lui	a5,%hi(g_stream)	# tmp153,
+	addi	a5,a5,%lo(g_stream)	# tmp154, tmp153,
+	lw	a5,4(a5)		# _3, g_stream.n_blocks
+# main.c:245:     uart_puthex8((uint8_t)g_stream.n_blocks);
+	andi	a5,a5,0xff	# _4, _3
+	mv	a0,a5	#, _4
 	call	uart_puthex8		#
-# main.c:349:             uart_puts("\r\n");
+# main.c:246:     uart_puts("\r\n");
+	lui	a5,%hi(.LC2)	# tmp155,
+	addi	a0,a5,%lo(.LC2)	#, tmp155,
+	call	uart_puts		#
+# main.c:248:     for (uint32_t i = 0u; i < g_stream.n_blocks; i++) {
+	sw	zero,-20(s0)	#, i
+# main.c:248:     for (uint32_t i = 0u; i < g_stream.n_blocks; i++) {
+	j	.L39		#
+.L40:
+# main.c:249:         uart_puts("B");
 	lui	a5,%hi(.LC4)	# tmp156,
 	addi	a0,a5,%lo(.LC4)	#, tmp156,
 	call	uart_puts		#
-# main.c:351:         return;
-	j	.L24		#
-.L25:
-# main.c:355:     uart_puts("OK\r\n");
-	lui	a5,%hi(.LC5)	# tmp157,
-	addi	a0,a5,%lo(.LC5)	#, tmp157,
-	call	uart_puts		#
-# main.c:356:     uart_puts("C:");
-	lui	a5,%hi(.LC6)	# tmp158,
-	addi	a0,a5,%lo(.LC6)	#, tmp158,
-	call	uart_puts		#
-# main.c:357:     uart_puthex32(DMEM->CTEXT_0);
-	li	a5,268435456		# _2,
-	lw	a5,16(a5)		# _3, _2->CTEXT_0
-# main.c:357:     uart_puthex32(DMEM->CTEXT_0);
-	mv	a0,a5	#, _3
-	call	uart_puthex32		#
-# main.c:358:     uart_puthex32(DMEM->CTEXT_1);
-	li	a5,268435456		# _4,
-	lw	a5,20(a5)		# _5, _4->CTEXT_1
-# main.c:358:     uart_puthex32(DMEM->CTEXT_1);
+# main.c:250:         uart_puthex8((uint8_t)i);
+	lw	a5,-20(s0)		# tmp157, i
+	andi	a5,a5,0xff	# _5, tmp157
 	mv	a0,a5	#, _5
+	call	uart_puthex8		#
+# main.c:251:         uart_puts(" C:");
+	lui	a5,%hi(.LC5)	# tmp158,
+	addi	a0,a5,%lo(.LC5)	#, tmp158,
+	call	uart_puts		#
+# main.c:252:         uart_puthex32(g_stream.out[i].ctext[0]);
+	lui	a5,%hi(g_stream)	# tmp159,
+	addi	a3,a5,%lo(g_stream)	# tmp160, tmp159,
+	lw	a4,-20(s0)		# tmp161, i
+	mv	a5,a4	# tmp163, tmp161
+	slli	a5,a5,1	#, tmp164, tmp163
+	add	a5,a5,a4	# tmp161, tmp163, tmp163
+	slli	a5,a5,3	#, tmp165, tmp163
+	add	a5,a3,a5	# tmp163, tmp162, tmp160
+	lw	a5,40(a5)		# _6, g_stream.out[i_13].ctext[0]
+	mv	a0,a5	#, _6
 	call	uart_puthex32		#
-# main.c:359:     uart_puts("\r\n");
-	lui	a5,%hi(.LC4)	# tmp159,
-	addi	a0,a5,%lo(.LC4)	#, tmp159,
-	call	uart_puts		#
-# main.c:360:     uart_puts("T:");
-	lui	a5,%hi(.LC7)	# tmp160,
-	addi	a0,a5,%lo(.LC7)	#, tmp160,
-	call	uart_puts		#
-# main.c:361:     uart_puthex32(DMEM->TAG_0);
-	li	a5,268435456		# _6,
-	lw	a5,24(a5)		# _7, _6->TAG_0
-# main.c:361:     uart_puthex32(DMEM->TAG_0);
+# main.c:253:         uart_puthex32(g_stream.out[i].ctext[1]);
+	lui	a5,%hi(g_stream)	# tmp166,
+	addi	a3,a5,%lo(g_stream)	# tmp167, tmp166,
+	lw	a4,-20(s0)		# tmp168, i
+	mv	a5,a4	# tmp170, tmp168
+	slli	a5,a5,1	#, tmp171, tmp170
+	add	a5,a5,a4	# tmp168, tmp170, tmp170
+	slli	a5,a5,3	#, tmp172, tmp170
+	add	a5,a3,a5	# tmp170, tmp169, tmp167
+	lw	a5,44(a5)		# _7, g_stream.out[i_13].ctext[1]
 	mv	a0,a5	#, _7
 	call	uart_puthex32		#
-# main.c:362:     uart_puthex32(DMEM->TAG_1);
-	li	a5,268435456		# _8,
-	lw	a5,28(a5)		# _9, _8->TAG_1
-# main.c:362:     uart_puthex32(DMEM->TAG_1);
+# main.c:254:         uart_puts(" T:");
+	lui	a5,%hi(.LC6)	# tmp173,
+	addi	a0,a5,%lo(.LC6)	#, tmp173,
+	call	uart_puts		#
+# main.c:255:         uart_puthex32(g_stream.out[i].tag[0]);
+	lui	a5,%hi(g_stream)	# tmp174,
+	addi	a3,a5,%lo(g_stream)	# tmp175, tmp174,
+	lw	a4,-20(s0)		# tmp176, i
+	mv	a5,a4	# tmp178, tmp176
+	slli	a5,a5,1	#, tmp179, tmp178
+	add	a5,a5,a4	# tmp176, tmp178, tmp178
+	slli	a5,a5,3	#, tmp180, tmp178
+	add	a5,a3,a5	# tmp178, tmp177, tmp175
+	lw	a5,48(a5)		# _8, g_stream.out[i_13].tag[0]
+	mv	a0,a5	#, _8
+	call	uart_puthex32		#
+# main.c:256:         uart_puthex32(g_stream.out[i].tag[1]);
+	lui	a5,%hi(g_stream)	# tmp181,
+	addi	a3,a5,%lo(g_stream)	# tmp182, tmp181,
+	lw	a4,-20(s0)		# tmp183, i
+	mv	a5,a4	# tmp185, tmp183
+	slli	a5,a5,1	#, tmp186, tmp185
+	add	a5,a5,a4	# tmp183, tmp185, tmp185
+	slli	a5,a5,3	#, tmp187, tmp185
+	add	a5,a3,a5	# tmp185, tmp184, tmp182
+	lw	a5,52(a5)		# _9, g_stream.out[i_13].tag[1]
 	mv	a0,a5	#, _9
 	call	uart_puthex32		#
-# main.c:363:     uart_puthex32(DMEM->TAG_2);
-	li	a5,268435456		# _10,
-	lw	a5,32(a5)		# _11, _10->TAG_2
-# main.c:363:     uart_puthex32(DMEM->TAG_2);
+# main.c:257:         uart_puthex32(g_stream.out[i].tag[2]);
+	lui	a5,%hi(g_stream)	# tmp188,
+	addi	a3,a5,%lo(g_stream)	# tmp189, tmp188,
+	lw	a4,-20(s0)		# tmp190, i
+	mv	a5,a4	# tmp192, tmp190
+	slli	a5,a5,1	#, tmp193, tmp192
+	add	a5,a5,a4	# tmp190, tmp192, tmp192
+	slli	a5,a5,3	#, tmp194, tmp192
+	add	a5,a3,a5	# tmp192, tmp191, tmp189
+	lw	a5,56(a5)		# _10, g_stream.out[i_13].tag[2]
+	mv	a0,a5	#, _10
+	call	uart_puthex32		#
+# main.c:258:         uart_puthex32(g_stream.out[i].tag[3]);
+	lui	a5,%hi(g_stream)	# tmp195,
+	addi	a3,a5,%lo(g_stream)	# tmp196, tmp195,
+	lw	a4,-20(s0)		# tmp197, i
+	mv	a5,a4	# tmp199, tmp197
+	slli	a5,a5,1	#, tmp200, tmp199
+	add	a5,a5,a4	# tmp197, tmp199, tmp199
+	slli	a5,a5,3	#, tmp201, tmp199
+	add	a5,a3,a5	# tmp199, tmp198, tmp196
+	lw	a5,60(a5)		# _11, g_stream.out[i_13].tag[3]
 	mv	a0,a5	#, _11
 	call	uart_puthex32		#
-# main.c:364:     uart_puthex32(DMEM->TAG_3);
-	li	a5,268435456		# _12,
-	lw	a5,36(a5)		# _13, _12->TAG_3
-# main.c:364:     uart_puthex32(DMEM->TAG_3);
-	mv	a0,a5	#, _13
-	call	uart_puthex32		#
-# main.c:365:     uart_puts("\r\n");
-	lui	a5,%hi(.LC4)	# tmp161,
-	addi	a0,a5,%lo(.LC4)	#, tmp161,
+# main.c:259:         uart_puts("\r\n");
+	lui	a5,%hi(.LC2)	# tmp202,
+	addi	a0,a5,%lo(.LC2)	#, tmp202,
 	call	uart_puts		#
-.L24:
-# main.c:366: }
+# main.c:248:     for (uint32_t i = 0u; i < g_stream.n_blocks; i++) {
+	lw	a5,-20(s0)		# tmp204, i
+	addi	a5,a5,1	#, tmp203, tmp204
+	sw	a5,-20(s0)	# tmp203, i
+.L39:
+# main.c:248:     for (uint32_t i = 0u; i < g_stream.n_blocks; i++) {
+	lui	a5,%hi(g_stream)	# tmp205,
+	addi	a5,a5,%lo(g_stream)	# tmp206, tmp205,
+	lw	a5,4(a5)		# _12, g_stream.n_blocks
+# main.c:248:     for (uint32_t i = 0u; i < g_stream.n_blocks; i++) {
+	lw	a4,-20(s0)		# tmp207, i
+	bltu	a4,a5,.L40	#, tmp207, _12,
+.L36:
+# main.c:261: }
 	lw	ra,28(sp)		#,
 	lw	s0,24(sp)		#,
 	addi	sp,sp,32	#,,
 	jr	ra		#
-	.size	step6_print_result, .-step6_print_result
+	.size	print_results, .-print_results
 	.align	2
 	.globl	main
 	.type	main, @function
@@ -1431,246 +1119,123 @@ main:
 	addi	sp,sp,-32	#,,
 	sw	ra,28(sp)	#,
 	sw	s0,24(sp)	#,
-	sw	s1,20(sp)	#,
 	addi	s0,sp,32	#,,
-# main.c:378:     step1_write_ptext_to_dmem();
-	call	step1_write_ptext_to_dmem		#
-# main.c:381:     retcode = step2_reset_and_config();
-	call	step2_reset_and_config		#
-	sw	a0,-20(s0)	#, retcode
-# main.c:382:     if (retcode != 0) {
-	lw	a5,-20(s0)		# tmp149, retcode
-	beq	a5,zero,.L31	#, tmp149,,
-# main.c:383:         step6_print_result(DMEM->STATUS, retcode);
-	li	a5,268435456		# _1,
-	lw	a5,84(a5)		# _2, _1->STATUS
-# main.c:383:         step6_print_result(DMEM->STATUS, retcode);
-	lw	a1,-20(s0)		#, retcode
-	mv	a0,a5	#, _2
-	call	step6_print_result		#
-# main.c:384:         return retcode;
-	lw	a5,-20(s0)		# _14, retcode
-	j	.L32		#
-.L31:
-# main.c:388:     step3_kick_dma();
-	call	step3_kick_dma		#
-# main.c:391:     status_val = step4_poll_done();
-	call	step4_poll_done		#
-	sw	a0,-24(s0)	#, status_val
-# main.c:394:     if (status_val == 0u) {
-	lw	a5,-24(s0)		# tmp150, status_val
-	bne	a5,zero,.L33	#, tmp150,,
-# main.c:395:         retcode = -2;
-	li	a5,-2		# tmp151,
-	sw	a5,-20(s0)	# tmp151, retcode
-# main.c:396:         DMEM->STATUS  = ascon_read_status();
-	li	s1,268435456		# _3,
-# main.c:396:         DMEM->STATUS  = ascon_read_status();
-	call	ascon_read_status		#
-	mv	a5,a0	# _4,
-# main.c:396:         DMEM->STATUS  = ascon_read_status();
-	sw	a5,84(s1)	# _4, _3->STATUS
-# main.c:397:         DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	li	a5,268435456		# _5,
-# main.c:397:         DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	lw	a4,-20(s0)		# retcode.2_6, retcode
-# main.c:397:         DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	sw	a4,88(a5)	# retcode.2_6, _5->RETCODE
-# main.c:398:         __asm__ volatile ("fence w,w" ::: "memory");
+# main.c:277:     __asm__ volatile (
  #APP
-# 398 "main.c" 1
-	fence w,w
-# 0 "" 2
-# main.c:399:         ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
- #NO_APP
-	li	a5,536870912		# _7,
-	li	a4,2		# tmp152,
-	sw	a4,0(a5)	# tmp152, _7->CTRL
- #APP
-# 399 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 399 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
+# 277 "main.c" 1
+	la   t0, trap_handler
+csrw mtvec, t0
 
 # 0 "" 2
-# main.c:400:         step6_print_result(0u, retcode);
+# main.c:285:     plic_init_ascon();
  #NO_APP
-	lw	a1,-20(s0)		#, retcode
-	li	a0,0		#,
-	call	step6_print_result		#
-# main.c:401:         return retcode;
-	lw	a5,-20(s0)		# _14, retcode
-	j	.L32		#
-.L33:
-# main.c:405:     if (status_val & STATUS_ANY_ERROR) {
-	lw	a5,-24(s0)		# tmp153, status_val
-	andi	a5,a5,4	#, _8, tmp153
-# main.c:405:     if (status_val & STATUS_ANY_ERROR) {
-	beq	a5,zero,.L34	#, _8,,
-# main.c:406:         retcode = -1;
-	li	a5,-1		# tmp154,
-	sw	a5,-20(s0)	# tmp154, retcode
-# main.c:407:         DMEM->STATUS  = status_val;
-	li	a5,268435456		# _9,
-# main.c:407:         DMEM->STATUS  = status_val;
-	lw	a4,-24(s0)		# tmp155, status_val
-	sw	a4,84(a5)	# tmp155, _9->STATUS
-# main.c:408:         DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	li	a5,268435456		# _10,
-# main.c:408:         DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	lw	a4,-20(s0)		# retcode.3_11, retcode
-# main.c:408:         DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-	sw	a4,88(a5)	# retcode.3_11, _10->RETCODE
-# main.c:409:         __asm__ volatile ("fence w,w" ::: "memory");
+	call	plic_init_ascon		#
+# main.c:289:     mie_enable_external();
+	call	mie_enable_external		#
+# main.c:290:     mstatus_enable_irq();
+	call	mstatus_enable_irq		#
+# main.c:294:     g_stream.ptext    = g_plaintext;
+	lui	a5,%hi(g_stream)	# tmp146,
+	addi	a5,a5,%lo(g_stream)	# tmp147, tmp146,
+	lui	a4,%hi(g_plaintext)	# tmp149,
+	addi	a4,a4,%lo(g_plaintext)	# tmp148, tmp149,
+	sw	a4,0(a5)	# tmp148, g_stream.ptext
+# main.c:295:     g_stream.n_blocks = N_BLOCKS;
+	lui	a5,%hi(g_stream)	# tmp150,
+	addi	a5,a5,%lo(g_stream)	# tmp151, tmp150,
+	li	a4,4		# tmp152,
+	sw	a4,4(a5)	# tmp152, g_stream.n_blocks
+# main.c:296:     g_stream.key[0]   = g_key[0];
+	li	a5,1122304		# tmp153,
+	addi	a4,a5,563	#, _1, tmp153
+# main.c:296:     g_stream.key[0]   = g_key[0];
+	lui	a5,%hi(g_stream)	# tmp154,
+	addi	a5,a5,%lo(g_stream)	# tmp155, tmp154,
+	sw	a4,8(a5)	# _1, g_stream.key[0]
+# main.c:297:     g_stream.key[1]   = g_key[1];
+	li	a5,1146445824		# tmp156,
+	addi	a4,a5,1655	#, _2, tmp156
+# main.c:297:     g_stream.key[1]   = g_key[1];
+	lui	a5,%hi(g_stream)	# tmp157,
+	addi	a5,a5,%lo(g_stream)	# tmp158, tmp157,
+	sw	a4,12(a5)	# _2, g_stream.key[1]
+# main.c:298:     g_stream.key[2]   = g_key[2];
+	li	a5,-2003193856		# tmp159,
+	addi	a4,a5,-1349	#, _3, tmp159
+# main.c:298:     g_stream.key[2]   = g_key[2];
+	lui	a5,%hi(g_stream)	# tmp160,
+	addi	a5,a5,%lo(g_stream)	# tmp161, tmp160,
+	sw	a4,16(a5)	# _3, g_stream.key[2]
+# main.c:299:     g_stream.key[3]   = g_key[3];
+	li	a5,-857870336		# tmp162,
+	addi	a4,a5,-257	#, _4, tmp162
+# main.c:299:     g_stream.key[3]   = g_key[3];
+	lui	a5,%hi(g_stream)	# tmp163,
+	addi	a5,a5,%lo(g_stream)	# tmp164, tmp163,
+	sw	a4,20(a5)	# _4, g_stream.key[3]
+# main.c:300:     g_stream.nonce[0] = g_nonce[0];
+	li	a5,-559038464		# tmp165,
+	addi	a4,a5,-273	#, _5, tmp165
+# main.c:300:     g_stream.nonce[0] = g_nonce[0];
+	lui	a5,%hi(g_stream)	# tmp166,
+	addi	a5,a5,%lo(g_stream)	# tmp167, tmp166,
+	sw	a4,24(a5)	# _5, g_stream.nonce[0]
+# main.c:301:     g_stream.nonce[1] = g_nonce[1];
+	li	a5,-889274368		# tmp168,
+	addi	a4,a5,-1346	#, _6, tmp168
+# main.c:301:     g_stream.nonce[1] = g_nonce[1];
+	lui	a5,%hi(g_stream)	# tmp169,
+	addi	a5,a5,%lo(g_stream)	# tmp170, tmp169,
+	sw	a4,28(a5)	# _6, g_stream.nonce[1]
+# main.c:302:     g_stream.nonce[2] = g_nonce[2];
+	li	a5,19087360		# tmp171,
+	addi	a4,a5,1383	#, _7, tmp171
+# main.c:302:     g_stream.nonce[2] = g_nonce[2];
+	lui	a5,%hi(g_stream)	# tmp172,
+	addi	a5,a5,%lo(g_stream)	# tmp173, tmp172,
+	sw	a4,32(a5)	# _7, g_stream.nonce[2]
+# main.c:303:     g_stream.nonce[3] = g_nonce[3];
+	li	a5,-1985228800		# tmp174,
+	addi	a4,a5,-529	#, _8, tmp174
+# main.c:303:     g_stream.nonce[3] = g_nonce[3];
+	lui	a5,%hi(g_stream)	# tmp175,
+	addi	a5,a5,%lo(g_stream)	# tmp176, tmp175,
+	sw	a4,36(a5)	# _8, g_stream.nonce[3]
+# main.c:307:     int r = ascon_stream_start();
+	call	ascon_stream_start		#
+	sw	a0,-20(s0)	#, r
+# main.c:308:     if (r != 0) {
+	lw	a5,-20(s0)		# tmp177, r
+	beq	a5,zero,.L44	#, tmp177,,
+# main.c:310:         return r;
+	lw	a5,-20(s0)		# _11, r
+	j	.L43		#
+.L45:
+# main.c:333:         __asm__ volatile ("wfi");
  #APP
-# 409 "main.c" 1
-	fence w,w
+# 333 "main.c" 1
+	wfi
 # 0 "" 2
-# main.c:410:         ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
  #NO_APP
-	li	a5,536870912		# _12,
-	li	a4,2		# tmp156,
-	sw	a4,0(a5)	# tmp156, _12->CTRL
- #APP
-# 410 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 410 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:411:         step6_print_result(status_val, retcode);
- #NO_APP
-	lw	a1,-20(s0)		#, retcode
-	lw	a0,-24(s0)		#, status_val
-	call	step6_print_result		#
-# main.c:412:         return retcode;
-	lw	a5,-20(s0)		# _14, retcode
-	j	.L32		#
-.L34:
-# main.c:416:     step5_copy_results_to_dmem(status_val, 0);
-	li	a1,0		#,
-	lw	a0,-24(s0)		#, status_val
-	call	step5_copy_results_to_dmem		#
-# main.c:419:     step6_print_result(status_val, 0);
-	li	a1,0		#,
-	lw	a0,-24(s0)		#, status_val
-	call	step6_print_result		#
-# main.c:422:     ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
-	li	a5,536870912		# _13,
-	li	a4,2		# tmp157,
-	sw	a4,0(a5)	# tmp157, _13->CTRL
- #APP
-# 422 "main.c" 1
-	fence w,w
-# 0 "" 2
-# 422 "main.c" 1
-	nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-nop
-
-# 0 "" 2
-# main.c:424:     return 0;
- #NO_APP
-	li	a5,0		# _14,
-.L32:
-# main.c:425: }
+.L44:
+# main.c:332:     while (!g_stream.done) {
+	lui	a5,%hi(g_stream)	# tmp178,
+	addi	a5,a5,%lo(g_stream)	# tmp179, tmp178,
+	lw	a5,428(a5)		# _9, g_stream.done
+# main.c:332:     while (!g_stream.done) {
+	beq	a5,zero,.L45	#, _9,,
+# main.c:345:     mstatus_disable_irq();
+	call	mstatus_disable_irq		#
+# main.c:346:     ASCON_WRITE(ASCON->IRQ_EN, 0u);
+	li	a5,536870912		# _10,
+	sw	zero,12(a5)	#, _10->IRQ_EN
+# main.c:348:     return 0;
+	li	a5,0		# _11,
+.L43:
+# main.c:349: }
 	mv	a0,a5	#, <retval>
 	lw	ra,28(sp)		#,
 	lw	s0,24(sp)		#,
-	lw	s1,20(sp)		#,
 	addi	sp,sp,32	#,,
 	jr	ra		#
 	.size	main, .-main

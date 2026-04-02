@@ -1,139 +1,34 @@
 /*
- * main_v14.c  —  ASCON-128 DMA Firmware with Cache Coherency Fix
+ * main_stream.c — Interrupt-driven ASCON-128 Streaming Firmware
  *
- * ============================================================================
- * FIXES SO VỚI v13
- * ============================================================================
+ * Flow:
+ *   1. CPU init PLIC + enable M-mode IRQ
+ *   2. CPU ghi block 0 → kick DMA → làm việc khác
+ *   3. ASCON xong → IRQ → ascon_isr():
+ *        - lấy kết quả block N
+ *        - nếu còn block N+1: kick tiếp
+ *        - nếu hết: g_stream.done = 1
+ *   4. CPU poll g_stream.done (hoặc WFI) rồi in kết quả
  *
- * FIX-M (CRITICAL — Cache Coherency: CPU write vs DMA read):
- *   v13: CPU writes plaintext to DMEM via DCache (M1), but DMA reads directly
- *        from SRAM (M2) bypassing cache. NO cache flush between CPU write and
- *        DMA read → DMA may read stale/zero data instead of plaintext.
- *   
- *   Root cause: fence w,w (write-write fence) ensures write ordering but NOT
- *        DCache writeback to main memory. Need fence w,r or full fence.
- *   
- *   FIX: 
- *     - step1_write_ptext_to_dmem(): Changed "fence w,w" → full "fence"
- *       (ensures DCache writeback to SRAM before DMA access)
- *     - step3_kick_dma(): Added full "fence" before CTRL_DMA_START pulse
- *       (ensures all MMIO config + DCache writeback complete before DMA begins)
- *   
- *   Timeline (CORRECT after fix):
- *      step1: CPU writes ptext_0, ptext_1 → fence → writeback to SRAM ✓
- *      step2: Config ASCON (modes, keys, nonce)
- *      step3: Write DMA config → fence w,w × 3 + 32 NOP → full fence → START
- *      DMA: Reads from SRAM (guaranteed fresh data)
+ * Upgrade path:
+ *   Khi có SoC DMA: thay ascon_feed_block_cpu() bằng hàm SoC DMA,
+ *   phần còn lại (ISR, PLIC, ASCON config) giữ nguyên.
  *
- * FIX-J (UART_TX offset):
- *   v12: offset 0x00 sai → v13+: offset 0x04 đúng (Xilinx AXI UART Lite)
- *
- * FIX-K (Stack bottom assertion):
- *   v12: 0x10001F00 sai → v13+: 0x10001000 đúng (DMEM_STACK bottom)
- *
- * FIX-L (CTEXT snapshot):
- *   v12: Missing CTEXT snapshot → v13+: Added (though DMA already wrote to DMEM)
- *
- * ============================================================================
- *
- * COMPILE:
- *   ./compile_c_to_hex.sh -i main.c -o program.hex -v
- *
- * Kiểm tra assembly sau compile:
- *   CTRL_SOFT_RST write: phải thấy `li aN, 2` (KHÔNG phải 8).
- *   UART write:          phải thấy offset 4 (sw aX, 4(aY)).
- *   DMA_SRC write:       phải thấy `sw aX, 256(aY)` với aX = 0x10000000.
- *   _start:              phải thấy `lui x2, 0x10002` rồi call main NGAY,
- *                        KHÔNG có addi sp,sp,-N ở giữa.
+ * Compile:
+ *   ./compile_c_to_hex.sh -i main_stream.c -o program.hex -O 0
  */
 
 #include <stdint.h>
 #include "ascon_regs.h"
 #include "dmem_layout.h"
-/* KHÔNG include uart_drv.h — dùng UART inline bên dưới */
+#include "plic_drv.h"
+#include "ascon_stream.h"
 
-/* ==========================================================================
- * SECTION 1: UART
- *
- * FIX-J: offset 0x04 (AXI UART Lite / Xilinx style).
- * TB log phải thấy: [S5-UART] WRITE offset=0x04 data=0x4F ('O')
- * Nếu không thấy → thử đổi lại 0x00.
- * ========================================================================== */
+/* ============================================================
+ * SECTION 1: UART (inline, no poll)
+ * ============================================================ */
 #define UART_BASE   0x50000000UL
-#define UART_TX     (*((volatile uint32_t *)(UART_BASE + 0x04UL)))  /* FIX-J */
-
-/* ==========================================================================
- * SECTION 2: TEST VECTOR
- * ========================================================================== */
-#define PTEXT_LEN    8u
-#define PTEXT_WORD0  0x6C6C6548u   /* little-endian: 'H','e','l','l' */
-#define PTEXT_WORD1  0x0000216Fu   /* little-endian: 'o','!',0x00,0x00 */
-
-#define CFG_KEY_0    0x00112233u
-#define CFG_KEY_1    0x44556677u
-#define CFG_KEY_2    0x8899AABBu
-#define CFG_KEY_3    0xCCDDEEFFu
-
-#define CFG_NONCE_0  0xDEADBEEFu
-#define CFG_NONCE_1  0xCAFEBABEu
-#define CFG_NONCE_2  0x01234567u
-#define CFG_NONCE_3  0x89ABCDEFu
-
-#define DMEM_BASE    0x10000000UL
-
-#define POLL_TIMEOUT          5000u
-#define RESET_POLL_TIMEOUT    256u
-
-/* ==========================================================================
- * SECTION 2b: STATIC ASSERTS
- * ========================================================================== */
-
-/*
- * FIX-K: Ngưỡng đúng = DMEM_STACK bottom = 0x10001000
- * (compile_c_to_hex.sh v2.7: DMEM_STACK ORIGIN=0x10001000, LENGTH=4K)
- * RETCODE tại 0x10000058 < 0x10001000 → OK, không bao giờ overlap stack.
- */
-_Static_assert(
-    (0x10000000UL + 0x0058UL + 4u) < 0x10001000UL,
-    "RETCODE overlap DMEM_STACK bottom!"
-);
-
-/* BUG-E guard */
-_Static_assert(CTRL_SOFT_RST == 0x02u,
-    "BUG-E: CTRL_SOFT_RST phai la 0x02");
-_Static_assert(CTRL_DMA_START == 0x05u,
-    "CTRL_DMA_START phai la 0x05");
-
-/* ==========================================================================
- * SECTION 3: MACROS
- * ========================================================================== */
-
-/*
- * ASCON_WRITE: ghi MMIO + fence + 32 NOP gap.
- * 32 NOP ≈ 320ns @ 100MHz — đủ cho AXI write settle trước write tiếp theo.
- */
-#define ASCON_WRITE(reg, val)                                        \
-    do {                                                             \
-        (reg) = (uint32_t)(val);                                     \
-        __asm__ volatile ("fence w,w" ::: "memory");                 \
-        __asm__ volatile (                                           \
-            "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"              \
-            "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"              \
-            "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"              \
-            "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"              \
-            ::: "memory"                                             \
-        );                                                           \
-    } while (0)
-
-/* MB: compiler barrier, không sinh instruction */
-#define MB()  __asm__ volatile ("" ::: "memory")
-
-/* ==========================================================================
- * SECTION 4: UART TX
- *
- * Dùng 16 NOP gap thay vì delay loop — tổng time TX không bị giới hạn
- * bởi watchdog, UART FIFO tự buffer các byte.
- * ========================================================================== */
+#define UART_TX     (*((volatile uint32_t *)(UART_BASE + 0x00UL)))
 
 __attribute__((optimize("O0"), noinline))
 static void uart_putc(char c)
@@ -148,10 +43,18 @@ static void uart_putc(char c)
 }
 
 __attribute__((optimize("O0"), noinline))
-static void uart_puts(const char *s)
+static void uart_puts(const char *s) { while (*s) uart_putc(*s++); }
+
+__attribute__((optimize("O0"), noinline))
+static void uart_init(void)
 {
-    while (*s)
-        uart_putc(*s++);
+    /* Set baud rate for 115200 @ 100MHz = 867 */
+    *((volatile uint32_t *)(UART_BASE + 0x10)) = 867u;
+    __asm__ volatile ("fence w,w" ::: "memory");
+    
+    /* Enable TX (bit 0 = tx_irq_en) */
+    *((volatile uint32_t *)(UART_BASE + 0x0C)) = 0x1;
+    __asm__ volatile ("fence w,w" ::: "memory");
 }
 
 __attribute__((optimize("O0"), noinline))
@@ -171,289 +74,276 @@ static void uart_puthex32(uint32_t v)
     uart_puthex8((uint8_t)(v      ));
 }
 
-/* ==========================================================================
- * SECTION 5: STEP 1 — GHI PLAINTEXT VÀO DMEM
+/* ============================================================
+ * SECTION 2: TEST DATA
  *
- * FIX: Cache Coherency
- *   CPU writes to DMEM via DCache (M1). DMA reads directly from SRAM (M2).
- *   MUST use fence w,r (or full fence) to ensure DCache writeback to SRAM
- *   before DMA access. Otherwise DMA may read stale/zero data.
- *
- * Fence hierarchy:
- *   fence w,w  → write-write ordering (insufficient for cache coherency)
- *   fence w,r  → write-read fence (ensures writeback before DMA read)
- *   fence      → full fence (safest, rw,rw ordering)
- * ========================================================================== */
+ * 4 blocks × 8 bytes = 32 bytes plaintext.
+ * Layout: ptext[block*8 .. block*8+7]
+ * Dùng chung key/nonce cho tất cả blocks (demo).
+ * Production: nên increment nonce mỗi block.
+ * ============================================================ */
+#define N_BLOCKS  4u
 
+static const uint8_t g_plaintext[N_BLOCKS * ASCON_BLOCK_SIZE] = {
+    /* Block 0: "Hello!  " */
+    0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x21, 0x00, 0x00,
+    /* Block 1: "Block01 " */
+    0x42, 0x6C, 0x6F, 0x63, 0x6B, 0x30, 0x31, 0x20,
+    /* Block 2: "Block02 " */
+    0x42, 0x6C, 0x6F, 0x63, 0x6B, 0x30, 0x32, 0x20,
+    /* Block 3: "Block03 " */
+    0x42, 0x6C, 0x6F, 0x63, 0x6B, 0x30, 0x33, 0x20,
+};
+
+static const uint32_t g_key[4] = {
+    0x00112233u, 0x44556677u, 0x8899AABBu, 0xCCDDEEFFu
+};
+
+static const uint32_t g_nonce[4] = {
+    0xDEADBEEFu, 0xCAFEBABEu, 0x01234567u, 0x89ABCDEFu
+};
+
+/* ============================================================
+ * SECTION 3: STREAM CONTEXT (global singleton)
+ * ============================================================ */
+AsconStream_t g_stream;
+
+/* ============================================================
+ * SECTION 4: ISR IMPLEMENTATION
+ *
+ * Được gọi từ trap_handler() khi PLIC source 8 (ASCON) pending.
+ *
+ * CRITICAL ordering:
+ *   a) PLIC claim TRƯỚC khi đọc ASCON registers
+ *      → nếu claim sau, PLIC có thể re-assert trước khi ta complete
+ *   b) PLIC complete SAU khi xử lý xong
+ *      → complete trước làm PLIC accept IRQ mới trong khi ta chưa xong
+ *   c) SOFT_RST để clear key/nonce trong ASCON registers (security)
+ *   d) Nếu còn block tiếp: kick TRƯỚC khi return từ ISR
+ *      → tối thiểu latency giữa các blocks
+ * ============================================================ */
 __attribute__((optimize("O0"), noinline))
-static void step1_write_ptext_to_dmem(void)
+void ascon_isr(void)
 {
-    DMEM->PTEXT_0 = PTEXT_WORD0;   /* 0x10000000 ← 0x6C6C6548 */
-    MB();
-    DMEM->PTEXT_1 = PTEXT_WORD1;   /* 0x10000004 ← 0x0000216F */
-    
-    /* [FIX-CACHE] Write-read fence: ensure DCache writeback to SRAM
-       before DMA (M2) reads plaintext. Full fence guarantees all ordering. */
-    __asm__ volatile ("fence" ::: "memory");
-}
+    /* a) PLIC claim — lấy source ID */
+    uint32_t src = plic_claim();
 
-/* ==========================================================================
- * SECTION 6: STEP 2 — RESET VÀ CẤU HÌNH ASCON
- *
- * Thứ tự: SOFT_RST → poll CORE_BUSY==0 → MODE → IRQ_EN → KEY → NONCE → LEN
- * Timeout → return -3 NGAY, không rơi xuống config (BUG-H guard).
- * ========================================================================== */
-
-__attribute__((optimize("O0"), noinline))
-static int step2_reset_and_config(void)
-{
-    uint32_t st;
-    uint32_t to;
-
-    /* SOFT_RST = 0x02 (BUG-E FIX) */
-    ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
-
-    /* 64 NOP delay — core internal reset */
-    __asm__ volatile (
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        ::: "memory"
-    );
-
-    /* Poll CORE_BUSY == 0 */
-    to = RESET_POLL_TIMEOUT;
-    do {
-        st = ascon_read_status();
-        if (!(st & STATUS_CORE_BUSY)) break;
-        __asm__ volatile ("nop\nnop\nnop\nnop\n" ::: "memory");
-        to--;
-    } while (to > 0u);
-
-    if (st & STATUS_CORE_BUSY) {
-        DMEM->STATUS  = st;
-        DMEM->RETCODE = (uint32_t)(int32_t)(-3);
-        __asm__ volatile ("fence w,w" ::: "memory");
-        return -3;
-    }
-
-    /* Config: MODE → IRQ_EN → KEY[0..3] → NONCE[0..3] → DATA_LEN */
-    ASCON_WRITE(ASCON->MODE,     MODE_ENCRYPT);
-    ASCON_WRITE(ASCON->IRQ_EN,   0u);
-    ASCON_WRITE(ASCON->KEY_0,    CFG_KEY_0);
-    ASCON_WRITE(ASCON->KEY_1,    CFG_KEY_1);
-    ASCON_WRITE(ASCON->KEY_2,    CFG_KEY_2);
-    ASCON_WRITE(ASCON->KEY_3,    CFG_KEY_3);
-    ASCON_WRITE(ASCON->NONCE_0,  CFG_NONCE_0);
-    ASCON_WRITE(ASCON->NONCE_1,  CFG_NONCE_1);
-    ASCON_WRITE(ASCON->NONCE_2,  CFG_NONCE_2);
-    ASCON_WRITE(ASCON->NONCE_3,  CFG_NONCE_3);
-    ASCON_WRITE(ASCON->DATA_LEN, (uint32_t)(PTEXT_LEN & DATA_LEN_MASK));
-
-    return 0;
-}
-
-/* ==========================================================================
- * SECTION 7: STEP 3 — KICK ASCON DMA
- *
- * Sequence: DMA_SRC → DMA_DST → DMA_LEN → [BARRIER] → CTRL_DMA_START
- *
- * [FIX-CACHE] Barrier ordering:
- *   - ASCON_WRITE() macro includes fence w,w + 32 NOP for each register
- *   - Before pulsing DMA_START, ensure all prior writes are globally visible
- *   - 3× fence + 32 NOP + full fence before START ensures:
- *     1. All MMIO writes to ASCON config registers (S2) are complete
- *     2. All DCache writebacks for DMA registers are flushed to main memory
- *     3. DMA engine sees consistent state before being kicked
- *
- * DMA_LEN semantics:
- *   = 8: input (only plaintext), RTL outputs ciphertext + tag = 24 bytes
- *   = 24: output (all), if different RTL interpretation used 
- * ========================================================================== */
-
-__attribute__((optimize("O0"), noinline))
-static void step3_kick_dma(void)
-{
-    ASCON_WRITE(ASCON->DMA_SRC, (uint32_t)(DMEM_BASE + 0x0000UL)); /* PTEXT_0 */
-    ASCON_WRITE(ASCON->DMA_DST, DMEM_DMA_OUTPUT_ADDR);             /* CTEXT_0 */
-    ASCON_WRITE(ASCON->DMA_LEN, DMEM_DMA_INPUT_LEN);               /* = 8     */
-
-    /* Triple fence barrier (write-write) + 32 NOP gap */
-    __asm__ volatile ("fence w,w" ::: "memory");
-    __asm__ volatile ("fence w,w" ::: "memory");
-    __asm__ volatile ("fence w,w" ::: "memory");
-    __asm__ volatile (
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        ::: "memory"
-    );
-
-    /* Full fence before START pulse to guarantee all prior ordering */
-    __asm__ volatile ("fence" ::: "memory");
-
-    /* CTRL = DMA_EN | START = 0x05 */
-    ASCON_WRITE(ASCON->CTRL, CTRL_DMA_START);
-
-    /* Post-kick gap */
-    __asm__ volatile (
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        "nop\nnop\nnop\nnop\nnop\nnop\nnop\nnop\n"
-        ::: "memory"
-    );
-}
-
-/* ==========================================================================
- * SECTION 8: STEP 4 — POLL STATUS.DMA_DONE
- * ========================================================================== */
-
-__attribute__((optimize("O0"), noinline))
-static uint32_t step4_poll_done(void)
-{
-    uint32_t st;
-    uint32_t to = POLL_TIMEOUT;
-
-    do {
-        st = ascon_read_status();
-        if (st & STATUS_ANY_ERROR) return st;
-        if (st & STATUS_DMA_DONE)  return st;
-        to--;
-    } while (to > 0u);
-
-    return 0u;  /* timeout */
-}
-
-/* ==========================================================================
- * SECTION 9: STEP 5 — COPY RESULTS + LƯU DEBUG VÀO DMEM
- *
- * FIX-L: Snapshot cả CTEXT (từ DMEM, DMA đã ghi) và TAG (từ ASCON regs).
- * ========================================================================== */
-
-__attribute__((optimize("O0"), noinline))
-static void step5_copy_results_to_dmem(uint32_t status_val, int retcode)
-{
-    /*
-     * CTEXT: DMA đã ghi vào DMEM->CTEXT_0/1 trực tiếp.
-     * Không cần copy lại — chỉ đọc để xác nhận TB scoreboard.
-     * (DMEM->CTEXT_0 đã = output DMA)
-     */
-
-    /* TAG: đọc từ ASCON registers sau DMA_DONE */
-    DMEM->TAG_0 = ASCON->TAG_0;  MB();
-    DMEM->TAG_1 = ASCON->TAG_1;  MB();
-    DMEM->TAG_2 = ASCON->TAG_2;  MB();
-    DMEM->TAG_3 = ASCON->TAG_3;  MB();
-
-    DMEM->DATALEN = PTEXT_LEN;
-    DMEM->STATUS  = status_val;
-    DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-
-    __asm__ volatile ("fence w,w" ::: "memory");
-}
-
-/* ==========================================================================
- * SECTION 10: STEP 6 — IN KẾT QUẢ RA UART
- *
- * Format output:
- *   OK\r\n          — thành công
- *   C:XXXXXXXXXXXXXXXX\r\n  — ciphertext (8 bytes hex)
- *   T:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\r\n  — tag (16 bytes hex)
- *   E:RST\r\n       — reset timeout
- *   E:TMO\r\n       — DMA poll timeout
- *   E:XX\r\n        — error (STATUS byte hex)
- * ========================================================================== */
-
-__attribute__((optimize("O0"), noinline))
-static void step6_print_result(uint32_t status_val, int retcode)
-{
-    if (retcode != 0) {
-        if (retcode == -3) {
-            uart_puts("E:RST\r\n");
-        } else if (retcode == -2) {
-            uart_puts("E:TMO\r\n");
-        } else {
-            uart_puts("E:");
-            uart_puthex8((uint8_t)(status_val & 0xFFu));
-            uart_puts("\r\n");
-        }
+    /* Spurious IRQ guard */
+    if (src != PLIC_SRC_ASCON) {
+        if (src != 0u) plic_complete(src);
         return;
     }
 
-    /* retcode == 0: in ciphertext + tag */
-    uart_puts("OK\r\n");
-    uart_puts("C:");
-    uart_puthex32(DMEM->CTEXT_0);
-    uart_puthex32(DMEM->CTEXT_1);
-    uart_puts("\r\n");
-    uart_puts("T:");
-    uart_puthex32(DMEM->TAG_0);
-    uart_puthex32(DMEM->TAG_1);
-    uart_puthex32(DMEM->TAG_2);
-    uart_puthex32(DMEM->TAG_3);
-    uart_puts("\r\n");
+    /* Đọc STATUS */
+    uint32_t st = ascon_read_status();
+
+    /* Lỗi: ghi nhận và abort */
+    if (st & STATUS_ANY_ERROR) {
+        g_stream.error = st;
+        ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
+        plic_complete(src);
+        g_stream.done = 1u;
+        return;
+    }
+
+    /* Lấy kết quả block hiện tại */
+    uint32_t blk = g_stream.cur_block;
+    if (blk < STREAM_MAX_BLOCKS) {
+        AsconBlockOut_t *out = &g_stream.out[blk];
+
+        /*
+         * ctext: DMA đã ghi vào DMEM->CTEXT_0/1.
+         * Đọc từ DMEM (không phải ASCON regs) vì DMA write vào SRAM.
+         */
+        out->ctext[0] = DMEM->CTEXT_0;
+        __asm__ volatile ("" ::: "memory");
+        out->ctext[1] = DMEM->CTEXT_1;
+        __asm__ volatile ("" ::: "memory");
+
+        /*
+         * tag: đọc từ ASCON registers TAG_0..3
+         * (valid sau DMA_DONE, trước SOFT_RST)
+         */
+        out->tag[0] = ASCON->TAG_0;
+        __asm__ volatile ("" ::: "memory");
+        out->tag[1] = ASCON->TAG_1;
+        __asm__ volatile ("" ::: "memory");
+        out->tag[2] = ASCON->TAG_2;
+        __asm__ volatile ("" ::: "memory");
+        out->tag[3] = ASCON->TAG_3;
+        __asm__ volatile ("" ::: "memory");
+    }
+
+    /* Security: clear key/nonce bằng SOFT_RST */
+    ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
+
+    /* b) PLIC complete — báo đã xử lý xong IRQ này */
+    plic_complete(src);
+
+    /* Advance block index */
+    uint32_t next = blk + 1u;
+    g_stream.cur_block = next;
+
+    if (next < g_stream.n_blocks) {
+        /*
+         * Còn block tiếp: feed + config + kick ngay trong ISR.
+         * CPU tiếp tục làm việc khác sau khi ISR return.
+         */
+        ascon_feed_block_cpu(next);
+
+        int r = ascon_config_block();
+        if (r != 0) {
+            g_stream.error = (uint32_t)(int32_t)r;
+            g_stream.done  = 1u;
+            return;
+        }
+
+        ascon_kick_dma();
+        /* ISR return: CPU tiếp tục, ASCON chạy ngầm */
+
+    } else {
+        /* Tất cả blocks xong */
+        g_stream.done = 1u;
+    }
 }
 
-/* ==========================================================================
- * SECTION 11: MAIN
- * ========================================================================== */
+/* ============================================================
+ * SECTION 5: TRAP HANDLER
+ *
+ * RISC-V M-mode trap entry point.
+ * Đăng ký bằng cách ghi địa chỉ vào mtvec (direct mode).
+ *
+ * mcause bit[31]=1 → interrupt
+ * mcause[3:0]=11   → machine external interrupt (MEIP)
+ * ============================================================ */
+__attribute__((interrupt("machine"), aligned(4)))
+void trap_handler(void)
+{
+    uint32_t mcause;
+    __asm__ volatile ("csrr %0, mcause" : "=r"(mcause));
 
+    /* Interrupt bit set + MEIP (cause=11) */
+    if ((mcause & 0x80000000u) && ((mcause & 0xFFFFu) == 11u)) {
+        ascon_isr();
+    }
+    /* Các exception khác: ignore hoặc xử lý tại đây */
+}
+
+/* ============================================================
+ * SECTION 6: PRINT RESULTS
+ * ============================================================ */
+static void print_results(void)
+{
+    if (g_stream.error != 0u) {
+        uart_puts("E:STS=");
+        uart_puthex32(g_stream.error);
+        uart_puts("\r\n");
+        return;
+    }
+
+    uart_puts("OK n=");
+    uart_puthex8((uint8_t)g_stream.n_blocks);
+    uart_puts("\r\n");
+
+    for (uint32_t i = 0u; i < g_stream.n_blocks; i++) {
+        uart_puts("B");
+        uart_puthex8((uint8_t)i);
+        uart_puts(" C:");
+        uart_puthex32(g_stream.out[i].ctext[0]);
+        uart_puthex32(g_stream.out[i].ctext[1]);
+        uart_puts(" T:");
+        uart_puthex32(g_stream.out[i].tag[0]);
+        uart_puthex32(g_stream.out[i].tag[1]);
+        uart_puthex32(g_stream.out[i].tag[2]);
+        uart_puthex32(g_stream.out[i].tag[3]);
+        uart_puts("\r\n");
+    }
+}
+
+/* ============================================================
+ * SECTION 7: MAIN
+ * ============================================================ */
 int main(void)
 {
-    uint32_t status_val;
-    int      retcode;
+    /* ── Init UART ─────────────────────────────────────────── */
+    // uart_init();
+    
+    /* ── Setup trap vector ─────────────────────────────────── */
+    // uart_puts("MAIN: Start\n");
+    /*
+     * Ghi địa chỉ trap_handler vào mtvec (direct mode, bit[1:0]=0).
+     * Sử dụng assembly để load địa chỉ tuyệt đối.
+     */
+    __asm__ volatile (
+        "la   t0, trap_handler\n"
+        "csrw mtvec, t0\n"
+        ::: "t0", "memory"
+    );
+    // uart_puts("MAIN: mtvec set\n");
 
-    /* STEP 1: Ghi plaintext vào DMEM */
-    step1_write_ptext_to_dmem();
+    /* ── Init PLIC ─────────────────────────────────────────── */
+    plic_init_ascon();
+    // uart_puts("MAIN: PLIC init\n");
 
-    /* STEP 2: Reset + config ASCON */
-    retcode = step2_reset_and_config();
-    if (retcode != 0) {
-        step6_print_result(DMEM->STATUS, retcode);
-        return retcode;
+    /* ── Enable M-mode interrupts ──────────────────────────── */
+    mie_enable_external();
+    mstatus_enable_irq();
+    // uart_puts("MAIN: IRQs enabled\n");
+
+    /* ── Chuẩn bị stream context ───────────────────────────── */
+    g_stream.ptext    = g_plaintext;
+    g_stream.n_blocks = N_BLOCKS;
+    g_stream.key[0]   = g_key[0];
+    g_stream.key[1]   = g_key[1];
+    g_stream.key[2]   = g_key[2];
+    g_stream.key[3]   = g_key[3];
+    g_stream.nonce[0] = g_nonce[0];
+    g_stream.nonce[1] = g_nonce[1];
+    g_stream.nonce[2] = g_nonce[2];
+    g_stream.nonce[3] = g_nonce[3];
+    // uart_puts("MAIN: Stream context set\n");
+
+    /* ── Kick block 0 ──────────────────────────────────────── */
+    int r = ascon_stream_start();
+    if (r != 0) {
+        // uart_puts("E:RST\r\n");
+        return r;
+    }
+    // uart_puts("MAIN: Stream started\n");
+
+    /*
+     * ── CPU làm việc khác trong khi ASCON chạy ─────────────
+     *
+     * Đây là phần CPU "other work". Trong demo: chỉ in thông báo.
+     * Production: xử lý dữ liệu, giao tiếp UART/SPI, v.v.
+     *
+     * KHÔNG được động vào DMEM PTEXT/CTEXT vùng đang dùng
+     * cho đến khi g_stream.done = 1.
+     */
+    // uart_puts("CPU: working...\r\n");
+
+    /*
+     * Vòng lặp chờ: dùng WFI để CPU vào low-power khi idle.
+     * ISR tự kick block tiếp, main chỉ chờ done flag.
+     *
+     * Thay "while (!g_stream.done)" bằng logic khác nếu muốn
+     * CPU làm việc thực sự thay vì WFI.
+     */
+    while (!g_stream.done) {
+        __asm__ volatile ("wfi");
+        /*
+         * Sau WFI, CPU wake do IRQ → trap_handler → ascon_isr()
+         * → nếu xong: g_stream.done = 1, vòng lặp thoát.
+         *    nếu còn block: kick tiếp trong ISR, WFI lại.
+         */
     }
 
-    /* STEP 3: Kick DMA */
-    step3_kick_dma();
+    /* ── In kết quả ────────────────────────────────────────── */
+    // print_results();
 
-    /* STEP 4: Poll DMA_DONE */
-    status_val = step4_poll_done();
-
-    /* Timeout */
-    if (status_val == 0u) {
-        retcode = -2;
-        DMEM->STATUS  = ascon_read_status();
-        DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-        __asm__ volatile ("fence w,w" ::: "memory");
-        ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
-        step6_print_result(0u, retcode);
-        return retcode;
-    }
-
-    /* Error */
-    if (status_val & STATUS_ANY_ERROR) {
-        retcode = -1;
-        DMEM->STATUS  = status_val;
-        DMEM->RETCODE = (uint32_t)(int32_t)retcode;
-        __asm__ volatile ("fence w,w" ::: "memory");
-        ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
-        step6_print_result(status_val, retcode);
-        return retcode;
-    }
-
-    /* STEP 5: Copy results vào DMEM */
-    step5_copy_results_to_dmem(status_val, 0);
-
-    /* STEP 6: In kết quả */
-    step6_print_result(status_val, 0);
-
-    /* Security: clear KEY/NONCE bằng SOFT_RST */
-    ASCON_WRITE(ASCON->CTRL, CTRL_SOFT_RST);
+    /* ── Disable IRQ sau khi xong ──────────────────────────── */
+    mstatus_disable_irq();
+    ASCON_WRITE(ASCON->IRQ_EN, 0u);
 
     return 0;
 }
