@@ -253,13 +253,15 @@ module dma_ctrl_fsm (
                 // core_ptext_0/1 đã được latch từ cycle trước → ổn định.
                 // CORE samples data_in = {ptext_0, ptext_1} khi start=1.
                 S_CORE_START: begin
-                    core_data_valid <= 1'b0;
+                    core_data_valid <= 1'b1;
                     core_start      <= 1'b1;   // 1-cycle pulse
                     state           <= S_CORE_WAIT;
                 end
 
                 // ── Wait for ASCON core to finish ─────────────────────────────
                 S_CORE_WAIT: begin
+                    core_data_valid <= 1'b0;
+                    core_start      <= 1'b0;
                     if (core_done) begin
                         r_ctext_0   <= core_ctext_0;
                         r_ctext_1   <= core_ctext_1;

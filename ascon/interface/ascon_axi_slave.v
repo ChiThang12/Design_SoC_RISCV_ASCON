@@ -1,40 +1,28 @@
 // ============================================================================
 // Module  : ascon_axi_slave
-// Version : 2.2  (AXI4-Full slave + DATA_LEN register + BUG fixes)
+// Version : 2.3  (INCR burst support cho CPU memcpy Key/Nonce)
+//
+// Changes vs v2.2:
+//   FIX-INCR-BURST : WR_DATA không tăng wr_addr_lat qua các beat của burst.
+//                    Khi CPU dùng memcpy để nạp Key[127:0] hoặc Nonce[127:0],
+//                    GCC/CPU phát AXI INCR burst: AWLEN=3, 4 beat × 32-bit.
+//                    v2.2 decode tất cả 4 beat vào địa chỉ đầu (KEY_0),
+//                    KEY_1/KEY_2/KEY_3 không bao giờ được ghi → key sai.
+//                    Fix:
+//                      WR_IDLE: set WREADY=1 khi AW handshake (mở kênh W)
+//                      WR_DATA: decode mỗi beat WVALID ngay lập tức,
+//                               tăng wr_addr_lat += 4 nếu !WLAST,
+//                               chuyển WR_RESP chỉ khi WLAST=1.
 //
 // Changes vs v2.1:
 //   FIX-BUG-CTRL2 : core_start bị suppressed khi DMA_EN=1.
-//                   v2.1 pulse core_start=1 cả trong DMA mode, gây glitch
-//                   vào ascon_CORE trước khi DMA FSM sẵn sàng (race condition
-//                   với dma_core_start trong core_start_mux của ascon_top).
-//                   Fix: core_start chỉ pulse khi !dma_en (CPU-Direct mode).
-//                   Trong DMA mode, core được kick bởi dma_core_start từ FSM.
-//
-// Changes vs v2.1:
-//   FIX-BUG-AWREADY : WR_RESP không set AWREADY=1. Nếu AWREADY=1 trong khi
-//                     BVALID=1 chưa clear (WR_DONE cycle), master có thể
-//                     handshake AW mới nhưng WR_DONE bỏ qua → transaction LOST.
-//                     Fix: chuyển AWREADY=1 vào WR_DONE sau khi BVALID=0.
-//
-//   FIX-WLAST       : WR_DATA decode ngay beat đầu mà không check WLAST.
-//                     Với AWLEN>0 (burst), decode phải chờ beat cuối (WLAST=1).
-//                     Fix: thêm wr_wlast_lat, chỉ decode khi WLAST=1.
-//
-//   FIX-BUG-CTRL    : dma_start bị block bởi core_busy không cần thiết.
-//                     dma_start chỉ cần !dma_busy, không phụ thuộc core_busy.
-//                     Fix: tách điều kiện core_start và dma_start.
+//   FIX-BUG-AWREADY : AWREADY=1 chuyển sang WR_DONE (sau BVALID=0).
+//   FIX-WLAST       : Thêm wr_wlast_lat, decode khi WLAST=1.
+//   FIX-BUG-CTRL    : Tách điều kiện core_start / dma_start.
 //
 // Changes vs v1.9:
-//   FIX-BUG1 : Nâng cấp từ AXI4-Lite lên AXI4-Full slave.
-//               Thêm AWLEN/AWSIZE/AWBURST và ARLEN/ARSIZE/ARBURST vào port.
-//               Write FSM hỗ trợ burst: nhận đúng (AWLEN+1) beat data,
-//               chỉ decode beat cuối (WLAST).
-//               Read FSM hỗ trợ burst: phát (ARLEN+1) beat cùng một địa chỉ
-//               (fixed-register-read pattern cho register-mapped IP).
-//
-//   FIX-BUG2 : Thêm register ADDR_DATA_LEN (offset 0x05C).
-//               core_data_len không còn hardcode = 7'd8.
-//               CPU ghi số byte thực của PT vào register này trước khi start.
+//   FIX-BUG1 : Nâng cấp AXI4-Lite → AXI4-Full, burst read/write.
+//   FIX-BUG2 : Thêm register ADDR_DATA_LEN (offset 0x03C).
 // ============================================================================
 module ascon_axi_slave #(
     parameter ADDR_WIDTH = 32,
@@ -262,10 +250,14 @@ module ascon_axi_slave #(
                 ADDR_MODE:     reg_read_mux = {30'h0, reg_mode};
                 ADDR_IRQ_EN:   reg_read_mux = {29'h0, reg_irq_en};
                 ADDR_DATA_LEN: reg_read_mux = {25'h0, reg_data_len};   // FIX-BUG2
-                ADDR_KEY_0, ADDR_KEY_1,
-                ADDR_KEY_2, ADDR_KEY_3,
-                ADDR_NONCE_0, ADDR_NONCE_1,
-                ADDR_NONCE_2, ADDR_NONCE_3,
+                ADDR_KEY_0:    reg_read_mux = reg_key_0;
+                ADDR_KEY_1:    reg_read_mux = reg_key_1;
+                ADDR_KEY_2:    reg_read_mux = reg_key_2;
+                ADDR_KEY_3:    reg_read_mux = reg_key_3;
+                ADDR_NONCE_0:  reg_read_mux = reg_nonce_0;
+                ADDR_NONCE_1:  reg_read_mux = reg_nonce_1;
+                ADDR_NONCE_2:  reg_read_mux = reg_nonce_2;
+                ADDR_NONCE_3:  reg_read_mux = reg_nonce_3;
                 ADDR_PTEXT_0, ADDR_PTEXT_1: reg_read_mux = 32'h0;
                 ADDR_CTEXT_0: reg_read_mux = reg_ctext_0;
                 ADDR_CTEXT_1: reg_read_mux = reg_ctext_1;
@@ -348,30 +340,21 @@ module ascon_axi_slave #(
                     if (S_AXI_AWVALID && S_AXI_AWREADY) begin
                         wr_addr_lat   <= S_AXI_AWADDR[11:0];
                         wr_id_lat     <= S_AXI_AWID;
-                        // wr_len_lat removed
-                        // wr_beat_cnt removed
                         S_AXI_AWREADY <= 1'b0;
+                        S_AXI_WREADY  <= 1'b1;   // [FIX-INCR-BURST] mở sẵn WREADY để nhận burst
                         wr_state      <= WR_DATA;
                     end
                 end
 
                 // ── WR_DATA ──────────────────────────────────────────────────
-                // Hai trường hợp:
-                //   A) W đã pre-latch tại WR_IDLE: WREADY=0 → dùng wr_data_lat
-                //      Decode ngay cycle đầu tiên vào WR_DATA.
-                //   B) W chưa đến: WREADY=1 → chờ WVALID rồi decode khi WLAST.
-                // Với AWLEN=0 (single beat TB): WLAST luôn = 1.
-                // ── WR_DATA ──────────────────────────────────────────────────
-                // [FIX-WLAST] Decode chỉ khi nhận beat CUỐI (WLAST=1).
-                // Trường hợp A (W pre-latched, WREADY=0): WLAST=wr_wlast_lat
-                // Trường hợp B (W đến live, WREADY=1): WLAST=S_AXI_WLAST
-                // Với AWLEN=0 (single-beat): WLAST luôn=1 → không đổi behavior.
-                // Với AWLEN>0 (burst): chỉ decode khi WLAST=1 (beat cuối).
+                // [FIX-INCR-BURST] Hỗ trợ INCR burst từ CPU memcpy (nạp Key/Nonce).
+                // Mỗi beat WVALID ghi vào wr_addr_lat, sau đó tăng địa chỉ +4 byte.
+                // Chỉ chuyển sang WR_RESP khi WLAST=1 (beat cuối của burst).
+                // Pre-latch path (WREADY=0, wr_wlast_lat=1): đường A như cũ.
                 WR_DATA: begin
-                    if ((!S_AXI_WREADY && wr_wlast_lat) ||
-                        (S_AXI_WVALID && S_AXI_WREADY && S_AXI_WLAST)) begin
+                    if (S_AXI_WVALID && S_AXI_WREADY) begin
 
-                        // wr_exec_data/strb are now combinational wires (FIX-BLKSEQ)
+                        // 1. Ghi dữ liệu vào Register tại địa chỉ hiện tại
                         case (wr_addr_lat)
                             ADDR_CTRL: begin
                                 if (wr_exec_strb[0]) begin
@@ -379,17 +362,12 @@ module ascon_axi_slave #(
                                         core_soft_rst <= 1'b1;
                                         dma_soft_rst  <= 1'b1;
                                     end
-                                    // [FIX-BUG-CTRL] Tách điều kiện core_start và dma_start:
-                                    // core_start: bit[0]=1 AND core không bận AND DMA_EN=0
-                                    //   → khi DMA_EN=1, core_start do DMA FSM (dma_core_start)
-                                    //     điều khiển qua core_start_mux trong ascon_top.
-                                    //     Không được pulse slave_core_start — tránh glitch vào CORE
-                                    //     trước khi DMA FSM sẵn sàng.
-                                    // dma_start:  bit[0]=1 AND (DMA_EN bit hiện tại hoặc reg) AND !dma_busy
                                     if (wr_exec_data[0]) begin
-                                        if (!core_busy && !wr_exec_data[2] && !reg_dma_en)
-                                            core_start <= 1'b1;   // CPU-Direct: chỉ khi DMA_EN=0
-                                        if ((wr_exec_data[2] || reg_dma_en) && !dma_busy)
+                                        // Sử dụng trực tiếp bit 2 của dữ liệu đang ghi để quyết định start core hay dma
+                                        if (!core_busy && !wr_exec_data[2])
+                                            core_start <= 1'b1;
+                                        
+                                        if (wr_exec_data[2] && !dma_busy)
                                             dma_start <= 1'b1;
                                     end
                                     reg_dma_en <= wr_exec_data[2];
@@ -397,7 +375,7 @@ module ascon_axi_slave #(
                             end
                             ADDR_MODE:     if (wr_exec_strb[0]) reg_mode     <= wr_exec_data[1:0];
                             ADDR_IRQ_EN:   if (wr_exec_strb[0]) reg_irq_en   <= wr_exec_data[2:0];
-                            ADDR_DATA_LEN: if (wr_exec_strb[0]) reg_data_len <= wr_exec_data[6:0]; // FIX-BUG2
+                            ADDR_DATA_LEN: if (wr_exec_strb[0]) reg_data_len <= wr_exec_data[6:0];
                             ADDR_KEY_0:    reg_key_0   <= apply_strb(reg_key_0,   wr_exec_data, wr_exec_strb);
                             ADDR_KEY_1:    reg_key_1   <= apply_strb(reg_key_1,   wr_exec_data, wr_exec_strb);
                             ADDR_KEY_2:    reg_key_2   <= apply_strb(reg_key_2,   wr_exec_data, wr_exec_strb);
@@ -414,10 +392,29 @@ module ascon_axi_slave #(
                             default: ;
                         endcase
 
+                        // 2. Xử lý AXI Burst
+                        if (S_AXI_WLAST) begin
+                            // Beat cuối: phát response
+                            S_AXI_BID    <= wr_id_lat;
+                            S_AXI_BRESP  <= 2'b00;
+                            S_AXI_BVALID <= 1'b1;
+                            S_AXI_WREADY <= 1'b0;
+                            wr_state     <= WR_RESP;
+                        end else begin
+                            // Còn beat tiếp: tăng địa chỉ +4 (32-bit bus = 4 byte/beat)
+                            // WHY: CPU memcpy phát INCR burst liên tiếp để nạp Key[127:0]
+                            //      (4 word × 4 byte = 16 byte). Không tăng địa chỉ →
+                            //      tất cả 4 beat đều ghi vào KEY_0, bỏ mất KEY_1/2/3.
+                            wr_addr_lat  <= wr_addr_lat + 12'h4;
+                            S_AXI_WREADY <= 1'b1;
+                            wr_state     <= WR_DATA;
+                        end
+
+                    end else if (!S_AXI_WREADY && wr_wlast_lat) begin
+                        // Pre-latch path (case A): W đã latch tại WR_IDLE với WLAST=1
                         S_AXI_BID    <= wr_id_lat;
                         S_AXI_BRESP  <= 2'b00;
                         S_AXI_BVALID <= 1'b1;
-                        S_AXI_WREADY <= 1'b0;
                         wr_state     <= WR_RESP;
                     end
                 end
@@ -465,27 +462,29 @@ module ascon_axi_slave #(
             reg_tag_2   <= 32'h0; reg_tag_3   <= 32'h0;
         end else begin
             if (core_soft_rst) begin
+                // Reset có ưu tiên cao nhất, xóa tất cả các bit sticky
                 status_done      <= 1'b0;
                 status_dma_done  <= 1'b0;
                 status_error     <= 1'b0;
                 status_dma_error <= 1'b0;
-                // [BUG3-FIX] reg_dma_en clear on soft_rst được xử lý trong
-                // Write FSM block (always @posedge clk or negedge rst_n tại dòng 291)
-                // để tránh multiple-driver conflict (Yosys synth check error).
+            end else begin
+                // Latch dữ liệu CT/Tag
+                if (core_data_out_valid) begin
+                    reg_ctext_0 <= core_data_out[127:96];
+                    reg_ctext_1 <= core_data_out[95:64];
+                end
+                if (core_tag_valid) begin
+                    reg_tag_0 <= core_tag_out[127:96];
+                    reg_tag_1 <= core_tag_out[95:64];
+                    reg_tag_2 <= core_tag_out[63:32];
+                    reg_tag_3 <= core_tag_out[31:0];
+                end
+                
+                // Latch trạng thái (Sticky Bits) - Chỉ set, không tự động clear
+                if (core_done)  status_done      <= 1'b1;
+                if (dma_done)   status_dma_done  <= 1'b1;
+                if (dma_error)  status_dma_error <= 1'b1;
             end
-            if (core_data_out_valid) begin
-                reg_ctext_0 <= core_data_out[127:96];
-                reg_ctext_1 <= core_data_out[95:64];
-            end
-            if (core_tag_valid) begin
-                reg_tag_0 <= core_tag_out[127:96];
-                reg_tag_1 <= core_tag_out[95:64];
-                reg_tag_2 <= core_tag_out[63:32];
-                reg_tag_3 <= core_tag_out[31:0];
-            end
-            if (core_done)  status_done      <= 1'b1;
-            if (dma_done)   status_dma_done  <= 1'b1;
-            if (dma_error)  status_dma_error <= 1'b1;
         end
     end
 

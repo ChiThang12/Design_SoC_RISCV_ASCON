@@ -257,7 +257,9 @@ module riscv_cpu_core (
 
     wire lsu_dependency_stall_w = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
                                    (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
-    wire stall_ex_mem = lsu_dependency_stall_w | fence_stall;
+    // [FIX-DEADLOCK] Remove lsu_dependency_stall_w and fence_stall from stall_ex_mem. 
+    // Stalls in ID must let EX and MEM drain to complete older instructions.
+    wire stall_ex_mem = 1'b0;
 
     wire flush_if_id_final = flush_if_id | irq_flush;
     wire flush_id_ex_final = flush_id_ex | irq_flush;

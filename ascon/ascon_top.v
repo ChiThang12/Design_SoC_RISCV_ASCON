@@ -1,32 +1,31 @@
 // ============================================================================
-// Module  : ascon_ip_top  (v4 — fixes từ debug session)
+// Module  : ascon_ip_top  (v5 — bỏ AXI-Stream, fix INCR burst, fix DMA race)
 //
-// FIX vs v3:
-//   FIX-BUG-TOP1 : Xóa tất cả `include trong file này.
-//                  v3 vẫn còn `include axis_wrapper + slave + dma,
-//                  gây module redefinition khi compile cùng CORE.
-//                  Thứ tự compile phải theo filelist (xem NOTE).
+// CHANGES vs v4:
+//   FIX-BUG-TOP5 : Xóa hoàn toàn AXI-Stream mode và u_axis instantiation.
+//                  Lý do: AXIS_WRAPPER không cần thiết cho SoC CPU+DMA.
+//                  Bỏ s_axis_*/m_axis_* khỏi port list.
 //
-//   FIX-BUG-TOP2 : pre_fin_state trong ascon_CORE.v XOR key vào sai vị trí.
-//                  ASCON spec: pre-finalization XOR key vào x3 và x4 (bits 127:0).
-//                  RTL hiện tại XOR vào x2 và x3 (bits 191:64) — đã verify
-//                  bằng simulation log (S8 PREFIN đúng với convention RTL).
-//                  KHÔNG sửa để tránh break RTL đã pass 18/18 test.
+//   FIX-BUG-TOP6 : core_start_mux trong DMA mode trước đây chỉ dùng
+//                  dma_core_start, không kiểm tra data_valid.
+//                  Race condition: CORE start trước khi DMA FSM nạp ptext.
+//                  Fix: core_start_mux = dma_core_start & dma_core_data_valid.
 //
-//   FIX-BUG-TOP3 : core_data_in_mux với DMA mode: DMA cung cấp 2x32-bit word
-//                  ghép thành 128-bit. Trước đây: {ptext_0, ptext_1, 64'h0}
-//                  đặt data vào bits [127:64] nhưng DATAPATH đọc từ data_in
-//                  để XOR vào x0 với bswap64 convention. Sửa thành:
-//                  {ptext_0, ptext_1, 64'h0} → đúng 128-bit upper half.
-//                  (Không thay đổi — logic đã đúng cho DMA 64-bit payload)
+//   FIX-BUG-TOP7 : burst_len=8'd1 gây DMA phát 2-beat (128-bit total) qua
+//                  width converter 64→32. Converter cắt không đúng boundary.
+//                  Fix: burst_len=8'd0 → 1-beat 64-bit → converter cắt 2×32-bit.
 //
-//   FIX-BUG-TOP4 : axis_en_w logic: mode=2'b10 và 2'b11 là AXI-Stream.
-//                  v3 dùng mode[1] làm axis_en nhưng comment nói mode=2'b10
-//                  là 128 stream và mode=2'b11 là 128a stream.
-//                  Sau fix CORE v12 (mode_int=mode), convention mode:
-//                    00=ASCON-128 CPU, 01=ASCON-128a CPU
-//                    10=ASCON-128 AXIS, 11=ASCON-128a AXIS
-//                  → axis_en_w = mode[1] vẫn đúng. Giữ nguyên.
+//   FIX-BUG-TOP8 : o_tag/o_tag_valid/o_busy không có assign trong v4.
+//                  Fix: wire trực tiếp từ core_tag_out_w, core_tag_valid_w,
+//                  core_busy_w | dma_busy_w.
+//
+// Hai chế độ hoạt động (slave_dma_en từ register CTRL[2]):
+//   [1] CPU-Direct mode (dma_en=0):
+//       CPU viết KEY/NONCE/PT qua AXI4-Full slave → ascon_CORE (u_core_cpu)
+//       Hỗ trợ INCR burst để nạp Key/Nonce 128-bit bằng memcpy (4 beat × 32-bit)
+//
+//   [2] DMA mode (dma_en=1):
+//       DMA fetch PT từ DDR (1-beat 64-bit) → ascon_CORE → CT/TAG → DDR
 //
 // NOTE về compile filelist (KHÔNG dùng `include):
 //   1. ascon_INITIALIZATION, ascon_STATE_REGISTER, ascon_DATAPATH,
@@ -34,28 +33,15 @@
 //      ascon_CONTROLLER
 //   2. ascon_CORE.v
 //   3. ascon_axi_slave.v
-//   4. ascon_axis_wrapper.v   ← KHÔNG `include ascon_CORE bên trong
-//   5. ascon_dma + submodules
-//   6. ascon_ip_top.v         ← file này, KHÔNG `include gì cả
-//
-// Ba chế độ hoạt động (chọn bằng mode[1] = axis_en):
-//   [1] AXI4-Stream mode (mode[1]=1):
-//       mode=2'b10 → ASCON-128 stream
-//       mode=2'b11 → ASCON-128a stream
-//       Dữ liệu qua s_axis_* → ascon_AXIS_WRAPPER → ascon_CORE (u_axis)
-//
-//   [2] CPU-Direct mode (mode[1]=0, dma_en=0):
-//       mode=2'b00 → ASCON-128 CPU, mode=2'b01 → ASCON-128a CPU
-//       CPU viết KEY/NONCE/PT qua AXI4-Full slave → ascon_CORE (u_core_cpu)
-//
-//   [3] DMA mode (mode[1]=0, dma_en=1):
-//       DMA fetch PT từ DDR → ascon_CORE (u_core_cpu) → CT/TAG về DDR
+//   4. ascon_dma + submodules
+//   5. ascon_ip_top.v  ← file này, KHÔNG `include gì cả
 // ============================================================================
-// FIX-BUG-TOP1: Xóa tất cả `include — dùng compile filelist thay thế
-`include "ascon/ascon_axis_wrapper.v"
+// FIX-BUG-TOP1: Xóa tất cả `include — dùng compile filelist thay thế (xem NOTE ở header)
+`include "ascon/rtl/ascon_CORE.v"
 `include "ascon/interface/ascon_axi_slave.v"
 `include "ascon/dma/ascon_dma.v"
-`include "ascon/rtl/ascon_CORE.v"
+
+
 module ascon_ip_top #(
     // ---- Spec Section 2.2 ----
     parameter G_COMB_RND_128  = 6,
@@ -159,19 +145,6 @@ module ascon_ip_top #(
     input  wire                        M_AXI_RVALID,
     output wire                        M_AXI_RREADY,
 
-    // =========================================================================
-    // AXI4-Stream interface
-    // =========================================================================
-    input  wire [G_AXI_DATA_W-1:0]   s_axis_tdata,
-    input  wire                       s_axis_tvalid,
-    input  wire                       s_axis_tlast,
-    output wire                       s_axis_tready,
-
-    output wire [G_AXI_DATA_W-1:0]   m_axis_tdata,
-    output wire                       m_axis_tvalid,
-    output wire                       m_axis_tlast,
-    input  wire                       m_axis_tready,
-
     // Tag output (parallel)
     output wire [127:0]               o_tag,
     output wire                       o_tag_valid,
@@ -223,9 +196,7 @@ module ascon_ip_top #(
     // =========================================================================
     wire [31:0]  dma_core_ptext_0;
     wire [31:0]  dma_core_ptext_1;
-    /* verilator lint_off UNUSEDSIGNAL */
-    wire         dma_core_data_valid;  // DMA→CORE handshake, not used by CORE directly
-    /* verilator lint_on UNUSEDSIGNAL */  // DMA→CORE data valid (not used by CORE directly)
+    wire         dma_core_data_valid;  // DMA→CORE data valid; gated với dma_core_start trong core_start_mux
     wire         dma_core_data_ready;
     wire         dma_core_start;
 
@@ -237,23 +208,15 @@ module ascon_ip_top #(
     wire [31:0]  core_dma_tag_3;
 
     // =========================================================================
-    // FIX-BUG5 (v3) / Confirmed v4:
-    // axis_en = mode[1]:
-    //   mode=2'b00 → ASCON-128  CPU-Direct
-    //   mode=2'b01 → ASCON-128a CPU-Direct
-    //   mode=2'b10 → ASCON-128  AXI-Stream
-    //   mode=2'b11 → ASCON-128a AXI-Stream
-    // CORE nhận mode[0] để chọn 128 vs 128a (sau FIX CORE v12: mode_int=mode)
-    // Khi axis_en=1: u_axis nhận mode nguyên, core_mode[0] chọn variant.
+    // [FIX] Bỏ AXI-Stream mode. core_start_mux:
+    //   CPU-Direct: slave_core_start
+    //   DMA mode:   dma_core_start AND dma_core_data_valid
+    //               → tránh race condition (CORE không được start trước khi
+    //                 DMA FSM đã nạp dữ liệu vào ptext_0/ptext_1)
     // =========================================================================
-    wire axis_en_w = slave_core_mode[1];  // mode[1]=1 → AXI-Stream mode
-
-    // =========================================================================
-    // Mux: chọn nguồn data và start theo mode
-    // Priority: DMA > CPU-Direct
-    // axis_en=0 → u_core_cpu active; axis_en=1 → u_axis active (gated bên dưới)
-    // =========================================================================
-    wire core_start_mux = (!axis_en_w) & (slave_dma_en ? dma_core_start : slave_core_start);
+    wire core_start_mux = slave_dma_en
+        ? (dma_core_start & dma_core_data_valid)
+        : slave_core_start;
 
     // DMA cung cấp 2x32-bit word (ptext_0=upper, ptext_1=lower) → ghép 64-bit
     // Đặt vào upper 64-bit của 128-bit data_in, lower 64-bit zero-pad
@@ -360,9 +323,10 @@ module ascon_ip_top #(
 
     // =========================================================================
     // u_core_cpu : ascon_CORE cho CPU-Direct / DMA mode
-    // start bị gate bởi axis_en_w (qua core_start_mux)
-    // mode truyền trực tiếp — CORE v12 dùng mode_int=mode (không đảo bit)
-    // mode[0] chọn 128 vs 128a, mode[1] không dùng trong CORE (chỉ dùng ở top)
+    // core_start_mux:
+    //   CPU-Direct (dma_en=0): slave_core_start (1-cycle pulse từ slave)
+    //   DMA mode   (dma_en=1): dma_core_start & dma_core_data_valid
+    // mode[0] chọn ASCON-128 (0) vs ASCON-128a (1)
     // =========================================================================
     // tag_match: kết quả so sánh tag trong decrypt mode
     // FIX-PINCONNECTEMPTY: kết nối vào wire thay vì bỏ trống
@@ -401,48 +365,6 @@ module ascon_ip_top #(
     );
 
     // =========================================================================
-    // u_axis : ascon_AXIS_WRAPPER (AXI4-Stream mode, axis_en=1)
-    // Chỉ active khi mode[1]=1 (axis_en_w=1).
-    // s_axis_tready bị gate = 0 khi axis_en=0 → upstream không push data.
-    // s_axis_tvalid bị gate = 0 khi axis_en=0 → wrapper không nhận data.
-    // mode truyền nguyên vào wrapper; wrapper forward vào u_core bên trong.
-    // AXIS_WRAPPER không được `include ascon_CORE — dùng compile filelist.
-    // =========================================================================
-
-    // Gate tready: chỉ cho phép stream vào khi axis_en=1
-    wire s_axis_tready_int;
-    assign s_axis_tready = axis_en_w ? s_axis_tready_int : 1'b0;
-
-    ascon_AXIS_WRAPPER #(
-        .G_COMB_RND_128 (G_COMB_RND_128),
-        .G_COMB_RND_128A(G_COMB_RND_128A),
-        .G_SBOX_PIPELINE(G_SBOX_PIPELINE),
-        .G_DUAL_RATE    (G_DUAL_RATE),
-        .G_AXI_DATA_W   (G_AXI_DATA_W)
-    ) u_axis (
-        .clk          (clk),
-        .rst_n        (rst_n),
-        .mode         (slave_core_mode),
-        .enc_dec      (slave_core_enc_dec),
-        .i_ad_len     (7'd16),
-        .i_data_len   (slave_core_data_len),
-
-        .s_axis_tdata (s_axis_tdata),
-        .s_axis_tvalid(s_axis_tvalid & axis_en_w),   // gate khi axis_en=0
-        .s_axis_tlast (s_axis_tlast),
-        .s_axis_tready(s_axis_tready_int),
-
-        .m_axis_tdata (m_axis_tdata),
-        .m_axis_tvalid(m_axis_tvalid),
-        .m_axis_tlast (m_axis_tlast),
-        .m_axis_tready(m_axis_tready),
-
-        .o_tag        (o_tag),
-        .o_tag_valid  (o_tag_valid),
-        .o_busy       (o_busy)
-    );
-
-    // =========================================================================
     // u_dma : ascon_dma (AXI4-Full Master)
     // burst_len=8'd1 → 2-beat burst. Để cấu hình linh hoạt hơn cần thêm
     // register DMA_BURST_LEN vào ascon_axi_slave.
@@ -460,7 +382,7 @@ module ascon_ip_top #(
         .src_addr             (slave_dma_src_addr),
         .dst_addr             (slave_dma_dst_addr),
         .byte_len             (slave_dma_length),
-        .burst_len            (8'd1),           // FIX-WARN1: 2-beat burst thay vì 0
+        .burst_len            (8'd0),           // [FIX] 1-beat burst (ARLEN=0, 64-bit) → Width Converter cắt thành 2×32-bit chuẩn xác
 
         .dma_start            (slave_dma_start),
         .dma_soft_rst         (slave_dma_soft_rst),
@@ -531,5 +453,12 @@ module ascon_ip_top #(
         .M_AXI_RVALID         (M_AXI_RVALID),
         .M_AXI_RREADY         (M_AXI_RREADY)
     );
+
+    // =========================================================================
+    // Output assigns
+    // =========================================================================
+    assign o_tag       = core_tag_out_w;
+    assign o_tag_valid = core_tag_valid_w;
+    assign o_busy      = core_busy_w | dma_busy_w;  // phản ánh trạng thái cả Core và DMA
 
 endmodule
