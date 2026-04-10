@@ -26,8 +26,10 @@ module hazard_detection (
                              (rd_id_ex != 5'b0) &&
                              ((rd_id_ex == rs1_id) || (rd_id_ex == rs2_id));
 
-    // mem_load_stall removed to fix deadlock and dropped instruction bug.
-    // lsu_scoreboard correctly stalls dependent instructions and prevents hazards.
+    wire mem_load_stall;
+    assign mem_load_stall = memread_mem &&
+                            (rd_mem != 5'b0) &&
+                            ((rd_mem == rs1_id) || (rd_mem == rs2_id));
 
     wire lsu_dependency_stall;
     assign lsu_dependency_stall = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
@@ -40,10 +42,18 @@ module hazard_detection (
     // (store buffer rỗng, load queue rỗng, không có in-flight transaction)
     assign fence_stall = fence_id && !lsu_idle;
 
-    assign stall    = load_use_hazard || lsu_dependency_stall || fence_stall;
+    assign stall    = load_use_hazard || mem_load_stall || lsu_dependency_stall || fence_stall;
     assign stall_if = imem_stall;
 
     assign flush_if_id = branch_taken;
-    assign flush_id_ex = load_use_hazard || branch_taken || fence_stall;
+    // [FIX-BUG-FLUSH] Thêm mem_load_stall vào flush_id_ex.
+    // mem_load_stall stall pipeline nhưng không insert NOP vào EX:
+    //   - Load đang ở MEM stage (memread_mem=1), instruction tiếp trong ID
+    //     cần rd đó → stall=1, nhưng flush_id_ex=0 → instruction ở EX
+    //     execute với operand chưa forward → kết quả sai vào MEM.
+    // Với LSU scoreboard: scoreboard set khi load vào LQ, nên
+    // lsu_dependency_stall cũng sẽ fire, nhưng flush vẫn cần thiết
+    // để insert bubble đúng vị trí trong pipeline.
+    assign flush_id_ex = load_use_hazard || mem_load_stall || branch_taken || fence_stall;
 
 endmodule

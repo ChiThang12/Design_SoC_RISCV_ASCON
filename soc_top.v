@@ -832,15 +832,15 @@ ascon_ip_top u_ascon (
     .M_AXI_RRESP    (dma_rresp), .M_AXI_RLAST   (dma_rlast),
     .M_AXI_RVALID   (dma_rvalid),.M_AXI_RREADY  (dma_rready),
 
-    // AXI4-Stream (tied off)
-    .s_axis_tdata   (ascon_s_axis_tdata),
-    .s_axis_tvalid  (ascon_s_axis_tvalid),
-    .s_axis_tlast   (ascon_s_axis_tlast),
-    .s_axis_tready  (ascon_s_axis_tready),
-    .m_axis_tdata   (ascon_m_axis_tdata),
-    .m_axis_tvalid  (ascon_m_axis_tvalid),
-    .m_axis_tlast   (ascon_m_axis_tlast),
-    .m_axis_tready  (ascon_m_axis_tready),
+    // // AXI4-Stream (tied off)
+    // .s_axis_tdata   (ascon_s_axis_tdata),
+    // .s_axis_tvalid  (ascon_s_axis_tvalid),
+    // .s_axis_tlast   (ascon_s_axis_tlast),
+    // .s_axis_tready  (ascon_s_axis_tready),
+    // .m_axis_tdata   (ascon_m_axis_tdata),
+    // .m_axis_tvalid  (ascon_m_axis_tvalid),
+    // .m_axis_tlast   (ascon_m_axis_tlast),
+    // .m_axis_tready  (ascon_m_axis_tready),
 
     .o_tag          (ascon_o_tag),
     .o_tag_valid    (ascon_o_tag_valid),
