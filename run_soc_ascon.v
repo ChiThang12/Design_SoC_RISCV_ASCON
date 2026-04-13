@@ -38,7 +38,7 @@
 // ============================================================================
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
-`define TIMEOUT         4000   // tăng lên 50000: cần đủ cho POR(1040cy) + CPU chạy
+`define TIMEOUT         300000 // tăng lên 100000: cần đủ cho POR(1040cy) + CPU chạy
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
@@ -1570,11 +1570,11 @@ endfunction
 // ============================================================================
 task print_report;
     input [127:0] reason;
-    integer j, k, nz;
+    integer j, k, nz, dma_wi;
     real    cpi, ipc, eff, ic_rate, dc_rate;
     real    m0_rd_lat_avg, m1_rd_lat_avg, m1_wr_lat_avg, m3_rd_lat_avg, m3_wr_lat_avg;
     integer ic_total, dc_total;
-    reg [31:0] ret, wv;
+    reg [31:0] ret, wv, dma_base_off, dma_word;
     begin
         ret = soc.u_cpu.register_file.registers[10];
 
@@ -1709,8 +1709,26 @@ task print_report;
         $display("|  TAG_1   = 0x%08h", ascon_reg_tag1);
         $display("|  TAG_2   = 0x%08h", ascon_reg_tag2);
         $display("|  TAG_3   = 0x%08h", ascon_reg_tag3);
-        $display("|  --- DMA dst ---");
-        $display("|  DMEM[dst] = 0x%08h  (ciphertext word 0 via DMA)", ascon_dma_dst_r);
+        $display("|  --- DMA output in DMEM (direct read from memory array) ---");
+        $display("|  DMA dst addr = 0x%08h", ascon_dma_dst_r);
+        if (ascon_dma_done_cnt > 0) begin
+            dma_base_off = ascon_dma_dst_r - 32'h10000000;
+            for (dma_wi = 0; dma_wi < 6; dma_wi = dma_wi + 1) begin
+                dma_word = { soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 3],
+                             soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 2],
+                             soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 1],
+                             soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 0] };
+                case (dma_wi)
+                    0: $display("|  [0x%08h] CTEXT_0 = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
+                    1: $display("|  [0x%08h] CTEXT_1 = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
+                    2: $display("|  [0x%08h] TAG_0   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
+                    3: $display("|  [0x%08h] TAG_1   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
+                    4: $display("|  [0x%08h] TAG_2   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
+                    5: $display("|  [0x%08h] TAG_3   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
+                    default: ;
+                endcase
+            end
+        end
         $display("+----------------------------------------------------------------+");
 
         // ── (7) Interrupt Summary  [NEW-8] ───────────────────────────────────
@@ -1812,13 +1830,9 @@ task print_report;
 endtask
 
 task print_dmem_snapshot;
-    integer wi, col, j;
+    integer wi, col;
     reg [31:0] base, addr, wval;
-    reg        found;
-    reg [31:0] word_addr;
     reg [7:0]  byte_val;
-    reg [1:0]  byte_off;
-    integer    k;
     begin
         base = `DMEM_DUMP_BASE;
         $display("");
@@ -1831,11 +1845,11 @@ task print_dmem_snapshot;
             addr = base + wi * 4;
             $write("|  0x%08h  ", addr);
             for (col = 0; col < `DMEM_ROW_WORDS; col = col + 1) begin
-                wval = 32'h0; found = 0;
-                for (j = 0; j < sb_cnt; j = j + 1)
-                    if (sb_addr[j] === (base + (wi + col) * 4)) begin
-                        wval = sb_data[j]; found = 1;
-                    end
+                // Đọc thẳng từ DMEM memory array (bắt cả DMA write)
+                wval = { soc.u_dmem.dmem.memory[(wi+col)*4 + 3],
+                         soc.u_dmem.dmem.memory[(wi+col)*4 + 2],
+                         soc.u_dmem.dmem.memory[(wi+col)*4 + 1],
+                         soc.u_dmem.dmem.memory[(wi+col)*4 + 0] };
                 $write("0x%08h  ", wval);
             end
             $display("");
@@ -1845,17 +1859,7 @@ task print_dmem_snapshot;
         $display("|  ASCII view:");
         $write("|  ");
         for (wi = 0; wi < `DMEM_DUMP_WORDS * 4; wi = wi + 1) begin
-            word_addr = base + (wi / 4) * 4;
-            byte_off  = wi[1:0];
-            byte_val  = 8'h2E;
-            for (k = 0; k < sb_cnt; k = k + 1)
-                if (sb_addr[k] === word_addr)
-                    case (byte_off)
-                        2'd0: byte_val = sb_data[k][ 7: 0];
-                        2'd1: byte_val = sb_data[k][15: 8];
-                        2'd2: byte_val = sb_data[k][23:16];
-                        2'd3: byte_val = sb_data[k][31:24];
-                    endcase
+            byte_val = soc.u_dmem.dmem.memory[wi];
             if (byte_val >= 8'h20 && byte_val <= 8'h7E) $write("%s", byte_val);
             else                                          $write(".");
             if ((wi & 15) == 15 && wi < `DMEM_DUMP_WORDS*4-1) begin

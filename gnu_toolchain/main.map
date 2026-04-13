@@ -1,73 +1,69 @@
 
 Discarded input sections
 
- .comment       0x00000000       0x23 /tmp/ccBru6OU.o
+ .comment       0x00000000       0x23 /tmp/cck16K7l.o
  .riscv.attributes
-                0x00000000       0x37 /tmp/ccBru6OU.o
+                0x00000000       0x33 /tmp/cck16K7l.o
  .riscv.attributes
-                0x00000000       0x35 /tmp/ccrGqSny.o
+                0x00000000       0x35 /tmp/ccDjksV7.o
 
 Memory Configuration
 
 Name             Origin             Length             Attributes
 ROM              0x00000000         0x00002000         xr
 DMEM_DATA        0x10000000         0x00000800         xrw
-DMEM_STACK       0x10001000         0x00001000         xrw
+DMEM_STACK       0x10001000         0x00000ff0         xrw
 *default*        0x00000000         0xffffffff
 
 Linker script and memory map
 
-LOAD /tmp/ccBru6OU.o
-LOAD /tmp/ccrGqSny.o
+LOAD /tmp/cck16K7l.o
+LOAD /tmp/ccDjksV7.o
                 0x00000000                        . = 0x0
 
-.text           0x00000000      0xd80
+.text           0x00000000      0x454
  *(.text.start)
- .text.start    0x00000000       0x7c /tmp/ccrGqSny.o
+ .text.start    0x00000000       0x2c /tmp/ccDjksV7.o
                 0x00000000                _start
+                0x00000028                trap_handler
  *(.text*)
- .text          0x0000007c      0xca0 /tmp/ccBru6OU.o
-                0x000006b8                ascon_isr
-                0x000008bc                trap_handler
-                0x00000bcc                main
- .text          0x00000d1c        0x0 /tmp/ccrGqSny.o
-                0x00000d1c                        . = ALIGN (0x4)
+ .text          0x0000002c      0x428 /tmp/cck16K7l.o
+                0x0000002c                main
+ .text          0x00000454        0x0 /tmp/ccDjksV7.o
+                0x00000454                        . = ALIGN (0x4)
+                0x00000454                        __data_load = LOADADDR (.data)
+
+.rela.dyn       0x00000454        0x0
+ .rela.text.start
+                0x00000454        0x0 /tmp/cck16K7l.o
+
+.data           0x10000000        0x0 load address 0x00000454
+                0x10000000                        __data_start = .
  *(.rodata*)
- .rodata        0x00000d1c       0x64 /tmp/ccBru6OU.o
  *(.srodata*)
  *(.sdata2*)
-                0x00000d80                        . = ALIGN (0x4)
-                0x00000d80                        __data_load = LOADADDR (.data)
-
-.rela.dyn       0x00000d80        0x0
- .rela.text.start
-                0x00000d80        0x0 /tmp/ccBru6OU.o
-
-.data           0x10000000        0x0 load address 0x00000d80
-                0x10000000                        __data_start = .
  *(.data*)
- .data          0x10000000        0x0 /tmp/ccBru6OU.o
- .data          0x10000000        0x0 /tmp/ccrGqSny.o
+ .data          0x10000000        0x0 /tmp/cck16K7l.o
+ .data          0x10000000        0x0 /tmp/ccDjksV7.o
  *(.sdata*)
                 0x10000000                        . = ALIGN (0x4)
                 0x10000000                        __data_end = .
 
-.bss            0x10000000      0x1b4 load address 0x00000d80
+.bss            0x10000000        0x0 load address 0x00000454
                 0x10000000                        __bss_start = .
  *(.bss*)
- .bss           0x10000000      0x1b4 /tmp/ccBru6OU.o
-                0x10000000                g_stream
- .bss           0x100001b4        0x0 /tmp/ccrGqSny.o
+ .bss           0x10000000        0x0 /tmp/cck16K7l.o
+ .bss           0x10000000        0x0 /tmp/ccDjksV7.o
  *(.sbss*)
  *(COMMON)
-                0x100001b4                        . = ALIGN (0x4)
-                0x100001b4                        __bss_end = .
+                0x10000000                        . = ALIGN (0x4)
+                0x10000000                        __bss_end = .
 
-.stack          0x10001000     0x1000
+.stack          0x10001000      0xff0
                 0x10001000                        __stack_bottom = .
-                0x10002000                        . = (. + LENGTH (DMEM_STACK))
- *fill*         0x10001000     0x1000 
-                0x10002000                        __stack_top = .
+                0x10001ff0                        . = (. + LENGTH (DMEM_STACK))
+ *fill*         0x10001000      0xff0 
+                0x10001ff0                        __stack_top = .
 
 /DISCARD/
  *(.comment)
@@ -76,6 +72,6 @@ LOAD /tmp/ccrGqSny.o
  *(.debug*)
                 0x00000001                        ASSERT ((__bss_end <= 0x10000800), ERROR: .bss tran qua 2KB DMEM_DATA! Tang DMEM_DATA hoac giam bien global.)
                 0x00000001                        ASSERT ((__stack_bottom >= 0x10001000), ERROR: __stack_bottom sai — DMEM_STACK phai bat dau tu 0x10001000.)
-                0x00000001                        ASSERT ((__stack_top == 0x10002000), ERROR: __stack_top != 0x10002000 — kiem tra DMEM_STACK LENGTH (phai = 4K).)
+                0x00000001                        ASSERT ((__stack_top == 0x10001ff0), ERROR: __stack_top != 0x10001FF0 — kiem tra DMEM_STACK LENGTH.)
                 0x00000001                        ASSERT ((__bss_end <= __stack_bottom), ERROR: BSS/data tran vao vung stack!)
 OUTPUT(main.elf elf32-littleriscv)

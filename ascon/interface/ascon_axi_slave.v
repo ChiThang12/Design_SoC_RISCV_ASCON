@@ -1,6 +1,17 @@
 // ============================================================================
 // Module  : ascon_axi_slave
-// Version : 2.3  (INCR burst support cho CPU memcpy Key/Nonce)
+// Version : 2.4  (FIX-MODE-OVERLAP: tách bit enc_dec khỏi bit variant)
+//
+// Changes vs v2.3:
+//   FIX-MODE-OVERLAP : reg_mode[0] và core_enc_dec trước đây cùng dùng bit[0]
+//                      khiến "chọn variant" và "chọn hướng" xung đột nhau.
+//                      Fix: reg_mode[1] = direction (enc=0/dec=1),
+//                           reg_mode[0] = variant   (128=0/128a=1).
+//                      Bảng giá trị ghi ADDR_MODE:
+//                        0x0 = ASCON-128  Encrypt
+//                        0x1 = ASCON-128a Encrypt
+//                        0x2 = ASCON-128  Decrypt
+//                        0x3 = ASCON-128a Decrypt
 //
 // Changes vs v2.2:
 //   FIX-INCR-BURST : WR_DATA không tăng wr_addr_lat qua các beat của burst.
@@ -197,6 +208,8 @@ module ascon_axi_slave #(
     // =========================================================================
     // Storage registers
     // =========================================================================
+    // reg_mode[0] = variant  : 0=ASCON-128, 1=ASCON-128a
+    // reg_mode[1] = direction: 0=Encrypt,   1=Decrypt
     reg [1:0]  reg_mode;
     reg [2:0]  reg_irq_en;
     reg        reg_dma_en;
@@ -563,8 +576,11 @@ module ascon_axi_slave #(
     assign core_nonce    = {reg_nonce_0, reg_nonce_1, reg_nonce_2, reg_nonce_3};
     assign core_data_in  = {reg_ptext_0, reg_ptext_1, 64'h0};
     assign core_data_len = reg_data_len;   // FIX-BUG2: từ register, không hardcode
-    assign core_enc_dec  = reg_mode[0];
-    assign core_mode     = reg_mode;
+    // FIX-MODE-OVERLAP: tách 2 chức năng ra 2 bit riêng biệt
+    //   reg_mode[0] → core_mode[0]: chọn ASCON variant (128=0 / 128a=1)
+    //   reg_mode[1] → core_enc_dec: chọn hướng         (Encrypt=0 / Decrypt=1)
+    assign core_enc_dec  = reg_mode[1];   // bit[1] = direction
+    assign core_mode     = reg_mode;      // bit[0] = variant (dùng bởi CORE nội bộ)
 
     // =========================================================================
     // Output wires to ascon_dma

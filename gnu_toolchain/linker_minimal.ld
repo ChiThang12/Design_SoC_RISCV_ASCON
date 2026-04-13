@@ -21,26 +21,26 @@ ENTRY(_start)
 MEMORY {
     ROM        (rx)  : ORIGIN = 0x00000000, LENGTH = 8K
     DMEM_DATA  (rwx) : ORIGIN = 0x10000000, LENGTH = 2K
-    DMEM_STACK (rwx) : ORIGIN = 0x10001000, LENGTH = 4K
+    DMEM_STACK (rwx) : ORIGIN = 0x10001000, LENGTH = 0xFF0
 }
-
 SECTIONS {
     . = 0x00000000;
 
+    /* 1. Lệnh (Instructions) ở lại ROM */
     .text : {
         *(.text.start)
         *(.text*)
-        . = ALIGN(4);
-        *(.rodata*)
-        *(.srodata*)
-        *(.sdata2*)
         . = ALIGN(4);
     } > ROM
 
     __data_load = LOADADDR(.data);
 
+    /* 2. Di chuyển Rodata xuống Data để được copy vào DMEM */
     .data : {
         __data_start = .;
+        *(.rodata*)      /* DI CHUYỂN XUỐNG ĐÂY */
+        *(.srodata*)     /* DI CHUYỂN XUỐNG ĐÂY */
+        *(.sdata2*)      /* DI CHUYỂN XUỐNG ĐÂY */
         *(.data*)
         *(.sdata*)
         . = ALIGN(4);
@@ -70,13 +70,12 @@ SECTIONS {
         *(.debug*)
     }
 }
-
 /* ── ASSERT (FIX-STACK v2.6) ─────────────────────────────────────────────── */
 ASSERT(__bss_end <= 0x10000800,
     "ERROR: .bss tran qua 2KB DMEM_DATA! Tang DMEM_DATA hoac giam bien global.")
 ASSERT(__stack_bottom >= 0x10001000,
     "ERROR: __stack_bottom sai — DMEM_STACK phai bat dau tu 0x10001000.")
-ASSERT(__stack_top == 0x10002000,
-    "ERROR: __stack_top != 0x10002000 — kiem tra DMEM_STACK LENGTH (phai = 4K).")
+ASSERT(__stack_top == 0x10001FF0,
+    "ERROR: __stack_top != 0x10001FF0 — kiem tra DMEM_STACK LENGTH.")
 ASSERT(__bss_end <= __stack_bottom,
     "ERROR: BSS/data tran vao vung stack!")

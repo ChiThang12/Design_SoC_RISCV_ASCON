@@ -246,16 +246,16 @@ wire jtag_running;
 
 // ============================================================================
 // SECTION 6: ASCON AXI-Stream wires (tied off — SoC không dùng stream mode)
-// ============================================================================
-wire [63:0] ascon_s_axis_tdata  = 64'h0;
-wire        ascon_s_axis_tvalid = 1'b0;
-wire        ascon_s_axis_tlast  = 1'b0;
-wire        ascon_s_axis_tready;   // output — không kết nối upstream
+// // ============================================================================
+// wire [63:0] ascon_s_axis_tdata  = 64'h0;
+// wire        ascon_s_axis_tvalid = 1'b0;
+// wire        ascon_s_axis_tlast  = 1'b0;
+// wire        ascon_s_axis_tready;   // output — không kết nối upstream
 
-wire [63:0] ascon_m_axis_tdata;
-wire        ascon_m_axis_tvalid;
-wire        ascon_m_axis_tlast;
-wire        ascon_m_axis_tready = 1'b1;  // luôn consume
+// wire [63:0] ascon_m_axis_tdata;
+// wire        ascon_m_axis_tvalid;
+// wire        ascon_m_axis_tlast;
+// wire        ascon_m_axis_tready = 1'b1;  // luôn consume
 
 wire [127:0] ascon_o_tag;
 wire         ascon_o_tag_valid;

@@ -44,7 +44,7 @@ MEM_SIZE=2048
 KEEP_TEMP=0
 
 # FIX-B + FIX-E: Stack top đúng = cuối DMEM_STACK = 0x10002000
-STACK_TOP=0x10002000
+STACK_TOP=0x10001FF0
 
 usage() {
     cat << EOF
@@ -170,26 +170,26 @@ ENTRY(_start)
 MEMORY {
     ROM        (rx)  : ORIGIN = 0x00000000, LENGTH = 8K
     DMEM_DATA  (rwx) : ORIGIN = 0x10000000, LENGTH = 2K
-    DMEM_STACK (rwx) : ORIGIN = 0x10001000, LENGTH = 4K
+    DMEM_STACK (rwx) : ORIGIN = 0x10001000, LENGTH = 0xFF0
 }
-
 SECTIONS {
     . = 0x00000000;
 
+    /* 1. Lệnh (Instructions) ở lại ROM */
     .text : {
         *(.text.start)
         *(.text*)
-        . = ALIGN(4);
-        *(.rodata*)
-        *(.srodata*)
-        *(.sdata2*)
         . = ALIGN(4);
     } > ROM
 
     __data_load = LOADADDR(.data);
 
+    /* 2. Di chuyển Rodata xuống Data để được copy vào DMEM */
     .data : {
         __data_start = .;
+        *(.rodata*)      /* DI CHUYỂN XUỐNG ĐÂY */
+        *(.srodata*)     /* DI CHUYỂN XUỐNG ĐÂY */
+        *(.sdata2*)      /* DI CHUYỂN XUỐNG ĐÂY */
         *(.data*)
         *(.sdata*)
         . = ALIGN(4);
@@ -219,14 +219,13 @@ SECTIONS {
         *(.debug*)
     }
 }
-
 /* ── ASSERT (FIX-STACK v2.6) ─────────────────────────────────────────────── */
 ASSERT(__bss_end <= 0x10000800,
     "ERROR: .bss tran qua 2KB DMEM_DATA! Tang DMEM_DATA hoac giam bien global.")
 ASSERT(__stack_bottom >= 0x10001000,
     "ERROR: __stack_bottom sai — DMEM_STACK phai bat dau tu 0x10001000.")
-ASSERT(__stack_top == 0x10002000,
-    "ERROR: __stack_top != 0x10002000 — kiem tra DMEM_STACK LENGTH (phai = 4K).")
+ASSERT(__stack_top == 0x10001FF0,
+    "ERROR: __stack_top != 0x10001FF0 — kiem tra DMEM_STACK LENGTH.")
 ASSERT(__bss_end <= __stack_bottom,
     "ERROR: BSS/data tran vao vung stack!")
 LINKER_EOF
@@ -235,7 +234,7 @@ echo -e "${GREEN}✓ Linker script: linker_minimal.ld${NC}"
 echo -e "${GREEN}  DMEM_DATA  : 0x10000000 – 0x100007FF (2KB, data+bss)${NC}"
 echo -e "${GREEN}  GUARD ZONE : 0x10000800 – 0x10000FFF (2KB, unmapped)${NC}"
 echo -e "${GREEN}  DMEM_STACK : 0x10001000 – 0x10001FFF (4KB, stack)${NC}"
-echo -e "${GREEN}  __stack_top: 0x10002000 (first push=0x10001FFC, in DMEM)${NC}"
+echo -e "${GREEN}  __stack_top: 0x10001FF0 (first push=0x10001FEC, in DMEM)${NC}"
 
 # ============================================================================
 # Step 2: Startup code
@@ -277,10 +276,14 @@ _start:
 _halt:
     j _halt
 
+.weak trap_handler
+trap_handler:
+    j trap_handler
+
 .end
 STARTUP_EOF
     echo -e "${GREEN}✓ Bare-metal startup (no .bss clear, no .data copy)${NC}"
-    echo -e "${GREEN}  sp = __stack_top = 0x10002000 (FIX-STACK v2.7: no -16 offset)${NC}"
+    echo -e "${GREEN}  sp = __stack_top = 0x10001FF0 (FIX-STACK v2.7: no -16 offset)${NC}"
 
 else
     # Full crt0: copy .data từ ROM sang RAM, clear .bss
@@ -332,10 +335,14 @@ _bss_done:
 _halt:
     j _halt
 
+.weak trap_handler
+trap_handler:
+    j trap_handler
+
 .end
 STARTUP_EOF
     echo -e "${GREEN}✓ Full crt0 startup (.data copy + .bss clear + _halt)${NC}"
-    echo -e "${GREEN}  sp = __stack_top = 0x10002000 (FIX-STACK v2.7: no -16 offset)${NC}"
+    echo -e "${GREEN}  sp = __stack_top = 0x10001FF0 (FIX-STACK v2.7: no -16 offset)${NC}"
     echo -e "${GREEN}  .bss clear range: __bss_start .. __bss_end (max 0x10000800)${NC}"
 fi
 
@@ -354,6 +361,11 @@ COMMON_FLAGS=(
     -ffreestanding
     -nostdlib
     -nostartfiles
+    -fomit-frame-pointer
+    -fno-strict-volatile-bitfields
+    -fno-schedule-insns
+    -fno-schedule-insns2
+    -fno-reorder-functions
     -T linker_minimal.ld
     -Wl,-Map,"$MAP_FILE"
     ${OPTIMIZE:--O0}
@@ -415,7 +427,7 @@ BSS_END_HEX=$(riscv64-unknown-elf-nm "$ELF_FILE" 2>/dev/null \
 if [ -n "$BSS_END_HEX" ]; then
     BSS_END_DEC=$((16#$BSS_END_HEX))
     DMEM_DATA_END=$((16#10000800))   # FIX-C: ngưỡng đúng
-    DMEM_END_DEC=$((16#10002000))
+    DMEM_END_DEC=$((16#10001FF0))
     GAP_BYTES=$(( DMEM_DATA_END - BSS_END_DEC ))
     if [ "$BSS_END_DEC" -gt "$DMEM_DATA_END" ]; then
         echo -e "${RED}[!!!] __bss_end = 0x${BSS_END_HEX} TRAN QUA DMEM_DATA (max 0x10000800)!${NC}"
@@ -433,10 +445,10 @@ fi
 STACK_TOP_HEX=$(riscv64-unknown-elf-nm "$ELF_FILE" 2>/dev/null \
     | awk '/__stack_top/ {print $1; exit}')
 if [ -n "$STACK_TOP_HEX" ]; then
-    if [ "$STACK_TOP_HEX" = "10002000" ]; then
-        echo -e "${GREEN}  ✓ __stack_top = 0x${STACK_TOP_HEX} (first push=0x10001FFC, in DMEM — OK)${NC}"
+    if [ "$(echo "$STACK_TOP_HEX" | tr 'a-f' 'A-F')" = "10001FF0" ]; then
+        echo -e "${GREEN}  ✓ __stack_top = 0x${STACK_TOP_HEX} (first push=0x10001FEC, in DMEM — OK)${NC}"
     else
-        echo -e "${RED}[!!!] __stack_top = 0x${STACK_TOP_HEX} != 0x10002000!${NC}"
+        echo -e "${RED}[!!!] __stack_top = 0x${STACK_TOP_HEX} != 0x10001FF0!${NC}"
         exit 1
     fi
 fi
@@ -528,7 +540,7 @@ MEM_USED_PCT=$(awk "BEGIN {printf \"%.1f\", $ACTUAL_LINES/$MEM_SIZE*100}")
 echo -e "${BLUE}Binary size:${NC}     $BIN_SIZE bytes"
 echo -e "${BLUE}HEX lines:${NC}       $ACTUAL_LINES"
 echo -e "${BLUE}IMEM usage:${NC}      ${MEM_USED_PCT}%  ($ACTUAL_LINES / $MEM_SIZE words)"
-echo -e "${BLUE}Stack top:${NC}       0x10002000  (sp vào main=0x10002000, FIX-STACK v2.7: no -16)"
+echo -e "${BLUE}Stack top:${NC}       0x10001FF0  (sp vào main=0x10001FF0, FIX-STACK v2.7: no -16)"
 echo -e "${BLUE}BSS max:${NC}         0x10000800  (DMEM_DATA end)"
 
 # ============================================================================

@@ -79,19 +79,46 @@ module LSU (
     wire [31:0] fwd_data;
     reg         fwd_hit_r;
     reg  [31:0] fwd_data_r;
+    reg  [3:0]  fwd_strb_r;    // [FIX-FWD] track which byte lanes are covered
 
+    // =========================================================================
+    // [FIX-FWD] Store-to-Load Forwarding — byte-lane merge
+    //
+    // TRƯỚC: fwd_data_r = sb_wdata[fi] (nguyên word) → nếu store buffer chứa
+    //        sb (wstrb=0010), forward trả 0x0000XX00 cho cả word → byte 0,2,3
+    //        bị zero thay vì giữ giá trị cũ từ cache.
+    //
+    // SAU:   Merge từng byte lane từ tất cả store buffer entries cùng word addr.
+    //        Entry sau (index cao hơn nếu cùng addr) ghi đè entry trước — đúng
+    //        thứ tự program order vì sb_wr_ptr tăng dần.
+    //
+    //        fwd_strb_r track byte nào đã được cover. Nếu < 4'b1111 (partial),
+    //        KHÔNG forward — phải đợi store drain rồi đọc cache để lấy đủ data.
+    //        Lý do: LSU không có đường đọc cache song song để merge.
+    //
+    // TRADE-OFF: Partial forward bị disable → sb store phải drain trước khi
+    //   load cùng word addr hoàn thành. Tăng latency ~vài cycle nhưng đúng.
+    //   Full partial merge cần đọc cache + merge = thay đổi kiến trúc lớn.
+    // =========================================================================
     integer fi;
     always @(*) begin
         fwd_hit_r  = 1'b0;
         fwd_data_r = 32'h0;
+        fwd_strb_r = 4'b0000;
         for (fi = 0; fi < SB_DEPTH; fi = fi + 1) begin
             if (sb_valid[fi] && (sb_addr[fi][31:2] == req_addr[31:2])) begin
-                fwd_hit_r  = 1'b1;
-                fwd_data_r = sb_wdata[fi];
+                fwd_hit_r = 1'b1;
+                // Merge từng byte: entry mới (index cao) ghi đè entry cũ
+                if (sb_wstrb[fi][0]) begin fwd_data_r[7:0]   = sb_wdata[fi][7:0];   fwd_strb_r[0] = 1'b1; end
+                if (sb_wstrb[fi][1]) begin fwd_data_r[15:8]  = sb_wdata[fi][15:8];  fwd_strb_r[1] = 1'b1; end
+                if (sb_wstrb[fi][2]) begin fwd_data_r[23:16] = sb_wdata[fi][23:16]; fwd_strb_r[2] = 1'b1; end
+                if (sb_wstrb[fi][3]) begin fwd_data_r[31:24] = sb_wdata[fi][31:24]; fwd_strb_r[3] = 1'b1; end
             end
         end
     end
-    assign fwd_hit  = fwd_hit_r;
+    // [FIX-FWD] Chỉ forward khi toàn bộ 4 byte lanes đều có trong store buffer.
+    // Partial match → fwd_hit=0 → load đợi store drain, rồi đọc cache (đúng data).
+    assign fwd_hit  = fwd_hit_r && (fwd_strb_r == 4'b1111);
     assign fwd_data = fwd_data_r;
 
     wire do_store = req_valid && req_ready && !req_is_load;

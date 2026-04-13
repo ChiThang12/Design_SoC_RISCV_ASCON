@@ -15,6 +15,7 @@ module riscv_cpu_core (
     input wire clk,
     input wire rst,
 
+
     output wire [31:0] imem_addr,
     output wire        imem_valid,
     input  wire [31:0] imem_rdata,
@@ -363,6 +364,19 @@ module riscv_cpu_core (
             funct3_id_ex      <= funct3_id;      funct7_id_ex      <= funct7_id;
             alu_control_id_ex <= alu_control_id;  byte_size_id_ex  <= byte_size_id;
             opcode_id_ex      <= opcode_id;
+        end else begin
+            // [FIX-FWD-STALL] When stall_any=1 (including ICache miss via stall_if),
+            // capture any currently-forwarded operand values into the ID/EX register.
+            // Without this, an ICache miss while a producer is in WB and its consumer
+            // is in EX loses the forwarding window:
+            //   T1: stall_any=1 (imem_stall), fwd_b=01 (addi x15=5 in WB)
+            //       → EX/MEM gets bubble (memwrite=0), read_data2_id_ex stays stale=4
+            //   T2: stall released, addi committed/gone from WB, fwd_b=00
+            //       → EX reads stale read_data2_id_ex=4 → CTRL write data=0x4
+            // With fix: read_data2_id_ex latches alu_in2_pre_mux=5 at T1 posedge,
+            // so T2 EX uses the correct value=5 → CTRL=0x5 → dma_start asserted.
+            if (forward_a != 2'b00) read_data1_id_ex <= alu_in1_forwarded;
+            if (forward_b != 2'b00) read_data2_id_ex <= alu_in2_pre_mux;
         end
     end
 
@@ -432,6 +446,25 @@ module riscv_cpu_core (
     reg [1:0]  byte_size_ex_mem;
     reg [2:0]  funct3_ex_mem;
 
+    // =========================================================================
+    // EX/MEM PIPELINE REGISTER — standard latch, no forwarding guard
+    //
+    // Analysis: the corruption (0x0CAFE037) is NOT caused by stale forwarding.
+    // Trace shows: when stall_any=1, the instruction in EX is the NEXT
+    // instruction (addi) that needs forwarding from MEM (andi result=0).
+    // Blocking MEM forwarding during stall_any=1 causes WB fallback to
+    // the OLDER srl result, which is WRONG.
+    //
+    // Root cause investigation needed elsewhere.
+    // =========================================================================
+
+    // =========================================================================
+    // EX/MEM PIPELINE REGISTER
+    //
+    // FIX: Khi stall_any=1 (upstream bị stall), instruction ở EX bị giữ lại.
+    // Nếu stall_ex_mem=0, EX/MEM vẫn tiếp tục latch. Phải insert BUBBLE vào 
+    // control signals để không thực thi / ghi register 2 lần.
+    // =========================================================================
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             regwrite_ex_mem   <= 1'b0; memread_ex_mem    <= 1'b0;
@@ -441,17 +474,26 @@ module riscv_cpu_core (
             rd_ex_mem         <= 5'b0; byte_size_ex_mem  <= 2'b0;
             funct3_ex_mem     <= 3'b0;
         end else if (!stall_ex_mem) begin
-            regwrite_ex_mem   <= regwrite_ex;
-            memread_ex_mem    <= memread_ex;
-            memwrite_ex_mem   <= memwrite_ex;
-            memtoreg_ex_mem   <= memtoreg_ex;
-            jump_ex_mem       <= jump_ex;
             alu_result_ex_mem <= alu_result_ex;
             write_data_ex_mem <= alu_in2_pre_mux;
             pc_plus_4_ex_mem  <= pc_plus_4_ex;
             rd_ex_mem         <= rd_ex;
             byte_size_ex_mem  <= byte_size_ex;
             funct3_ex_mem     <= funct3_ex;
+
+            if (stall_any) begin
+                regwrite_ex_mem   <= 1'b0;
+                memread_ex_mem    <= 1'b0;
+                memwrite_ex_mem   <= 1'b0;
+                memtoreg_ex_mem   <= 1'b0;
+                jump_ex_mem       <= 1'b0;
+            end else begin
+                regwrite_ex_mem   <= regwrite_ex;
+                memread_ex_mem    <= memread_ex;
+                memwrite_ex_mem   <= memwrite_ex;
+                memtoreg_ex_mem   <= memtoreg_ex;
+                jump_ex_mem       <= jump_ex;
+            end
         end
     end
 
@@ -465,6 +507,7 @@ module riscv_cpu_core (
     // =========================================================================
     // STAGE 4: MEM — via LSU
     // =========================================================================
+    // [FIX-BYTELANE] Store byte strobe
     reg [3:0] wstrb_comb;
     always @(*) begin
         case (byte_size_mem)
@@ -476,30 +519,37 @@ module riscv_cpu_core (
     end
     assign lsu_req_wstrb = wstrb_comb;
 
+    // [FIX-BYTELANE] Store data shift
+    reg [31:0] wdata_shifted;
+    always @(*) begin
+        case (byte_size_mem)
+            2'b00:   wdata_shifted = {24'b0, write_data_mem[7:0]} << (alu_result_mem[1:0] * 8);
+            2'b01:   wdata_shifted = {16'b0, write_data_mem[15:0]} << (alu_result_mem[1] ? 16 : 0);
+            2'b10:   wdata_shifted = write_data_mem;
+            default: wdata_shifted = write_data_mem;
+        endcase
+    end
+
+    // [FIX-DOUBLE-ISSUE] lsu_req_sent
     reg lsu_req_sent;
     always @(posedge clk or posedge rst) begin
         if (rst)
             lsu_req_sent <= 1'b0;
         else begin
-            if (!stall_any)
+            if (!stall_ex_mem && !stall_any)
                 lsu_req_sent <= 1'b0;
             else if (lsu_req_valid && lsu_req_ready)
                 lsu_req_sent <= 1'b1;
         end
     end
-    assign lsu_req_valid = (memread_mem | memwrite_mem) & !(lsu_req_sent & stall_any);
+    assign lsu_req_valid = (memread_mem | memwrite_mem) & !lsu_req_sent;
 
-    // wire nội bộ để Debug FSM đọc sb_empty từ LSU
-    // WHY cần wire này: Debug FSM phải biết LSU đã drain hoàn toàn
-    // trước khi chuyển sang HALTED. lsu_unit expose sb_empty ra ngoài
-    // qua port lsu_idle (idle = sb_empty AND lq_empty AND !in_flight).
-    // Dùng lsu_idle thay vì sb_empty riêng lẻ để an toàn hơn.
-    wire soc_lsu_sb_empty;   // khai báo trước, assign sau khi instantiate LSU
+    wire soc_lsu_sb_empty;
 
     LSU lsu_unit (
         .clk         (clk),           .rst         (rst),
         .req_valid   (lsu_req_valid),  .req_ready   (lsu_req_ready),
-        .req_addr    (alu_result_mem), .req_wdata   (write_data_mem),
+        .req_addr    (alu_result_mem), .req_wdata   (wdata_shifted),
         .req_wstrb   (lsu_req_wstrb),  .req_is_load (memread_mem),
         .req_rd      (rd_mem),         .req_funct3  (funct3_mem),
         .fence       (|dcache_fence_type),
@@ -512,8 +562,6 @@ module riscv_cpu_core (
         .dcache_ready(dcache_ready)
     );
 
-    // lsu_idle = LSU hoàn toàn rỗng (store buffer + load queue + no in-flight)
-    // Dùng làm điều kiện an toàn trước khi halt
     assign soc_lsu_sb_empty = lsu_idle;
 
     // =========================================================================
@@ -528,9 +576,11 @@ module riscv_cpu_core (
         if (rst)
             lsu_committed_r <= 1'b0;
         else
-            lsu_committed_r <= lsu_result_valid && !stall_if;
+            // [FIX-DRAIN] Bỏ check !stall_if để luôn ack lsu khi lsu xong
+            lsu_committed_r <= lsu_result_valid;
     end
 
+    // LSU result luôn được ACK bất chấp pipeline tình trạng nào
     assign lsu_result_ack = lsu_result_valid;
 
     always @(posedge clk or posedge rst) begin
@@ -540,7 +590,8 @@ module riscv_cpu_core (
             mem_data_mem_wb   <= 32'h0; pc_plus_4_mem_wb <= 32'h0;
             rd_mem_wb         <= 5'b0;
         end else begin
-            if (lsu_result_valid && !stall_if) begin
+            // [FIX-DRAIN] Bỏ !stall_if để luôn nhận load data bất kể fetch stall
+            if (lsu_result_valid) begin
                 mem_data_mem_wb   <= lsu_result_data;
                 rd_mem_wb         <= lsu_result_rd;
                 regwrite_mem_wb   <= 1'b1;
@@ -548,7 +599,10 @@ module riscv_cpu_core (
                 jump_mem_wb       <= 1'b0;
                 alu_result_mem_wb <= alu_result_mem;
                 pc_plus_4_mem_wb  <= pc_plus_4_mem;
-            end else if (!stall_any && !lsu_committed_r) begin
+            end 
+            // [FIX-DRAIN] Thay vì !stall_any, dùng !stall_ex_mem để đồng bộ tuyệt đối với EX/MEM.
+            // Điều này cho phép MEM stage thoái thác (drain) kết quả xướng trước khi upstream stall bị tắt.
+            else if (!stall_ex_mem && !lsu_committed_r) begin
                 alu_result_mem_wb <= alu_result_mem;
                 pc_plus_4_mem_wb  <= pc_plus_4_mem;
                 regwrite_mem_wb   <= regwrite_mem & ~memread_mem;
@@ -592,5 +646,60 @@ module riscv_cpu_core (
         .flush_id_ex    (flush_id_ex),
         .fence_stall    (fence_stall)
     );
+
+// synopsys translate_off
+// ── Debug monitors: detect double-issue and trace UART writes ──
+always @(posedge clk) begin
+    if (!rst && lsu_req_valid && lsu_req_ready && memwrite_mem)
+        $display("[%0t] [LSU-STORE] addr=0x%08h data=0x%08h strb=%04b sent=%b stall_any=%b stall_ex=%b",
+                 $time, alu_result_mem, wdata_shifted, lsu_req_wstrb,
+                 lsu_req_sent, stall_any, stall_ex_mem);
+end
+
+// ── Trace forwarding when it happens (for debugging corruption) ──
+always @(posedge clk) begin
+    if (!rst && (forward_a == 2'b10 || forward_b == 2'b10)) begin
+        $display("[%0t] [FWD-MEM] fwd_a=%b fwd_b=%b rd_mem=x%0d alu_mem=0x%08h rs1=%0d rs2=%0d stall_any=%b regwrite_mem=%b pc_ex=0x%08h",
+                 $time, forward_a, forward_b, rd_mem, alu_result_mem,
+                 rs1_ex, rs2_ex, stall_any, regwrite_mem, pc_ex);
+    end
+end
+
+// ── Detailed EX stage trace for put_hex32_asm ──
+// Trace when PC is in put_hex32_asm AND store count is between 5 and 10
+// (covering the CAFE nibble extraction around the corruption)
+always @(posedge clk) begin
+    if (!rst && pc_ex >= 32'h0000006c && pc_ex <= 32'h00000084 && lsu_store_count >= 15 && lsu_store_count <= 22) begin
+        $display("[%0t] [EX-HEX] pc=0x%03h alu_ctrl=%04b in1=0x%08h in2=0x%08h result=0x%08h alusrc=%b fwd_a=%b fwd_b=%b stall_any=%b rd=%0d rs1=%0d regwrite_mem=%b rd_mem=%0d alu_mem=0x%08h",
+                 $time, pc_ex, alu_control_ex, alu_in1, alu_in2, alu_result_ex,
+                 alusrc_ex, forward_a, forward_b, stall_any,
+                 rd_ex, rs1_ex, regwrite_mem, rd_mem, alu_result_mem);
+    end
+end
+
+// ── Trace WB writes to x13, x14, x15 (ALL values, not just large) ──
+always @(posedge clk) begin
+    if (!rst && regwrite_wb && (rd_wb == 13 || rd_wb == 14 || rd_wb == 15) && lsu_store_count >= 15 && lsu_store_count <= 22)
+        $display("[%0t] [WB-HEX] x%0d <= 0x%08h  memtoreg=%b",
+                 $time, rd_wb, write_back_data_wb, memtoreg_wb);
+end
+
+// ── Trace all large WB writes ──
+always @(posedge clk) begin
+    if (!rst && regwrite_wb && rd_wb != 0 && (write_back_data_wb[31:8] != 0) && write_back_data_wb != 32'h10001ff0 && write_back_data_wb != 32'h10000100)
+        $display("[%0t] [WB] x%0d <= 0x%08h  memtoreg=%b jump=%b",
+                 $time, rd_wb, write_back_data_wb, memtoreg_wb, jump_wb);
+end
+
+reg [31:0] lsu_store_count;
+always @(posedge clk or posedge rst) begin
+    if (rst) lsu_store_count <= 0;
+    else if (lsu_req_valid && lsu_req_ready && memwrite_mem)
+        lsu_store_count <= lsu_store_count + 1;
+end
+// synopsys translate_on
+    // synopsys translate_off
+    initial $display("[RTL-VERSION] riscv_cpu_core FIX-DOUBLE-ISSUE-v2 + FIX-BYTELANE + FIX-FWD-STALL loaded");
+    // synopsys translate_on
 
 endmodule
