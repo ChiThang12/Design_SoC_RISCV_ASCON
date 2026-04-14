@@ -174,7 +174,7 @@ module ascon_DATAPATH #(
     //   is_128a=1 → 128-bit rate (x0 và x1)
     //   is_128a=0 → 64-bit rate  (chỉ x0, x1 giữ nguyên)
     // mode_int[0]=0 → ASCON-128a (128-bit rate), mode_int[0]=1 → ASCON-128 (64-bit)
-    wire is_128a = (G_DUAL_RATE == 1) && (mode[0] == 1'b0);
+    wire is_128a = (G_DUAL_RATE == 1) && (mode[0] == 1'b1);
 
     always @(*) begin
         state_temp          = state_in;
