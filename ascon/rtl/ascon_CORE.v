@@ -218,7 +218,7 @@ module ascon_CORE #(
         .extra_pad_block_needed(dp_extra_pad)
     );
 
-    // PERMUTATION v10: mode port removed
+    // FIX: PERMUTATION dùng mode_int (consistent)
     ascon_PERMUTATION #(
         .G_SBOX_PIPELINE(G_SBOX_PIPELINE)
     ) u_perm (
@@ -229,6 +229,7 @@ module ascon_CORE #(
         .rounds(ctrl_perm_rounds),
         .start_rc(ctrl_perm_start_rc),
         .start_perm(ctrl_perm_start),
+        .mode(mode_int[0]),          // ← mode_int
         .state_out(perm_state_out),
         .valid(perm_valid), .done(perm_done)
     );
@@ -247,16 +248,18 @@ module ascon_CORE #(
         .tag_match(tag_cmp_match), .tag_done(tag_cmp_done)
     );
 
-    // CONTROLLER v16: unused 128-bit ports removed
+    // FIX: CONTROLLER dùng mode_int → 128a GCD params
     ascon_CONTROLLER #(
         .G_COMB_RND_128 (G_COMB_RND_128),
         .G_COMB_RND_128A(G_COMB_RND_128A),
         .G_SBOX_PIPELINE(G_SBOX_PIPELINE)
     ) u_ctrl (
         .clk(clk), .rst_n(rst_n),
-        .start(start), .mode(mode_int), .enc_dec(enc_dec),
-        .ad_valid(ad_valid), .ad_last(ad_last),
-        .data_last(data_last), .data_len(data_len),
+        .start(start), .mode(mode_int), .enc_dec(enc_dec),  // ← mode_int
+        .key_in(key_in), .nonce_in(nonce_in),
+        .ad_in(ad_in), .ad_valid(ad_valid), .ad_last(ad_last),
+        .data_in(data_in), .data_last(data_last), .data_len(data_len),
+        .tag_received(tag_received),
         .data_out_valid(ctrl_data_out_valid),
         .done(ctrl_done_sig), .busy(ctrl_busy_sig),
         .load_key(ctrl_load_key), .load_nonce(ctrl_load_nonce),
@@ -271,7 +274,7 @@ module ascon_CORE #(
         .do_post_init_key_xor(ctrl_post_init_key_xor),
         .do_pre_fin_key_xor(ctrl_pre_fin_key_xor),
         .do_dom_sep(ctrl_dom_sep),
-        .extra_pad_block_needed(dp_extra_pad_r),
+        .extra_pad_block_needed(dp_extra_pad_r),  // [FIX-UNOPTFLAT] registered
         .init_done(init_valid), .perm_done(perm_done),
         .tag_gen_valid(tag_gen_valid), .tag_cmp_done(tag_cmp_done)
     );

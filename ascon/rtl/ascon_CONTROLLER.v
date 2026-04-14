@@ -1,15 +1,15 @@
 // ============================================================================
-// Module: ascon_CONTROLLER  (v16 — cleanup: bỏ unused ports 128-bit)
+// Module: ascon_CONTROLLER  (v14 — fix: mode decode align với convention mới)
 //
-// Thay đổi so với v15:
-//   - Xóa các input port không dùng trong FSM logic:
-//       key_in, nonce_in, ad_in, data_in, tag_received (mỗi 128-bit)
-//     Các tín hiệu này chỉ forwarded thẳng xuống submodule từ CORE,
-//     không có logic nào trong CONTROLLER đọc chúng.
-//   - Giữ nguyên toàn bộ FSM, calls_pa/calls_pb, rc_pa/rc_pb, lint directives.
-//   - Interface tương thích ngược với ascon_CORE.v (CORE không cần sửa).
+// FIX vs v13:
+//   BUG: GCD parameters dùng mode[0]==1 cho ASCON-128 (convention ngược).
+//        Nguyên nhân: CORE v11 đảo mode_int[0] trước khi truyền vào CONTROLLER,
+//        nên CONTROLLER phải check ngược. Sau khi CORE v12 bỏ đảo, CONTROLLER
+//        cần decode lại đúng chiều.
+//
+//   FIX: mode[0]==0 → ASCON-128  (G=6, calls_pa=2, calls_pb=1)
+//        mode[0]==1 → ASCON-128a (G=4, calls_pa=3, calls_pb=2)
 // ============================================================================
-
 module ascon_CONTROLLER #(
     parameter G_COMB_RND_128  = 6,
     parameter G_COMB_RND_128A = 4,
@@ -21,14 +21,21 @@ module ascon_CONTROLLER #(
     input  wire         rst_n,
 
     input  wire         start,
-    input  wire [1:0]   mode,
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [1:0]   mode,   // mode[1] unused (only mode[0] decoded)
+    /* verilator lint_on UNUSEDSIGNAL */
     input  wire         enc_dec,
-
-    // ---- Handshake / control dari lớp trên ----
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire [127:0] key_in,
+    input  wire [127:0] nonce_in,
+    input  wire [127:0] ad_in,
     input  wire         ad_valid,
     input  wire         ad_last,
+    input  wire [127:0] data_in,
     input  wire         data_last,
     input  wire [6:0]   data_len,
+    input  wire [127:0] tag_received,
+    /* verilator lint_on UNUSEDSIGNAL */
 
     output reg          data_out_valid,
     output reg          done,
@@ -57,7 +64,7 @@ module ascon_CONTROLLER #(
     output reg          do_dom_sep,
 
     /* verilator lint_off UNUSEDSIGNAL */
-    input  wire         init_done,
+    input  wire         init_done,  // reserved for future pipeline use
     /* verilator lint_on UNUSEDSIGNAL */
     input  wire         perm_done,
     input  wire         tag_gen_valid,
@@ -66,21 +73,24 @@ module ascon_CONTROLLER #(
 );
 
     // ----------------------------------------------------------------
-    // Mode-dependent call parameters (G_UNROLL=2)
+    // GCD parameters
     // ----------------------------------------------------------------
-    localparam [3:0] PERM_ROUNDS_PER_CALL = 4'd2;
-    localparam [3:0] UNROLL_STEP          = 4'd2;
+    // mode[0]=0 → ASCON-128  (G=6, pa=12→2 calls, pb=6→1 call)
+    // mode[0]=1 → ASCON-128a (G=4, pa=12→3 calls, pb=8→2 calls)
+    wire [3:0] G =
+        (mode[0] == 1'b0) ? G_COMB_RND_128[3:0] : G_COMB_RND_128A[3:0];
 
-    wire [3:0] calls_pa = 4'd6;
+    wire [3:0] calls_pa =
+        (mode[0] == 1'b0) ? 4'd2 : 4'd3;
 
     wire [3:0] calls_pb =
-        (mode[0] == 1'b0) ? 4'd3 : 4'd4;
+        (mode[0] == 1'b0) ? 4'd1 : 4'd2;
 
     wire [3:0] pb_offset =
         (mode[0] == 1'b0) ? 4'd6 : 4'd4;
 
-    wire [3:0] rc_pa = (calls_pa - cnt) * UNROLL_STEP;
-    wire [3:0] rc_pb = pb_offset + (calls_pb - cnt) * UNROLL_STEP;
+    wire [3:0] rc_pa = (calls_pa - cnt) * G;
+    wire [3:0] rc_pb = pb_offset + (calls_pb - cnt) * G;
 
     // ----------------------------------------------------------------
     // State encoding
@@ -163,13 +173,15 @@ module ascon_CONTROLLER #(
                 S_POST_INIT:
                     state <= ad_valid ? S_AD_LOAD : S_DOM_SEP;
 
-                S_DOM_SEP: state <= S_DATA_LOAD;
+                S_DOM_SEP:
+                    state <= S_DATA_LOAD;
 
                 // ---- AD ----
                 S_AD_LOAD: begin
-                    ad_last_r <= ad_last;
-                    cnt       <= calls_pb;
-                    state     <= S_AD_START;
+                    ad_last_r   <= ad_last;
+                    extra_pad_r <= extra_pad_block_needed;
+                    cnt         <= calls_pb;
+                    state       <= S_AD_START;
                 end
 
                 S_AD_START: state <= S_AD_WAIT;
@@ -181,6 +193,8 @@ module ascon_CONTROLLER #(
                     cnt <= cnt - 4'd1;
                     if (cnt > 4'd1)
                         state <= S_AD_START;
+                    else if (ad_last_r & extra_pad_r)
+                        state <= S_AD_PAD_LOAD;
                     else if (ad_last_r)
                         state <= S_DOM_SEP;
                     else
@@ -204,12 +218,13 @@ module ascon_CONTROLLER #(
                 end
 
                 // ---- Data ----
+                // FIX 1: last block → skip p^b, go directly to finalization
                 S_DATA_LOAD: begin
                     data_last_r <= data_last;
                     extra_pad_r <= extra_pad_block_needed;
                     cnt         <= calls_pb;
                     if (data_last & ~extra_pad_block_needed)
-                        state <= S_FINAL_SETUP;
+                        state <= S_FINAL_SETUP;  // FIX: skip perm for last block
                     else
                         state <= S_DATA_START;
                 end
@@ -231,11 +246,12 @@ module ascon_CONTROLLER #(
                         state <= S_DATA_LOAD;
                 end
 
+                // FIX 2: pad block is always last → skip perm, go to finalization
                 S_DATA_PAD_LOAD: begin
-                    state <= S_FINAL_SETUP;
+                    state <= S_FINAL_SETUP;   // FIX: no perm after pad block
                 end
 
-                // ---- Final ----
+                // ---- FINAL ----
                 S_FINAL_SETUP: begin
                     cnt   <= calls_pa;
                     state <= S_FINAL_START;
@@ -280,7 +296,7 @@ module ascon_CONTROLLER #(
         dp_pad_enable        = 1'b0;
         dp_block_sel         = 2'b00;
         dp_enc_dec           = enc_dec;
-        perm_rounds          = PERM_ROUNDS_PER_CALL;
+        perm_rounds          = G;
         perm_start_rc        = 4'd0;
         perm_start           = 1'b0;
         gen_tag              = 1'b0;
@@ -304,7 +320,7 @@ module ascon_CONTROLLER #(
             end
 
             S_INIT_START: begin
-                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_rounds   = G;
                 perm_start_rc = rc_pa;
                 perm_start    = 1'b1;
             end
@@ -334,7 +350,7 @@ module ascon_CONTROLLER #(
             end
 
             S_AD_START: begin
-                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_rounds   = G;
                 perm_start_rc = rc_pb;
                 perm_start    = 1'b1;
             end
@@ -352,7 +368,7 @@ module ascon_CONTROLLER #(
             end
 
             S_AD_PAD_START: begin
-                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_rounds   = G;
                 perm_start_rc = rc_pb;
                 perm_start    = 1'b1;
             end
@@ -371,7 +387,7 @@ module ascon_CONTROLLER #(
             end
 
             S_DATA_START: begin
-                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_rounds   = G;
                 perm_start_rc = rc_pb;
                 perm_start    = 1'b1;
             end
@@ -381,12 +397,13 @@ module ascon_CONTROLLER #(
                 state_load    = 1'b1;
             end
 
+            // FIX 2: PAD block - absorb into state, then go to FINAL
             S_DATA_PAD_LOAD: begin
                 state_src_sel  = 2'b01;
                 dp_block_sel   = 2'b01;
                 dp_pad_enable  = 1'b1;
                 state_load     = 1'b1;
-                data_out_valid = 1'b0;
+                data_out_valid = 1'b0;  // pad block produces no output
             end
 
             S_FINAL_SETUP: begin
@@ -396,7 +413,7 @@ module ascon_CONTROLLER #(
             end
 
             S_FINAL_START: begin
-                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_rounds   = G;
                 perm_start_rc = rc_pa;
                 perm_start    = 1'b1;
             end
