@@ -1,18 +1,46 @@
 // ============================================================================
-// Module: ascon_CONTROLLER  (v14 — fix: mode decode align với convention mới)
+// Module: ascon_CONTROLLER  (v15 — cập nhật calls cho G_UNROLL=2)
 //
-// FIX vs v13:
-//   BUG: GCD parameters dùng mode[0]==1 cho ASCON-128 (convention ngược).
-//        Nguyên nhân: CORE v11 đảo mode_int[0] trước khi truyền vào CONTROLLER,
-//        nên CONTROLLER phải check ngược. Sau khi CORE v12 bỏ đảo, CONTROLLER
-//        cần decode lại đúng chiều.
+// Thay đổi so với v14:
+//   - PERMUTATION bây giờ xử lý 2 rounds/call (G_UNROLL=2).
+//   - calls_pa và calls_pb được tính lại:
 //
-//   FIX: mode[0]==0 → ASCON-128  (G=6, calls_pa=2, calls_pb=1)
-//        mode[0]==1 → ASCON-128a (G=4, calls_pa=3, calls_pb=2)
+//     ASCON-128  (pa=12, pb=6):   calls_pa = 12/2 = 6,  calls_pb = 6/2 = 3
+//     ASCON-128a (pa=12, pb=8):   calls_pa = 12/2 = 6,  calls_pb = 8/2 = 4
+//
+//   - G_COMB_RND_128 / G_COMB_RND_128A không còn ý nghĩa là "rounds per call"
+//     nữa, nhưng giữ lại để CORE không cần sửa interface.
+//     (Thực ra PERMUTATION đã nhận rounds = tổng rounds, tự tính calls.)
+//
+//   - perm_rounds vẫn giữ = G (tổng rounds) như v14, vì PERMUTATION v9
+//     nhận rounds=12/6/8 và tự tính calls = rounds/2.
+//
+//   - perm_start_rc giữ nguyên: rc_pa và rc_pb tính theo số call còn lại.
+//     Công thức: rc_pa = (calls_pa - cnt) * 2  (G_UNROLL=2 rounds per call)
+//                rc_pb = pb_offset + (calls_pb - cnt) * 2
+//
+//     Giải thích: Khi cnt = calls_pa (call đầu tiên), rc_pa = 0.
+//                 Khi cnt = 1 (call cuối cùng), rc_pa = (calls_pa-1)*2.
+//                 Ví dụ ASCON-128 (calls_pa=6):
+//                   cnt=6: rc=0  → rounds 0,1
+//                   cnt=5: rc=2  → rounds 2,3
+//                   cnt=4: rc=4  → rounds 4,5
+//                   cnt=3: rc=6  → rounds 6,7
+//                   cnt=2: rc=8  → rounds 8,9
+//                   cnt=1: rc=10 → rounds 10,11
+//                 ✓ 12 rounds tổng (pa=12)
+//
+// Mode decode (không đổi so với v14):
+//   mode[0]=0 → ASCON-128  (G=6)
+//   mode[0]=1 → ASCON-128a (G=4 per pb; pa=12 cho cả hai)
+//
+// FSM structure: không đổi so với v14. Logic đếm cnt và chuyển state giữ
+// nguyên hoàn toàn. Chỉ thay đổi calls_pa, calls_pb, rc_pa, rc_pb.
 // ============================================================================
+
 module ascon_CONTROLLER #(
-    parameter G_COMB_RND_128  = 6,
-    parameter G_COMB_RND_128A = 4,
+    parameter G_COMB_RND_128  = 6,    // Giữ để interface tương thích với CORE
+    parameter G_COMB_RND_128A = 4,    // Giữ để interface tương thích với CORE
     /* verilator lint_off UNUSEDPARAM */
     parameter G_SBOX_PIPELINE = 0
     /* verilator lint_on UNUSEDPARAM */
@@ -22,7 +50,7 @@ module ascon_CONTROLLER #(
 
     input  wire         start,
     /* verilator lint_off UNUSEDSIGNAL */
-    input  wire [1:0]   mode,   // mode[1] unused (only mode[0] decoded)
+    input  wire [1:0]   mode,
     /* verilator lint_on UNUSEDSIGNAL */
     input  wire         enc_dec,
     /* verilator lint_off UNUSEDSIGNAL */
@@ -64,7 +92,7 @@ module ascon_CONTROLLER #(
     output reg          do_dom_sep,
 
     /* verilator lint_off UNUSEDSIGNAL */
-    input  wire         init_done,  // reserved for future pipeline use
+    input  wire         init_done,
     /* verilator lint_on UNUSEDSIGNAL */
     input  wire         perm_done,
     input  wire         tag_gen_valid,
@@ -73,27 +101,56 @@ module ascon_CONTROLLER #(
 );
 
     // ----------------------------------------------------------------
-    // GCD parameters
+    // Mode-dependent call parameters (G_UNROLL=2)
+    //
+    // Mỗi call PERMUTATION xử lý đúng 2 rounds (perm_rounds=2).
+    // Controller gọi perm_start tổng cộng calls_pa/calls_pb lần,
+    // mỗi lần cấp đúng perm_start_rc = absolute round index bắt đầu.
+    //
+    //   ASCON-128  pa=12: calls_pa=6, rc: 0,2,4,6,8,10
+    //   ASCON-128a pa=12: calls_pa=6, rc: 0,2,4,6,8,10
+    //   ASCON-128  pb= 6: calls_pb=3, rc: 6,8,10
+    //   ASCON-128a pb= 8: calls_pb=4, rc: 4,6,8,10
+    //
+    // Công thức: rc_pa = (calls_pa - cnt) * 2
+    //            rc_pb = pb_offset + (calls_pb - cnt) * 2
+    //   cnt=calls (call đầu): rc = 0 / pb_offset
+    //   cnt=1     (call cuối): rc = (calls-1)*2
     // ----------------------------------------------------------------
-    // mode[0]=0 → ASCON-128  (G=6, pa=12→2 calls, pb=6→1 call)
-    // mode[0]=1 → ASCON-128a (G=4, pa=12→3 calls, pb=8→2 calls)
-    wire [3:0] G =
-        (mode[0] == 1'b0) ? G_COMB_RND_128[3:0] : G_COMB_RND_128A[3:0];
 
-    wire [3:0] calls_pa =
-        (mode[0] == 1'b0) ? 4'd2 : 4'd3;
+    // Tổng rounds mỗi lần gọi PERMUTATION = G_UNROLL = 2 (cố định)
+    localparam [3:0] PERM_ROUNDS_PER_CALL = 4'd2;
+    localparam [3:0] UNROLL_STEP          = 4'd2;   // dùng trong công thức rc
 
+    // calls_pa = pa / UNROLL = 12 / 2 = 6
+    // (giống nhau cho cả ASCON-128 và ASCON-128a vì pa=12 cho cả hai)
+    wire [3:0] calls_pa = 4'd6;
+
+    // calls_pb = pb / UNROLL:
+    //   ASCON-128  (mode[0]=0, pb=6): calls = 6/2 = 3
+    //   ASCON-128a (mode[0]=1, pb=8): calls = 8/2 = 4
     wire [3:0] calls_pb =
-        (mode[0] == 1'b0) ? 4'd1 : 4'd2;
+        (mode[0] == 1'b0) ? 4'd3 : 4'd4;
 
+    // pb_offset: absolute round index bắt đầu của pb
+    //   ASCON-128  (pb=6):  rounds 6..11  → offset = 6
+    //   ASCON-128a (pb=8):  rounds 4..11  → offset = 4
     wire [3:0] pb_offset =
         (mode[0] == 1'b0) ? 4'd6 : 4'd4;
 
-    wire [3:0] rc_pa = (calls_pa - cnt) * G;
-    wire [3:0] rc_pb = pb_offset + (calls_pb - cnt) * G;
+    // Round constant cho call hiện tại
+    //   cnt đếm ngược: calls_pa → 1 (hoặc calls_pb → 1)
+    //   rc = (calls - cnt) * 2
+    //   cnt=calls (call đầu): rc = 0 (pa) hoặc pb_offset (pb)
+    //   cnt=1     (call cuối): rc = (calls-1)*2
+    //
+    // 4-bit max: calls_pa=6 → max = (6-1)*2 = 10 = 4'hA ✓
+    //            calls_pb=4 + offset=4 → max = 4 + (4-1)*2 = 10 ✓
+    wire [3:0] rc_pa = (calls_pa - cnt) * UNROLL_STEP;
+    wire [3:0] rc_pb = pb_offset + (calls_pb - cnt) * UNROLL_STEP;
 
     // ----------------------------------------------------------------
-    // State encoding
+    // State encoding (giữ nguyên từ v14)
     // ----------------------------------------------------------------
     localparam [5:0]
         S_IDLE              = 6'd0,
@@ -135,7 +192,7 @@ module ascon_CONTROLLER #(
     reg       extra_pad_r;
 
     // ----------------------------------------------------------------
-    // Sequential FSM
+    // Sequential FSM (giữ nguyên logic từ v14, chỉ thay calls_pa/calls_pb)
     // ----------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -155,6 +212,7 @@ module ascon_CONTROLLER #(
                 S_INIT_TRIG:  state <= S_INIT_LOAD;
 
                 S_INIT_LOAD: begin
+                    // calls_pa = 6 (cố định cho G_UNROLL=2, pa=12)
                     cnt   <= calls_pa;
                     state <= S_INIT_START;
                 end
@@ -180,6 +238,7 @@ module ascon_CONTROLLER #(
                 S_AD_LOAD: begin
                     ad_last_r   <= ad_last;
                     extra_pad_r <= extra_pad_block_needed;
+                    // calls_pb: 3 cho ASCON-128, 4 cho ASCON-128a
                     cnt         <= calls_pb;
                     state       <= S_AD_START;
                 end
@@ -218,13 +277,12 @@ module ascon_CONTROLLER #(
                 end
 
                 // ---- Data ----
-                // FIX 1: last block → skip p^b, go directly to finalization
                 S_DATA_LOAD: begin
                     data_last_r <= data_last;
                     extra_pad_r <= extra_pad_block_needed;
                     cnt         <= calls_pb;
                     if (data_last & ~extra_pad_block_needed)
-                        state <= S_FINAL_SETUP;  // FIX: skip perm for last block
+                        state <= S_FINAL_SETUP;
                     else
                         state <= S_DATA_START;
                 end
@@ -246,14 +304,13 @@ module ascon_CONTROLLER #(
                         state <= S_DATA_LOAD;
                 end
 
-                // FIX 2: pad block is always last → skip perm, go to finalization
                 S_DATA_PAD_LOAD: begin
-                    state <= S_FINAL_SETUP;   // FIX: no perm after pad block
+                    state <= S_FINAL_SETUP;
                 end
 
-                // ---- FINAL ----
+                // ---- Final ----
                 S_FINAL_SETUP: begin
-                    cnt   <= calls_pa;
+                    cnt   <= calls_pa;   // = 6
                     state <= S_FINAL_START;
                 end
 
@@ -296,7 +353,8 @@ module ascon_CONTROLLER #(
         dp_pad_enable        = 1'b0;
         dp_block_sel         = 2'b00;
         dp_enc_dec           = enc_dec;
-        perm_rounds          = G;
+        // perm_rounds = 2 (G_UNROLL) — mỗi call PERMUTATION chạy đúng 2 rounds
+        perm_rounds          = PERM_ROUNDS_PER_CALL;
         perm_start_rc        = 4'd0;
         perm_start           = 1'b0;
         gen_tag              = 1'b0;
@@ -320,8 +378,8 @@ module ascon_CONTROLLER #(
             end
 
             S_INIT_START: begin
-                perm_rounds   = G;
-                perm_start_rc = rc_pa;
+                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_start_rc = rc_pa;   // (calls_pa - cnt) * 2
                 perm_start    = 1'b1;
             end
 
@@ -350,8 +408,8 @@ module ascon_CONTROLLER #(
             end
 
             S_AD_START: begin
-                perm_rounds   = G;
-                perm_start_rc = rc_pb;
+                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_start_rc = rc_pb;   // pb_offset + (calls_pb - cnt) * 2
                 perm_start    = 1'b1;
             end
 
@@ -368,7 +426,7 @@ module ascon_CONTROLLER #(
             end
 
             S_AD_PAD_START: begin
-                perm_rounds   = G;
+                perm_rounds   = PERM_ROUNDS_PER_CALL;
                 perm_start_rc = rc_pb;
                 perm_start    = 1'b1;
             end
@@ -387,7 +445,7 @@ module ascon_CONTROLLER #(
             end
 
             S_DATA_START: begin
-                perm_rounds   = G;
+                perm_rounds   = PERM_ROUNDS_PER_CALL;
                 perm_start_rc = rc_pb;
                 perm_start    = 1'b1;
             end
@@ -397,13 +455,12 @@ module ascon_CONTROLLER #(
                 state_load    = 1'b1;
             end
 
-            // FIX 2: PAD block - absorb into state, then go to FINAL
             S_DATA_PAD_LOAD: begin
                 state_src_sel  = 2'b01;
                 dp_block_sel   = 2'b01;
                 dp_pad_enable  = 1'b1;
                 state_load     = 1'b1;
-                data_out_valid = 1'b0;  // pad block produces no output
+                data_out_valid = 1'b0;
             end
 
             S_FINAL_SETUP: begin
@@ -413,8 +470,8 @@ module ascon_CONTROLLER #(
             end
 
             S_FINAL_START: begin
-                perm_rounds   = G;
-                perm_start_rc = rc_pa;
+                perm_rounds   = PERM_ROUNDS_PER_CALL;
+                perm_start_rc = rc_pa;   // (calls_pa - cnt) * 2
                 perm_start    = 1'b1;
             end
 
