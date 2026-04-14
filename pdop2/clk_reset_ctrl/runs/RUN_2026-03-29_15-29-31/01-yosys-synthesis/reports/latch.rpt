@@ -1,3 +1,0 @@
-
-19. Executing PROC_DLATCH pass (convert process syncs to latches).
-Latch inferred for signal `\latch_en.\q' from process `\latch_en.$proc$/home/chithang/pdop2/clk_reset_ctrl/src/clk_buf.v:69$20': $auto$proc_dlatch.cc:433:proc_dlatch$46

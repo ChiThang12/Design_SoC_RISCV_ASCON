@@ -1,5 +1,0 @@
-`verilator_config
-lint_off -rule DECLFILENAME
-lint_off -rule EOFNEWLINE
-lint_off -rule UNDRIVEN -file "/home/chithang/pdop2/ascon_core/runs/RUN_2026-03-30_00-19-23/tmp/dd59340c8b2f47c7856999ab24339e68.bb.v"
-lint_off -rule UNUSEDSIGNAL -file "/home/chithang/pdop2/ascon_core/runs/RUN_2026-03-30_00-19-23/tmp/dd59340c8b2f47c7856999ab24339e68.bb.v"

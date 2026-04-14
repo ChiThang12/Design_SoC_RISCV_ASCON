@@ -1,5 +1,0 @@
-
-18. Executing PROC_DLATCH pass (convert process syncs to latches).
-No latch inferred for signal `$paramod$dbadc8f742082e46e20ccd5d4561fe7267138b06\jtag_dtm.\dr_len' from process `$paramod$dbadc8f742082e46e20ccd5d4561fe7267138b06\jtag_dtm.$proc$/home/chithang/pdop2/jtag/src/jtag_dtm.v:67$23'.
-No latch inferred for signal `$paramod$dbadc8f742082e46e20ccd5d4561fe7267138b06\jtag_dtm.\dr_cap' from process `$paramod$dbadc8f742082e46e20ccd5d4561fe7267138b06\jtag_dtm.$proc$/home/chithang/pdop2/jtag/src/jtag_dtm.v:67$23'.
-No latch inferred for signal `$paramod$30688eff6c5661142fa1787c9dbc02399534d95a\jtag_tap.\next_state' from process `$paramod$30688eff6c5661142fa1787c9dbc02399534d95a\jtag_tap.$proc$/home/chithang/pdop2/jtag/src/jtag_tap.v:62$40'.

@@ -1,1 +1,0 @@
-openroad -exit -no_splash -metrics /home/chithang/pdop2/FA_reg/runs/RUN_2026-03-28_14-30-24/18-openroad-tapendcapinsertion/or_metrics_out.json /nix/store/h0ldzjka94yryiq8yxbxmwargpnmwhx6-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/openroad/tapcell.tcl

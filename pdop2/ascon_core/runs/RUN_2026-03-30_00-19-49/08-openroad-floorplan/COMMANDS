@@ -1,1 +1,0 @@
-openroad -exit -no_splash -metrics /home/chithang/pdop2/ascon_core/runs/RUN_2026-03-30_00-19-49/08-openroad-floorplan/or_metrics_out.json /nix/store/h0ldzjka94yryiq8yxbxmwargpnmwhx6-python3-3.11.9-env/lib/python3.11/site-packages/openlane/scripts/openroad/floorplan.tcl
