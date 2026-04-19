@@ -1,7 +1,7 @@
 // ============================================================================
 // Module  : ascon_dma
 // Project : ASCON Crypto Accelerator IP
-// Version : 1.1  (fixes: RTL-1 dma_error wire, RTL-2 FIFO soft-reset)
+// Version : 1.2  (fix: remove nonexistent wr_start connection to u_ctrl_fsm)
 //
 // Description:
 //   ASCON-dedicated DMA engine. Orchestrates the full data movement pipeline:
@@ -75,9 +75,7 @@ module ascon_dma #(
     // =========================================================================
     input  wire [ADDR_WIDTH-1:0]  src_addr,      // DMA_SRC_ADDR
     input  wire [ADDR_WIDTH-1:0]  dst_addr,      // DMA_DST_ADDR
-    /* verilator lint_off UNUSEDSIGNAL */
-    input  wire [31:0]            byte_len,      // DMA_BYTE_LEN — reserved for multi-block
-    /* verilator lint_on UNUSEDSIGNAL */
+    input  wire [31:0]            byte_len,      // DMA_BYTE_LEN
     input  wire [7:0]             burst_len,     // DMA_BURST_LEN[7:0]
 
     input  wire                   dma_start,     // from DMA_CTRL[0] pulse
@@ -106,8 +104,11 @@ module ascon_dma #(
     output wire                   core_data_valid,
     input  wire                   core_data_ready,
     output wire                   core_start,
+    output wire                   core_data_last,
     input  wire                   core_busy,
     input  wire                   core_done,
+    input  wire                   core_data_out_valid,
+    input  wire                   core_tag_valid,
 
     // Results from core (captured by ctrl_fsm on core_done)
     input  wire [31:0]            core_ctext_0,
@@ -177,13 +178,13 @@ module ascon_dma #(
     wire        rd_fifo_pop;
     wire        rd_fifo_empty;
 
-    // WR FIFO (32-bit wide, 8 deep)
     wire [31:0] wr_fifo_din;
     wire        wr_fifo_push;
     wire        wr_fifo_full;
     wire [31:0] wr_fifo_dout;
     wire        wr_fifo_pop;
     wire        wr_fifo_empty;
+    wire [3:0]  wr_fifo_count;
 
     // Read engine ↔ ctrl_fsm
     wire        rd_start_w;
@@ -193,15 +194,12 @@ module ascon_dma #(
     wire [ADDR_WIDTH-1:0] rd_err_addr_w;
 
     // Write engine ↔ ctrl_fsm
-    wire        wr_start_w;
     wire        wr_busy_w;
     wire        wr_done_w;
     wire        wr_error_w;
     wire [ADDR_WIDTH-1:0] wr_err_addr_w;
 
     // [FIX-RTL-1] dma_ctrl_fsm의 dma_error output을 캡처할 wire
-    // 이전: .dma_error() → floating output이면 FSM error state가 상위로 전달 안 됨
-    // Fix: wire로 캡처 후 최상위 dma_error assign에 OR로 포함
     wire        dma_error_fsm_w;   // FSM internal error flag
 
     // Aggregate error address: whichever engine errored last
@@ -214,8 +212,6 @@ module ascon_dma #(
 
     // =========================================================================
     // [FIX-RTL-2] Soft-reset: combined rst_n for FIFOs includes dma_soft_rst
-    // Previous: FIFOs only used power-on rst_n → soft_rst pulse did NOT clear FIFOs
-    // Fix: fifo_rst_n = rst_n AND NOT dma_soft_rst → soft_rst properly clears FIFOs
     // =========================================================================
     wire fifo_rst_n = rst_n & ~dma_soft_rst;
 
@@ -227,16 +223,14 @@ module ascon_dma #(
         .DEPTH (RD_FIFO_DEPTH)
     ) u_rd_fifo (
         .clk   (clk),
-        .rst_n (fifo_rst_n),    // [FIX-RTL-2] soft-reset aware
+        .rst_n (fifo_rst_n),
         .din   (rd_fifo_din),
         .push  (rd_fifo_push),
         .full  (rd_fifo_full),
         .dout  (rd_fifo_dout),
         .pop   (rd_fifo_pop),
         .empty (rd_fifo_empty),
-        /* verilator lint_off PINCONNECTEMPTY */
         .count ()
-        /* verilator lint_on PINCONNECTEMPTY */
     );
 
     // =========================================================================
@@ -247,16 +241,14 @@ module ascon_dma #(
         .DEPTH (WR_FIFO_DEPTH)
     ) u_wr_fifo (
         .clk   (clk),
-        .rst_n (fifo_rst_n),    // [FIX-RTL-2] soft-reset aware
+        .rst_n (fifo_rst_n),
         .din   (wr_fifo_din),
         .push  (wr_fifo_push),
         .full  (wr_fifo_full),
         .dout  (wr_fifo_dout),
         .pop   (wr_fifo_pop),
         .empty (wr_fifo_empty),
-        /* verilator lint_off PINCONNECTEMPTY */
-        .count ()
-        /* verilator lint_on PINCONNECTEMPTY */
+        .count (wr_fifo_count)
     );
 
     // =========================================================================
@@ -265,13 +257,14 @@ module ascon_dma #(
     dma_ctrl_fsm u_ctrl_fsm (
         .clk                 (clk),
         .rst_n               (rst_n),
-        // From axi_slave
         .dma_start           (dma_start),
         .dma_soft_rst        (dma_soft_rst),
+        .byte_len            (byte_len),
+        .burst_len           (burst_len),
         // Status
         .dma_busy            (dma_busy),
         .dma_done            (dma_done),
-        .dma_error           (dma_error_fsm_w),  // [FIX-RTL-1] capture FSM error output
+        .dma_error           (dma_error_fsm_w),
         // Read engine
         .rd_start            (rd_start_w),
         .rd_busy             (rd_busy_w),
@@ -287,8 +280,11 @@ module ascon_dma #(
         .core_data_valid     (core_data_valid),
         .core_data_ready     (core_data_ready),
         .core_start          (core_start),
+        .core_data_last      (core_data_last),
         .core_busy           (core_busy),
         .core_done           (core_done),
+        .core_data_out_valid (core_data_out_valid),
+        .core_tag_valid      (core_tag_valid),
         // Results
         .core_ctext_0        (core_ctext_0),
         .core_ctext_1        (core_ctext_1),
@@ -301,7 +297,6 @@ module ascon_dma #(
         .wr_fifo_push        (wr_fifo_push),
         .wr_fifo_full        (wr_fifo_full),
         // Write engine
-        .wr_start            (wr_start_w),
         .wr_busy             (wr_busy_w),
         .wr_done             (wr_done_w),
         .wr_error            (wr_error_w),
@@ -362,9 +357,8 @@ module ascon_dma #(
     ) u_wr_engine (
         .clk            (clk),
         .rst_n          (rst_n),
-        // Control
         .dst_addr       (dst_addr),
-        .wr_start       (wr_start_w),
+        .dma_start      (dma_start),
         .wr_busy        (wr_busy_w),
         .wr_done        (wr_done_w),
         .wr_error       (wr_error_w),
@@ -372,7 +366,7 @@ module ascon_dma #(
         // WR FIFO pop
         .fifo_dout      (wr_fifo_dout),
         .fifo_pop       (wr_fifo_pop),
-        .fifo_empty     (wr_fifo_empty),
+        .fifo_count     (wr_fifo_count),
         // AXI4 AW channel
         .M_AXI_AWID     (M_AXI_AWID),
         .M_AXI_AWADDR   (M_AXI_AWADDR),

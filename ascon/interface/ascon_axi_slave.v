@@ -115,6 +115,7 @@ module ascon_axi_slave #(
     output wire [31:0]             dma_src_addr,
     output wire [31:0]             dma_dst_addr,
     output wire [31:0]             dma_length,
+    output wire [7:0]              dma_burst_len,
     output wire                    dma_en,
     output reg                     dma_start,
     output reg                     dma_soft_rst,
@@ -154,7 +155,8 @@ module ascon_axi_slave #(
         ADDR_TAG_3     = 12'h054,
         ADDR_DMA_SRC   = 12'h100,
         ADDR_DMA_DST   = 12'h104,
-        ADDR_DMA_LEN   = 12'h108;
+        ADDR_DMA_LEN   = 12'h108,
+        ADDR_DMA_BURST = 12'h114;
 
     // =========================================================================
     // Write FSM states
@@ -223,6 +225,7 @@ module ascon_axi_slave #(
     reg [31:0] reg_tag_0,   reg_tag_1,   reg_tag_2,   reg_tag_3;
 
     reg [31:0] reg_dma_src, reg_dma_dst, reg_dma_len;
+    reg [7:0]  reg_dma_burst_len;
 
     reg        status_done,  status_dma_done;
     reg        status_error, status_dma_error;
@@ -281,6 +284,7 @@ module ascon_axi_slave #(
                 ADDR_DMA_SRC: reg_read_mux = reg_dma_src;
                 ADDR_DMA_DST: reg_read_mux = reg_dma_dst;
                 ADDR_DMA_LEN: reg_read_mux = reg_dma_len;
+                ADDR_DMA_BURST: reg_read_mux = {24'h0, reg_dma_burst_len};
                 default:      reg_read_mux = 32'h0;
             endcase
         end
@@ -321,6 +325,7 @@ module ascon_axi_slave #(
             reg_dma_src   <= 32'h0;
             reg_dma_dst   <= 32'h0;
             reg_dma_len   <= 32'd8;
+            reg_dma_burst_len <= 8'h0;
             core_start    <= 1'b0;
             core_soft_rst <= 1'b0;
             dma_start     <= 1'b0;
@@ -402,6 +407,9 @@ module ascon_axi_slave #(
                             ADDR_DMA_SRC:  reg_dma_src <= apply_strb(reg_dma_src, wr_exec_data, wr_exec_strb);
                             ADDR_DMA_DST:  reg_dma_dst <= apply_strb(reg_dma_dst, wr_exec_data, wr_exec_strb);
                             ADDR_DMA_LEN:  reg_dma_len <= apply_strb(reg_dma_len, wr_exec_data, wr_exec_strb);
+                            ADDR_DMA_BURST: begin
+                                if (wr_exec_strb[0]) reg_dma_burst_len <= wr_exec_data[7:0];
+                            end
                             default: ;
                         endcase
 
@@ -588,6 +596,7 @@ module ascon_axi_slave #(
     assign dma_src_addr = reg_dma_src;
     assign dma_dst_addr = reg_dma_dst;
     assign dma_length   = reg_dma_len;
+    assign dma_burst_len= reg_dma_burst_len;
     assign dma_en       = reg_dma_en;
 
     // =========================================================================

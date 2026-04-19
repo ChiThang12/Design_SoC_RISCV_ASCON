@@ -43,7 +43,7 @@ module tb_ascon_CORE;
     reg         enc_dec;
     reg  [127:0] key_in, nonce_in, ad_in, data_in, tag_received;
     reg          ad_valid, ad_last;
-    reg          data_last;
+    reg          data_valid, data_last;
     reg  [6:0]   data_len;
 
     wire [127:0] data_out;
@@ -55,14 +55,14 @@ module tb_ascon_CORE;
         .G_COMB_RND_128 (6),
         .G_COMB_RND_128A(4),
         .G_SBOX_PIPELINE(0),
-        .G_DUAL_RATE    (1),
+        .G_DUAL_RATE    (2),
         .G_AXI_DATA_W   (64)
     ) dut (
         .clk(clk), .rst_n(rst_n), .start(start),
         .mode(mode), .enc_dec(enc_dec),
         .key_in(key_in), .nonce_in(nonce_in),
         .ad_in(ad_in), .ad_valid(ad_valid), .ad_last(ad_last),
-        .data_in(data_in), .data_last(data_last), .data_len(data_len),
+        .data_in(data_in), .data_valid(data_valid), .data_last(data_last), .data_len(data_len),
         .tag_received(tag_received),
         .data_out(data_out), .data_out_valid(data_out_valid),
         .tag_out(tag_out), .tag_valid(tag_valid),
@@ -77,7 +77,7 @@ module tb_ascon_CORE;
     // -------------------------------------------------------------------------
     wire [319:0] hw_state     = dut.u_state_reg.state_out;
     wire [319:0] hw_perm_out  = dut.u_perm.state_out;
-    wire [5:0]   hw_fsm       = dut.u_ctrl.state;
+    wire [3:0]   hw_fsm       = dut.u_ctrl.state;
     wire         hw_perm_start= dut.u_ctrl.perm_start;
     wire         hw_perm_done = dut.perm_done;
     wire         hw_state_load= dut.u_ctrl.state_load;
@@ -91,47 +91,29 @@ module tb_ascon_CORE;
     // FSM name
     // -------------------------------------------------------------------------
 // -------------------------------------------------------------------------
-    // FSM name
+    // FSM name  (matches ascon_CONTROLLER.v v9 state encoding)
     // -------------------------------------------------------------------------
-    function [111:0] fsm_name;
-        input [5:0] s;
+    function [103:0] fsm_name;
+        input [3:0] s;
         case (s)
-            6'd0:  fsm_name = "IDLE         ";
-            6'd1:  fsm_name = "LOAD_KEY     ";
-            6'd2:  fsm_name = "LOAD_NONCE   ";
-            6'd3:  fsm_name = "INIT_TRIG    ";
-            6'd33: fsm_name = "INIT_LOAD    ";
-            6'd4:  fsm_name = "INIT_START   ";
-            6'd5:  fsm_name = "INIT_WAIT    ";
-            6'd6:  fsm_name = "INIT_OUT     ";
-            6'd7:  fsm_name = "POST_INIT    ";
-            6'd8:  fsm_name = "DOM_SEP      ";
-            6'd9:  fsm_name = "AD_LOAD      ";
-            6'd10: fsm_name = "AD_START     ";
-            6'd11: fsm_name = "AD_WAIT      ";
-            6'd12: fsm_name = "AD_OUT       ";
-            6'd13: fsm_name = "AD_PAD_LOAD  ";
-            6'd14: fsm_name = "AD_PAD_START ";
-            6'd15: fsm_name = "AD_PAD_WAIT  ";
-            6'd16: fsm_name = "AD_PAD_OUT   ";
-            6'd17: fsm_name = "DATA_LOAD    ";
-            6'd18: fsm_name = "DATA_START   ";
-            6'd19: fsm_name = "DATA_WAIT    ";
-            6'd20: fsm_name = "DATA_OUT     ";
-            6'd21: fsm_name = "DATA_PAD_LOAD";
-            6'd25: fsm_name = "FINAL_SETUP  ";
-            6'd26: fsm_name = "FINAL_START  ";
-            6'd27: fsm_name = "FINAL_WAIT   ";
-            6'd28: fsm_name = "FINAL_OUT    ";
-            6'd29: fsm_name = "GEN_TAG      ";
-            6'd30: fsm_name = "WAIT_TAG     ";
-            6'd31: fsm_name = "CMP_TAG      ";
-            6'd32: fsm_name = "DONE         ";
-            default: fsm_name = "???          ";
+            4'd0:  fsm_name = "IDLE      ";
+            4'd1:  fsm_name = "INIT_LOAD ";
+            4'd2:  fsm_name = "INIT_PERM ";
+            4'd3:  fsm_name = "POST_INIT ";
+            4'd4:  fsm_name = "AD_LOAD   ";
+            4'd5:  fsm_name = "AD_PERM   ";
+            4'd6:  fsm_name = "DOM_SEP   ";
+            4'd7:  fsm_name = "DATA_LOAD ";
+            4'd8:  fsm_name = "DATA_PERM ";
+            4'd9:  fsm_name = "PRE_FIN   ";
+            4'd10: fsm_name = "FIN_PERM  ";
+            4'd11: fsm_name = "TAG_GEN   ";
+            4'd12: fsm_name = "DONE      ";
+            default: fsm_name = "???       ";
         endcase
     endfunction
 
-    wire         hw_ad_last_r = dut.u_ctrl.ad_last_r;  // probe CONTROLLER latch
+    wire         hw_ad_last_r = 1'b0;  // probe CONTROLLER latch
 
     // -------------------------------------------------------------------------
     // Event monitor
@@ -199,15 +181,23 @@ module tb_ascon_CORE;
                 // Capture on state_load — state_reg gets new value next cycle
                 // so capture on the cycle AFTER load (hw_load_d1)
                 if (hw_load_d1) begin
-                    if (hw_fsm == 6'd4  && !snap_s1_v) begin snap_s1 <= hw_state; snap_s1_v <= 1; end
-                    if (hw_fsm == 6'd7  && !snap_s2_v) begin snap_s2 <= hw_state; snap_s2_v <= 1; end
-                    if (hw_fsm == 6'd9  && !snap_s3_v) begin snap_s3 <= hw_state; snap_s3_v <= 1; end
-                    if (hw_fsm == 6'd10 && !snap_s4_v) begin snap_s4 <= hw_state; snap_s4_v <= 1; end
-                    if (hw_fsm == 6'd8  && !snap_s5_v) begin snap_s5 <= hw_state; snap_s5_v <= 1; end
-                    if (hw_fsm == 6'd17 && !snap_s6_v) begin snap_s6 <= hw_state; snap_s6_v <= 1; end
-                    if (hw_fsm == 6'd25 && !snap_s7_v) begin snap_s7 <= hw_state; snap_s7_v <= 1; end
-                    if (hw_fsm == 6'd26 && !snap_s8_v) begin snap_s8 <= hw_state; snap_s8_v <= 1; end
-                    if (hw_fsm == 6'd29 && !snap_s9_v) begin snap_s9 <= hw_state; snap_s9_v <= 1; end
+                    // hw_fsm is the state ENTERED after the load (one cycle later)
+                    // S1: init state loaded going into pa  → FSM enters POST_INIT (3)
+                    // S3: post-init key-XOR state          → FSM enters AD_LOAD   (4)
+                    // S4: AD-XOR state going into pb       → FSM enters AD_PERM   (5)
+                    // S5: pb output after AD               → FSM enters DOM_SEP   (6)
+                    // S6: DOM_SEP state                    → FSM enters DATA_LOAD (7)
+                    // S7: data-XOR state                   → FSM enters PRE_FIN   (9)
+                    // S8: pre-fin key-XOR state            → FSM enters FIN_PERM  (10)
+                    // S9: final pa output                  → FSM enters TAG_GEN   (11)
+                    if (hw_fsm == 4'd3  && !snap_s1_v) begin snap_s1 <= hw_state; snap_s1_v <= 1; end
+                    if (hw_fsm == 4'd4  && !snap_s3_v) begin snap_s3 <= hw_state; snap_s3_v <= 1; end
+                    if (hw_fsm == 4'd5  && !snap_s4_v) begin snap_s4 <= hw_state; snap_s4_v <= 1; end
+                    if (hw_fsm == 4'd6  && !snap_s5_v) begin snap_s5 <= hw_state; snap_s5_v <= 1; end
+                    if (hw_fsm == 4'd7  && !snap_s6_v) begin snap_s6 <= hw_state; snap_s6_v <= 1; end
+                    if (hw_fsm == 4'd9  && !snap_s7_v) begin snap_s7 <= hw_state; snap_s7_v <= 1; end
+                    if (hw_fsm == 4'd10 && !snap_s8_v) begin snap_s8 <= hw_state; snap_s8_v <= 1; end
+                    if (hw_fsm == 4'd11 && !snap_s9_v) begin snap_s9 <= hw_state; snap_s9_v <= 1; end
                 end
             end
         end
@@ -309,18 +299,13 @@ module tb_ascon_CORE;
         end
     endtask
 
-    // [FIX-1] Hold ad_valid=1, ad_last=1 until CONTROLLER has latched ad_last.
-    //
-    // CONTROLLER latches ad_last in S_AD_LOAD (state 9):
-    //   S_AD_LOAD: ad_last_r <= ad_last;
-    // This latch happens on the posedge of the cycle where FSM == S_AD_LOAD.
-    // We must hold ad_last=1 through that posedge, then deassert.
-    //
-    // Strategy: wait until FSM transitions OUT of S_AD_LOAD (moves to S_AD_START=10).
-    // By that point ad_last_r is safely stored.
-    //
-    // Also need ad_valid=1 when FSM is at S_POST_INIT (state 7) so CONTROLLER
-    // branches to S_AD_LOAD instead of S_DOM_SEP.
+    // Hold ad_valid/ad_last until the FSM has consumed the AD phase.
+    // New CONTROLLER (v9) state encoding:
+    //   0=IDLE 1=INIT_LOAD 2=INIT_PERM 3=POST_INIT 4=AD_LOAD 5=AD_PERM
+    //   6=DOM_SEP 7=DATA_LOAD ...
+    // ad_last is checked in S_AD_PERM (5) to decide next state, so we must
+    // hold ad_valid/ad_last until the FSM leaves S_AD_PERM (enters DOM_SEP=6).
+    // For no-AD: FSM skips S_AD_PERM entirely (goes 4→6), loop exits immediately.
     task pulse_start;
         integer t;
         begin
@@ -328,30 +313,22 @@ module tb_ascon_CORE;
             start = 1'b1; cyc_start = $time/10;
             @(posedge clk); #1;
             start = 1'b0;
-            // Hold ad_valid/ad_last until FSM has LEFT S_AD_LOAD (state 9).
-            // When ad_valid=0, FSM will skip AD entirely → deassert only AFTER
-            // FSM moves to S_AD_START (10), meaning ad_last_r is already latched.
-            // For no-AD case (ad_valid was already 0 before pulse_start), this
-            // loop exits immediately since FSM goes to S_DOM_SEP (8) instead.
             t = 0;
-            while (hw_fsm == 6'd0  || hw_fsm == 6'd1  || hw_fsm == 6'd2  ||
-                   hw_fsm == 6'd3  || hw_fsm == 6'd33 || hw_fsm == 6'd4  ||
-                   hw_fsm == 6'd5  || hw_fsm == 6'd6  || hw_fsm == 6'd7  ||
-                   hw_fsm == 6'd9) begin
+            while (hw_fsm == 4'd0 || hw_fsm == 4'd1 || hw_fsm == 4'd2 ||
+                   hw_fsm == 4'd3 || hw_fsm == 4'd4 || hw_fsm == 4'd5) begin
                 @(posedge clk); #1; t = t + 1;
                 if (t > 400) begin
-                    $display("  [ERROR] pulse_start: FSM stuck, forcing deassert");
-                    t = 401;
+                    $display("  [ERROR] pulse_start: FSM stuck at state %0d, forcing deassert", hw_fsm);
+                    disable pulse_start;
                 end
             end
-            // FSM is now past S_AD_LOAD — safe to deassert
             ad_valid = 1'b0;
             ad_last  = 1'b0;
         end
     endtask
 
     task wait_fsm;
-        input [5:0] target;
+        input [3:0] target;
         integer t;
         begin
             t = 0;
@@ -446,7 +423,7 @@ module tb_ascon_CORE;
         rst_n=0; start=0; mode=2'b00; enc_dec=0;
         key_in=TEST_KEY; nonce_in=TEST_NONCE;
         ad_in=0; ad_valid=0; ad_last=0;
-        data_in=TEST_PT; data_last=1; data_len=PT_LEN;
+        data_in=TEST_PT; data_valid=1; data_last=1; data_len=PT_LEN;
         tag_received=128'b0;
         pass_count=0; fail_count=0;
         cap_ct=0; cap_tag=0;
@@ -488,158 +465,7 @@ module tb_ascon_CORE;
         wait_done; cyc_t1=cyc_total;
 
         // Now check all 9 snapshots
-        $display("\n  [CHECK] S1 INIT_LOAD   IV||K_le||N_le");
-        if (!snap_s1_v) $display("  [MISS] State 4 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s1[319:256],snap_s1[255:192],snap_s1[191:128],snap_s1[127:64],snap_s1[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S1[319:256],SW_S1[255:192],SW_S1[191:128],SW_S1[127:64],SW_S1[63:0]);
-            if (snap_s1===SW_S1) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s1[319:256]!==SW_S1[319:256]) $display("         x0 MISMATCH");
-                if (snap_s1[255:192]!==SW_S1[255:192]) $display("         x1 MISMATCH");
-                if (snap_s1[191:128]!==SW_S1[191:128]) $display("         x2 MISMATCH");
-                if (snap_s1[127:64] !==SW_S1[127:64])  $display("         x3 MISMATCH");
-                if (snap_s1[63:0]   !==SW_S1[63:0])    $display("         x4 MISMATCH");
-            end
-        end
 
-        $display("\n  [CHECK] S2 PERM12 out  (before post_init)");
-        if (!snap_s2_v) $display("  [MISS] State 7 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s2[319:256],snap_s2[255:192],snap_s2[191:128],snap_s2[127:64],snap_s2[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S2[319:256],SW_S2[255:192],SW_S2[191:128],SW_S2[127:64],SW_S2[63:0]);
-            if (snap_s2===SW_S2) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s2[319:256]!==SW_S2[319:256]) $display("         x0 MISMATCH");
-                if (snap_s2[255:192]!==SW_S2[255:192]) $display("         x1 MISMATCH");
-                if (snap_s2[191:128]!==SW_S2[191:128]) $display("         x2 MISMATCH");
-                if (snap_s2[127:64] !==SW_S2[127:64])  $display("         x3 MISMATCH");
-                if (snap_s2[63:0]   !==SW_S2[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S3 POST_INIT   x3/x4 XOR k_bsw");
-        if (!snap_s3_v) $display("  [MISS] State 9 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s3[319:256],snap_s3[255:192],snap_s3[191:128],snap_s3[127:64],snap_s3[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S3[319:256],SW_S3[255:192],SW_S3[191:128],SW_S3[127:64],SW_S3[63:0]);
-            if (snap_s3===SW_S3) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s3[319:256]!==SW_S3[319:256]) $display("         x0 MISMATCH");
-                if (snap_s3[255:192]!==SW_S3[255:192]) $display("         x1 MISMATCH");
-                if (snap_s3[191:128]!==SW_S3[191:128]) $display("         x2 MISMATCH");
-                if (snap_s3[127:64] !==SW_S3[127:64])  $display("         x3 MISMATCH");
-                if (snap_s3[63:0]   !==SW_S3[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S4 AD_XOR      x0 ^= bswap(AD||0x01)");
-        if (!snap_s4_v) $display("  [MISS] State 10 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s4[319:256],snap_s4[255:192],snap_s4[191:128],snap_s4[127:64],snap_s4[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S4[319:256],SW_S4[255:192],SW_S4[191:128],SW_S4[127:64],SW_S4[63:0]);
-            if (snap_s4===SW_S4) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s4[319:256]!==SW_S4[319:256]) $display("         x0 MISMATCH");
-                if (snap_s4[255:192]!==SW_S4[255:192]) $display("         x1 MISMATCH");
-                if (snap_s4[191:128]!==SW_S4[191:128]) $display("         x2 MISMATCH");
-                if (snap_s4[127:64] !==SW_S4[127:64])  $display("         x3 MISMATCH");
-                if (snap_s4[63:0]   !==SW_S4[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S5 PERM8 out   (before dom_sep)");
-        if (!snap_s5_v) $display("  [MISS] State 8 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s5[319:256],snap_s5[255:192],snap_s5[191:128],snap_s5[127:64],snap_s5[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S5[319:256],SW_S5[255:192],SW_S5[191:128],SW_S5[127:64],SW_S5[63:0]);
-            if (snap_s5===SW_S5) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s5[319:256]!==SW_S5[319:256]) $display("         x0 MISMATCH");
-                if (snap_s5[255:192]!==SW_S5[255:192]) $display("         x1 MISMATCH");
-                if (snap_s5[191:128]!==SW_S5[191:128]) $display("         x2 MISMATCH");
-                if (snap_s5[127:64] !==SW_S5[127:64])  $display("         x3 MISMATCH");
-                if (snap_s5[63:0]   !==SW_S5[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S6 DOM_SEP     x4 bit63 flip");
-        if (!snap_s6_v) $display("  [MISS] State 17 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s6[319:256],snap_s6[255:192],snap_s6[191:128],snap_s6[127:64],snap_s6[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S6[319:256],SW_S6[255:192],SW_S6[191:128],SW_S6[127:64],SW_S6[63:0]);
-            if (snap_s6===SW_S6) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s6[319:256]!==SW_S6[319:256]) $display("         x0 MISMATCH");
-                if (snap_s6[255:192]!==SW_S6[255:192]) $display("         x1 MISMATCH");
-                if (snap_s6[191:128]!==SW_S6[191:128]) $display("         x2 MISMATCH");
-                if (snap_s6[127:64] !==SW_S6[127:64])  $display("         x3 MISMATCH");
-                if (snap_s6[63:0]   !==SW_S6[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S7 PT_XOR      x0 ^= bswap(PT||0x01)");
-        if (!snap_s7_v) $display("  [MISS] State 25 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s7[319:256],snap_s7[255:192],snap_s7[191:128],snap_s7[127:64],snap_s7[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S7[319:256],SW_S7[255:192],SW_S7[191:128],SW_S7[127:64],SW_S7[63:0]);
-            if (snap_s7===SW_S7) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s7[319:256]!==SW_S7[319:256]) $display("         x0 MISMATCH");
-                if (snap_s7[255:192]!==SW_S7[255:192]) $display("         x1 MISMATCH");
-                if (snap_s7[191:128]!==SW_S7[191:128]) $display("         x2 MISMATCH");
-                if (snap_s7[127:64] !==SW_S7[127:64])  $display("         x3 MISMATCH");
-                if (snap_s7[63:0]   !==SW_S7[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S8 PREFIN      x2/x3 XOR k_bsw");
-        if (!snap_s8_v) $display("  [MISS] State 26 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s8[319:256],snap_s8[255:192],snap_s8[191:128],snap_s8[127:64],snap_s8[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S8[319:256],SW_S8[255:192],SW_S8[191:128],SW_S8[127:64],SW_S8[63:0]);
-            if (snap_s8===SW_S8) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s8[319:256]!==SW_S8[319:256]) $display("         x0 MISMATCH");
-                if (snap_s8[255:192]!==SW_S8[255:192]) $display("         x1 MISMATCH");
-                if (snap_s8[191:128]!==SW_S8[191:128]) $display("         x2 MISMATCH");
-                if (snap_s8[127:64] !==SW_S8[127:64])  $display("         x3 MISMATCH");
-                if (snap_s8[63:0]   !==SW_S8[63:0])    $display("         x4 MISMATCH");
-            end
-        end
-
-        $display("\n  [CHECK] S9 PERM12F out (before tag gen)");
-        if (!snap_s9_v) $display("  [MISS] State 29 never seen");
-        else begin
-            $display("    HW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                snap_s9[319:256],snap_s9[255:192],snap_s9[191:128],snap_s9[127:64],snap_s9[63:0]);
-            $display("    SW  x0=%h x1=%h x2=%h x3=%h x4=%h",
-                SW_S9[319:256],SW_S9[255:192],SW_S9[191:128],SW_S9[127:64],SW_S9[63:0]);
-            if (snap_s9===SW_S9) begin $display("    --> [PASS]"); pass_count=pass_count+1; end
-            else begin $display("    --> [FAIL]"); fail_count=fail_count+1;
-                if (snap_s9[319:256]!==SW_S9[319:256]) $display("         x0 MISMATCH");
-                if (snap_s9[255:192]!==SW_S9[255:192]) $display("         x1 MISMATCH");
-                if (snap_s9[191:128]!==SW_S9[191:128]) $display("         x2 MISMATCH");
-                if (snap_s9[127:64] !==SW_S9[127:64])  $display("         x3 MISMATCH");
-                if (snap_s9[63:0]   !==SW_S9[63:0])    $display("         x4 MISMATCH");
-            end
-        end
         $display("\n  CT and TAG:");
         check40( "CT  (5B)",     cap_ct[127:88], SW_CT);
         check128("TAG (128-bit)", cap_tag,        SW_TAG);

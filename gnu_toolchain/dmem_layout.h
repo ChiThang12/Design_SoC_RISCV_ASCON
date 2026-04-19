@@ -103,7 +103,7 @@ _Static_assert(offsetof(DmemLayout_t, RETCODE) == 0x0058, "RETCODE");
  * ──────────────────────────────────────────────────────────────────────── */
 #define DMEM_DMA_SRC_ADDR    (DMEM_BASE + 0x0000UL)  /* PTEXT_0: 0x100001C0 */
 #define DMEM_DMA_OUTPUT_ADDR (DMEM_BASE + 0x0010UL)  /* CTEXT_0: 0x100001D0 */
-#define DMEM_DMA_INPUT_LEN   4u                       /* = ASCON_BLOCK_SIZE  */
+#define DMEM_DMA_INPUT_LEN   8u                       /* = ASCON_BLOCK_SIZE  */
 #define DMEM_DMA_OUTPUT_LEN  24u                      /* ctext(8) + tag(16)  */
 
 /* Sanity: DMA output region không overlap RETCODE.

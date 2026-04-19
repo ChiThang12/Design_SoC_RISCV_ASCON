@@ -254,6 +254,12 @@ module icache_controller (
 );
 
     // =========================================================================
+    // IMEM address limit — pf_ptr wraps here to prevent DECERR on AXI crossbar
+    // Default: 8 KB (matches inst_mem.v MEM_DEPTH=1024 words)
+    // =========================================================================
+    parameter IMEM_LIMIT = 32'h00002000;
+
+    // =========================================================================
     // Address decomposition — LINE_SIZE=32 bytes
     // [31:10] tag=22bit  [9:5] index=5bit  [4:2] offset=3bit  [1:0]=00
     // =========================================================================
@@ -261,6 +267,10 @@ module icache_controller (
     wire [4:0]  cpu_index  = cpu_addr[9:5];
     wire [2:0]  cpu_offset = cpu_addr[4:2];
     wire [31:0] cpu_line_addr = {cpu_addr[31:5], 5'b00000};  // align 32 bytes
+
+    // Wrapped next pf_ptr values — prevent prefetcher from crossing IMEM boundary
+    wire [31:0] pf_ptr_next    = (pf_ptr + 32'd32 >= IMEM_LIMIT) ? 32'h0 : pf_ptr + 32'd32;
+    wire [31:0] cpu_line_next  = (cpu_line_addr + 32'd32 >= IMEM_LIMIT) ? 32'h0 : cpu_line_addr + 32'd32;
 
     // =========================================================================
     // Shadow valid/tag — 32 lines
@@ -274,8 +284,18 @@ module icache_controller (
     wire line_just_done = refill_done &&
                           (pf_index == cpu_index) &&
                           (pf_tag   == cpu_tag);
-    wire ctrl_hit = (ctrl_valid[cpu_index] || line_just_done) &&
-                    (ctrl_tag[cpu_index] == cpu_tag || line_just_done);
+
+    // FIX-ALIAS: Prefetcher đang ghi một line KHÁC vào cùng set với CPU.
+    // Trong cửa sổ này, ctrl_tag chưa update nhưng data_array đang bị overwrite
+    // word-by-word với dữ liệu sai (NOP từ vùng ngoài chương trình).
+    // → Buộc cpu_miss=1 để CPU đợi prefetch xong rồi mới demand-fill đúng line.
+    wire prefetch_aliasing = pf_active &&
+                             (pf_index == cpu_index) &&
+                             (pf_tag   != cpu_tag);
+
+    wire ctrl_hit = ((ctrl_valid[cpu_index] || line_just_done) &&
+                     (ctrl_tag[cpu_index] == cpu_tag || line_just_done)) &&
+                    !prefetch_aliasing;
 
     assign tag_lookup_index = cpu_index;
     assign tag_lookup_tag   = cpu_tag;
@@ -393,14 +413,18 @@ module icache_controller (
                         pf_active      <= 1'b1;
                         stall_data_rdy <= 1'b0;
                         stat_misses    <= stat_misses + 1;
-                        pf_ptr         <= cpu_line_addr + 32'd32; // bước 32 bytes
+                        pf_ptr         <= cpu_line_next; // FIX-WRAP: wrap at IMEM_LIMIT
                     end else if (pf_ptr_cached) begin
-                        pf_ptr <= pf_ptr + 32'd32;
+                        pf_ptr <= pf_ptr_next;
+                    end else if (cpu_req && pf_ptr_index == cpu_index) begin
+                        // FIX-THRASH: prefetch line này sẽ evict set đang dùng bởi CPU
+                        // → chỉ advance pf_ptr, không fetch → tránh thrashing vô hạn
+                        pf_ptr <= pf_ptr_next;
                     end else begin
                         pf_index  <= pf_ptr_index;
                         pf_tag    <= pf_ptr_tag;
                         pf_active <= 1'b1;
-                        pf_ptr    <= pf_ptr + 32'd32;
+                        pf_ptr    <= pf_ptr_next;
                     end
                 end
 

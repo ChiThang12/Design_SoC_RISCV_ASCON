@@ -37,10 +37,9 @@
 //   5. ascon_ip_top.v  ← file này, KHÔNG `include gì cả
 // ============================================================================
 // FIX-BUG-TOP1: Xóa tất cả `include — dùng compile filelist thay thế (xem NOTE ở header)
-`include "ascon/rtl/ascon_CORE.v"
 `include "ascon/interface/ascon_axi_slave.v"
+`include "ascon/rtl/ascon_CORE.v"
 `include "ascon/dma/ascon_dma.v"
-
 
 module ascon_ip_top #(
     // ---- Spec Section 2.2 ----
@@ -176,6 +175,8 @@ module ascon_ip_top #(
     wire [127:0] core_data_out_w;
     wire [127:0] core_tag_out_w;
     wire         core_tag_valid_w;
+    wire         core_data_valid_w; // NEW
+    wire         core_data_ready_w; // NEW
 
     // =========================================================================
     // Internal wires: slave → DMA
@@ -183,6 +184,7 @@ module ascon_ip_top #(
     wire [31:0]  slave_dma_src_addr;
     wire [31:0]  slave_dma_dst_addr;
     wire [31:0]  slave_dma_length;
+    wire [7:0]   slave_dma_burst_len; // NEW
     wire         slave_dma_en;
     wire         slave_dma_start;
     wire         slave_dma_soft_rst;
@@ -199,6 +201,7 @@ module ascon_ip_top #(
     wire         dma_core_data_valid;  // DMA→CORE data valid; gated với dma_core_start trong core_start_mux
     wire         dma_core_data_ready;
     wire         dma_core_start;
+    wire         dma_core_data_last; // NEW
 
     wire [31:0]  core_dma_ctext_0;
     wire [31:0]  core_dma_ctext_1;
@@ -209,14 +212,24 @@ module ascon_ip_top #(
 
     // =========================================================================
     // [FIX] Bỏ AXI-Stream mode. core_start_mux:
-    //   CPU-Direct: slave_core_start
+    //   CPU-Direct: slave_core_start_pulse (rising-edge của slave_core_start)
+    //               → đảm bảo CORE nhận đúng 1-cycle pulse, không bị restart
+    //                 liên tục nếu AXI slave giữ core_start HIGH nhiều cycle
     //   DMA mode:   dma_core_start AND dma_core_data_valid
     //               → tránh race condition (CORE không được start trước khi
     //                 DMA FSM đã nạp dữ liệu vào ptext_0/ptext_1)
     // =========================================================================
+    // Edge-detect: tạo 1-cycle pulse từ slave_core_start (có thể là level)
+    reg slave_core_start_d;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) slave_core_start_d <= 1'b0;
+        else        slave_core_start_d <= slave_core_start;
+    end
+    wire slave_core_start_pulse = slave_core_start & ~slave_core_start_d;
+
     wire core_start_mux = slave_dma_en
         ? (dma_core_start & dma_core_data_valid)
-        : slave_core_start;
+        : slave_core_start_pulse;
 
     // DMA cung cấp 2x32-bit word (ptext_0=upper, ptext_1=lower) → ghép 64-bit
     // Đặt vào upper 64-bit của 128-bit data_in, lower 64-bit zero-pad
@@ -225,10 +238,12 @@ module ascon_ip_top #(
         ? {dma_core_ptext_0, dma_core_ptext_1, 64'h0}
         : slave_core_data_in;
 
-    wire core_data_last = 1'b1;
+    wire core_data_last = slave_dma_en ? dma_core_data_last : 1'b1;
+    wire core_data_valid = slave_dma_en ? dma_core_data_valid : 1'b1;
+
     wire [127:0] core_ad_in    = 128'h0;
     wire         core_ad_valid = 1'b0;
-    wire         core_ad_last  = 1'b1;
+    wire         core_ad_last  = 1'b0;
     wire [127:0] core_tag_received = 128'h0;
 
     // Slice core output for DMA
@@ -239,7 +254,7 @@ module ascon_ip_top #(
     assign core_dma_tag_2   = core_tag_out_w[63:32];
     assign core_dma_tag_3   = core_tag_out_w[31:0];
 
-    assign dma_core_data_ready = 1'b1;
+    assign dma_core_data_ready = core_data_ready_w; // properly route ready
 
     // =========================================================================
     // u_slave : ascon_axi_slave v2.0 (AXI4-Full)
@@ -310,6 +325,7 @@ module ascon_ip_top #(
         .dma_src_addr       (slave_dma_src_addr),
         .dma_dst_addr       (slave_dma_dst_addr),
         .dma_length         (slave_dma_length),
+        .dma_burst_len      (slave_dma_burst_len), // NEW
         .dma_en             (slave_dma_en),
         .dma_start          (slave_dma_start),
         .dma_soft_rst       (slave_dma_soft_rst),
@@ -352,11 +368,13 @@ module ascon_ip_top #(
         .ad_valid     (core_ad_valid),
         .ad_last      (core_ad_last),
         .data_in      (core_data_in_mux),
+        .data_valid   (core_data_valid), // NEW
         .data_last    (core_data_last),
         .data_len     (slave_core_data_len),
         .tag_received (core_tag_received),
         .data_out     (core_data_out_w),
         .data_out_valid(core_data_out_valid_w),
+        .data_ready   (core_data_ready_w), // NEW
         .tag_out      (core_tag_out_w),
         .tag_valid    (core_tag_valid_w),
         .tag_match    (core_tag_match_w),
@@ -366,8 +384,7 @@ module ascon_ip_top #(
 
     // =========================================================================
     // u_dma : ascon_dma (AXI4-Full Master)
-    // burst_len=8'd1 → 2-beat burst. Để cấu hình linh hoạt hơn cần thêm
-    // register DMA_BURST_LEN vào ascon_axi_slave.
+    // burst_len=8'd0 → 1-beat 64-bit. Cấu hình linh hoạt qua register DMA_BURST_LEN.
     // =========================================================================
     ascon_dma #(
         .ADDR_WIDTH    (M_ADDR_WIDTH),
@@ -382,7 +399,7 @@ module ascon_ip_top #(
         .src_addr             (slave_dma_src_addr),
         .dst_addr             (slave_dma_dst_addr),
         .byte_len             (slave_dma_length),
-        .burst_len            (8'd0),           // [FIX] 1-beat burst (ARLEN=0, 64-bit) → Width Converter cắt thành 2×32-bit chuẩn xác
+        .burst_len            (slave_dma_burst_len), // FIX: Use configurable burst length
 
         .dma_start            (slave_dma_start),
         .dma_soft_rst         (slave_dma_soft_rst),
@@ -403,10 +420,13 @@ module ascon_ip_top #(
         .core_ptext_0         (dma_core_ptext_0),
         .core_ptext_1         (dma_core_ptext_1),
         .core_data_valid      (dma_core_data_valid),
-        .core_data_ready      (dma_core_data_ready),
+        .core_data_ready      (dma_core_data_ready), // Now connected correctly
         .core_start           (dma_core_start),
+        .core_data_last       (dma_core_data_last), // NEW
         .core_busy            (core_busy_w),
         .core_done            (core_done_w),
+        .core_data_out_valid  (core_data_out_valid_w), // NEW
+        .core_tag_valid       (core_tag_valid_w),      // NEW
 
         .core_ctext_0         (core_dma_ctext_0),
         .core_ctext_1         (core_dma_ctext_1),

@@ -25,6 +25,7 @@ if [[ -z "$SRC" ]]; then
 fi
 
 NAME=$(basename "$SRC" .v)
+LOG="${NAME}.log"
 
 echo "============================================"
 echo "Source   : $SRC"
@@ -34,6 +35,7 @@ else
     echo "Standard : $STD"
 fi
 echo "Output   : $NAME.vvp"
+echo "Log file : $LOG"
 echo "============================================"
 
 iverilog $STD -o "$NAME.vvp" "$SRC" || exit 1
@@ -41,8 +43,10 @@ iverilog $STD -o "$NAME.vvp" "$SRC" || exit 1
 echo "--------------------------------------------"
 echo "Running simulation..."
 echo "--------------------------------------------"
-vvp "$NAME.vvp"
+
+# Ghi cả stdout + stderr vào log
+vvp "$NAME.vvp" > "$LOG" 2>&1
 
 echo "--------------------------------------------"
-echo "Done."
+echo "Done. Log saved to $LOG"
 echo "============================================"

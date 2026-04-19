@@ -57,8 +57,8 @@ module ascon_DATAPATH #(
     wire [6:0] rate_bytes;
     generate
         if (G_DUAL_RATE == 1) begin : gen_dual_rate
-            // mode_int[0]=1 → ASCON-128 (rate=8), mode_int[0]=0 → ASCON-128a (rate=16)
-            assign rate_bytes = (mode[0] == 1'b1) ? 7'd8 : 7'd16;
+            // mode[0]=0 → ASCON-128 (rate=8 bytes), mode[0]=1 → ASCON-128a (rate=16 bytes)
+            assign rate_bytes = (mode[0] == 1'b0) ? 7'd8 : 7'd16;
         end else begin : gen_single_rate
             assign rate_bytes = 7'd8;  // ASCON-128 only
         end
@@ -173,8 +173,8 @@ module ascon_DATAPATH #(
     // Determine active rate:
     //   is_128a=1 → 128-bit rate (x0 và x1)
     //   is_128a=0 → 64-bit rate  (chỉ x0, x1 giữ nguyên)
-    // mode_int[0]=0 → ASCON-128a (128-bit rate), mode_int[0]=1 → ASCON-128 (64-bit)
-    wire is_128a = (G_DUAL_RATE == 1) && (mode[0] == 1'b0);
+    // mode[0]=0 → ASCON-128 (64-bit rate), mode[0]=1 → ASCON-128a (128-bit rate)
+    wire is_128a = (G_DUAL_RATE == 1) && (mode[0] == 1'b1);
 
     always @(*) begin
         state_temp          = state_in;

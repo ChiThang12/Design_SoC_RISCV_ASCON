@@ -258,7 +258,12 @@ module riscv_cpu_core (
 
     wire lsu_dependency_stall_w = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
                                    (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
-    wire stall_ex_mem = lsu_dependency_stall_w | fence_stall;
+    // [FIX-FENCE-SQUASH] fence_stall must NOT freeze EX/MEM: the sw that is
+    // already in EX when the fence fires is program-order BEFORE the fence and
+    // must reach MEM so it can be accepted into the store buffer.  Only
+    // lsu_dependency_stall needs to freeze EX/MEM (to hold a MEM-stage load
+    // result for its consumer).
+    wire stall_ex_mem = lsu_dependency_stall_w;
 
     wire flush_if_id_final = flush_if_id | irq_flush;
     wire flush_id_ex_final = flush_id_ex | irq_flush;
@@ -481,7 +486,12 @@ module riscv_cpu_core (
             byte_size_ex_mem  <= byte_size_ex;
             funct3_ex_mem     <= funct3_ex;
 
-            if (stall_any) begin
+            // [FIX-FENCE-SQUASH] When stall_any is caused solely by fence_stall,
+            // allow the instruction already in EX (the sw before the fence) to
+            // pass through into MEM — do NOT insert a bubble.  For all other
+            // upstream stalls (imem miss, load-use, debug) the bubble is still
+            // needed to prevent double-issue.
+            if (stall_any && !fence_stall) begin
                 regwrite_ex_mem   <= 1'b0;
                 memread_ex_mem    <= 1'b0;
                 memwrite_ex_mem   <= 1'b0;

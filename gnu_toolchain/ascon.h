@@ -66,6 +66,7 @@
 #define ASCON_OFS_DMA_SRC   0x100
 #define ASCON_OFS_DMA_DST   0x104
 #define ASCON_OFS_DMA_LEN   0x108
+#define ASCON_OFS_DMA_BURST 0x114
 
 /* ── Mode Register Bits (Thanh ghi 0x000) ──────────────────────────────── */
 /*

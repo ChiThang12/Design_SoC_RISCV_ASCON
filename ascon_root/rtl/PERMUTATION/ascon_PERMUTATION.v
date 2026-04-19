@@ -1,116 +1,145 @@
 // ============================================================================
-// Module: ASCON_PERMUTATION  (FIXED v2)
+// Module: ascon_PERMUTATION  (v8 — correct FSM, G_SBOX_PIPELINE=0 default)
 //
-// BUG FIX 1 — round_counter khởi đầu sai (đã fix ở version trước):
-//   p^8 : rounds 4..11  → round_counter bắt đầu tại 4   (FIX)
-//   Fix: round_counter = 12 - rounds khi start_perm.
+// ROOT CAUSE của tất cả các phiên bản trước:
+//   G_SBOX_PIPELINE=1 KHÔNG tương thích với FSM hiện tại.
+//   Vấn đề: S-box pipeline yêu cầu input STABLE 2 cycle liên tiếp:
+//     Cycle N:   present input X → DFF latch AND(X)
+//     Cycle N+1: DFF output = AND(X) → sbox(X) valid
+//   Nhưng FSM thay đổi rnd_in mỗi cycle (vì `running` là registered signal,
+//   lệch pha 1 cycle so với khi được set), nên:
+//     - Cycle 0 (start): rnd_in = start_st → DFF latch AND(start_st)
+//     - Cycle 1 (stall): running=0 → rnd_in = start_st LẠI (không phải r0_output!)
+//       → DFF latch AND(start_st) LẦN 2 → r1 nhận sai input
+//   Kết quả: tất cả rounds từ r1 trở đi đều sai.
 //
-// BUG FIX 2 — 'rounds' input thay đổi giữa chừng (NEW FIX):
-//   Vấn đề: 'rounds' là INPUT WIRE từ CONTROLLER combinational logic.
-//   Tại S_AD_PERM_START: rounds=8, perm_start=1 → round_counter latched = 4  ✓
-//   Tại S_AD_PERM_W:     rounds=12 (DEFAULT trong CONTROLLER!)
-//   → Check "rounds_done + 1 == rounds" dùng rounds=12, không phải 8
-//   → Perm chạy 12 vòng thay vì 8 (rounds 4..15 thay vì 4..11)
-//   → Output SAI hoàn toàn.
-//   → perm12 vô tình đúng vì default rounds=12 = số rounds cần chạy.
+// FIX: Dùng G_SBOX_PIPELINE=0 (combinational S-box, không DFF).
+//   - 1 cycle/round, đơn giản, đúng 100%
+//   - Với G=6 rounds/call: 6 cycles/call
+//   - ASCON-128 INIT: 2 calls × 6 cycles = 12 cycles
+//   - ASCON-128 AD/PT: 1 call × 6 cycles = 6 cycles
 //
-//   Fix: latch 'rounds' vào reg 'rounds_reg' khi start_perm,
-//        dùng rounds_reg để kiểm tra done condition.
+// NOTE: G_SBOX_PIPELINE=1 có thể implement đúng bằng cách thêm state
+// PRESENT/WAIT riêng biệt, nhưng để đảm bảo correctness trước, dùng =0.
 // ============================================================================
 
 `include "ascon/rtl/PERMUTATION/ascon_CONSTANT_ADDITION.v"
 `include "ascon/rtl/PERMUTATION/ascon_SUBTITUTION_LAYER.v"
 `include "ascon/rtl/PERMUTATION/ascon_LINEAR_DIFFUSION.v"
 
-module ascon_PERMUTATION (
+module ascon_PERMUTATION #(
+    parameter G_SBOX_PIPELINE = 0    // FIX: default 0 (combinational, correct)
+) (
     input  wire         clk,
     input  wire         rst_n,
     input  wire [319:0] state_in,
-    input  wire [3:0]   rounds,       // số rounds: 6, 8, hoặc 12
+    input  wire [319:0] state_bypass,
+    input  wire         use_bypass,
+    input  wire [3:0]   rounds,
+    input  wire [3:0]   start_rc,
     input  wire         start_perm,
-    input  wire         mode,         // 0: iterative (only mode supported)
+    /* verilator lint_off UNUSEDSIGNAL */
+    input  wire         mode,  // reserved for future variant selection
+    /* verilator lint_on UNUSEDSIGNAL */
 
     output reg  [319:0] state_out,
     output reg          valid,
     output reg          done
 );
 
-    // ========================================================================
-    // Internal signals
-    // ========================================================================
-    reg [319:0] current_state;
-    reg [3:0]   round_counter;    // ABSOLUTE round index: (12-rounds)..15
-    reg [3:0]   rounds_reg;       // FIX2: snapshot of 'rounds' at start_perm
-    reg [3:0]   rounds_done;      // count of rounds executed
+    reg [319:0] cur;
+    reg [3:0]   rc;
+    reg [3:0]   rounds_reg;
+    reg [3:0]   done_cnt;
     reg         running;
 
-    // Combinational round computation
-    wire [63:0] x0 = current_state[319:256];
-    wire [63:0] x1 = current_state[255:192];
-    wire [63:0] x2 = current_state[191:128];
-    wire [63:0] x3 = current_state[127:64];
-    wire [63:0] x4 = current_state[63:0];
+    wire [319:0] start_st = use_bypass ? state_bypass : state_in;
 
-    wire [63:0] x2_const;
-    wire [63:0] x0_sub, x1_sub, x2_sub, x3_sub, x4_sub;
-    wire [63:0] x0_diff, x1_diff, x2_diff, x3_diff, x4_diff;
+    // ---- Round input mux ----
+    // running=1: use cur (updated state)
+    // running=0: use start_st (initial state at start_perm)
+    wire [319:0] rnd_in = running ? cur : start_st;
+    wire [3:0]   rnd_rc = running ? rc  : start_rc;
 
-    // ========================================================================
-    // Sub-modules
-    // ========================================================================
-    CONSTANT_ADDITION const_add (
-        .state_x2         (x2),
-        .round_number     (round_counter),
-        .state_x2_modified(x2_const)
+    // ---- Constant addition ----
+    wire [63:0] x2_c;
+    CONSTANT_ADDITION ca (
+        .state_x2(rnd_in[191:128]),
+        .round_number(rnd_rc),
+        .state_x2_modified(x2_c)
     );
 
-    SUBSTITUTION_LAYER sub_layer (
-        .x0_in(x0),     .x1_in(x1), .x2_in(x2_const),
-        .x3_in(x3),     .x4_in(x4),
-        .x0_out(x0_sub),.x1_out(x1_sub),.x2_out(x2_sub),
-        .x3_out(x3_sub),.x4_out(x4_sub)
+    // ---- Substitution layer (u=1, G_SBOX_PIPELINE=0 → combinational) ----
+    wire [63:0] s0, s1, s2, s3, s4;
+    SUBSTITUTION_LAYER_PIPELINED #(.G_SBOX_PIPELINE(G_SBOX_PIPELINE)) sl (
+        .clk(clk), .rst_n(rst_n),
+        .x0_in(rnd_in[319:256]),
+        .x1_in(rnd_in[255:192]),
+        .x2_in(x2_c),
+        .x3_in(rnd_in[127: 64]),
+        .x4_in(rnd_in[ 63:  0]),
+        .x0_out(s0), .x1_out(s1), .x2_out(s2), .x3_out(s3), .x4_out(s4)
     );
 
-    LINEAR_DIFFUSION diff_layer (
-        .x0_in(x0_sub), .x1_in(x1_sub), .x2_in(x2_sub),
-        .x3_in(x3_sub), .x4_in(x4_sub),
-        .x0_out(x0_diff),.x1_out(x1_diff),.x2_out(x2_diff),
-        .x3_out(x3_diff),.x4_out(x4_diff)
+    // ---- Linear diffusion ----
+    wire [63:0] d0, d1, d2, d3, d4;
+    LINEAR_DIFFUSION ld (
+        .x0_in(s0), .x1_in(s1), .x2_in(s2), .x3_in(s3), .x4_in(s4),
+        .x0_out(d0), .x1_out(d1), .x2_out(d2), .x3_out(d3), .x4_out(d4)
     );
 
-    // ========================================================================
-    // Control logic
-    // ========================================================================
+    wire [319:0] next1 = {d0, d1, d2, d3, d4};
+
+    // ----------------------------------------------------------------
+    // FSM — G_SBOX_PIPELINE=0 only (combinational, 1 cycle/round)
+    //
+    // start_perm fires:
+    //   cycle 0: running=0 → rnd_in=start_st → next1 combinationally valid
+    //            latch result, start running loop
+    //   cycle 1..N-1: running=1 → rnd_in=cur → next1 valid, advance
+    //
+    // Timing: rounds cycles total per call (1 cycle/round)
+    // ----------------------------------------------------------------
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            current_state <= 320'h0;
-            round_counter <= 4'h0;
-            rounds_reg    <= 4'h0;
-            rounds_done   <= 4'h0;
-            running       <= 1'b0;
-            state_out     <= 320'h0;
-            valid         <= 1'b0;
-            done          <= 1'b0;
-        end
-        else begin
+            cur        <= 320'h0;
+            rc         <= 4'h0;
+            rounds_reg <= 4'h0;
+            done_cnt   <= 4'h0;
+            running    <= 1'b0;
+            state_out  <= 320'h0;
+            valid      <= 1'b0;
+            done       <= 1'b0;
+        end else begin
             valid <= 1'b0;
             done  <= 1'b0;
 
-            if (start_perm && !running) begin
-                current_state <= state_in;
-                round_counter <= 4'd12 - rounds;   // FIX1: absolute start index
-                rounds_reg    <= rounds;            // FIX2: snapshot rounds input
-                rounds_done   <= 4'h0;
-                running       <= 1'b1;
-            end
-            else if (running) begin
-                current_state <= {x0_diff, x1_diff, x2_diff, x3_diff, x4_diff};
-                round_counter <= round_counter + 1'b1;
-                rounds_done   <= rounds_done + 1'b1;
+            if (!running) begin
+                if (start_perm) begin
+                    // Cycle 0: rnd_in=start_st (combinational), next1 valid NOW
+                    // Latch round 0 result
+                    rounds_reg <= rounds;
+                    rc         <= start_rc + 4'd1;   // next round after this one
+                    done_cnt   <= 4'd1;
+                    cur        <= next1;
 
-                // FIX2: compare against rounds_reg (latched), NOT 'rounds' input
-                if (rounds_done + 1'b1 == rounds_reg) begin
-                    state_out <= {x0_diff, x1_diff, x2_diff, x3_diff, x4_diff};
+                    if (4'd1 >= rounds) begin
+                        // rounds=1 edge case: done immediately
+                        state_out <= next1;
+                        valid     <= 1'b1;
+                        done      <= 1'b1;
+                    end else begin
+                        running <= 1'b1;
+                    end
+                end
+            end else begin
+                // Cycle 1+: rnd_in=cur (registered), next1 valid NOW
+                done_cnt <= done_cnt + 4'd1;
+                rc       <= rc + 4'd1;
+                cur      <= next1;
+
+                if (done_cnt + 4'd1 >= rounds_reg) begin
+                    state_out <= next1;
                     valid     <= 1'b1;
                     done      <= 1'b1;
                     running   <= 1'b0;

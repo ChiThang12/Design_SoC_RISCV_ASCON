@@ -564,6 +564,11 @@ integer ascon_dma_done_cnt;
 integer ascon_irq_cnt;
 integer ascon_error_cnt;
 
+// Bandwidth measurement arrays (up to 16 DMA operations)
+integer ascon_bw_start_cyc [0:15];
+integer ascon_bw_done_cyc  [0:15];
+integer ascon_bw_bytes     [0:15];
+
 integer clint_timer_irq_cnt;
 integer clint_sw_irq_cnt;
 integer soft_rst_cnt;
@@ -686,21 +691,33 @@ end
 
 // ============================================================================
 // (3b) DMEM AXI Write Tracker — authoritative scoreboard source
+// Tracks per-beat address for burst writes (AXI INCR, 32-bit bus, size=4B)
 // ============================================================================
 reg [31:0] s1_aw_addr_lat;
+reg [7:0]  s1_wr_beat_cnt;
+
 always @(posedge clk) begin
-    if (!ext_rst_n_r)
+    if (!ext_rst_n_r) begin
         s1_aw_addr_lat <= 32'h0;
-    else if (s1_awvalid && s1_awready)
-        s1_aw_addr_lat <= s1_awaddr;
+        s1_wr_beat_cnt <= 8'h0;
+    end else begin
+        if (s1_awvalid && s1_awready) begin
+            s1_aw_addr_lat <= s1_awaddr;
+            s1_wr_beat_cnt <= 8'h0;
+        end else if (s1_wvalid && s1_wready) begin
+            s1_wr_beat_cnt <= s1_wlast ? 8'h0 : s1_wr_beat_cnt + 8'h1;
+        end
+    end
 end
+
+wire [31:0] s1_wr_beat_addr = s1_aw_addr_lat + {s1_wr_beat_cnt, 2'b00};
 
 always @(posedge clk) begin
     if (ext_rst_n_r && s1_wvalid && s1_wready && !program_done) begin
-        sb_update(s1_aw_addr_lat, s1_wdata, s1_wstrb);
+        sb_update(s1_wr_beat_addr, s1_wdata, s1_wstrb);
         if (`LOG_LEVEL >= 2)
             $display("[%6d] [DMEM-W] addr=0x%08h  data=0x%08h  strb=%b",
-                     cycle_count, s1_aw_addr_lat, s1_wdata, s1_wstrb);
+                     cycle_count, s1_wr_beat_addr, s1_wdata, s1_wstrb);
     end
 end
 
@@ -1104,6 +1121,10 @@ always @(posedge clk) begin
 
         if (ascon_dma_start) begin
             ascon_dma_start_cnt = ascon_dma_start_cnt + 1;
+            if (ascon_dma_start_cnt <= 16) begin
+                ascon_bw_start_cyc[ascon_dma_start_cnt - 1] = cycle_count;
+                ascon_bw_bytes[ascon_dma_start_cnt - 1]     = ascon_dma_len_r;
+            end
             $display("[%6d] [ASCON] DMA START #%0d  src=0x%08h  dst=0x%08h  len=%0d",
                      cycle_count, ascon_dma_start_cnt,
                      ascon_dma_src_r, ascon_dma_dst_r, ascon_dma_len_r);
@@ -1123,6 +1144,8 @@ always @(posedge clk) begin
 
         if (ascon_dma_done_st && !prev_ascon_dma_done_st) begin
             ascon_dma_done_cnt = ascon_dma_done_cnt + 1;
+            if (ascon_dma_done_cnt <= 16)
+                ascon_bw_done_cyc[ascon_dma_done_cnt - 1] = cycle_count;
             $display("[%6d] [ASCON] DMA DONE #%0d  STATUS=0x%08h",
                      cycle_count, ascon_dma_done_cnt, ascon_status_word);
         end
@@ -1428,6 +1451,14 @@ initial begin
     ascon_start_cnt      = 0;   ascon_dma_start_cnt  = 0;
     ascon_done_cnt       = 0;   ascon_dma_done_cnt   = 0;
     ascon_irq_cnt        = 0;   ascon_error_cnt      = 0;
+    begin : bw_init
+        integer _bi;
+        for (_bi = 0; _bi < 16; _bi = _bi + 1) begin
+            ascon_bw_start_cyc[_bi] = 0;
+            ascon_bw_done_cyc[_bi]  = 0;
+            ascon_bw_bytes[_bi]     = 0;
+        end
+    end
     clint_timer_irq_cnt  = 0;   clint_sw_irq_cnt     = 0;
     soft_rst_cnt         = 0;
     uart_tx_byte_cnt     = 0;   uart_irq_cnt         = 0;
@@ -1569,12 +1600,14 @@ endfunction
 // PRINT REPORT
 // ============================================================================
 task print_report;
-    input [127:0] reason;
+    input [255:0] reason;   // 32 chars — "2-CYCLE LOOP DETECTED" = 21 chars needs > 128 bits
     integer j, k, nz, dma_wi;
     real    cpi, ipc, eff, ic_rate, dc_rate;
     real    m0_rd_lat_avg, m1_rd_lat_avg, m1_wr_lat_avg, m3_rd_lat_avg, m3_wr_lat_avg;
     integer ic_total, dc_total;
     reg [31:0] ret, wv, dma_base_off, dma_word;
+    integer bw_cycles, bw_bits;
+    real    bw_bpc, bw_mbps;
     begin
         ret = soc.u_cpu.register_file.registers[10];
 
@@ -1818,6 +1851,26 @@ task print_report;
         if (k == 0) $display("|  (no non-zero stores recorded)");
         if (sb_cnt > 48)
             $display("|  ... (%0d more entries truncated)", sb_cnt - 48);
+        $display("+----------------------------------------------------------------+");
+
+        // ── (14) ASCON Bandwidth Summary ─────────────────────────────────────
+        $display("");
+        $display("+--- (14) ASCON BANDWIDTH SUMMARY --------------------------------+");
+        if (ascon_dma_done_cnt > 0) begin
+            $display("|  %-6s  %-8s  %-8s  %-14s  %-14s",
+                     "Op#", "Bytes", "Cycles", "Bits/Cycle", "Mbps@100MHz");
+            $display("|  -------------------------------------------------------");
+            for (j = 0; j < ascon_dma_done_cnt && j < 16; j = j + 1) begin
+                bw_cycles = ascon_bw_done_cyc[j] - ascon_bw_start_cyc[j];
+                bw_bits   = ascon_bw_bytes[j] * 8;
+                bw_bpc    = (bw_cycles > 0) ? (1.0 * bw_bits / bw_cycles) : 0.0;
+                bw_mbps   = (bw_cycles > 0) ? (1.0 * bw_bits * 100.0 / bw_cycles) : 0.0;
+                $display("|  %-6d  %-8d  %-8d  %-14.6f  %-14.4f",
+                         j+1, ascon_bw_bytes[j], bw_cycles, bw_bpc, bw_mbps);
+            end
+        end else begin
+            $display("|  (no DMA operations recorded)");
+        end
         $display("+----------------------------------------------------------------+");
 
         $display("");
