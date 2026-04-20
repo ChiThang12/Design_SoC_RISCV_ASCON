@@ -1,5 +1,18 @@
 // ============================================================================
-// Module  : dma_ctrl_fsm  (v2.0 — Concurrent/Decoupled)
+// Module  : dma_ctrl_fsm  (v3.0 — Optimized Concurrent/Decoupled)
+//
+// CHANGES from v2.0:
+//   [OPT-1] core_pump uses FWFT output from RD FIFO (rd_fifo_fwft_dout/valid).
+//           Eliminates PUMP_WAIT state — data is available combinationally
+//           when FIFO is not empty. Reduces per-block overhead from 3 to 1 cycle.
+//
+//   [OPT-2] Simplified pump FSM: 2 states instead of 4.
+//           PUMP_IDLE: check fwft_valid → latch + core_start → PUMP_WAIT_CORE
+//           PUMP_WAIT_CORE: wait core_data_out_valid → pop FIFO → PUMP_IDLE
+//
+//   Per-block timing improvement:
+//     v2.0: IDLE(1) → WAIT(1) → LATCH(1) → WAIT_CORE(N) = 3+N cycles
+//     v3.0: IDLE(1) → WAIT_CORE(N) = 1+N cycles  (saved 2 cycles/block)
 // ============================================================================
 
 module dma_ctrl_fsm (
@@ -25,10 +38,16 @@ module dma_ctrl_fsm (
     input  wire         rd_done,
     input  wire         rd_error,
 
-    // ── RD FIFO ───────────────────────────────────────────────────────────────
+    // ── RD FIFO (registered path — kept for compatibility) ────────────────────
+    /* verilator lint_off UNUSEDSIGNAL */
     input  wire [63:0]  rd_fifo_dout,
+    /* verilator lint_on UNUSEDSIGNAL */
     output reg          rd_fifo_pop,
     input  wire         rd_fifo_empty,
+
+    // ── RD FIFO (FWFT — combinational, zero-latency) ─────────────────────────
+    input  wire [63:0]  rd_fifo_fwft_dout,
+    input  wire         rd_fifo_fwft_valid,
 
     // ── ascon_CORE ────────────────────────────────────────────────────────────
     output reg  [31:0]  core_ptext_0,
@@ -81,7 +100,7 @@ module dma_ctrl_fsm (
     reg [28:0] wr_beats_done;
 
     // =========================================================================
-    // BLOCK 1: rd_ctrl
+    // BLOCK 1: rd_ctrl — Auto-issue rd_start on rd_done
     // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -112,14 +131,27 @@ module dma_ctrl_fsm (
     end
 
     // =========================================================================
-    // BLOCK 2: core_pump
+    // BLOCK 2: core_pump — Optimized with FWFT (v3.0)
+    //
+    // [OPT-1] Uses rd_fifo_fwft_dout (combinational) instead of rd_fifo_dout
+    //         (registered). This eliminates the PUMP_WAIT state entirely.
+    //
+    // Old (v2.0): PUMP_IDLE → PUMP_WAIT → PUMP_LATCH → PUMP_WAIT_CORE
+    //             = 3 cycles overhead per block before ASCON core starts
+    //
+    // New (v3.0): PUMP_IDLE → PUMP_WAIT_CORE
+    //             = 1 cycle overhead per block
+    //
+    // How it works:
+    //   PUMP_IDLE: FWFT data is already valid on fwft_dout when fwft_valid=1.
+    //             We latch it directly into core_ptext, assert core_start,
+    //             and pop the FIFO (pop advances rd_ptr for next entry).
+    //   PUMP_WAIT_CORE: Wait for core_data_out_valid, then return to IDLE.
     // =========================================================================
-    localparam PUMP_IDLE      = 2'd0;
-    localparam PUMP_WAIT      = 2'd1;
-    localparam PUMP_LATCH     = 2'd2;
-    localparam PUMP_WAIT_CORE = 2'd3;
+    localparam PUMP_IDLE      = 1'b0;
+    localparam PUMP_WAIT_CORE = 1'b1;
 
-    reg [1:0] pump_state;
+    reg pump_state;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -152,22 +184,19 @@ module dma_ctrl_fsm (
 
              case (pump_state)
                  PUMP_IDLE: begin
-                     if (!rd_fifo_empty && dma_busy && (core_blocks_fed < total_blocks)) begin
-                         rd_fifo_pop <= 1'b1;
-                         pump_state  <= PUMP_WAIT;
+                     // [OPT-1] Use FWFT: data available combinationally
+                     if (rd_fifo_fwft_valid && dma_busy && (core_blocks_fed < total_blocks)) begin
+                         // Latch FWFT data directly (no wait cycle needed)
+                         core_ptext_0    <= rd_fifo_fwft_dout[31:0];
+                         core_ptext_1    <= rd_fifo_fwft_dout[63:32];
+                         core_data_valid <= 1'b1;
+                         core_data_last  <= (core_blocks_fed + 1 >= total_blocks);
+                         core_start      <= 1'b1;  // 1-cycle pulse
+                         core_blocks_fed <= core_blocks_fed + 1;
+                         // Pop FIFO to advance to next entry
+                         rd_fifo_pop     <= 1'b1;
+                         pump_state      <= PUMP_WAIT_CORE;
                      end
-                 end
-                 PUMP_WAIT: begin
-                     pump_state <= PUMP_LATCH;
-                 end
-                 PUMP_LATCH: begin
-                     core_ptext_0    <= rd_fifo_dout[31:0];
-                     core_ptext_1    <= rd_fifo_dout[63:32];
-                     core_data_valid <= 1'b1;
-                     core_data_last  <= (core_blocks_fed + 1 >= total_blocks);
-                     core_start      <= 1'b1;  // 1-cycle pulse
-                     core_blocks_fed <= core_blocks_fed + 1;
-                     pump_state      <= PUMP_WAIT_CORE;
                  end
                  PUMP_WAIT_CORE: begin
                      if (core_data_out_valid) begin

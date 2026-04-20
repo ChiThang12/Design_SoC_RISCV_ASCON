@@ -63,7 +63,7 @@ module ascon_dma #(
     parameter AXI_DATA_WIDTH = 64,   // AXI4 Master data bus width
     parameter AXI_ID_WIDTH   = 4,
     parameter RD_FIFO_DEPTH  = 4,    // entries (64-bit each)
-    parameter WR_FIFO_DEPTH  = 8     // entries (32-bit each)
+    parameter WR_FIFO_DEPTH  = 32    // entries (32-bit each); 8 blocks × 2 ctext + 4 tag = 20 max
 ) (
     input  wire  clk,
     input  wire  rst_n,
@@ -184,7 +184,16 @@ module ascon_dma #(
     wire [31:0] wr_fifo_dout;
     wire        wr_fifo_pop;
     wire        wr_fifo_empty;
-    wire [3:0]  wr_fifo_count;
+    wire [5:0]  wr_fifo_count;
+
+    // FWFT (combinational) outputs for zero-latency reads
+    wire [63:0] rd_fifo_fwft_dout;
+    wire        rd_fifo_fwft_valid;
+    wire [31:0] wr_fifo_fwft_dout;
+    wire        wr_fifo_fwft_valid;
+
+    // Total write beats = (byte_len / 8) blocks + 2 TAG beats (128-bit tag = 4 words = 2 beats)
+    wire [28:0] total_wr_beats_w = byte_len[31:3] + 29'd2;
 
     // Read engine ↔ ctrl_fsm
     wire        rd_start_w;
@@ -222,15 +231,17 @@ module ascon_dma #(
         .WIDTH (64),
         .DEPTH (RD_FIFO_DEPTH)
     ) u_rd_fifo (
-        .clk   (clk),
-        .rst_n (fifo_rst_n),
-        .din   (rd_fifo_din),
-        .push  (rd_fifo_push),
-        .full  (rd_fifo_full),
-        .dout  (rd_fifo_dout),
-        .pop   (rd_fifo_pop),
-        .empty (rd_fifo_empty),
-        .count ()
+        .clk        (clk),
+        .rst_n      (fifo_rst_n),
+        .din        (rd_fifo_din),
+        .push       (rd_fifo_push),
+        .full       (rd_fifo_full),
+        .dout       (rd_fifo_dout),
+        .pop        (rd_fifo_pop),
+        .empty      (rd_fifo_empty),
+        .fwft_dout  (rd_fifo_fwft_dout),
+        .fwft_valid (rd_fifo_fwft_valid),
+        .count      ()
     );
 
     // =========================================================================
@@ -240,15 +251,17 @@ module ascon_dma #(
         .WIDTH (32),
         .DEPTH (WR_FIFO_DEPTH)
     ) u_wr_fifo (
-        .clk   (clk),
-        .rst_n (fifo_rst_n),
-        .din   (wr_fifo_din),
-        .push  (wr_fifo_push),
-        .full  (wr_fifo_full),
-        .dout  (wr_fifo_dout),
-        .pop   (wr_fifo_pop),
-        .empty (wr_fifo_empty),
-        .count (wr_fifo_count)
+        .clk        (clk),
+        .rst_n      (fifo_rst_n),
+        .din        (wr_fifo_din),
+        .push       (wr_fifo_push),
+        .full       (wr_fifo_full),
+        .dout       (wr_fifo_dout),
+        .pop        (wr_fifo_pop),
+        .empty      (wr_fifo_empty),
+        .fwft_dout  (wr_fifo_fwft_dout),
+        .fwft_valid (wr_fifo_fwft_valid),
+        .count      (wr_fifo_count)
     );
 
     // =========================================================================
@@ -270,10 +283,13 @@ module ascon_dma #(
         .rd_busy             (rd_busy_w),
         .rd_done             (rd_done_w),
         .rd_error            (rd_error_w),
-        // RD FIFO
+        // RD FIFO (registered path — kept for compatibility)
         .rd_fifo_dout        (rd_fifo_dout),
         .rd_fifo_pop         (rd_fifo_pop),
         .rd_fifo_empty       (rd_fifo_empty),
+        // RD FIFO (FWFT path — zero-latency)
+        .rd_fifo_fwft_dout   (rd_fifo_fwft_dout),
+        .rd_fifo_fwft_valid  (rd_fifo_fwft_valid),
         // ascon_CORE
         .core_ptext_0        (core_ptext_0),
         .core_ptext_1        (core_ptext_1),
@@ -319,6 +335,7 @@ module ascon_dma #(
         // Control
         .src_addr       (src_addr),
         .burst_len      (burst_len),
+        .dma_start      (dma_start),
         .rd_start       (rd_start_w),
         .rd_busy        (rd_busy_w),
         .rd_done        (rd_done_w),
@@ -359,14 +376,18 @@ module ascon_dma #(
         .rst_n          (rst_n),
         .dst_addr       (dst_addr),
         .dma_start      (dma_start),
+        .total_wr_beats (total_wr_beats_w),
         .wr_busy        (wr_busy_w),
         .wr_done        (wr_done_w),
         .wr_error       (wr_error_w),
         .wr_err_addr    (wr_err_addr_w),
-        // WR FIFO pop
+        // WR FIFO pop (registered path)
         .fifo_dout      (wr_fifo_dout),
         .fifo_pop       (wr_fifo_pop),
         .fifo_count     (wr_fifo_count),
+        // WR FIFO FWFT (combinational path)
+        .fifo_fwft_dout (wr_fifo_fwft_dout),
+        .fifo_fwft_valid(wr_fifo_fwft_valid),
         // AXI4 AW channel
         .M_AXI_AWID     (M_AXI_AWID),
         .M_AXI_AWADDR   (M_AXI_AWADDR),

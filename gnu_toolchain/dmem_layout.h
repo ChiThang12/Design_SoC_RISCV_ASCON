@@ -113,6 +113,27 @@ _Static_assert(
     "DMA output region overlap RETCODE!"
 );
 
+/* ── Multi-block DMA Test Buffers ───────────────────────────────────────────
+ *
+ * Placed in the free DMEM zone after DmemLayout_t (ends at ~0x1000021C).
+ * 8-byte aligned to satisfy AXI burst boundary requirements.
+ *
+ * Layout (8 blocks × 8 bytes = 64 bytes PT):
+ *   PT_MULTI_BASE  0x10000220 — 64 bytes plaintext  (8 blocks × 8 B)
+ *   CT_MULTI_BASE  0x10000260 — 80 bytes output     (64 B ctext + 16 B tag)
+ *
+ * Both regions fit comfortably before guard zone (0x10000800).
+ * ──────────────────────────────────────────────────────────────────────────── */
+#define DMEM_MULTI_BLOCK_COUNT  16u
+#define DMEM_MULTI_PT_LEN       (DMEM_MULTI_BLOCK_COUNT * 8u)   /* 128 bytes */
+#define DMEM_MULTI_CT_LEN       (DMEM_MULTI_PT_LEN + 16u)       /* 144 bytes (ctext + tag) */
+
+#define PT_MULTI_BASE  0x10000220UL   /* plaintext buffer  start */
+#define CT_MULTI_BASE  0x100002A0UL   /* ciphertext+tag buffer start (0x220 + 0x80) */
+
+_Static_assert(PT_MULTI_BASE >= (DMEM_BASE + 0x005CUL), "PT_MULTI_BASE overlaps DmemLayout_t!");
+_Static_assert((CT_MULTI_BASE + DMEM_MULTI_CT_LEN) <= 0x10000800UL, "CT_MULTI_BASE overflows DMEM_DATA!");
+
 /* Sanity: DmemLayout_t nằm sau g_stream (0x100001B4) */
 _Static_assert(
     DMEM_BASE >= 0x100001B4UL,

@@ -14,221 +14,265 @@
 	.globl	main
 	.type	main, @function
 main:
-# main.c:64:     DMEM->PTEXT_0 = MY_PTEXT_0;
-	li	a5,268435456		# tmp140,
-	addi	a5,a5,448	#, tmp140, tmp140
-	li	a3,-559038464		# tmp142,
-	addi	a3,a3,-273	#, tmp142, tmp142
-	sw	a3,0(a5)	# tmp142, MEM[(struct DmemLayout_t *)268435904B].PTEXT_0
-# main.c:65:     DMEM->PTEXT_1 = MY_PTEXT_1;
-	li	a4,19087360		# tmp146,
-	addi	a4,a4,1383	#, tmp146, tmp146
-	sw	a4,4(a5)	# tmp146, MEM[(struct DmemLayout_t *)268435904B].PTEXT_1
-# main.c:68:     ASCON_WRITE(ASCON_OFS_CTRL, ASCON_CTRL_SOFT_RST);
-	li	a2,2		# tmp148,
- #APP
-# 68 "main.c" 1
-	lui  t0, 0x20000
-sw   a2, 32(t0)	# tmp148,
-fence w, w
-
-# 0 "" 2
-# main.c:71:     ASCON_WRITE(ASCON_OFS_MODE, ASCON_MODE_128_ENC);
- #NO_APP
-	li	a2,0		# tmp149,
- #APP
-# 71 "main.c" 1
-	lui  t0, 0x20000
-sw   a2, 0(t0)	# tmp149,
-fence w, w
-
-# 0 "" 2
-# main.c:74:     ASCON_WRITE(ASCON_OFS_KEY_0, MY_KEY_0);
-# 74 "main.c" 1
-	lui  t0, 0x20000
-sw   a3, 16(t0)	# tmp142,
-fence w, w
-
-# 0 "" 2
-# main.c:75:     ASCON_WRITE(ASCON_OFS_KEY_1, MY_KEY_1);
- #NO_APP
-	li	a3,-889274368		# tmp152,
-	addi	a3,a3,-1346	#, tmp152, tmp152
+# main.c:59: {
+	li	a4,268435456		# ivtmp.13,
+	addi	a4,a4,544	#, ivtmp.13, ivtmp.13
+# main.c:69:     for (i = 0u; i < (uint32_t)DMEM_MULTI_BLOCK_COUNT; i++) {
+	li	a5,0		# i,
+# main.c:70:         pt[i * 2u]      = (uint32_t)(0xA0000000u | i);
+	li	a0,-1610612736		# tmp148,
+# main.c:71:         pt[i * 2u + 1u] = (uint32_t)(0xB0000000u | i);
+	li	a1,-1342177280		# tmp149,
+# main.c:69:     for (i = 0u; i < (uint32_t)DMEM_MULTI_BLOCK_COUNT; i++) {
+	li	a2,16		# tmp150,
+.L2:
+# main.c:70:         pt[i * 2u]      = (uint32_t)(0xA0000000u | i);
+	or	a3,a5,a0	# tmp148, _3, i
+# main.c:70:         pt[i * 2u]      = (uint32_t)(0xA0000000u | i);
+	sw	a3,0(a4)	# _3, *_2
+# main.c:71:         pt[i * 2u + 1u] = (uint32_t)(0xB0000000u | i);
+	or	a3,a5,a1	# tmp149, _6, i
+# main.c:71:         pt[i * 2u + 1u] = (uint32_t)(0xB0000000u | i);
+	sw	a3,4(a4)	# _6, *_5
+# main.c:69:     for (i = 0u; i < (uint32_t)DMEM_MULTI_BLOCK_COUNT; i++) {
+	addi	a5,a5,1	#, i, i
+# main.c:69:     for (i = 0u; i < (uint32_t)DMEM_MULTI_BLOCK_COUNT; i++) {
+	addi	a4,a4,8	#, ivtmp.13, ivtmp.13
+	bne	a5,a2,.L2	#, i, tmp150,
+# main.c:75:     ASCON_WRITE(ASCON_OFS_CTRL, ASCON_CTRL_SOFT_RST);
+	li	a4,2		# tmp151,
  #APP
 # 75 "main.c" 1
 	lui  t0, 0x20000
-sw   a3, 20(t0)	# tmp152,
+sw   a4, 32(t0)	# tmp151,
 fence w, w
 
 # 0 "" 2
-# main.c:76:     ASCON_WRITE(ASCON_OFS_KEY_2, MY_KEY_2);
-# 76 "main.c" 1
-	lui  t0, 0x20000
-sw   a4, 24(t0)	# tmp146,
-fence w, w
-
-# 0 "" 2
-# main.c:77:     ASCON_WRITE(ASCON_OFS_KEY_3, MY_KEY_3);
+# main.c:78:     ASCON_WRITE(ASCON_OFS_MODE, ASCON_MODE_128_ENC);
  #NO_APP
-	li	a4,-1985228800		# tmp156,
-	addi	a4,a4,-529	#, tmp156, tmp156
+	li	a5,0		# tmp152,
  #APP
-# 77 "main.c" 1
+# 78 "main.c" 1
 	lui  t0, 0x20000
-sw   a4, 28(t0)	# tmp156,
+sw   a5, 0(t0)	# tmp152,
 fence w, w
 
 # 0 "" 2
-# main.c:80:     ASCON_WRITE(ASCON_OFS_NONCE_0, MY_NONCE_0);
+# main.c:81:     ASCON_WRITE(ASCON_OFS_KEY_0, MY_KEY_0);
  #NO_APP
-	li	a4,286330880		# tmp158,
-	addi	a4,a4,273	#, tmp158, tmp158
- #APP
-# 80 "main.c" 1
-	lui  t0, 0x20000
-sw   a4, 36(t0)	# tmp158,
-fence w, w
-
-# 0 "" 2
-# main.c:81:     ASCON_WRITE(ASCON_OFS_NONCE_1, MY_NONCE_1);
- #NO_APP
-	li	a4,572661760		# tmp160,
-	addi	a4,a4,546	#, tmp160, tmp160
+	li	a5,-559038464		# tmp153,
+	addi	a5,a5,-273	#, tmp153, tmp153
  #APP
 # 81 "main.c" 1
 	lui  t0, 0x20000
-sw   a4, 40(t0)	# tmp160,
+sw   a5, 16(t0)	# tmp153,
 fence w, w
 
 # 0 "" 2
-# main.c:82:     ASCON_WRITE(ASCON_OFS_NONCE_2, MY_NONCE_2);
+# main.c:82:     ASCON_WRITE(ASCON_OFS_KEY_1, MY_KEY_1);
  #NO_APP
-	li	a4,858992640		# tmp162,
-	addi	a4,a4,819	#, tmp162, tmp162
+	li	a5,-889274368		# tmp155,
+	addi	a5,a5,-1346	#, tmp155, tmp155
  #APP
 # 82 "main.c" 1
 	lui  t0, 0x20000
-sw   a4, 44(t0)	# tmp162,
+sw   a5, 20(t0)	# tmp155,
 fence w, w
 
 # 0 "" 2
-# main.c:83:     ASCON_WRITE(ASCON_OFS_NONCE_3, MY_NONCE_3);
+# main.c:83:     ASCON_WRITE(ASCON_OFS_KEY_2, MY_KEY_2);
  #NO_APP
-	li	a4,1145323520		# tmp164,
-	addi	a4,a4,1092	#, tmp164, tmp164
+	li	a5,19087360		# tmp157,
+	addi	a5,a5,1383	#, tmp157, tmp157
  #APP
 # 83 "main.c" 1
 	lui  t0, 0x20000
-sw   a4, 48(t0)	# tmp164,
+sw   a5, 24(t0)	# tmp157,
 fence w, w
 
 # 0 "" 2
-# main.c:86:     ASCON_WRITE(ASCON_OFS_DMA_SRC,   DMEM_DMA_SRC_ADDR);     /* PTEXT_0 addr      */
-# 86 "main.c" 1
-	lui  t0, 0x20000
-sw   a5, 256(t0)	# tmp140,
-fence w, w
-
-# 0 "" 2
-# main.c:87:     ASCON_WRITE(ASCON_OFS_DMA_DST,   DMEM_DMA_OUTPUT_ADDR);  /* CTEXT_0 addr      */
+# main.c:84:     ASCON_WRITE(ASCON_OFS_KEY_3, MY_KEY_3);
  #NO_APP
-	li	a5,268435456		# tmp168,
-	addi	a5,a5,464	#, tmp168, tmp168
+	li	a5,-1985228800		# tmp159,
+	addi	a5,a5,-529	#, tmp159, tmp159
+ #APP
+# 84 "main.c" 1
+	lui  t0, 0x20000
+sw   a5, 28(t0)	# tmp159,
+fence w, w
+
+# 0 "" 2
+# main.c:87:     ASCON_WRITE(ASCON_OFS_NONCE_0, MY_NONCE_0);
+ #NO_APP
+	li	a5,286330880		# tmp161,
+	addi	a5,a5,273	#, tmp161, tmp161
  #APP
 # 87 "main.c" 1
 	lui  t0, 0x20000
-sw   a5, 260(t0)	# tmp168,
+sw   a5, 36(t0)	# tmp161,
 fence w, w
 
 # 0 "" 2
-# main.c:88:     ASCON_WRITE(ASCON_OFS_DMA_LEN,   DMEM_DMA_INPUT_LEN);    /* 8 bytes (2 words) */
+# main.c:88:     ASCON_WRITE(ASCON_OFS_NONCE_1, MY_NONCE_1);
  #NO_APP
-	li	a5,8		# tmp170,
+	li	a5,572661760		# tmp163,
+	addi	a5,a5,546	#, tmp163, tmp163
  #APP
 # 88 "main.c" 1
 	lui  t0, 0x20000
-sw   a5, 264(t0)	# tmp170,
+sw   a5, 40(t0)	# tmp163,
 fence w, w
 
 # 0 "" 2
-# main.c:89:     ASCON_WRITE(ASCON_OFS_DMA_BURST, 0u);                     /* ARLEN=0: 1 beat   */
+# main.c:89:     ASCON_WRITE(ASCON_OFS_NONCE_2, MY_NONCE_2);
+ #NO_APP
+	li	a5,858992640		# tmp165,
+	addi	a5,a5,819	#, tmp165, tmp165
+ #APP
 # 89 "main.c" 1
 	lui  t0, 0x20000
-sw   a2, 276(t0)	# tmp149,
+sw   a5, 44(t0)	# tmp165,
 fence w, w
 
 # 0 "" 2
-# main.c:90:     ASCON_WRITE(ASCON_OFS_DATA_LEN,  DMEM_DMA_INPUT_LEN);
+# main.c:90:     ASCON_WRITE(ASCON_OFS_NONCE_3, MY_NONCE_3);
+ #NO_APP
+	li	a5,1145323520		# tmp167,
+	addi	a5,a5,1092	#, tmp167, tmp167
+ #APP
 # 90 "main.c" 1
 	lui  t0, 0x20000
-sw   a5, 60(t0)	# tmp170,
+sw   a5, 48(t0)	# tmp167,
 fence w, w
 
 # 0 "" 2
-# main.c:95:     __asm__ volatile ("fence rw, rw" ::: "memory");
+# main.c:93:     ASCON_WRITE(ASCON_OFS_DMA_SRC,   PT_MULTI_BASE);           /* 0x10000220 */
+ #NO_APP
+	li	a5,268435456		# tmp169,
+	addi	a5,a5,544	#, tmp169, tmp169
+ #APP
+# 93 "main.c" 1
+	lui  t0, 0x20000
+sw   a5, 256(t0)	# tmp169,
+fence w, w
+
+# 0 "" 2
+# main.c:94:     ASCON_WRITE(ASCON_OFS_DMA_DST,   CT_MULTI_BASE);           /* 0x100002A0 */
+ #NO_APP
+	li	a5,268435456		# tmp171,
+	addi	a5,a5,672	#, tmp171, tmp171
+ #APP
+# 94 "main.c" 1
+	lui  t0, 0x20000
+sw   a5, 260(t0)	# tmp171,
+fence w, w
+
+# 0 "" 2
+# main.c:95:     ASCON_WRITE(ASCON_OFS_DMA_LEN,   DMEM_MULTI_PT_LEN);       /* 128 bytes  */
+ #NO_APP
+	li	a5,128		# tmp173,
+ #APP
 # 95 "main.c" 1
+	lui  t0, 0x20000
+sw   a5, 264(t0)	# tmp173,
+fence w, w
+
+# 0 "" 2
+# main.c:96:     ASCON_WRITE(ASCON_OFS_DMA_BURST, 7u);                       /* [OPT-2] ARLEN=7: 8 beats per burst */
+ #NO_APP
+	li	a5,7		# tmp174,
+ #APP
+# 96 "main.c" 1
+	lui  t0, 0x20000
+sw   a5, 276(t0)	# tmp174,
+fence w, w
+
+# 0 "" 2
+# main.c:97:     ASCON_WRITE(ASCON_OFS_DATA_LEN,  8u);                       /* 8 bytes per block */
+ #NO_APP
+	li	a5,8		# tmp175,
+ #APP
+# 97 "main.c" 1
+	lui  t0, 0x20000
+sw   a5, 60(t0)	# tmp175,
+fence w, w
+
+# 0 "" 2
+# main.c:101:     ASCON_WRITE(ASCON_OFS_IRQ_EN, 0x02u);
+# 101 "main.c" 1
+	lui  t0, 0x20000
+sw   a4, 12(t0)	# tmp151,
+fence w, w
+
+# 0 "" 2
+# main.c:106:     __asm__ volatile ("fence rw, rw" ::: "memory");
+# 106 "main.c" 1
 	fence rw, rw
 # 0 "" 2
-# main.c:100:     ASCON_WRITE(ASCON_OFS_CTRL, ASCON_CTRL_DMA_START);
+# main.c:111:     ASCON_WRITE(ASCON_OFS_CTRL, ASCON_CTRL_DMA_START);
  #NO_APP
-	li	a5,5		# tmp173,
+	li	a5,5		# tmp177,
  #APP
-# 100 "main.c" 1
+# 111 "main.c" 1
 	lui  t0, 0x20000
-sw   a5, 32(t0)	# tmp173,
+sw   a5, 32(t0)	# tmp177,
 fence w, w
 
 # 0 "" 2
  #NO_APP
-	li	a5,1048576		# tmp139,
-	addi	a5,a5,-1	#, ivtmp_40, tmp139
-.L3:
-# main.c:108:         ASCON_READ(ASCON_OFS_STATUS, status);
+	li	a5,4194304		# tmp147,
+	addi	a5,a5,-1	#, ivtmp_52, tmp147
+.L4:
+# main.c:126:         __asm__ volatile ("nop; nop; nop; nop; nop; nop; nop; nop" ::: "memory");
  #APP
-# 108 "main.c" 1
+# 126 "main.c" 1
+	nop; nop; nop; nop; nop; nop; nop; nop
+# 0 "" 2
+# main.c:127:         ASCON_READ(ASCON_OFS_STATUS, status);
+# 127 "main.c" 1
 	lui  t0, 0x20000
 lw   a4, 4(t0)	# status,
 
 # 0 "" 2
-# main.c:109:         if (--timeout == 0u) {
+# main.c:128:         if (--timeout == 0u) {
  #NO_APP
-	addi	a5,a5,-1	#, ivtmp_40, ivtmp_40
-	beq	a5,zero,.L5	#, ivtmp_40,,
-# main.c:113:     } while (!(status & (ASCON_ST_DMA_DONE | ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)));
-	andi	a3,a4,56	#, tmp175, status
-# main.c:113:     } while (!(status & (ASCON_ST_DMA_DONE | ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)));
-	beq	a3,zero,.L3	#, tmp175,,
-# main.c:115:     if (status & (ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)) {
+	addi	a5,a5,-1	#, ivtmp_52, ivtmp_52
+	beq	a5,zero,.L6	#, ivtmp_52,,
+# main.c:132:     } while (!(status & (ASCON_ST_DMA_DONE | ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)));
+	andi	a3,a4,56	#, tmp179, status
+# main.c:132:     } while (!(status & (ASCON_ST_DMA_DONE | ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)));
+	beq	a3,zero,.L4	#, tmp179,,
+# main.c:134:     if (status & (ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)) {
 	andi	a3,a4,48	#, retcode, status
-# main.c:115:     if (status & (ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)) {
-	bne	a3,zero,.L6	#, retcode,,
-# main.c:121:     __asm__ volatile ("fence r, r" ::: "memory");
+# main.c:134:     if (status & (ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)) {
+	bne	a3,zero,.L7	#, retcode,,
+# main.c:140:     __asm__ volatile ("fence r, r" ::: "memory");
  #APP
-# 121 "main.c" 1
+# 140 "main.c" 1
 	fence r, r
 # 0 "" 2
  #NO_APP
-.L2:
-# main.c:127:     DMEM->STATUS  = status;
-	li	a5,268435456		# tmp176,
+.L3:
+# main.c:146:     DMEM->STATUS  = status;
+	li	a5,268435456		# tmp180,
 	sw	a4,532(a5)	# status, MEM[(struct DmemLayout_t *)268435904B].STATUS
-# main.c:128:     DMEM->RETCODE = retcode;
+# main.c:147:     DMEM->RETCODE = retcode;
 	sw	a3,536(a5)	# retcode, MEM[(struct DmemLayout_t *)268435904B].RETCODE
-.L4:
-# main.c:131:     while (1) __asm__ volatile ("nop");
+.L5:
+# main.c:150:     while (1) __asm__ volatile ("nop");
  #APP
-# 131 "main.c" 1
+# 150 "main.c" 1
 	nop
 # 0 "" 2
  #NO_APP
-	j	.L4		#
-.L5:
-# main.c:110:             retcode = (uint32_t)(-2);
-	li	a3,-2		# retcode,
-	j	.L2		#
+	j	.L5		#
 .L6:
-# main.c:116:         retcode = (uint32_t)(-1);
+# main.c:129:             retcode = (uint32_t)(-2);
+	li	a3,-2		# retcode,
+	j	.L3		#
+.L7:
+# main.c:135:         retcode = (uint32_t)(-1);
 	li	a3,-1		# retcode,
-	j	.L2		#
+	j	.L3		#
 	.size	main, .-main
 	.ident	"GCC: (13.2.0-11ubuntu1+12) 13.2.0"

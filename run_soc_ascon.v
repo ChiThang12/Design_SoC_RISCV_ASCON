@@ -1743,23 +1743,21 @@ task print_report;
         $display("|  TAG_2   = 0x%08h", ascon_reg_tag2);
         $display("|  TAG_3   = 0x%08h", ascon_reg_tag3);
         $display("|  --- DMA output in DMEM (direct read from memory array) ---");
-        $display("|  DMA dst addr = 0x%08h", ascon_dma_dst_r);
+        $display("|  DMA dst addr = 0x%08h  (20 words: 8x ctext_pair + 4x tag)", ascon_dma_dst_r);
         if (ascon_dma_done_cnt > 0) begin
             dma_base_off = ascon_dma_dst_r - 32'h10000000;
-            for (dma_wi = 0; dma_wi < 6; dma_wi = dma_wi + 1) begin
+            for (dma_wi = 0; dma_wi < 20; dma_wi = dma_wi + 1) begin
                 dma_word = { soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 3],
                              soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 2],
                              soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 1],
                              soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 0] };
-                case (dma_wi)
-                    0: $display("|  [0x%08h] CTEXT_0 = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
-                    1: $display("|  [0x%08h] CTEXT_1 = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
-                    2: $display("|  [0x%08h] TAG_0   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
-                    3: $display("|  [0x%08h] TAG_1   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
-                    4: $display("|  [0x%08h] TAG_2   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
-                    5: $display("|  [0x%08h] TAG_3   = 0x%08h", ascon_dma_dst_r + dma_wi*4, dma_word);
-                    default: ;
-                endcase
+                if (dma_wi < 16)
+                    $display("|  [0x%08h] BLK%0d_%s = 0x%08h",
+                             ascon_dma_dst_r + dma_wi*4, dma_wi/2,
+                             (dma_wi[0] == 0) ? "CT0" : "CT1", dma_word);
+                else
+                    $display("|  [0x%08h] TAG_%0d   = 0x%08h",
+                             ascon_dma_dst_r + dma_wi*4, dma_wi - 16, dma_word);
             end
         end
         $display("+----------------------------------------------------------------+");
