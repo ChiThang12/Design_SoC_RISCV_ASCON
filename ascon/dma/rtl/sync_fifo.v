@@ -3,11 +3,13 @@
 // Project : ASCON Crypto Accelerator IP
 //
 // Description:
-//   Generic synchronous FIFO.
+//   Generic synchronous FIFO with optional FWFT (First-Word-Fall-Through).
 //   - Full/empty flags are registered (no combinational glitch)
 //   - Simultaneous push + pop when not empty/full is supported
 //   - DATA_OUT is registered (read latency = 1 cycle after pop)
 //   - DATA_OUT holds last value when empty
+//   - [OPT] fwft_dout/fwft_valid: combinational read of FIFO head,
+//           available immediately when !empty. Enables zero-latency consume.
 //
 // Parameters:
 //   WIDTH : data width in bits
@@ -42,10 +44,14 @@ module sync_fifo #(
     input  wire             push,
     output wire             full,
 
-    // Read port
+    // Read port (registered — 1 cycle latency after pop)
     output reg  [WIDTH-1:0] dout,
     input  wire             pop,
     output wire             empty,
+
+    // FWFT port (combinational — zero latency, valid when fwft_valid=1)
+    output wire [WIDTH-1:0] fwft_dout,
+    output wire             fwft_valid,
 
     // Status
     output wire [$clog2(DEPTH):0] count   // number of entries currently stored
@@ -70,6 +76,12 @@ module sync_fifo #(
 
     assign full  = (wr_ptr == {~rd_ptr[PTR_W], rd_ptr[PTR_W-1:0]});
     assign empty = (wr_ptr == rd_ptr);
+
+    // ── FWFT: combinational read of current head ─────────────────────────
+    // Available immediately when FIFO is not empty. Consumer can latch
+    // fwft_dout in the same cycle as checking fwft_valid, then pop next cycle.
+    assign fwft_dout  = mem[rd_idx];
+    assign fwft_valid = ~empty;
     assign count = wr_ptr - rd_ptr;
 
     // ── Write pointer — async reset, infers $adff ─────────────────────────

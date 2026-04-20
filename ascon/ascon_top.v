@@ -58,7 +58,7 @@ module ascon_ip_top #(
     parameter M_ID_WIDTH    = 4,
     // ---- DMA FIFO ----
     parameter RD_FIFO_DEPTH = 4,
-    parameter WR_FIFO_DEPTH = 8
+    parameter WR_FIFO_DEPTH = 32
 ) (
     input  wire  clk,
     input  wire  rst_n,

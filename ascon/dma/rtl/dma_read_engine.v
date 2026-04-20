@@ -45,6 +45,7 @@ module dma_read_engine #(
     // ── Control (from DMA top FSM) ────────────────────────────────────────────
     input  wire [ADDR_WIDTH-1:0]      src_addr,
     input  wire [7:0]                 burst_len,    // ARLEN value (0 = 1 beat)
+    input  wire                       dma_start,    // 1-cycle pulse: reset cur_src_addr to src_addr
     input  wire                       rd_start,     // 1-cycle pulse: begin transaction
     output reg                        rd_busy,
     output reg                        rd_done,      // 1-cycle pulse: all beats received
@@ -93,6 +94,9 @@ module dma_read_engine #(
 
     reg [1:0] state;
 
+    // ─── Current source address (auto-increments per burst for multi-block DMA) ─
+    reg [ADDR_WIDTH-1:0] cur_src_addr;
+
     // ─── Beat counter (tracks which beat of burst we are on) ─────────────────
     // [FIX-4] Needed to correctly push every beat and to compute err_addr per beat
     reg [7:0] beat_cnt;
@@ -127,10 +131,14 @@ module dma_read_engine #(
             fifo_din       <= {AXI_DATA_WIDTH{1'b0}};
             beat_cnt       <= 8'h00;
             burst_len_r    <= 8'h00;
+            cur_src_addr   <= {ADDR_WIDTH{1'b0}};
         end else begin
             // ── Default: clear 1-cycle strobes ───────────────────────────────
             rd_done   <= 1'b0;
             fifo_push <= 1'b0;
+
+            // Capture base address on DMA start (also used for simultaneous rd_start)
+            if (dma_start) cur_src_addr <= src_addr;
 
             case (state)
 
@@ -149,7 +157,9 @@ module dma_read_engine #(
                         rd_busy       <= 1'b1;
                         burst_len_r   <= burst_len;        // latch for safety
                         M_AXI_ARID    <= {AXI_ID_WIDTH{1'b0}};
-                        M_AXI_ARADDR  <= src_addr;
+                        // dma_start and rd_start arrive together for block-0; use src_addr directly.
+                        // For blocks 1+, dma_start=0 and cur_src_addr holds the next address.
+                        M_AXI_ARADDR  <= dma_start ? src_addr : cur_src_addr;
                         M_AXI_ARLEN   <= burst_len;
                         M_AXI_ARVALID <= 1'b1;
                         state         <= RD_ADDR;
@@ -200,6 +210,8 @@ module dma_read_engine #(
                         // ── End-of-burst ──────────────────────────────────────
                         if (M_AXI_RLAST) begin
                             M_AXI_RREADY <= 1'b0;
+                            // Advance cur_src_addr by (ARLEN+1)*8 bytes for the next burst
+                            cur_src_addr <= M_AXI_ARADDR + {22'b0, burst_len_r, 3'b000} + 32'd8;
                             state        <= RD_DONE;
                         end
                     end

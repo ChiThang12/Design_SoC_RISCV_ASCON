@@ -1,0 +1,1118 @@
+VCD info: dumpfile tb_ascon_CORE.vcd opened for output.
+================================================================
+  tb_ascon_CORE v2.0  --  ASCON-128 verification
+================================================================
+  KEY   = 000102030405060708090a0b0c0d0e0f
+  NONCE = 101112131415161718191a1b1c1d1e1f
+  AD    = 4153434f4e  (ASCON 5B)
+  PT    = 6173636f6e  (ascon 5B)
+================================================================
+
+================================================================
+  TEST 1: ASCON-128 Encryption  (9-step trace)
+================================================================
+  [95000] load  INIT_PERM     post=0 fin=0 dom=0 src=00 ad_last_r=0
+  [95000] perm_start INIT_PERM     rounds=12
+         x0=00001000808c0001 x1=0706050403020100 x2=0f0e0d0c0b0a0908 x3=1716151413121110 x4=1f1e1d1c1b1a1918
+  [115000] load  POST_INIT     post=1 fin=0 dom=0 src=10 ad_last_r=0
+  [115000] perm_done  x0=cde34900cdfce2c8 x3=620599fcd928dbac x4=3d3290a90ed3b02f
+  [125000] load  AD_LOAD       post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [125000] perm_start AD_LOAD       rounds=6
+         x0=cde3484e82bfb189 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [145000] load  AD_PERM       post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [145000] perm_done  x0=42d93fee5a0f47de x3=e11d0d15b0ab3c80 x4=c83ddd7717715691
+  [155000] load  DOM_SEP       post=0 fin=0 dom=1 src=10 ad_last_r=0
+         x0=42d93fee5a0f47de x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=c83ddd7717715691
+  [165000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=42d93fee5a0f47de x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=483ddd7717715691
+  [175000] load  PRE_FIN       post=0 fin=1 dom=0 src=10 ad_last_r=0
+         x0=42d93e80356c34bf x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=483ddd7717715691
+  [175000] perm_start PRE_FIN       rounds=12
+  [175000] data_out = bf346c35803ed9420000000000000000
+         x0=42d93e80356c34bf x1=29075cca761cd79c x2=29ec2e1adb769a20 x3=ee130019bba13588 x4=483ddd7717715691
+  [195000] load  FIN_PERM      post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [195000] perm_done  x0=d7a162635426f17d x3=3a21b25bd14a5cc4 x4=3b5d8f59b8442a3f
+         x0=d7a162635426f17d x1=f09ba08542d371f2 x2=ede6f785d0bdad1f x3=3a21b25bd14a5cc4 x4=3b5d8f59b8442a3f
+  [215000] tag_out  = c45d48d25fb7273d37234eb355825334
+  [225000] tag_out  = c45d48d25fb7273d37234eb355825334
+  [225000] DONE
+
+  CT and TAG:
+  [PASS]                         CT  (5B) = bf346c3580
+  [PASS]                    TAG (128-bit) = c45d48d25fb7273d37234eb355825334
+
+================================================================
+  TEST 2: ASCON-128 Decryption  (tag_match = 1)
+================================================================
+  [365000] load  INIT_PERM     post=0 fin=0 dom=0 src=00 ad_last_r=0
+  [365000] perm_start INIT_PERM     rounds=12
+         x0=00001000808c0001 x1=0706050403020100 x2=0f0e0d0c0b0a0908 x3=1716151413121110 x4=1f1e1d1c1b1a1918
+  [385000] load  POST_INIT     post=1 fin=0 dom=0 src=10 ad_last_r=0
+  [385000] perm_done  x0=cde34900cdfce2c8 x3=620599fcd928dbac x4=3d3290a90ed3b02f
+  [395000] load  AD_LOAD       post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [395000] perm_start AD_LOAD       rounds=6
+         x0=cde3484e82bfb189 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [415000] load  AD_PERM       post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [415000] perm_done  x0=42d93fee5a0f47de x3=e11d0d15b0ab3c80 x4=c83ddd7717715691
+  [425000] load  DOM_SEP       post=0 fin=0 dom=1 src=10 ad_last_r=0
+         x0=42d93fee5a0f47de x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=c83ddd7717715691
+  [435000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=42d93fee5a0f47de x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=483ddd7717715691
+  [445000] load  PRE_FIN       post=0 fin=1 dom=0 src=10 ad_last_r=0
+         x0=42d93e80356c34bf x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=483ddd7717715691
+  [445000] perm_start PRE_FIN       rounds=12
+  [445000] data_out = 6173636f6e3fd9420000000000000000
+         x0=42d93e80356c34bf x1=29075cca761cd79c x2=29ec2e1adb769a20 x3=ee130019bba13588 x4=483ddd7717715691
+  [465000] load  FIN_PERM      post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [465000] perm_done  x0=d7a162635426f17d x3=3a21b25bd14a5cc4 x4=3b5d8f59b8442a3f
+         x0=d7a162635426f17d x1=f09ba08542d371f2 x2=ede6f785d0bdad1f x3=3a21b25bd14a5cc4 x4=3b5d8f59b8442a3f
+  [485000] tag_out  = c45d48d25fb7273d37234eb355825334
+  [495000] tag_out  = c45d48d25fb7273d37234eb355825334
+  [505000] tag_out  = c45d48d25fb7273d37234eb355825334
+  [505000] DONE
+  Cycles: 17
+  [PASS]                         PT  (5B) = 6173636f6e
+  [PASS]                        tag_match = 1
+
+================================================================
+  TEST 3: Tampered ciphertext  (tag_match = 0)
+================================================================
+  [645000] load  INIT_PERM     post=0 fin=0 dom=0 src=00 ad_last_r=0
+  [645000] perm_start INIT_PERM     rounds=12
+         x0=00001000808c0001 x1=0706050403020100 x2=0f0e0d0c0b0a0908 x3=1716151413121110 x4=1f1e1d1c1b1a1918
+  [665000] load  POST_INIT     post=1 fin=0 dom=0 src=10 ad_last_r=0
+  [665000] perm_done  x0=cde34900cdfce2c8 x3=620599fcd928dbac x4=3d3290a90ed3b02f
+  [675000] load  AD_LOAD       post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [675000] perm_start AD_LOAD       rounds=6
+         x0=cde3484e82bfb189 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [695000] load  AD_PERM       post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [695000] perm_done  x0=42d93fee5a0f47de x3=e11d0d15b0ab3c80 x4=c83ddd7717715691
+  [705000] load  DOM_SEP       post=0 fin=0 dom=1 src=10 ad_last_r=0
+         x0=42d93fee5a0f47de x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=c83ddd7717715691
+  [715000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=42d93fee5a0f47de x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=483ddd7717715691
+  [725000] load  PRE_FIN       post=0 fin=1 dom=0 src=10 ad_last_r=0
+         x0=42d93e81356c34bf x1=29075cca761cd79c x2=2eea2b1ed8749b20 x3=e11d0d15b0ab3c80 x4=483ddd7717715691
+  [725000] perm_start PRE_FIN       rounds=12
+  [725000] data_out = 6173636f6f3fd9420000000000000000
+         x0=42d93e81356c34bf x1=29075cca761cd79c x2=29ec2e1adb769a20 x3=ee130019bba13588 x4=483ddd7717715691
+  [745000] load  FIN_PERM      post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [745000] perm_done  x0=cb1540f6abc02155 x3=7326843e82455f39 x4=eddb5f1fd03f88c4
+         x0=cb1540f6abc02155 x1=e965cb9706db05c9 x2=a52eb3d936849ef3 x3=7326843e82455f39 x4=eddb5f1fd03f88c4
+  [765000] tag_out  = 395e47813a812074cc8135db1352d5e2
+  [775000] tag_out  = 395e47813a812074cc8135db1352d5e2
+  [785000] tag_out  = 395e47813a812074cc8135db1352d5e2
+  [785000] DONE
+  Cycles: 17
+  [PASS]   tag_match (tampered, expect 0) = 0
+
+================================================================
+  TEST 4: ASCON-128 Encryption  (no AD)
+================================================================
+  [925000] load  INIT_PERM     post=0 fin=0 dom=0 src=00 ad_last_r=0
+  [925000] perm_start INIT_PERM     rounds=12
+         x0=00001000808c0001 x1=0706050403020100 x2=0f0e0d0c0b0a0908 x3=1716151413121110 x4=1f1e1d1c1b1a1918
+  [945000] load  POST_INIT     post=1 fin=0 dom=0 src=10 ad_last_r=0
+  [945000] perm_done  x0=cde34900cdfce2c8 x3=620599fcd928dbac x4=3d3290a90ed3b02f
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [965000] load  DOM_SEP       post=0 fin=0 dom=1 src=10 ad_last_r=0
+  [975000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=b23c9da505d9b927
+  [985000] load  PRE_FIN       post=0 fin=1 dom=0 src=10 ad_last_r=0
+         x0=cde3486ea29f91a9 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=b23c9da505d9b927
+  [985000] perm_start PRE_FIN       rounds=12
+  [985000] data_out = a9919fa26e48e3cd0000000000000000
+         x0=cde3486ea29f91a9 x1=948cba141a58c1cb x2=18ea9e59ad6bb53a x3=6a0d91f4d120d3a4 x4=b23c9da505d9b927
+  [1005000] load  FIN_PERM      post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1005000] perm_done  x0=1805ede9b38f9d98 x3=7e1f2af480d6a5f1 x4=476f5694f2a4d1d2
+         x0=1805ede9b38f9d98 x1=ba9328262752bf90 x2=0426095cd4db994d x3=7e1f2af480d6a5f1 x4=476f5694f2a4d1d2
+  [1025000] tag_out  = f1a4d483f02f1979dad8aef9985b6148
+  [1035000] tag_out  = f1a4d483f02f1979dad8aef9985b6148
+  [1035000] DONE
+  Cycles: 14
+  [PASS]                  CT  (5B, no AD) = a9919fa26e
+  [PASS]                      TAG (no AD) = f1a4d483f02f1979dad8aef9985b6148
+
+================================================================
+  TEST 5: ASCON-128 Decrypt round-trip  (no AD, tag_match = 1)
+================================================================
+  [1175000] load  INIT_PERM     post=0 fin=0 dom=0 src=00 ad_last_r=0
+  [1175000] perm_start INIT_PERM     rounds=12
+         x0=00001000808c0001 x1=0706050403020100 x2=0f0e0d0c0b0a0908 x3=1716151413121110 x4=1f1e1d1c1b1a1918
+  [1195000] load  POST_INIT     post=1 fin=0 dom=0 src=10 ad_last_r=0
+  [1195000] perm_done  x0=cde34900cdfce2c8 x3=620599fcd928dbac x4=3d3290a90ed3b02f
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [1215000] load  DOM_SEP       post=0 fin=0 dom=1 src=10 ad_last_r=0
+  [1225000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=b23c9da505d9b927
+  [1235000] load  PRE_FIN       post=0 fin=1 dom=0 src=10 ad_last_r=0
+         x0=cde3486ea29f91a9 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=b23c9da505d9b927
+  [1235000] perm_start PRE_FIN       rounds=12
+  [1235000] data_out = 6173636f6e49e3cd0000000000000000
+         x0=cde3486ea29f91a9 x1=948cba141a58c1cb x2=18ea9e59ad6bb53a x3=6a0d91f4d120d3a4 x4=b23c9da505d9b927
+  [1255000] load  FIN_PERM      post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1255000] perm_done  x0=1805ede9b38f9d98 x3=7e1f2af480d6a5f1 x4=476f5694f2a4d1d2
+         x0=1805ede9b38f9d98 x1=ba9328262752bf90 x2=0426095cd4db994d x3=7e1f2af480d6a5f1 x4=476f5694f2a4d1d2
+  [1275000] tag_out  = f1a4d483f02f1979dad8aef9985b6148
+  [1285000] tag_out  = f1a4d483f02f1979dad8aef9985b6148
+  [1295000] tag_out  = f1a4d483f02f1979dad8aef9985b6148
+  [1295000] DONE
+  Cycles: 15
+  [PASS]       PT  (5B, no AD round-trip) = 6173636f6e
+  [PASS]     tag_match (no AD round-trip) = 1
+
+================================================================
+  TEST 6: Large Payload Throughput Test (1024 Bytes)
+================================================================
+  [1435000] load  INIT_PERM     post=0 fin=0 dom=0 src=00 ad_last_r=0
+  [1435000] perm_start INIT_PERM     rounds=12
+         x0=00001000808c0001 x1=0706050403020100 x2=0f0e0d0c0b0a0908 x3=1716151413121110 x4=1f1e1d1c1b1a1918
+  [1455000] load  POST_INIT     post=1 fin=0 dom=0 src=10 ad_last_r=0
+  [1455000] perm_done  x0=cde34900cdfce2c8 x3=620599fcd928dbac x4=3d3290a90ed3b02f
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=323c9da505d9b927
+  [1475000] load  DOM_SEP       post=0 fin=0 dom=1 src=10 ad_last_r=0
+  [1485000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cde34900cdfce2c8 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=b23c9da505d9b927
+  [1485000] perm_start DATA_LOAD     rounds=6
+         x0=222ee289aab9c1c9 x1=948cba141a58c1cb x2=1fec9b5dae69b43a x3=65039cf8da2adaac x4=b23c9da505d9b927
+  [1495000] data_out = c9c1b9aa89e22e220000000000000000
+  [1505000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1505000] perm_done  x0=696fea3c465fb00d x3=faf48801ef292b3e x4=3a0693167491732e
+  [1515000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=696fea3c465fb00d x1=08ef20dd2205026b x2=2aa4a2a33043d8e3 x3=faf48801ef292b3e x4=3a0693167491732e
+  [1515000] perm_start DATA_LOAD     rounds=6
+         x0=99a241b5211a930c x1=08ef20dd2205026b x2=2aa4a2a33043d8e3 x3=faf48801ef292b3e x4=3a0693167491732e
+  [1525000] data_out = 0c931a21b541a2990000000000000000
+  [1535000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1535000] perm_done  x0=1d4fe891d0de738f x3=3c969afb12774077 x4=c0957b3a05195844
+  [1545000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=1d4fe891d0de738f x1=a284ce81a39bc44d x2=e58a96250bdc21f1 x3=3c969afb12774077 x4=c0957b3a05195844
+  [1545000] perm_start DATA_LOAD     rounds=6
+         x0=ec824318b79b508e x1=a284ce81a39bc44d x2=e58a96250bdc21f1 x3=3c969afb12774077 x4=c0957b3a05195844
+  [1555000] data_out = 8e509bb7184382ec0000000000000000
+  [1565000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1565000] perm_done  x0=914521dff3358fbb x3=803a3ab439524f80 x4=301a33463d937d4d
+  [1575000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=914521dff3358fbb x1=45ce162af9d66e9d x2=43909acf621440af x3=803a3ab439524f80 x4=301a33463d937d4d
+  [1575000] perm_start DATA_LOAD     rounds=6
+         x0=63888a569470acba x1=45ce162af9d66e9d x2=43909acf621440af x3=803a3ab439524f80 x4=301a33463d937d4d
+  [1585000] data_out = baac7094568a88630000000000000000
+  [1595000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1595000] perm_done  x0=078eb74b68cc92ed x3=005f8d3a1fb76cf3 x4=00aa202fdf968b79
+  [1605000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=078eb74b68cc92ed x1=9d4c976a51c7a028 x2=d2fcf8ed99003c02 x3=005f8d3a1fb76cf3 x4=00aa202fdf968b79
+  [1605000] perm_start DATA_LOAD     rounds=6
+         x0=f4431cc20f89b1ec x1=9d4c976a51c7a028 x2=d2fcf8ed99003c02 x3=005f8d3a1fb76cf3 x4=00aa202fdf968b79
+  [1615000] data_out = ecb1890fc21c43f40000000000000000
+  [1625000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1625000] perm_done  x0=4a98d91767f389fb x3=9bf96b517a10ad37 x4=f832cbdc7975fd11
+  [1635000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=4a98d91767f389fb x1=2bfbd8071aa55a62 x2=dbf433bd7961f5fc x3=9bf96b517a10ad37 x4=f832cbdc7975fd11
+  [1635000] perm_start DATA_LOAD     rounds=6
+         x0=be55729e00b6aafa x1=2bfbd8071aa55a62 x2=dbf433bd7961f5fc x3=9bf96b517a10ad37 x4=f832cbdc7975fd11
+  [1645000] data_out = faaab6009e7255be0000000000000000
+  [1655000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1655000] perm_done  x0=88c19d7cc319fd67 x3=81a2a7ed6ee7de63 x4=fb8da1d1cc777a56
+  [1665000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=88c19d7cc319fd67 x1=2fbaa08aaa75c5ba x2=94f3e5d7e4c124a6 x3=81a2a7ed6ee7de63 x4=fb8da1d1cc777a56
+  [1665000] perm_start DATA_LOAD     rounds=6
+         x0=7d0c36f5a45cde66 x1=2fbaa08aaa75c5ba x2=94f3e5d7e4c124a6 x3=81a2a7ed6ee7de63 x4=fb8da1d1cc777a56
+  [1675000] data_out = 66de5ca4f5360c7d0000000000000000
+  [1685000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1685000] perm_done  x0=0275ebcb9115cd19 x3=3c70fbb6f2e450fd x4=71731ed57fd08794
+  [1695000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=0275ebcb9115cd19 x1=0fe9957a76f34872 x2=74bc2aac58b55bc8 x3=3c70fbb6f2e450fd x4=71731ed57fd08794
+  [1695000] perm_start DATA_LOAD     rounds=6
+         x0=f4b84042f650ee18 x1=0fe9957a76f34872 x2=74bc2aac58b55bc8 x3=3c70fbb6f2e450fd x4=71731ed57fd08794
+  [1705000] data_out = 18ee50f64240b8f40000000000000000
+  [1715000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1715000] perm_done  x0=f4b9107a9501aa8c x3=d0935ad4234f7299 x4=2ed18c76243665a8
+  [1725000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f4b9107a9501aa8c x1=f5472bf2996220b6 x2=415a3fec09f887a6 x3=d0935ad4234f7299 x4=2ed18c76243665a8
+  [1725000] perm_start DATA_LOAD     rounds=6
+         x0=0374bbf3f244898d x1=f5472bf2996220b6 x2=415a3fec09f887a6 x3=d0935ad4234f7299 x4=2ed18c76243665a8
+  [1735000] data_out = 8d8944f2f3bb74030000000000000000
+  [1745000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1745000] perm_done  x0=f029be92fa7d2dc5 x3=6a518fa890b3cdae x4=6871ce1d5258bced
+  [1755000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f029be92fa7d2dc5 x1=4512414670656179 x2=193395e93648b06c x3=6a518fa890b3cdae x4=6871ce1d5258bced
+  [1755000] perm_start DATA_LOAD     rounds=6
+         x0=08e4151b9d380ec4 x1=4512414670656179 x2=193395e93648b06c x3=6a518fa890b3cdae x4=6871ce1d5258bced
+  [1765000] data_out = c40e389d1b15e4080000000000000000
+  [1775000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1775000] perm_done  x0=c90ac2d6796961b5 x3=07dee15082946bd5 x4=02e6041c57919f29
+  [1785000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=c90ac2d6796961b5 x1=66d024685ffe0119 x2=93b34144a0070d20 x3=07dee15082946bd5 x4=02e6041c57919f29
+  [1785000] perm_start DATA_LOAD     rounds=6
+         x0=30c7695f1e2c42b4 x1=66d024685ffe0119 x2=93b34144a0070d20 x3=07dee15082946bd5 x4=02e6041c57919f29
+  [1795000] data_out = b4422c1e5f69c7300000000000000000
+  [1805000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1805000] perm_done  x0=06d5e5737c621bcf x3=2bc73b4e34cebfce x4=c24d299aec9b5f4e
+  [1815000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=06d5e5737c621bcf x1=84f7c3f6ec5dca47 x2=4457813bfd4071a0 x3=2bc73b4e34cebfce x4=c24d299aec9b5f4e
+  [1815000] perm_start DATA_LOAD     rounds=6
+         x0=fc184efa1b2738ce x1=84f7c3f6ec5dca47 x2=4457813bfd4071a0 x3=2bc73b4e34cebfce x4=c24d299aec9b5f4e
+  [1825000] data_out = ce38271bfa4e18fc0000000000000000
+  [1835000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1835000] perm_done  x0=5270cfb8a1b97550 x3=1e9b7094a82b59b1 x4=d25ecacbf456f8d8
+  [1845000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=5270cfb8a1b97550 x1=61d63581c32c08d7 x2=a3711061838e7c16 x3=1e9b7094a82b59b1 x4=d25ecacbf456f8d8
+  [1845000] perm_start DATA_LOAD     rounds=6
+         x0=a9bd6431c6fc5651 x1=61d63581c32c08d7 x2=a3711061838e7c16 x3=1e9b7094a82b59b1 x4=d25ecacbf456f8d8
+  [1855000] data_out = 5156fcc63164bda90000000000000000
+  [1865000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1865000] perm_done  x0=ecba5dd1d83f291f x3=855b5a7dc3719fc6 x4=33db32b27ab83f51
+  [1875000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ecba5dd1d83f291f x1=790058e1dd30db2d x2=6bd3edbd8b873833 x3=855b5a7dc3719fc6 x4=33db32b27ab83f51
+  [1875000] perm_start DATA_LOAD     rounds=6
+         x0=1077f658bf7a0a1e x1=790058e1dd30db2d x2=6bd3edbd8b873833 x3=855b5a7dc3719fc6 x4=33db32b27ab83f51
+  [1885000] data_out = 1e0a7abf58f677100000000000000000
+  [1895000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1895000] perm_done  x0=bf30244d0af537d9 x3=d95cdce6446ca6ef x4=696f4e1a89ccb297
+  [1905000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=bf30244d0af537d9 x1=4b2ed555322f189e x2=526ae458eccc09fb x3=d95cdce6446ca6ef x4=696f4e1a89ccb297
+  [1905000] perm_start DATA_LOAD     rounds=6
+         x0=42fd8fc46db014d8 x1=4b2ed555322f189e x2=526ae458eccc09fb x3=d95cdce6446ca6ef x4=696f4e1a89ccb297
+  [1915000] data_out = d814b06dc48ffd420000000000000000
+  [1925000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1925000] perm_done  x0=ecca7ae5b66b5da0 x3=4bfb1990cff80642 x4=e4388f8583222c07
+  [1935000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ecca7ae5b66b5da0 x1=de471ecaacd81887 x2=76d2f619be111791 x3=4bfb1990cff80642 x4=e4388f8583222c07
+  [1935000] perm_start DATA_LOAD     rounds=6
+         x0=1207d16cd12e7ea1 x1=de471ecaacd81887 x2=76d2f619be111791 x3=4bfb1990cff80642 x4=e4388f8583222c07
+  [1945000] data_out = a17e2ed16cd107120000000000000000
+  [1955000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1955000] perm_done  x0=8c1752ba83f803bc x3=451ccc9953484d9c x4=995915da0feda53e
+  [1965000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=8c1752ba83f803bc x1=15abda8131874e7f x2=c8b71147b22a6d1e x3=451ccc9953484d9c x4=995915da0feda53e
+  [1965000] perm_start DATA_LOAD     rounds=6
+         x0=73daf933e4bd20bd x1=15abda8131874e7f x2=c8b71147b22a6d1e x3=451ccc9953484d9c x4=995915da0feda53e
+  [1975000] data_out = bd20bde433f9da730000000000000000
+  [1985000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [1985000] perm_done  x0=10b7e7c0d52004df x3=0b50c1b066d6610f x4=716acc12a4a80547
+  [1995000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=10b7e7c0d52004df x1=4c94e96ca79bc45a x2=f6857f6b491c488a x3=0b50c1b066d6610f x4=716acc12a4a80547
+  [1995000] perm_start DATA_LOAD     rounds=6
+         x0=10794c49b26527de x1=4c94e96ca79bc45a x2=f6857f6b491c488a x3=0b50c1b066d6610f x4=716acc12a4a80547
+  [2005000] data_out = de2765b2494c79100000000000000000
+  [2015000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2015000] perm_done  x0=6ccc2e378ecc7c9b x3=c3ea19bfa8f86211 x4=a7611e9da8222619
+  [2025000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=6ccc2e378ecc7c9b x1=2382f6e6fdfb1341 x2=bdb9b9290c084592 x3=c3ea19bfa8f86211 x4=a7611e9da8222619
+  [2025000] perm_start DATA_LOAD     rounds=6
+         x0=6d0285bee9895f9a x1=2382f6e6fdfb1341 x2=bdb9b9290c084592 x3=c3ea19bfa8f86211 x4=a7611e9da8222619
+  [2035000] data_out = 9a5f89e9be85026d0000000000000000
+  [2045000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2045000] perm_done  x0=43bbe4ed2441100a x3=7824e9dcec50a50c x4=e634542718356169
+  [2055000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=43bbe4ed2441100a x1=15b3380622425128 x2=b6a678930263b496 x3=7824e9dcec50a50c x4=e634542718356169
+  [2055000] perm_start DATA_LOAD     rounds=6
+         x0=41754f644304330b x1=15b3380622425128 x2=b6a678930263b496 x3=7824e9dcec50a50c x4=e634542718356169
+  [2065000] data_out = 0b330443644f75410000000000000000
+  [2075000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2075000] perm_done  x0=d5f61a0d83a1c93b x3=841afeb3f3fbad33 x4=08f646343be7a87b
+  [2085000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=d5f61a0d83a1c93b x1=07163c7df091ec17 x2=b9f6f93cfafdde66 x3=841afeb3f3fbad33 x4=08f646343be7a87b
+  [2085000] perm_start DATA_LOAD     rounds=6
+         x0=d638b184e4e4ea3a x1=07163c7df091ec17 x2=b9f6f93cfafdde66 x3=841afeb3f3fbad33 x4=08f646343be7a87b
+  [2095000] data_out = 3aeae4e484b138d60000000000000000
+  [2105000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2105000] perm_done  x0=73a4598ddb68637e x3=35f45876d598ad3c x4=9f314f18def74d38
+  [2115000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=73a4598ddb68637e x1=9d090c34aa49d523 x2=c5a72cbf53f35e5d x3=35f45876d598ad3c x4=9f314f18def74d38
+  [2115000] perm_start DATA_LOAD     rounds=6
+         x0=776af204bc2d407f x1=9d090c34aa49d523 x2=c5a72cbf53f35e5d x3=35f45876d598ad3c x4=9f314f18def74d38
+  [2125000] data_out = 7f402dbc04f26a770000000000000000
+  [2135000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2135000] perm_done  x0=ee5e8ef18b70dcbe x3=1957a44001dfe7b2 x4=45220006c568614c
+  [2145000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ee5e8ef18b70dcbe x1=684cd4bddb7ff0f1 x2=fcaaf083ca97a214 x3=1957a44001dfe7b2 x4=45220006c568614c
+  [2145000] perm_start DATA_LOAD     rounds=6
+         x0=eb902578ec35ffbf x1=684cd4bddb7ff0f1 x2=fcaaf083ca97a214 x3=1957a44001dfe7b2 x4=45220006c568614c
+  [2155000] data_out = bfff35ec782590eb0000000000000000
+  [2165000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2165000] perm_done  x0=86a58bde957dbb63 x3=24f0b359d3acb26f x4=c40df8a2f41f80a2
+  [2175000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=86a58bde957dbb63 x1=554d6787e4de2ebe x2=879ed0cb135db185 x3=24f0b359d3acb26f x4=c40df8a2f41f80a2
+  [2175000] perm_start DATA_LOAD     rounds=6
+         x0=806b2057f2389862 x1=554d6787e4de2ebe x2=879ed0cb135db185 x3=24f0b359d3acb26f x4=c40df8a2f41f80a2
+  [2185000] data_out = 629838f257206b800000000000000000
+  [2195000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2195000] perm_done  x0=bba02deeb8521343 x3=5e2e2cdcbddf4f6f x4=e765e09c8e2ff41a
+  [2205000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=bba02deeb8521343 x1=3363dd5373176d6f x2=7c2bc804fc151727 x3=5e2e2cdcbddf4f6f x4=e765e09c8e2ff41a
+  [2205000] perm_start DATA_LOAD     rounds=6
+         x0=bc6e8667df173042 x1=3363dd5373176d6f x2=7c2bc804fc151727 x3=5e2e2cdcbddf4f6f x4=e765e09c8e2ff41a
+  [2215000] data_out = 423017df67866ebc0000000000000000
+  [2225000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2225000] perm_done  x0=f135979134b87322 x3=ac6593431bf7d501 x4=202dfe0f807816a3
+  [2235000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f135979134b87322 x1=36fc3d77a2ac1d4e x2=b29dd1d6053f2764 x3=ac6593431bf7d501 x4=202dfe0f807816a3
+  [2235000] perm_start DATA_LOAD     rounds=6
+         x0=f9fb3c1853fd5023 x1=36fc3d77a2ac1d4e x2=b29dd1d6053f2764 x3=ac6593431bf7d501 x4=202dfe0f807816a3
+  [2245000] data_out = 2350fd53183cfbf90000000000000000
+  [2255000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2255000] perm_done  x0=ddcfd92140c3701a x3=68ea76098fd0541b x4=3baaa9cc60635960
+  [2265000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ddcfd92140c3701a x1=b8f4c56327ce8752 x2=4fad8f934d6b8d1d x3=68ea76098fd0541b x4=3baaa9cc60635960
+  [2265000] perm_start DATA_LOAD     rounds=6
+         x0=d40172a82786531b x1=b8f4c56327ce8752 x2=4fad8f934d6b8d1d x3=68ea76098fd0541b x4=3baaa9cc60635960
+  [2275000] data_out = 1b538627a87201d40000000000000000
+  [2285000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2285000] perm_done  x0=4d50986acb8e13ad x3=85a131d532e1f7fc x4=382e630c2ef53b7b
+  [2295000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=4d50986acb8e13ad x1=843ec78054549fa7 x2=5508d55b463dd01e x3=85a131d532e1f7fc x4=382e630c2ef53b7b
+  [2295000] perm_start DATA_LOAD     rounds=6
+         x0=479e33e3accb30ac x1=843ec78054549fa7 x2=5508d55b463dd01e x3=85a131d532e1f7fc x4=382e630c2ef53b7b
+  [2305000] data_out = ac30cbace3339e470000000000000000
+  [2315000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2315000] perm_done  x0=bbcc4b3ed9abc360 x3=eeac40991fe4eab8 x4=2dabd669438e9b87
+  [2325000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=bbcc4b3ed9abc360 x1=87e7061de0e2b344 x2=090d1329db9d6416 x3=eeac40991fe4eab8 x4=2dabd669438e9b87
+  [2325000] perm_start DATA_LOAD     rounds=6
+         x0=b002e0b7beeee061 x1=87e7061de0e2b344 x2=090d1329db9d6416 x3=eeac40991fe4eab8 x4=2dabd669438e9b87
+  [2335000] data_out = 61e0eebeb7e002b00000000000000000
+  [2345000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2345000] perm_done  x0=b7cf9ff5cccb059e x3=61ebf6b0b2661fc9 x4=cf3f2b9239c1e270
+  [2355000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=b7cf9ff5cccb059e x1=95b187a07d2ebda6 x2=418887583678376c x3=61ebf6b0b2661fc9 x4=cf3f2b9239c1e270
+  [2355000] perm_start DATA_LOAD     rounds=6
+         x0=bb01347cab8e269f x1=95b187a07d2ebda6 x2=418887583678376c x3=61ebf6b0b2661fc9 x4=cf3f2b9239c1e270
+  [2365000] data_out = 9f268eab7c3401bb0000000000000000
+  [2375000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2375000] perm_done  x0=f08cbeb758cc2be3 x3=64061addc7233427 x4=94a5eb1f1d58bedf
+  [2385000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f08cbeb758cc2be3 x1=20837dac07742b2a x2=2155d1de56c8f79c x3=64061addc7233427 x4=94a5eb1f1d58bedf
+  [2385000] perm_start DATA_LOAD     rounds=6
+         x0=fd42153e3f8908e2 x1=20837dac07742b2a x2=2155d1de56c8f79c x3=64061addc7233427 x4=94a5eb1f1d58bedf
+  [2395000] data_out = e208893f3e1542fd0000000000000000
+  [2405000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2405000] perm_done  x0=724c509d8045efd5 x3=c2c7405faa960419 x4=43e1d51e008b7207
+  [2415000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=724c509d8045efd5 x1=cdd7aeb29fe02a0b x2=4d80082c8e86641d x3=c2c7405faa960419 x4=43e1d51e008b7207
+  [2415000] perm_start DATA_LOAD     rounds=6
+         x0=7c82fb14e700ccd4 x1=cdd7aeb29fe02a0b x2=4d80082c8e86641d x3=c2c7405faa960419 x4=43e1d51e008b7207
+  [2425000] data_out = d4cc00e714fb827c0000000000000000
+  [2435000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2435000] perm_done  x0=d5e34faab4c3d530 x3=d9885fe5c8c71ac1 x4=e0043736f9eabfaf
+  [2445000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=d5e34faab4c3d530 x1=bf37e507bc56afb7 x2=31277a4be897984c x3=d9885fe5c8c71ac1 x4=e0043736f9eabfaf
+  [2445000] perm_start DATA_LOAD     rounds=6
+         x0=da2de423d386f631 x1=bf37e507bc56afb7 x2=31277a4be897984c x3=d9885fe5c8c71ac1 x4=e0043736f9eabfaf
+  [2455000] data_out = 31f686d323e42dda0000000000000000
+  [2465000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2465000] perm_done  x0=d05ad2ebd4146050 x3=c651fd6e830c1eee x4=12640d864d981a09
+  [2475000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=d05ad2ebd4146050 x1=5693fb57962912e8 x2=6df868d4439fad0d x3=c651fd6e830c1eee x4=12640d864d981a09
+  [2475000] perm_start DATA_LOAD     rounds=6
+         x0=c0947962b3514351 x1=5693fb57962912e8 x2=6df868d4439fad0d x3=c651fd6e830c1eee x4=12640d864d981a09
+  [2485000] data_out = 514351b3627994c00000000000000000
+  [2495000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2495000] perm_done  x0=af899e2107397704 x3=23e2d74457ebdc63 x4=46af1b24d40c4dc5
+  [2505000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=af899e2107397704 x1=9dea5927cc6ff539 x2=ded2fe6ea2ed2366 x3=23e2d74457ebdc63 x4=46af1b24d40c4dc5
+  [2505000] perm_start DATA_LOAD     rounds=6
+         x0=be4735a8607c5405 x1=9dea5927cc6ff539 x2=ded2fe6ea2ed2366 x3=23e2d74457ebdc63 x4=46af1b24d40c4dc5
+  [2515000] data_out = 05547c60a83547be0000000000000000
+  [2525000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2525000] perm_done  x0=7d4274540b8006b8 x3=c65aa46cb0b5b5de x4=241596b448d31dcb
+  [2535000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=7d4274540b8006b8 x1=abe2cf7471260d71 x2=904a637e423085be x3=c65aa46cb0b5b5de x4=241596b448d31dcb
+  [2535000] perm_start DATA_LOAD     rounds=6
+         x0=6f8cdfdd6cc525b9 x1=abe2cf7471260d71 x2=904a637e423085be x3=c65aa46cb0b5b5de x4=241596b448d31dcb
+  [2545000] data_out = b925c56cdddf8c6f0000000000000000
+  [2555000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2555000] perm_done  x0=ca88bf6f15e30376 x3=3a0f15bb65ce9420 x4=ffe58c7591f89a8d
+  [2565000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ca88bf6f15e30376 x1=f908e7628f08c227 x2=d826776715a1ad88 x3=3a0f15bb65ce9420 x4=ffe58c7591f89a8d
+  [2565000] perm_start DATA_LOAD     rounds=6
+         x0=d94614e672a62077 x1=f908e7628f08c227 x2=d826776715a1ad88 x3=3a0f15bb65ce9420 x4=ffe58c7591f89a8d
+  [2575000] data_out = 7720a672e61446d90000000000000000
+  [2585000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2585000] perm_done  x0=db2880893b46067a x3=87ffad4c19981617 x4=01ed461dc0fa5cc1
+  [2595000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=db2880893b46067a x1=34678c81236f173b x2=bd2ddddfb456ac0c x3=87ffad4c19981617 x4=01ed461dc0fa5cc1
+  [2595000] perm_start DATA_LOAD     rounds=6
+         x0=cfe62b005c03257b x1=34678c81236f173b x2=bd2ddddfb456ac0c x3=87ffad4c19981617 x4=01ed461dc0fa5cc1
+  [2605000] data_out = 7b25035c002be6cf0000000000000000
+  [2615000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2615000] perm_done  x0=f705e36d7413bc23 x3=7c1d364466030379 x4=698e32091832cc17
+  [2625000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f705e36d7413bc23 x1=e88d8dffaf1879b1 x2=c984283f7e2f3958 x3=7c1d364466030379 x4=698e32091832cc17
+  [2625000] perm_start DATA_LOAD     rounds=6
+         x0=e2cb48e413569f22 x1=e88d8dffaf1879b1 x2=c984283f7e2f3958 x3=7c1d364466030379 x4=698e32091832cc17
+  [2635000] data_out = 229f5613e448cbe20000000000000000
+  [2645000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2645000] perm_done  x0=282bf40eba045df7 x3=c2a3a07c805bd717 x4=9494f16f7b4264bc
+  [2655000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=282bf40eba045df7 x1=449e649d38a44b52 x2=599400f3959bbb4d x3=c2a3a07c805bd717 x4=9494f16f7b4264bc
+  [2655000] perm_start DATA_LOAD     rounds=6
+         x0=3ee55f87dd417ef6 x1=449e649d38a44b52 x2=599400f3959bbb4d x3=c2a3a07c805bd717 x4=9494f16f7b4264bc
+  [2665000] data_out = f67e41dd875fe53e0000000000000000
+  [2675000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2675000] perm_done  x0=1bb52e26c13308f5 x3=d3f037ce3690caf6 x4=398c10e888a98deb
+  [2685000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=1bb52e26c13308f5 x1=1c7002675fd7975a x2=f2d6dff16d8c97f8 x3=d3f037ce3690caf6 x4=398c10e888a98deb
+  [2685000] perm_start DATA_LOAD     rounds=6
+         x0=0c7b85afa6762bf4 x1=1c7002675fd7975a x2=f2d6dff16d8c97f8 x3=d3f037ce3690caf6 x4=398c10e888a98deb
+  [2695000] data_out = f42b76a6af857b0c0000000000000000
+  [2705000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2705000] perm_done  x0=d7f9c4fba064c5fe x3=027e8a3f82ff1cd9 x4=5cf7cb344d9a0b6c
+  [2715000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=d7f9c4fba064c5fe x1=7c5369a4feb7cd1f x2=fdd9a4a60abe01a7 x3=027e8a3f82ff1cd9 x4=5cf7cb344d9a0b6c
+  [2715000] perm_start DATA_LOAD     rounds=6
+         x0=cf376f72c721e6ff x1=7c5369a4feb7cd1f x2=fdd9a4a60abe01a7 x3=027e8a3f82ff1cd9 x4=5cf7cb344d9a0b6c
+  [2725000] data_out = ffe621c7726f37cf0000000000000000
+  [2735000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2735000] perm_done  x0=7f8e9bbb62e4e08b x3=ad8a613015d78f22 x4=88d0f3de6b8f12ff
+  [2745000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=7f8e9bbb62e4e08b x1=0f248bf9543bf11d x2=836abf6a4a8351ef x3=ad8a613015d78f22 x4=88d0f3de6b8f12ff
+  [2745000] perm_start DATA_LOAD     rounds=6
+         x0=6640303205a1c38a x1=0f248bf9543bf11d x2=836abf6a4a8351ef x3=ad8a613015d78f22 x4=88d0f3de6b8f12ff
+  [2755000] data_out = 8ac3a105323040660000000000000000
+  [2765000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2765000] perm_done  x0=5106e5348d53d55a x3=66798a7000b46ad4 x4=57962b50767597df
+  [2775000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=5106e5348d53d55a x1=22100b95d2affa3d x2=cdcc583022d30a0d x3=66798a7000b46ad4 x4=57962b50767597df
+  [2775000] perm_start DATA_LOAD     rounds=6
+         x0=4bc84ebdea16f65b x1=22100b95d2affa3d x2=cdcc583022d30a0d x3=66798a7000b46ad4 x4=57962b50767597df
+  [2785000] data_out = 5bf616eabd4ec84b0000000000000000
+  [2795000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2795000] perm_done  x0=9ea9ddba1006ac2d x3=a27c02b2349a2e51 x4=a0183c3e288bed6e
+  [2805000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=9ea9ddba1006ac2d x1=82b940bdb6a74e80 x2=0574b88feb2f3b16 x3=a27c02b2349a2e51 x4=a0183c3e288bed6e
+  [2805000] perm_start DATA_LOAD     rounds=6
+         x0=8567763377438f2c x1=82b940bdb6a74e80 x2=0574b88feb2f3b16 x3=a27c02b2349a2e51 x4=a0183c3e288bed6e
+  [2815000] data_out = 2c8f4377337667850000000000000000
+  [2825000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2825000] perm_done  x0=1392b3981e7e4757 x3=47eccd54380a2fa6 x4=62ec586be8c2836a
+  [2835000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=1392b3981e7e4757 x1=7b74dc568f734cd5 x2=efffb022ab8d45f8 x3=47eccd54380a2fa6 x4=62ec586be8c2836a
+  [2835000] perm_start DATA_LOAD     rounds=6
+         x0=0f5c1811793b6456 x1=7b74dc568f734cd5 x2=efffb022ab8d45f8 x3=47eccd54380a2fa6 x4=62ec586be8c2836a
+  [2845000] data_out = 56643b7911185c0f0000000000000000
+  [2855000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2855000] perm_done  x0=7be7ddf966f91a06 x3=45dc8d661eae849d x4=1d4934b80a55f20b
+  [2865000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=7be7ddf966f91a06 x1=2e789902acf0ddfa x2=57864fddeee64a31 x3=45dc8d661eae849d x4=1d4934b80a55f20b
+  [2865000] perm_start DATA_LOAD     rounds=6
+         x0=6629767001bc3907 x1=2e789902acf0ddfa x2=57864fddeee64a31 x3=45dc8d661eae849d x4=1d4934b80a55f20b
+  [2875000] data_out = 0739bc01707629660000000000000000
+  [2885000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2885000] perm_done  x0=8f12580ea2ff6dcd x3=5500e06481b47f34 x4=64459cc104560ba3
+  [2895000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=8f12580ea2ff6dcd x1=419742291a7c793c x2=e71792dfcb3cf31a x3=5500e06481b47f34 x4=64459cc104560ba3
+  [2895000] perm_start DATA_LOAD     rounds=6
+         x0=91dcf387c5ba4ecc x1=419742291a7c793c x2=e71792dfcb3cf31a x3=5500e06481b47f34 x4=64459cc104560ba3
+  [2905000] data_out = cc4ebac587f3dc910000000000000000
+  [2915000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2915000] perm_done  x0=ced0c11d2952287f x3=c6c6051e901e1492 x4=229c59ef955aaa63
+  [2925000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ced0c11d2952287f x1=c740bb347cf4fa64 x2=f16b10238abd6a0a x3=c6c6051e901e1492 x4=229c59ef955aaa63
+  [2925000] perm_start DATA_LOAD     rounds=6
+         x0=d11e6a944e170b7e x1=c740bb347cf4fa64 x2=f16b10238abd6a0a x3=c6c6051e901e1492 x4=229c59ef955aaa63
+  [2935000] data_out = 7e0b174e946a1ed10000000000000000
+  [2945000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2945000] perm_done  x0=6d17cc9814af9e54 x3=358004f224699976 x4=e3904c9748f82889
+  [2955000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=6d17cc9814af9e54 x1=d0c7d96844e774f8 x2=36905d7b479d01da x3=358004f224699976 x4=e3904c9748f82889
+  [2955000] perm_start DATA_LOAD     rounds=6
+         x0=4dd9671173eabd55 x1=d0c7d96844e774f8 x2=36905d7b479d01da x3=358004f224699976 x4=e3904c9748f82889
+  [2965000] data_out = 55bdea731167d94d0000000000000000
+  [2975000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [2975000] perm_done  x0=e5ffce42687e65f5 x3=e71b7497b96d7859 x4=1111025f9376e291
+  [2985000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=e5ffce42687e65f5 x1=2edcb26a5fe64969 x2=b7652b4e12dcd0b3 x3=e71b7497b96d7859 x4=1111025f9376e291
+  [2985000] perm_start DATA_LOAD     rounds=6
+         x0=c43165cb0f3b46f4 x1=2edcb26a5fe64969 x2=b7652b4e12dcd0b3 x3=e71b7497b96d7859 x4=1111025f9376e291
+  [2995000] data_out = f4463b0fcb6531c40000000000000000
+  [3005000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3005000] perm_done  x0=5f5c033fdb681883 x3=2c704a676edf2735 x4=e8ea020a7cce12c4
+  [3015000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=5f5c033fdb681883 x1=b1c52efdb5c75fa9 x2=4f622ccaa8f3c601 x3=2c704a676edf2735 x4=e8ea020a7cce12c4
+  [3015000] perm_start DATA_LOAD     rounds=6
+         x0=7d92a8b6bc2d3b82 x1=b1c52efdb5c75fa9 x2=4f622ccaa8f3c601 x3=2c704a676edf2735 x4=e8ea020a7cce12c4
+  [3025000] data_out = 823b2dbcb6a8927d0000000000000000
+  [3035000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3035000] perm_done  x0=bf6b9542874426d3 x3=b9593d2152a856c8 x4=343dd59a1b35675e
+  [3045000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=bf6b9542874426d3 x1=d0ff48d6d411d001 x2=3b60722db2cbebab x3=b9593d2152a856c8 x4=343dd59a1b35675e
+  [3045000] perm_start DATA_LOAD     rounds=6
+         x0=9ca53ecbe00105d2 x1=d0ff48d6d411d001 x2=3b60722db2cbebab x3=b9593d2152a856c8 x4=343dd59a1b35675e
+  [3055000] data_out = d20501e0cb3ea59c0000000000000000
+  [3065000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3065000] perm_done  x0=9ee2d3f96000aecd x3=13625be9dd491a55 x4=3c7c8cf120deb659
+  [3075000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=9ee2d3f96000aecd x1=d976b21b551083fb x2=ebd4ab529cf07a88 x3=13625be9dd491a55 x4=3c7c8cf120deb659
+  [3075000] perm_start DATA_LOAD     rounds=6
+         x0=ba2c787007458dcc x1=d976b21b551083fb x2=ebd4ab529cf07a88 x3=13625be9dd491a55 x4=3c7c8cf120deb659
+  [3085000] data_out = cc8d450770782cba0000000000000000
+  [3095000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3095000] perm_done  x0=ef5589163d57e723 x3=581e61cbcdb116ae x4=14422fd0d5119c3d
+  [3105000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ef5589163d57e723 x1=7bcad6c20b037be6 x2=3e9d70bc4514149d x3=581e61cbcdb116ae x4=14422fd0d5119c3d
+  [3105000] perm_start DATA_LOAD     rounds=6
+         x0=ca9b229f5a12c422 x1=7bcad6c20b037be6 x2=3e9d70bc4514149d x3=581e61cbcdb116ae x4=14422fd0d5119c3d
+  [3115000] data_out = 22c4125a9f229bca0000000000000000
+  [3125000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3125000] perm_done  x0=f795a71346c37f29 x3=1fdad4f5f65c9978 x4=7273b0a05ee1a971
+  [3135000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f795a71346c37f29 x1=76e821b19c5d88de x2=30e89aa2a6ec0228 x3=1fdad4f5f65c9978 x4=7273b0a05ee1a971
+  [3135000] perm_start DATA_LOAD     rounds=6
+         x0=d15b0c9a21865c28 x1=76e821b19c5d88de x2=30e89aa2a6ec0228 x3=1fdad4f5f65c9978 x4=7273b0a05ee1a971
+  [3145000] data_out = 285c86219a0c5bd10000000000000000
+  [3155000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3155000] perm_done  x0=bd8f893b782d0b04 x3=79b52ba639136256 x4=eeec53bcbf9facaf
+  [3165000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=bd8f893b782d0b04 x1=407f5610eda05d7b x2=8524f69da7dbc8dc x3=79b52ba639136256 x4=eeec53bcbf9facaf
+  [3165000] perm_start DATA_LOAD     rounds=6
+         x0=9a4122b21f682805 x1=407f5610eda05d7b x2=8524f69da7dbc8dc x3=79b52ba639136256 x4=eeec53bcbf9facaf
+  [3175000] data_out = 0528681fb222419a0000000000000000
+  [3185000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3185000] perm_done  x0=ee1b9f8d83be130f x3=41d9602f3a161e9d x4=a8cfd0cbfe9e973e
+  [3195000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ee1b9f8d83be130f x1=1c4d24aa17ec74d1 x2=2312f9601ef4516e x3=41d9602f3a161e9d x4=a8cfd0cbfe9e973e
+  [3195000] perm_start DATA_LOAD     rounds=6
+         x0=c6d53404e4fb300e x1=1c4d24aa17ec74d1 x2=2312f9601ef4516e x3=41d9602f3a161e9d x4=a8cfd0cbfe9e973e
+  [3205000] data_out = 0e30fbe40434d5c60000000000000000
+  [3215000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3215000] perm_done  x0=671bbf7d54d2e331 x3=495e957982565b2f x4=33ed0faa72034b17
+  [3225000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=671bbf7d54d2e331 x1=ce6459efe5757f71 x2=331b558f811270f1 x3=495e957982565b2f x4=33ed0faa72034b17
+  [3225000] perm_start DATA_LOAD     rounds=6
+         x0=4ed514f43397c030 x1=ce6459efe5757f71 x2=331b558f811270f1 x3=495e957982565b2f x4=33ed0faa72034b17
+  [3235000] data_out = 30c09733f414d54e0000000000000000
+  [3245000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3245000] perm_done  x0=37cb5a00afe0cfa7 x3=7827984413a2437f x4=52b866028c19f06b
+  [3255000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=37cb5a00afe0cfa7 x1=3244367ac9dddcfe x2=1e8e1c189cd899e5 x3=7827984413a2437f x4=52b866028c19f06b
+  [3255000] perm_start DATA_LOAD     rounds=6
+         x0=1d05f189c8a5eca6 x1=3244367ac9dddcfe x2=1e8e1c189cd899e5 x3=7827984413a2437f x4=52b866028c19f06b
+  [3265000] data_out = a6eca5c889f1051d0000000000000000
+  [3275000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3275000] perm_done  x0=ca07e3fb0b2ff557 x3=8a5a6c5204f02748 x4=774531081a5387c5
+  [3285000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ca07e3fb0b2ff557 x1=a8fd7efb66f6901b x2=d53d10e46db0b501 x3=8a5a6c5204f02748 x4=774531081a5387c5
+  [3285000] perm_start DATA_LOAD     rounds=6
+         x0=e1c948726c6ad656 x1=a8fd7efb66f6901b x2=d53d10e46db0b501 x3=8a5a6c5204f02748 x4=774531081a5387c5
+  [3295000] data_out = 56d66a6c7248c9e10000000000000000
+  [3305000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3305000] perm_done  x0=234fcaa7711db175 x3=0b43df6da42475af x4=8bf0f8509cc452a2
+  [3315000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=234fcaa7711db175 x1=a0d0e53003a3ee28 x2=cce0035032e20d25 x3=0b43df6da42475af x4=8bf0f8509cc452a2
+  [3315000] perm_start DATA_LOAD     rounds=6
+         x0=0f81612e16589274 x1=a0d0e53003a3ee28 x2=cce0035032e20d25 x3=0b43df6da42475af x4=8bf0f8509cc452a2
+  [3325000] data_out = 749258162e61810f0000000000000000
+  [3335000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3335000] perm_done  x0=fcbe813f4caee620 x3=e020cb32570ca0ea x4=6634d25c0fe8a695
+  [3345000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=fcbe813f4caee620 x1=942335a02f31e90a x2=c0b661bea501b3c7 x3=e020cb32570ca0ea x4=6634d25c0fe8a695
+  [3345000] perm_start DATA_LOAD     rounds=6
+         x0=d1702ab62bebc521 x1=942335a02f31e90a x2=c0b661bea501b3c7 x3=e020cb32570ca0ea x4=6634d25c0fe8a695
+  [3355000] data_out = 21c5eb2bb62a70d10000000000000000
+  [3365000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3365000] perm_done  x0=e9902dd9034e35c1 x3=edc3a73561de2d30 x4=f396bf8303d50226
+  [3375000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=e9902dd9034e35c1 x1=98f892e8a9b31fe9 x2=5df2b55662ebb08f x3=edc3a73561de2d30 x4=f396bf8303d50226
+  [3375000] perm_start DATA_LOAD     rounds=6
+         x0=c75e8650640b16c0 x1=98f892e8a9b31fe9 x2=5df2b55662ebb08f x3=edc3a73561de2d30 x4=f396bf8303d50226
+  [3385000] data_out = c0160b6450865ec70000000000000000
+  [3395000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3395000] perm_done  x0=e343aa99b783d895 x3=e36668e4a5c61e66 x4=03abe74aebe1ae11
+  [3405000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=e343aa99b783d895 x1=593385f928a92974 x2=ad8eb7a188153c1a x3=e36668e4a5c61e66 x4=03abe74aebe1ae11
+  [3405000] perm_start DATA_LOAD     rounds=6
+         x0=cc8d0110d0c6fb94 x1=593385f928a92974 x2=ad8eb7a188153c1a x3=e36668e4a5c61e66 x4=03abe74aebe1ae11
+  [3415000] data_out = 94fbc6d010018dcc0000000000000000
+  [3425000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3425000] perm_done  x0=26c60aa0b26d528a x3=725bf8c118dad218 x4=59fd56769d70e808
+  [3435000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=26c60aa0b26d528a x1=4e28745957db7709 x2=5e505a232af575cc x3=725bf8c118dad218 x4=59fd56769d70e808
+  [3435000] perm_start DATA_LOAD     rounds=6
+         x0=1608a129d528718b x1=4e28745957db7709 x2=5e505a232af575cc x3=725bf8c118dad218 x4=59fd56769d70e808
+  [3445000] data_out = 8b7128d529a108160000000000000000
+  [3455000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3455000] perm_done  x0=f54975a911b341a3 x3=613cf1fe88660155 x4=7dc1b377a674efac
+  [3465000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f54975a911b341a3 x1=82033a76c2f30148 x2=8b579107bf7eb480 x3=613cf1fe88660155 x4=7dc1b377a674efac
+  [3465000] perm_start DATA_LOAD     rounds=6
+         x0=c487de2076f662a2 x1=82033a76c2f30148 x2=8b579107bf7eb480 x3=613cf1fe88660155 x4=7dc1b377a674efac
+  [3475000] data_out = a262f67620de87c40000000000000000
+  [3485000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3485000] perm_done  x0=a90a2fdcdde1f9d2 x3=034dfbb1df25829c x4=6eda4451835b318b
+  [3495000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=a90a2fdcdde1f9d2 x1=bcbe615e5c40fdc9 x2=1835e34f792ed530 x3=034dfbb1df25829c x4=6eda4451835b318b
+  [3495000] perm_start DATA_LOAD     rounds=6
+         x0=9bc48455baa4dad3 x1=bcbe615e5c40fdc9 x2=1835e34f792ed530 x3=034dfbb1df25829c x4=6eda4451835b318b
+  [3505000] data_out = d3daa4ba5584c49b0000000000000000
+  [3515000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3515000] perm_done  x0=1d3ff31f63f5741a x3=b6496e98d370a550 x4=c78296fa8a06ac70
+  [3525000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=1d3ff31f63f5741a x1=3691d60f296037bd x2=af68567950264580 x3=b6496e98d370a550 x4=c78296fa8a06ac70
+  [3525000] perm_start DATA_LOAD     rounds=6
+         x0=2ef1589604b0571b x1=3691d60f296037bd x2=af68567950264580 x3=b6496e98d370a550 x4=c78296fa8a06ac70
+  [3535000] data_out = 1b57b0049658f12e0000000000000000
+  [3545000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3545000] perm_done  x0=c964a0b19c8f68af x3=b6249d2e1bce8582 x4=352ebb233e9c7a66
+  [3555000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=c964a0b19c8f68af x1=c9eea29e6e0351b5 x2=6f72d15eddb7aecb x3=b6249d2e1bce8582 x4=352ebb233e9c7a66
+  [3555000] perm_start DATA_LOAD     rounds=6
+         x0=fdaa0b38fbca4bae x1=c9eea29e6e0351b5 x2=6f72d15eddb7aecb x3=b6249d2e1bce8582 x4=352ebb233e9c7a66
+  [3565000] data_out = ae4bcafb380baafd0000000000000000
+  [3575000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3575000] perm_done  x0=271cd2c2216d953d x3=0b690a28eb4c0532 x4=70bca33ec32d6b4e
+  [3585000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=271cd2c2216d953d x1=98a4b40747b7d199 x2=49320a9a55af1cbe x3=0b690a28eb4c0532 x4=70bca33ec32d6b4e
+  [3585000] perm_start DATA_LOAD     rounds=6
+         x0=12d2794b4628b63c x1=98a4b40747b7d199 x2=49320a9a55af1cbe x3=0b690a28eb4c0532 x4=70bca33ec32d6b4e
+  [3595000] data_out = 3cb628464b79d2120000000000000000
+  [3605000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3605000] perm_done  x0=6a53f3c50d156f06 x3=f96703a10365b654 x4=508a7cbc079f8f5a
+  [3615000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=6a53f3c50d156f06 x1=4e9eaa53e1c0f894 x2=1e9ce39f11753a17 x3=f96703a10365b654 x4=508a7cbc079f8f5a
+  [3615000] perm_start DATA_LOAD     rounds=6
+         x0=5c9d584c6a504c07 x1=4e9eaa53e1c0f894 x2=1e9ce39f11753a17 x3=f96703a10365b654 x4=508a7cbc079f8f5a
+  [3625000] data_out = 074c506a4c589d5c0000000000000000
+  [3635000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3635000] perm_done  x0=a73eefec16a66826 x3=33d595a0584bcf2f x4=16f3a47352189dce
+  [3645000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=a73eefec16a66826 x1=1d34fb2fea299607 x2=b38e60daee346619 x3=33d595a0584bcf2f x4=16f3a47352189dce
+  [3645000] perm_start DATA_LOAD     rounds=6
+         x0=90f0446571e34b27 x1=1d34fb2fea299607 x2=b38e60daee346619 x3=33d595a0584bcf2f x4=16f3a47352189dce
+  [3655000] data_out = 274be3716544f0900000000000000000
+  [3665000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3665000] perm_done  x0=7a098152e6210e4d x3=be3618f8a0c4cf7e x4=eb6ae9b20ce46556
+  [3675000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=7a098152e6210e4d x1=ce45608cbf5b45a8 x2=c7e5386c282fc7df x3=be3618f8a0c4cf7e x4=eb6ae9b20ce46556
+  [3675000] perm_start DATA_LOAD     rounds=6
+         x0=42c72adb81642d4c x1=ce45608cbf5b45a8 x2=c7e5386c282fc7df x3=be3618f8a0c4cf7e x4=eb6ae9b20ce46556
+  [3685000] data_out = 4c2d6481db2ac7420000000000000000
+  [3695000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3695000] perm_done  x0=3bd658f6fa07ad5b x3=17e40a88d5ede59a x4=5986ec13124ab870
+  [3705000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=3bd658f6fa07ad5b x1=87edec4e757cca1d x2=cd800b2355aed254 x3=17e40a88d5ede59a x4=5986ec13124ab870
+  [3705000] perm_start DATA_LOAD     rounds=6
+         x0=0218f37f9d428e5a x1=87edec4e757cca1d x2=cd800b2355aed254 x3=17e40a88d5ede59a x4=5986ec13124ab870
+  [3715000] data_out = 5a8e429d7ff318020000000000000000
+  [3725000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3725000] perm_done  x0=f0a66e56b99c433c x3=469d84f67afaacc6 x4=dba598f925921064
+  [3735000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f0a66e56b99c433c x1=a3cba93072f601e6 x2=e3176d61a4385d48 x3=469d84f67afaacc6 x4=dba598f925921064
+  [3735000] perm_start DATA_LOAD     rounds=6
+         x0=ca68c5dfded9603d x1=a3cba93072f601e6 x2=e3176d61a4385d48 x3=469d84f67afaacc6 x4=dba598f925921064
+  [3745000] data_out = 3d60d9dedfc568ca0000000000000000
+  [3755000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3755000] perm_done  x0=4f48fb9f980a8c6c x3=5ff9ac47f352219d x4=ab36a638f390c92c
+  [3765000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=4f48fb9f980a8c6c x1=437f1d4e30751119 x2=a20de8696986a80c x3=5ff9ac47f352219d x4=ab36a638f390c92c
+  [3765000] perm_start DATA_LOAD     rounds=6
+         x0=74865016ff4faf6d x1=437f1d4e30751119 x2=a20de8696986a80c x3=5ff9ac47f352219d x4=ab36a638f390c92c
+  [3775000] data_out = 6daf4fff165086740000000000000000
+  [3785000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3785000] perm_done  x0=cf89d2be9d830ba1 x3=ca2eb113816212fb x4=68103d1486fe0dee
+  [3795000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cf89d2be9d830ba1 x1=60c53199874a9396 x2=626815dc2dab94a7 x3=ca2eb113816212fb x4=68103d1486fe0dee
+  [3795000] perm_start DATA_LOAD     rounds=6
+         x0=f3477937fac628a0 x1=60c53199874a9396 x2=626815dc2dab94a7 x3=ca2eb113816212fb x4=68103d1486fe0dee
+  [3805000] data_out = a028c6fa377947f30000000000000000
+  [3815000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3815000] perm_done  x0=c056bfe2e5ed66dd x3=3a6ea6b71bac843e x4=1d4d92c7f27295c5
+  [3825000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=c056bfe2e5ed66dd x1=e82927000305f58e x2=cd0c827620dbc0cc x3=3a6ea6b71bac843e x4=1d4d92c7f27295c5
+  [3825000] perm_start DATA_LOAD     rounds=6
+         x0=fd98146b82a845dc x1=e82927000305f58e x2=cd0c827620dbc0cc x3=3a6ea6b71bac843e x4=1d4d92c7f27295c5
+  [3835000] data_out = dc45a8826b1498fd0000000000000000
+  [3845000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3845000] perm_done  x0=1d8aef7824e9edd8 x3=7fd40183daae2c5f x4=ae09dcbe39d71692
+  [3855000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=1d8aef7824e9edd8 x1=ff05c2035d042343 x2=6e8d2fe70887f6ac x3=7fd40183daae2c5f x4=ae09dcbe39d71692
+  [3855000] perm_start DATA_LOAD     rounds=6
+         x0=234444f143acced9 x1=ff05c2035d042343 x2=6e8d2fe70887f6ac x3=7fd40183daae2c5f x4=ae09dcbe39d71692
+  [3865000] data_out = d9ceac43f14444230000000000000000
+  [3875000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3875000] perm_done  x0=6a64d33afce67c8e x3=e1c0e8635030fab9 x4=375edca40a92a591
+  [3885000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=6a64d33afce67c8e x1=0718c9ca7e0b1645 x2=e7530925c7a33925 x3=e1c0e8635030fab9 x4=375edca40a92a591
+  [3885000] perm_start DATA_LOAD     rounds=6
+         x0=55aa78b39ba35f8f x1=0718c9ca7e0b1645 x2=e7530925c7a33925 x3=e1c0e8635030fab9 x4=375edca40a92a591
+  [3895000] data_out = 8f5fa39bb378aa550000000000000000
+  [3905000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3905000] perm_done  x0=8e50537572df01b4 x3=bfe85c153bf8adf0 x4=b21f92f6f6bfab32
+  [3915000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=8e50537572df01b4 x1=7ec1ea9250df91cf x2=10f0746d58e27d11 x3=bfe85c153bf8adf0 x4=b21f92f6f6bfab32
+  [3915000] perm_start DATA_LOAD     rounds=6
+         x0=ce9ef8fc159a22b5 x1=7ec1ea9250df91cf x2=10f0746d58e27d11 x3=bfe85c153bf8adf0 x4=b21f92f6f6bfab32
+  [3925000] data_out = b5229a15fcf89ece0000000000000000
+  [3935000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3935000] perm_done  x0=a0a820e42d56cc71 x3=f2d276f076378816 x4=5187c3ffe9291a22
+  [3945000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=a0a820e42d56cc71 x1=9acc03e51507311f x2=cb1345d57189dc68 x3=f2d276f076378816 x4=5187c3ffe9291a22
+  [3945000] perm_start DATA_LOAD     rounds=6
+         x0=e1668b6d4a13ef70 x1=9acc03e51507311f x2=cb1345d57189dc68 x3=f2d276f076378816 x4=5187c3ffe9291a22
+  [3955000] data_out = 70ef134a6d8b66e10000000000000000
+  [3965000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3965000] perm_done  x0=7e154b7e68f6b6b1 x3=0e0620a76d7cd096 x4=7c7b2ed851c41f6e
+  [3975000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=7e154b7e68f6b6b1 x1=a83280cd43e52f51 x2=b679ff4e3e4c012b x3=0e0620a76d7cd096 x4=7c7b2ed851c41f6e
+  [3975000] perm_start DATA_LOAD     rounds=6
+         x0=3cdbe0f70fb395b0 x1=a83280cd43e52f51 x2=b679ff4e3e4c012b x3=0e0620a76d7cd096 x4=7c7b2ed851c41f6e
+  [3985000] data_out = b095b30ff7e0db3c0000000000000000
+  [3995000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [3995000] perm_done  x0=68361be70ffaf572 x3=12bb170eb4dbebe5 x4=f2dcb311c373f00d
+  [4005000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=68361be70ffaf572 x1=ba2aba1afd4f98ab x2=49eba2cf4913225e x3=12bb170eb4dbebe5 x4=f2dcb311c373f00d
+  [4005000] perm_start DATA_LOAD     rounds=6
+         x0=2bf8b06e68bfd673 x1=ba2aba1afd4f98ab x2=49eba2cf4913225e x3=12bb170eb4dbebe5 x4=f2dcb311c373f00d
+  [4015000] data_out = 73d6bf686eb0f82b0000000000000000
+  [4025000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4025000] perm_done  x0=a7d338c85f4f19e2 x3=029efd86f673054d x4=559fd909a77e8148
+  [4035000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=a7d338c85f4f19e2 x1=c9049461b01bb602 x2=cc477edbc884e9b0 x3=029efd86f673054d x4=559fd909a77e8148
+  [4035000] perm_start DATA_LOAD     rounds=6
+         x0=e31d9341380a3ae3 x1=c9049461b01bb602 x2=cc477edbc884e9b0 x3=029efd86f673054d x4=559fd909a77e8148
+  [4045000] data_out = e33a0a3841931de30000000000000000
+  [4055000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4055000] perm_done  x0=24eb24a7207804b8 x3=d17e9bc2aa732f3a x4=de9da82c5fb98413
+  [4065000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=24eb24a7207804b8 x1=39518f911b18ca5e x2=697359a73696ec6a x3=d17e9bc2aa732f3a x4=de9da82c5fb98413
+  [4065000] perm_start DATA_LOAD     rounds=6
+         x0=61258f2e473d27b9 x1=39518f911b18ca5e x2=697359a73696ec6a x3=d17e9bc2aa732f3a x4=de9da82c5fb98413
+  [4075000] data_out = b9273d472e8f25610000000000000000
+  [4085000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4085000] perm_done  x0=6bd2337ea0525ccf x3=185bd592f85f484a x4=067ac12f63f6245b
+  [4095000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=6bd2337ea0525ccf x1=6c60f14186e6748c x2=93da73ba6b19d1f3 x3=185bd592f85f484a x4=067ac12f63f6245b
+  [4095000] perm_start DATA_LOAD     rounds=6
+         x0=2d1c98f7c7177fce x1=6c60f14186e6748c x2=93da73ba6b19d1f3 x3=185bd592f85f484a x4=067ac12f63f6245b
+  [4105000] data_out = ce7f17c7f7981c2d0000000000000000
+  [4115000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4115000] perm_done  x0=17e39f2cf17b4e51 x3=21f5ad806b3e47c7 x4=0323042592570570
+  [4125000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=17e39f2cf17b4e51 x1=52dc1f28c967c92e x2=1f0da30a9e208121 x3=21f5ad806b3e47c7 x4=0323042592570570
+  [4125000] perm_start DATA_LOAD     rounds=6
+         x0=502d34a5963e6d50 x1=52dc1f28c967c92e x2=1f0da30a9e208121 x3=21f5ad806b3e47c7 x4=0323042592570570
+  [4135000] data_out = 506d3e96a5342d500000000000000000
+  [4145000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4145000] perm_done  x0=35dcf461b423d495 x3=444c63f98ff344b2 x4=4bfba4376077e1a0
+  [4155000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=35dcf461b423d495 x1=0e094dec82cedca8 x2=07257068970fc8a7 x3=444c63f98ff344b2 x4=4bfba4376077e1a0
+  [4155000] perm_start DATA_LOAD     rounds=6
+         x0=7d125fe8d366f794 x1=0e094dec82cedca8 x2=07257068970fc8a7 x3=444c63f98ff344b2 x4=4bfba4376077e1a0
+  [4165000] data_out = 94f766d3e85f127d0000000000000000
+  [4175000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4175000] perm_done  x0=8be435868ab2a870 x3=5f6c11bf251b9b34 x4=35ee2f22aa1c4ee5
+  [4185000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=8be435868ab2a870 x1=b9b214f6a4656049 x2=2bdd9fb6c436beff x3=5f6c11bf251b9b34 x4=35ee2f22aa1c4ee5
+  [4185000] perm_start DATA_LOAD     rounds=6
+         x0=c22a9e0fedf78b71 x1=b9b214f6a4656049 x2=2bdd9fb6c436beff x3=5f6c11bf251b9b34 x4=35ee2f22aa1c4ee5
+  [4195000] data_out = 718bf7ed0f9e2ac20000000000000000
+  [4205000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4205000] perm_done  x0=c426e7525601c876 x3=9960b6fc41bdd0bb x4=88dfd2a460a9fa24
+  [4215000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=c426e7525601c876 x1=4ee8d3bef29adcb0 x2=d969b6538c8ab960 x3=9960b6fc41bdd0bb x4=88dfd2a460a9fa24
+  [4215000] perm_start DATA_LOAD     rounds=6
+         x0=8ee84cdb3144eb77 x1=4ee8d3bef29adcb0 x2=d969b6538c8ab960 x3=9960b6fc41bdd0bb x4=88dfd2a460a9fa24
+  [4225000] data_out = 77eb4431db4ce88e0000000000000000
+  [4235000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4235000] perm_done  x0=2453ca6546a3d598 x3=3d5f3c8c4e812e4e x4=a7cfed9adf6c8451
+  [4245000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=2453ca6546a3d598 x1=d4a05dcbef84d622 x2=0ffc25b78eb487fc x3=3d5f3c8c4e812e4e x4=a7cfed9adf6c8451
+  [4245000] perm_start DATA_LOAD     rounds=6
+         x0=6f9d61ec21e6f699 x1=d4a05dcbef84d622 x2=0ffc25b78eb487fc x3=3d5f3c8c4e812e4e x4=a7cfed9adf6c8451
+  [4255000] data_out = 99f6e621ec619d6f0000000000000000
+  [4265000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4265000] perm_done  x0=c2594b442cc57860 x3=e080092687ed65a4 x4=d0e74b09c0d16c2d
+  [4275000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=c2594b442cc57860 x1=1c159cd8b43d5a83 x2=ad393cf46b106072 x3=e080092687ed65a4 x4=d0e74b09c0d16c2d
+  [4275000] perm_start DATA_LOAD     rounds=6
+         x0=8e97e0cd4b805b61 x1=1c159cd8b43d5a83 x2=ad393cf46b106072 x3=e080092687ed65a4 x4=d0e74b09c0d16c2d
+  [4285000] data_out = 615b804bcde0978e0000000000000000
+  [4295000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4295000] perm_done  x0=9a9072c8292ad9b8 x3=31b01ca3239fbfcd x4=f51264af4bef8856
+  [4305000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=9a9072c8292ad9b8 x1=0689d0e70276e706 x2=1723d28f02768ccc x3=31b01ca3239fbfcd x4=f51264af4bef8856
+  [4305000] perm_start DATA_LOAD     rounds=6
+         x0=d75ed9414e6ffab9 x1=0689d0e70276e706 x2=1723d28f02768ccc x3=31b01ca3239fbfcd x4=f51264af4bef8856
+  [4315000] data_out = b9fa6f4e41d95ed70000000000000000
+  [4325000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4325000] perm_done  x0=6e866395efebe444 x3=8e3c41e616ecc063 x4=52c73cdf057c83d6
+  [4335000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=6e866395efebe444 x1=fbb9c2061faca326 x2=97880925df160c41 x3=8e3c41e616ecc063 x4=52c73cdf057c83d6
+  [4335000] perm_start DATA_LOAD     rounds=6
+         x0=2048c81c88aec745 x1=fbb9c2061faca326 x2=97880925df160c41 x3=8e3c41e616ecc063 x4=52c73cdf057c83d6
+  [4345000] data_out = 45c7ae881cc848200000000000000000
+  [4355000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4355000] perm_done  x0=2039beba9454a660 x3=39eecf88fad91646 x4=3b31f22316702f62
+  [4365000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=2039beba9454a660 x1=3d9d7425f89cae16 x2=c5f8c98d58dfdb72 x3=39eecf88fad91646 x4=3b31f22316702f62
+  [4365000] perm_start DATA_LOAD     rounds=6
+         x0=6ff71533f3118561 x1=3d9d7425f89cae16 x2=c5f8c98d58dfdb72 x3=39eecf88fad91646 x4=3b31f22316702f62
+  [4375000] data_out = 618511f33315f76f0000000000000000
+  [4385000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4385000] perm_done  x0=648f60dc2198d17d x3=e973cf0f7f099449 x4=bed9b4f7b8fad0ac
+  [4395000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=648f60dc2198d17d x1=fb56fb8c7b9635c0 x2=ad94b46cdfa17a1c x3=e973cf0f7f099449 x4=bed9b4f7b8fad0ac
+  [4395000] perm_start DATA_LOAD     rounds=6
+         x0=3441cb5546ddf27c x1=fb56fb8c7b9635c0 x2=ad94b46cdfa17a1c x3=e973cf0f7f099449 x4=bed9b4f7b8fad0ac
+  [4405000] data_out = 7cf2dd4655cb41340000000000000000
+  [4415000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4415000] perm_done  x0=fa031ddf4cf42320 x3=eb6fb7967699441c x4=976287d72ce4d0e2
+  [4425000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=fa031ddf4cf42320 x1=c37645bd6264298d x2=86802e7a666ff359 x3=eb6fb7967699441c x4=976287d72ce4d0e2
+  [4425000] perm_start DATA_LOAD     rounds=6
+         x0=abcdb6562bb10021 x1=c37645bd6264298d x2=86802e7a666ff359 x3=eb6fb7967699441c x4=976287d72ce4d0e2
+  [4435000] data_out = 2100b12b56b6cdab0000000000000000
+  [4445000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4445000] perm_done  x0=f40b75db639218a7 x3=e9283231b6771dcd x4=23eedd454f922283
+  [4455000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f40b75db639218a7 x1=3832a9179c1593b7 x2=f289b1cf09f5efef x3=e9283231b6771dcd x4=23eedd454f922283
+  [4455000] perm_start DATA_LOAD     rounds=6
+         x0=a6c5de5204d73ba6 x1=3832a9179c1593b7 x2=f289b1cf09f5efef x3=e9283231b6771dcd x4=23eedd454f922283
+  [4465000] data_out = a63bd70452dec5a60000000000000000
+  [4475000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4475000] perm_done  x0=867a5760d3c09ad1 x3=a08fc2c53ca9faa8 x4=0302b1890525f27a
+  [4485000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=867a5760d3c09ad1 x1=9e7317fe481dd17d x2=5e730c36b0f698f4 x3=a08fc2c53ca9faa8 x4=0302b1890525f27a
+  [4485000] perm_start DATA_LOAD     rounds=6
+         x0=d5b4fce9b485b9d0 x1=9e7317fe481dd17d x2=5e730c36b0f698f4 x3=a08fc2c53ca9faa8 x4=0302b1890525f27a
+  [4495000] data_out = d0b985b4e9fcb4d50000000000000000
+  [4505000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4505000] perm_done  x0=b9fd0e80181809a5 x3=127e862150466be1 x4=c71d31d2cd5dca0d
+  [4515000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=b9fd0e80181809a5 x1=83bfd8c3c11b1394 x2=08498690a341efe5 x3=127e862150466be1 x4=c71d31d2cd5dca0d
+  [4515000] perm_start DATA_LOAD     rounds=6
+         x0=ed33a5097f5d2aa4 x1=83bfd8c3c11b1394 x2=08498690a341efe5 x3=127e862150466be1 x4=c71d31d2cd5dca0d
+  [4525000] data_out = a42a5d7f09a533ed0000000000000000
+  [4535000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4535000] perm_done  x0=1c4e0e56c4102517 x3=b642f4c70134a7f9 x4=792160d81b3379fd
+  [4545000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=1c4e0e56c4102517 x1=2e1cf04857d3c0a4 x2=6e16545351eef816 x3=b642f4c70134a7f9 x4=792160d81b3379fd
+  [4545000] perm_start DATA_LOAD     rounds=6
+         x0=4980a5dfa3550616 x1=2e1cf04857d3c0a4 x2=6e16545351eef816 x3=b642f4c70134a7f9 x4=792160d81b3379fd
+  [4555000] data_out = 160655a3dfa580490000000000000000
+  [4565000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4565000] perm_done  x0=d4fe4b151218ccac x3=0ce7002e096262b1 x4=84e9a11092e02064
+  [4575000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=d4fe4b151218ccac x1=8b0647624c8a2649 x2=d66577d8ca988fa9 x3=0ce7002e096262b1 x4=84e9a11092e02064
+  [4575000] perm_start DATA_LOAD     rounds=6
+         x0=8230e09c755defad x1=8b0647624c8a2649 x2=d66577d8ca988fa9 x3=0ce7002e096262b1 x4=84e9a11092e02064
+  [4585000] data_out = adef5d759ce030820000000000000000
+  [4595000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4595000] perm_done  x0=9fe33e016274e78b x3=0145012ca231f28b x4=b55e13efbe5bb31d
+  [4605000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=9fe33e016274e78b x1=c97c91fb4c94974b x2=4abce971984d8d4c x3=0145012ca231f28b x4=b55e13efbe5bb31d
+  [4605000] perm_start DATA_LOAD     rounds=6
+         x0=c82d95880531c48a x1=c97c91fb4c94974b x2=4abce971984d8d4c x3=0145012ca231f28b x4=b55e13efbe5bb31d
+  [4615000] data_out = 8ac4310588952dc80000000000000000
+  [4625000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4625000] perm_done  x0=71f7999d3b6d2e2e x3=f097f0552a7f27f7 x4=f43504370dd96f47
+  [4635000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=71f7999d3b6d2e2e x1=0abb6a9955587d01 x2=d23cf2995aa43702 x3=f097f0552a7f27f7 x4=f43504370dd96f47
+  [4635000] perm_start DATA_LOAD     rounds=6
+         x0=293932145c280d2f x1=0abb6a9955587d01 x2=d23cf2995aa43702 x3=f097f0552a7f27f7 x4=f43504370dd96f47
+  [4645000] data_out = 2f0d285c143239290000000000000000
+  [4655000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4655000] perm_done  x0=b0cae84d68bdde8e x3=523a849654631afa x4=51a019d2627a2b81
+  [4665000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=b0cae84d68bdde8e x1=311aaad4536eee99 x2=ea334cd1b10136f8 x3=523a849654631afa x4=51a019d2627a2b81
+  [4665000] perm_start DATA_LOAD     rounds=6
+         x0=e90443c40ff8fd8f x1=311aaad4536eee99 x2=ea334cd1b10136f8 x3=523a849654631afa x4=51a019d2627a2b81
+  [4675000] data_out = 8ffdf80fc44304e90000000000000000
+  [4685000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4685000] perm_done  x0=fcb5e15465f079a6 x3=e3cef766c41e2302 x4=e3fe81b905554009
+  [4695000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=fcb5e15465f079a6 x1=8f988e612d47f684 x2=d316e12d8913427e x3=e3cef766c41e2302 x4=e3fe81b905554009
+  [4695000] perm_start DATA_LOAD     rounds=6
+         x0=a67b4add02b55aa7 x1=8f988e612d47f684 x2=d316e12d8913427e x3=e3cef766c41e2302 x4=e3fe81b905554009
+  [4705000] data_out = a75ab502dd4a7ba60000000000000000
+  [4715000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4715000] perm_done  x0=284c2bf8eeb56367 x3=8a1f666c513e297d x4=64fa7e699e0c1c77
+  [4725000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=284c2bf8eeb56367 x1=4d5e250577350fd6 x2=829bf0a7359da4f8 x3=8a1f666c513e297d x4=64fa7e699e0c1c77
+  [4725000] perm_start DATA_LOAD     rounds=6
+         x0=7382807189f04066 x1=4d5e250577350fd6 x2=829bf0a7359da4f8 x3=8a1f666c513e297d x4=64fa7e699e0c1c77
+  [4735000] data_out = 6640f089718082730000000000000000
+  [4745000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4745000] perm_done  x0=cd48e9024cb03e56 x3=583f1004907debf0 x4=30454825581f3f83
+  [4755000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=cd48e9024cb03e56 x1=e0674f301b5abfa1 x2=5391ccfa12ea38a6 x3=583f1004907debf0 x4=30454825581f3f83
+  [4755000] perm_start DATA_LOAD     rounds=6
+         x0=9186428b2bf51d57 x1=e0674f301b5abfa1 x2=5391ccfa12ea38a6 x3=583f1004907debf0 x4=30454825581f3f83
+  [4765000] data_out = 571df52b8b4286910000000000000000
+  [4775000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4775000] perm_done  x0=a11f23a4392b4984 x3=8e0173bbcccf69e5 x4=b130a62f1b4a71a6
+  [4785000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=a11f23a4392b4984 x1=ebf054410affa154 x2=06b26ce48ef04227 x3=8e0173bbcccf69e5 x4=b130a62f1b4a71a6
+  [4785000] perm_start DATA_LOAD     rounds=6
+         x0=fcd1882d5e6e6a85 x1=ebf054410affa154 x2=06b26ce48ef04227 x3=8e0173bbcccf69e5 x4=b130a62f1b4a71a6
+  [4795000] data_out = 856a6e5e2d88d1fc0000000000000000
+  [4805000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4805000] perm_done  x0=dea637661e5ab18d x3=a139c08bdd2130a1 x4=79341a700f0c8337
+  [4815000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=dea637661e5ab18d x1=39bcf6ec7756c617 x2=ed8bfe81f9fcac09 x3=a139c08bdd2130a1 x4=79341a700f0c8337
+  [4815000] perm_start DATA_LOAD     rounds=6
+         x0=80689cef791f928c x1=39bcf6ec7756c617 x2=ed8bfe81f9fcac09 x3=a139c08bdd2130a1 x4=79341a700f0c8337
+  [4825000] data_out = 8c921f79ef9c68800000000000000000
+  [4835000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4835000] perm_done  x0=f5cb60496a0bf5d2 x3=51a24866d118fc4b x4=14327079d408f20f
+  [4845000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=f5cb60496a0bf5d2 x1=85ff98b52614bed0 x2=48ec55311a43ffbd x3=51a24866d118fc4b x4=14327079d408f20f
+  [4845000] perm_start DATA_LOAD     rounds=6
+         x0=aa05cbc00d4ed6d3 x1=85ff98b52614bed0 x2=48ec55311a43ffbd x3=51a24866d118fc4b x4=14327079d408f20f
+  [4855000] data_out = d3d64e0dc0cb05aa0000000000000000
+  [4865000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4865000] perm_done  x0=e77dfc3c705a6582 x3=83fcf601dfaa5f0d x4=8a4152abbb2f2760
+  [4875000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=e77dfc3c705a6582 x1=c381d1d0546a0c30 x2=cb2a0fe35989c0eb x3=83fcf601dfaa5f0d x4=8a4152abbb2f2760
+  [4875000] perm_start DATA_LOAD     rounds=6
+         x0=87b357b5171f4683 x1=c381d1d0546a0c30 x2=cb2a0fe35989c0eb x3=83fcf601dfaa5f0d x4=8a4152abbb2f2760
+  [4885000] data_out = 83461f17b557b3870000000000000000
+  [4895000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4895000] perm_done  x0=97a6165f3ce9dee0 x3=0ebaf6820633b9cb x4=9ac66ec2948c6408
+  [4905000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=97a6165f3ce9dee0 x1=06bca98cab7ee0c2 x2=71efa13ccdfaf033 x3=0ebaf6820633b9cb x4=9ac66ec2948c6408
+  [4905000] perm_start DATA_LOAD     rounds=6
+         x0=f668bdd65bacfde1 x1=06bca98cab7ee0c2 x2=71efa13ccdfaf033 x3=0ebaf6820633b9cb x4=9ac66ec2948c6408
+  [4915000] data_out = e1fdac5bd6bd68f60000000000000000
+  [4925000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4925000] perm_done  x0=aa473d9a54b4891d x3=a7dbb1826a78bf34 x4=949ef12863e76cd2
+  [4935000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=aa473d9a54b4891d x1=dd1fd1f695feeb61 x2=d12cec5776aa744a x3=a7dbb1826a78bf34 x4=949ef12863e76cd2
+  [4935000] perm_start DATA_LOAD     rounds=6
+         x0=c889961333f1aa1c x1=dd1fd1f695feeb61 x2=d12cec5776aa744a x3=a7dbb1826a78bf34 x4=949ef12863e76cd2
+  [4945000] data_out = 1caaf133139689c80000000000000000
+  [4955000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4955000] perm_done  x0=c3fd22d9505f1a75 x3=e1648f1e648c436a x4=6ca4d25ee19aecc1
+  [4965000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=c3fd22d9505f1a75 x1=68c07c2a884053ce x2=31a501f872d44035 x3=e1648f1e648c436a x4=6ca4d25ee19aecc1
+  [4965000] perm_start DATA_LOAD     rounds=6
+         x0=a0338950371a3974 x1=68c07c2a884053ce x2=31a501f872d44035 x3=e1648f1e648c436a x4=6ca4d25ee19aecc1
+  [4975000] data_out = 74391a37508933a00000000000000000
+  [4985000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [4985000] perm_done  x0=9a6e0e08a602a28d x3=3b221c4fbfa7aac7 x4=046025f9ac20da99
+  [4995000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=9a6e0e08a602a28d x1=54e66c9f3dbbb238 x2=1e8ad8154b7f7c1b x3=3b221c4fbfa7aac7 x4=046025f9ac20da99
+  [4995000] perm_start DATA_LOAD     rounds=6
+         x0=fea0a581c147818c x1=54e66c9f3dbbb238 x2=1e8ad8154b7f7c1b x3=3b221c4fbfa7aac7 x4=046025f9ac20da99
+  [5005000] data_out = 8c8147c181a5a0fe0000000000000000
+  [5015000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5015000] perm_done  x0=2a121afcceb1b039 x3=8a5cb28710643a4a x4=d39a8141e1373220
+  [5025000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=2a121afcceb1b039 x1=36797ee0be04181a x2=5e21ffcea81beb7c x3=8a5cb28710643a4a x4=d39a8141e1373220
+  [5025000] perm_start DATA_LOAD     rounds=6
+         x0=4fdcb175a9f49338 x1=36797ee0be04181a x2=5e21ffcea81beb7c x3=8a5cb28710643a4a x4=d39a8141e1373220
+  [5035000] data_out = 3893f4a975b1dc4f0000000000000000
+  [5045000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5045000] perm_done  x0=58ee74afec55d4d4 x3=82d1109e97c919ab x4=654ca21b764d6ff7
+  [5055000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=58ee74afec55d4d4 x1=a33c118fe8aa1208 x2=e4b106cd1ce521e1 x3=82d1109e97c919ab x4=654ca21b764d6ff7
+  [5055000] perm_start DATA_LOAD     rounds=6
+         x0=3e20df268b10f7d5 x1=a33c118fe8aa1208 x2=e4b106cd1ce521e1 x3=82d1109e97c919ab x4=654ca21b764d6ff7
+  [5065000] data_out = d5f7108b26df203e0000000000000000
+  [5075000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5075000] perm_done  x0=04a4c270bbb6a145 x3=35409cd3dd1de6b1 x4=8c2345d595e14d16
+  [5085000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=04a4c270bbb6a145 x1=f24fba421fcf19fd x2=185c99c1adfc76e7 x3=35409cd3dd1de6b1 x4=8c2345d595e14d16
+  [5085000] perm_start DATA_LOAD     rounds=6
+         x0=636a69f9dcf38244 x1=f24fba421fcf19fd x2=185c99c1adfc76e7 x3=35409cd3dd1de6b1 x4=8c2345d595e14d16
+  [5095000] data_out = 4482f3dcf9696a630000000000000000
+  [5105000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5105000] perm_done  x0=5ed1de0f9ccecd58 x3=56b109e6163ea3f4 x4=f6e3442161a76203
+  [5115000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=5ed1de0f9ccecd58 x1=f83eee5157bb8d7e x2=ba16f4dba4e5c54b x3=56b109e6163ea3f4 x4=f6e3442161a76203
+  [5115000] perm_start DATA_LOAD     rounds=6
+         x0=361f7586fb8bee59 x1=f83eee5157bb8d7e x2=ba16f4dba4e5c54b x3=56b109e6163ea3f4 x4=f6e3442161a76203
+  [5125000] data_out = 59ee8bfb86751f360000000000000000
+  [5135000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5135000] perm_done  x0=4a37d930733e617d x3=e0efbbca634b1e9c x4=8d51c82cb85d95aa
+  [5145000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=4a37d930733e617d x1=211060b69be32113 x2=875143d65a043157 x3=e0efbbca634b1e9c x4=8d51c82cb85d95aa
+  [5145000] perm_start DATA_LOAD     rounds=6
+         x0=23f972b9147b427c x1=211060b69be32113 x2=875143d65a043157 x3=e0efbbca634b1e9c x4=8d51c82cb85d95aa
+  [5155000] data_out = 7c427b14b972f9230000000000000000
+  [5165000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5165000] perm_done  x0=d4ac49eb9c786185 x3=c62c32e5c05276ff x4=eba43a46fe683265
+  [5175000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=d4ac49eb9c786185 x1=bd0bf4e38befdf6a x2=24ee7d435f9bd88b x3=c62c32e5c05276ff x4=eba43a46fe683265
+  [5175000] perm_start DATA_LOAD     rounds=6
+         x0=be62e262fb3d4284 x1=bd0bf4e38befdf6a x2=24ee7d435f9bd88b x3=c62c32e5c05276ff x4=eba43a46fe683265
+  [5185000] data_out = 84423dfb62e262be0000000000000000
+  [5195000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5195000] perm_done  x0=e9b9c7c2801d0904 x3=9782b4a3b89ba6e0 x4=0148b5cea59ebea9
+  [5205000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=e9b9c7c2801d0904 x1=94a943fe2f1b3d9e x2=f0242c03586822aa x3=9782b4a3b89ba6e0 x4=0148b5cea59ebea9
+  [5205000] perm_start DATA_LOAD     rounds=6
+         x0=82776c4be7582a05 x1=94a943fe2f1b3d9e x2=f0242c03586822aa x3=9782b4a3b89ba6e0 x4=0148b5cea59ebea9
+  [5215000] data_out = 052a58e74b6c77820000000000000000
+  [5225000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5225000] perm_done  x0=54c42b5a415aa22f x3=e63597bc0c8ee41d x4=a570871cba121eb0
+  [5235000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=54c42b5a415aa22f x1=45d4a1df83a27d88 x2=150acbce8bc5fc0b x3=e63597bc0c8ee41d x4=a570871cba121eb0
+  [5235000] perm_start DATA_LOAD     rounds=6
+         x0=380a80d3261f812e x1=45d4a1df83a27d88 x2=150acbce8bc5fc0b x3=e63597bc0c8ee41d x4=a570871cba121eb0
+  [5245000] data_out = 2e811f26d3800a380000000000000000
+  [5255000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5255000] perm_done  x0=ac3bf63fd3c32a8e x3=ba28dcfad8e3c49a x4=a3d8359307c376dc
+  [5265000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=ac3bf63fd3c32a8e x1=befab3976df3b9c3 x2=00b0dbf42673e241 x3=ba28dcfad8e3c49a x4=a3d8359307c376dc
+  [5265000] perm_start DATA_LOAD     rounds=6
+         x0=c1f55db6b486098f x1=befab3976df3b9c3 x2=00b0dbf42673e241 x3=ba28dcfad8e3c49a x4=a3d8359307c376dc
+  [5275000] data_out = 8f0986b4b65df5c10000000000000000
+  [5285000] load  DATA_PERM     post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5285000] perm_done  x0=0f88369d3f620f0d x3=6386045c0aa96242 x4=570123efe8dafed9
+  [5295000] load  DATA_LOAD     post=0 fin=0 dom=0 src=01 ad_last_r=0
+         x0=0f88369d3f620f0d x1=5b99bc0679d2f311 x2=d965595a16ef830f x3=6386045c0aa96242 x4=570123efe8dafed9
+  [5305000] load  PRE_FIN       post=0 fin=1 dom=0 src=10 ad_last_r=0
+         x0=61469d1458272c0c x1=5b99bc0679d2f311 x2=d965595a16ef830f x3=6386045c0aa96242 x4=570123efe8dafed9
+  [5305000] perm_start PRE_FIN       rounds=12
+  [5305000] data_out = 0c2c2758149d46610000000000000000
+         x0=61469d1458272c0c x1=5b99bc0679d2f311 x2=de635c5e15ed820f x3=6c88095001a36b4a x4=570123efe8dafed9
+  [5325000] load  FIN_PERM      post=0 fin=0 dom=0 src=10 ad_last_r=0
+  [5325000] perm_done  x0=9ec8c19ac3920da8 x3=526621bce5310e16 x4=903c016f64083fd1
+         x0=9ec8c19ac3920da8 x1=6ffc0f6482241020 x2=ed9a73eaa50fd167 x3=526621bce5310e16 x4=903c016f64083fd1
+  [5345000] tag_out  = 160f33e6b8246055d936026f630c329f
+  [5355000] tag_out  = 160f33e6b8246055d936026f630c329f
+  [5355000] DONE
+  [PASS] 1024 Bytes Processed
+  Cycles: 395
+
+================================================================
+  THROUGHPUT SUMMARY  (Fclk = 100 MHz, ASCON-128)
+================================================================
+  [TABLE 1] Permutation latency  (G=6, pa=12, pb=6)
+  Phase                        Cycles   Theory
+  -------------------------- -------- --------
+  PERM-pa (init/final)              2        6  pa=12, G=6 -> 2 calls x 6 rounds
+  PERM-pb (AD/data)                 2        6  pb=6,  G=6 -> 1 call  x 6 rounds
+
+  [TABLE 2] End-to-end latency
+  Test                             Cycles      bit/cycle    Mbps@100MHz
+  ------------------------------ --------   ------------   ------------
+  T1 ENC 128  1AD+1PT                  16       2.500000       250.0000
+  T2 DEC 128  1AD+1CT                  17       2.352941       235.2941
+  T3 DEC tampered CT                   17       2.352941       235.2941
+  T4 ENC 128  no AD                    14       2.857143       285.7143
+  T5 DEC 128  no AD RT                 15       2.666667       266.6667
+  T6 ENC 128  1024B (STEADY)          395      20.739241      2073.9241
+
+  [TABLE 3] Key metrics
+  Metric                                              Value
+  -------------------------------------------- ------------
+  Clock (MHz)                                           100
+  G rounds/call                                           6
+  PERM-pa latency (cycles)                                2
+  PERM-pb latency (cycles)                                2
+  T1 cycles                                              16
+  T1 throughput Mbps@100MHz                        250.0000
+  T1 latency us@100MHz                               0.1600
+  Formula: Mbps = payload_bits x Fclk_MHz / cycles
+
+================================================================
+  RESULT: 9 PASSED  /  0 FAILED  /  9 TOTAL
+================================================================
+  *** ALL TESTS PASSED ***
+================================================================
+ascon/tb/ascon_top_tb_v1.v:635: $finish called at 5395000 (1ps)
