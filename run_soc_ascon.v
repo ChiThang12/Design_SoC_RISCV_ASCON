@@ -38,7 +38,7 @@
 // ============================================================================
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
-`define TIMEOUT         300000 // tăng lên 100000: cần đủ cho POR(1040cy) + CPU chạy
+`define TIMEOUT         5000 // tăng lên 100000: cần đủ cho POR(1040cy) + CPU chạy
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32

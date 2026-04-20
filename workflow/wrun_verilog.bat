@@ -1,9 +1,6 @@
 @echo off
 REM ============================================
-REM run_verilog.bat
-REM Usage:
-REM   run_verilog tb.v
-REM   run_verilog -g2012 tb.v
+REM run_verilog.bat (with log)
 REM ============================================
 
 SET STD=
@@ -33,6 +30,7 @@ IF "%SRC%"=="" (
 
 REM Extract file name without extension
 FOR %%F IN (%SRC%) DO SET NAME=%%~nF
+SET LOG=%NAME%.log
 
 echo ============================================
 echo Source   : %SRC%
@@ -42,6 +40,7 @@ IF "%STD%"=="" (
     echo Standard : %STD%
 )
 echo Output   : %NAME%.vvp
+echo Log file : %LOG%
 echo ============================================
 
 iverilog %STD% -o %NAME%.vvp %SRC%
@@ -53,8 +52,10 @@ IF ERRORLEVEL 1 (
 echo --------------------------------------------
 echo Running simulation...
 echo --------------------------------------------
-vvp %NAME%.vvp
+
+REM Ghi cả stdout + stderr vào log
+vvp %NAME%.vvp > %LOG% 2>&1
 
 echo --------------------------------------------
-echo Done.
+echo Done. Log saved to %LOG%
 echo ============================================
