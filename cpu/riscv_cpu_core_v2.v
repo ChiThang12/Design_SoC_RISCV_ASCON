@@ -3,12 +3,14 @@
 `include "cpu/core/imm_gen.v"
 `include "cpu/core/control.v"
 `include "cpu/core/alu.v"
+`include "cpu/core/riscv_multiplier.v"
 `include "cpu/core/branch_logic.v"
 `include "cpu/core/forwarding_unit.v"
 `include "cpu/core/hazard_detection.v"
 `include "cpu/core/PIPELINE_REG_IF_ID.v"
 `include "cpu/core/PIPELINE_REG_ID_EX.v"
-`include "cpu/core/PIPELINE_REG_EX_WB.v"
+`include "cpu/core/PIPELINE_REG_EX_MEM.v"
+`include "cpu/core/PIPELINE_REG_MEM_WB.v"
 `include "cpu/core/LSU.v"
 
 module riscv_cpu_core (
@@ -85,7 +87,15 @@ module riscv_cpu_core (
             irq_flush_done_r <= irq_pending_lat & ~irq_flush_done_r;
     end
     wire irq_flush_done = irq_flush_done_r;
-    wire irq_flush      = irq_pending_lat & ~irq_flush_done_r;
+
+    // Register irq_flush: removes combinational feedback into pipeline flush
+    // signals, trading 1 extra cycle of IRQ latency for better Fmax.
+    reg irq_flush_r;
+    always @(posedge clk or posedge rst) begin
+        if (rst) irq_flush_r <= 1'b0;
+        else     irq_flush_r <= irq_pending_lat & ~irq_flush_done_r;
+    end
+    wire irq_flush = irq_flush_r;
 
     // =========================================================================
     // DEBUG MODE FSM
@@ -205,7 +215,7 @@ module riscv_cpu_core (
     wire [1:0]  byte_size_ex;
     wire [6:0]  opcode_ex;
 
-    wire [31:0] alu_in1, alu_in2, alu_in2_pre_mux;
+    wire [31:0] alu_in1, alu_in2, alu_in2_pre_mux, alu_in1_forwarded;
     wire [31:0] alu_result_ex;
     wire zero_flag_ex, less_than_ex, less_than_u_ex;
     wire branch_taken_ex;
@@ -234,36 +244,22 @@ module riscv_cpu_core (
     wire [4:0]  rd_wb;
     wire [31:0] write_back_data_wb;
 
+    // MUL pipeline tracking
+    wire        is_mul_mem, is_mul_wb;
+    wire [31:0] mul_result_direct;  // writeback_value_o from multiplier (2-cycle delay)
+
     wire [1:0] forward_a, forward_b;
     wire stall, stall_if, stall_any;
     wire fence_stall;
+    wire lsu_dep_stall;
     wire flush_if_id, flush_id_ex;
 
-    // =========================================================================
-    // stall_any: thêm debug_mode
-    //
-    // WHY thêm debug_mode vào stall_any thay vì tạo signal riêng:
-    //   stall_any đã được dùng để gate IFU, IF/ID register, ID/EX register,
-    //   lsu_req_sent clear logic, và MEM/WB guard (lsu_committed_r).
-    //   Inject debug_mode vào đây đảm bảo toàn bộ pipeline đóng băng
-    //   đồng nhất — không cần thay đổi từng sub-module.
-    //
-    // WHY debug_mode KHÔNG ảnh hưởng đến stall_ex_mem:
-    //   Khi vào DBG_HALTED, lsu_sb_empty=1 và dc_req=0 (đã check ở HALTING).
-    //   → lsu_dependency_stall_w=0, fence_stall=0 → stall_ex_mem=0.
-    //   EX/MEM register đóng băng vì stall_any=1 (qua ID/EX gate).
-    //   Không cần gate riêng stall_ex_mem.
-    // =========================================================================
+    // stall_any includes debug_mode to freeze entire pipeline during D-mode
     assign stall_any = stall | stall_if | debug_mode;
 
-    wire lsu_dependency_stall_w = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
-                                   (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
-    // [FIX-FENCE-SQUASH] fence_stall must NOT freeze EX/MEM: the sw that is
-    // already in EX when the fence fires is program-order BEFORE the fence and
-    // must reach MEM so it can be accepted into the store buffer.  Only
-    // lsu_dependency_stall needs to freeze EX/MEM (to hold a MEM-stage load
-    // result for its consumer).
-    wire stall_ex_mem = lsu_dependency_stall_w;
+    // stall_ex_mem: only LSU dependency stall freezes EX/MEM
+    // (fence_stall must NOT freeze — pre-fence store must reach MEM)
+    wire stall_ex_mem = lsu_dep_stall;
 
     wire flush_if_id_final = flush_if_id | irq_flush;
     wire flush_id_ex_final = flush_id_ex | irq_flush;
@@ -334,67 +330,65 @@ module riscv_cpu_core (
     );
 
     // =========================================================================
-    // ID/EX PIPELINE REGISTER
+    // ID/EX PIPELINE REGISTER (standalone module)
     // =========================================================================
-    reg regwrite_id_ex, alusrc_id_ex, memread_id_ex, memwrite_id_ex;
-    reg memtoreg_id_ex, branch_id_ex, jump_id_ex;
-    reg [31:0] read_data1_id_ex, read_data2_id_ex, imm_id_ex, pc_id_ex;
-    reg [4:0]  rs1_id_ex, rs2_id_ex, rd_id_ex;
-    reg [2:0]  funct3_id_ex;
-    reg [6:0]  funct7_id_ex;
-    reg [3:0]  alu_control_id_ex;
-    reg [1:0]  byte_size_id_ex;
-    reg [6:0]  opcode_id_ex;
-
-    always @(posedge clk or posedge rst) begin
-        if (rst || flush_id_ex_final) begin
-            regwrite_id_ex    <= 1'b0; alusrc_id_ex      <= 1'b0;
-            memread_id_ex     <= 1'b0; memwrite_id_ex    <= 1'b0;
-            memtoreg_id_ex    <= 1'b0; branch_id_ex      <= 1'b0;
-            jump_id_ex        <= 1'b0; read_data1_id_ex  <= 32'h0;
-            read_data2_id_ex  <= 32'h0; imm_id_ex        <= 32'h0;
-            pc_id_ex          <= 32'h0; rs1_id_ex        <= 5'b0;
-            rs2_id_ex         <= 5'b0; rd_id_ex          <= 5'b0;
-            funct3_id_ex      <= 3'b0; funct7_id_ex      <= 7'b0;
-            alu_control_id_ex <= 4'b0; byte_size_id_ex   <= 2'b0;
-            opcode_id_ex      <= 7'b0;
-        end else if (!stall_any) begin
-            regwrite_id_ex    <= regwrite_id;    alusrc_id_ex      <= alusrc_id;
-            memread_id_ex     <= memread_id;     memwrite_id_ex    <= memwrite_id;
-            memtoreg_id_ex    <= memtoreg_id;    branch_id_ex      <= branch_id;
-            jump_id_ex        <= jump_id;        read_data1_id_ex  <= read_data1_id;
-            read_data2_id_ex  <= read_data2_id;  imm_id_ex         <= imm_id;
-            pc_id_ex          <= pc_id;          rs1_id_ex         <= rs1_id;
-            rs2_id_ex         <= rs2_id;         rd_id_ex          <= rd_id;
-            funct3_id_ex      <= funct3_id;      funct7_id_ex      <= funct7_id;
-            alu_control_id_ex <= alu_control_id;  byte_size_id_ex  <= byte_size_id;
-            opcode_id_ex      <= opcode_id;
-        end else begin
-            // [FIX-FWD-STALL] When stall_any=1 (including ICache miss via stall_if),
-            // capture any currently-forwarded operand values into the ID/EX register.
-            // Without this, an ICache miss while a producer is in WB and its consumer
-            // is in EX loses the forwarding window:
-            //   T1: stall_any=1 (imem_stall), fwd_b=01 (addi x15=5 in WB)
-            //       → EX/MEM gets bubble (memwrite=0), read_data2_id_ex stays stale=4
-            //   T2: stall released, addi committed/gone from WB, fwd_b=00
-            //       → EX reads stale read_data2_id_ex=4 → CTRL write data=0x4
-            // With fix: read_data2_id_ex latches alu_in2_pre_mux=5 at T1 posedge,
-            // so T2 EX uses the correct value=5 → CTRL=0x5 → dma_start asserted.
-            if (forward_a != 2'b00) read_data1_id_ex <= alu_in1_forwarded;
-            if (forward_b != 2'b00) read_data2_id_ex <= alu_in2_pre_mux;
-        end
-    end
-
-    assign regwrite_ex    = regwrite_id_ex;    assign alusrc_ex      = alusrc_id_ex;
-    assign memread_ex     = memread_id_ex;     assign memwrite_ex    = memwrite_id_ex;
-    assign memtoreg_ex    = memtoreg_id_ex;    assign branch_ex      = branch_id_ex;
-    assign jump_ex        = jump_id_ex;        assign read_data1_ex  = read_data1_id_ex;
-    assign read_data2_ex  = read_data2_id_ex;  assign imm_ex         = imm_id_ex;
-    assign pc_ex          = pc_id_ex;          assign rs1_ex         = rs1_id_ex;
-    assign rs2_ex         = rs2_id_ex;         assign rd_ex          = rd_id_ex;
-    assign funct3_ex      = funct3_id_ex;      assign funct7_ex      = funct7_id_ex;
-    assign alu_control_ex = alu_control_id_ex; assign byte_size_ex   = byte_size_id_ex;
-    assign opcode_ex      = opcode_id_ex;
+    PIPELINE_REG_ID_EX id_ex_reg (
+        .clock           (clk),
+        .reset           (rst),
+        .flush           (flush_id_ex_final),
+        .stall           (stall_any),
+        // Forwarding capture (FIX-FWD-STALL)
+        .fwd_a_sel       (forward_a),
+        .fwd_b_sel       (forward_b),
+        .fwd_a_data      (alu_in1_forwarded),
+        .fwd_b_data      (alu_in2_pre_mux),
+        // Control inputs
+        .regwrite_in     (regwrite_id),
+        .alusrc_in       (alusrc_id),
+        .memread_in      (memread_id),
+        .memwrite_in     (memwrite_id),
+        .memtoreg_in     (memtoreg_id),
+        .branch_in       (branch_id),
+        .jump_in         (jump_id),
+        // Data inputs
+        .read_data1_in   (read_data1_id),
+        .read_data2_in   (read_data2_id),
+        .imm_in          (imm_id),
+        .pc_in           (pc_id),
+        // Register addresses
+        .rs1_in          (rs1_id),
+        .rs2_in          (rs2_id),
+        .rd_in           (rd_id),
+        // Function codes
+        .funct3_in       (funct3_id),
+        .funct7_in       (funct7_id),
+        .alu_control_in  (alu_control_id),
+        .byte_size_in    (byte_size_id),
+        .opcode_in       (opcode_id),
+        // Control outputs
+        .regwrite_out    (regwrite_ex),
+        .alusrc_out      (alusrc_ex),
+        .memread_out     (memread_ex),
+        .memwrite_out    (memwrite_ex),
+        .memtoreg_out    (memtoreg_ex),
+        .branch_out      (branch_ex),
+        .jump_out        (jump_ex),
+        // Data outputs
+        .read_data1_out  (read_data1_ex),
+        .read_data2_out  (read_data2_ex),
+        .imm_out         (imm_ex),
+        .pc_out          (pc_ex),
+        // Register address outputs
+        .rs1_out         (rs1_ex),
+        .rs2_out         (rs2_ex),
+        .rd_out          (rd_ex),
+        // Function code outputs
+        .funct3_out      (funct3_ex),
+        .funct7_out      (funct7_ex),
+        .alu_control_out (alu_control_ex),
+        .byte_size_out   (byte_size_ex),
+        .opcode_out      (opcode_ex)
+    );
 
     // =========================================================================
     // STAGE 3: EX
@@ -406,7 +400,6 @@ module riscv_cpu_core (
         .forward_a   (forward_a),    .forward_b   (forward_b)
     );
 
-    wire [31:0] alu_in1_forwarded;
     assign alu_in1_forwarded = (forward_a == 2'b10) ? alu_result_mem :
                                (forward_a == 2'b01) ? write_back_data_wb :
                                read_data1_ex;
@@ -435,6 +428,30 @@ module riscv_cpu_core (
         .less_than_u(less_than_u_ex), .taken    (branch_taken_ex)
     );
 
+    // =========================================================================
+    // 2-stage Pipelined Multiplier (tách khỏi ALU critical path)
+    // =========================================================================
+    // is_mul_ex: MUL/MULH instruction at EX stage
+    // mul_op_ex: 00=MUL, 01=MULH (signed×signed high)
+    // mul_valid_ex: dispatch pulse — high for 1 cycle when MUL enters EX
+    localparam [3:0] ALU_MUL_CODE  = 4'b1010;
+    localparam [3:0] ALU_MULH_CODE = 4'b1011;
+
+    wire        is_mul_ex  = (alu_control_ex == ALU_MUL_CODE) | (alu_control_ex == ALU_MULH_CODE);
+    wire [1:0]  mul_op_ex  = (alu_control_ex == ALU_MULH_CODE) ? 2'b01 : 2'b00;
+    wire        mul_valid_ex = is_mul_ex & !stall_any & !flush_id_ex_final;
+
+    riscv_multiplier multiplier_unit (
+        .clk_i            (clk),
+        .rst_i            (rst),
+        .mul_valid_i      (mul_valid_ex),
+        .mul_op_i         (mul_op_ex),
+        .operand_a_i      (alu_in1_forwarded),  // forwarded rs1 (pre-LUI/AUIPC mux)
+        .operand_b_i      (alu_in2_pre_mux),    // forwarded rs2 (pre-alusrc mux)
+        .hold_i           (stall_any),
+        .writeback_value_o(mul_result_direct)   // valid at WB stage (2 cycles after EX)
+    );
+
     assign pc_plus_4_ex = pc_ex + 32'd4;
 
     wire [31:0] jalr_target;
@@ -443,76 +460,43 @@ module riscv_cpu_core (
     assign pc_src_ex    = (branch_ex & branch_taken_ex) | jump_ex;
 
     // =========================================================================
-    // EX/MEM PIPELINE REGISTER
+    // EX/MEM PIPELINE REGISTER (standalone module)
     // =========================================================================
-    reg regwrite_ex_mem, memread_ex_mem, memwrite_ex_mem, memtoreg_ex_mem, jump_ex_mem;
-    reg [31:0] alu_result_ex_mem, write_data_ex_mem, pc_plus_4_ex_mem;
-    reg [4:0]  rd_ex_mem;
-    reg [1:0]  byte_size_ex_mem;
-    reg [2:0]  funct3_ex_mem;
-
-    // =========================================================================
-    // EX/MEM PIPELINE REGISTER — standard latch, no forwarding guard
-    //
-    // Analysis: the corruption (0x0CAFE037) is NOT caused by stale forwarding.
-    // Trace shows: when stall_any=1, the instruction in EX is the NEXT
-    // instruction (addi) that needs forwarding from MEM (andi result=0).
-    // Blocking MEM forwarding during stall_any=1 causes WB fallback to
-    // the OLDER srl result, which is WRONG.
-    //
-    // Root cause investigation needed elsewhere.
-    // =========================================================================
-
-    // =========================================================================
-    // EX/MEM PIPELINE REGISTER
-    //
-    // FIX: Khi stall_any=1 (upstream bị stall), instruction ở EX bị giữ lại.
-    // Nếu stall_ex_mem=0, EX/MEM vẫn tiếp tục latch. Phải insert BUBBLE vào 
-    // control signals để không thực thi / ghi register 2 lần.
-    // =========================================================================
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            regwrite_ex_mem   <= 1'b0; memread_ex_mem    <= 1'b0;
-            memwrite_ex_mem   <= 1'b0; memtoreg_ex_mem   <= 1'b0;
-            jump_ex_mem       <= 1'b0; alu_result_ex_mem <= 32'h0;
-            write_data_ex_mem <= 32'h0; pc_plus_4_ex_mem <= 32'h0;
-            rd_ex_mem         <= 5'b0; byte_size_ex_mem  <= 2'b0;
-            funct3_ex_mem     <= 3'b0;
-        end else if (!stall_ex_mem) begin
-            alu_result_ex_mem <= alu_result_ex;
-            write_data_ex_mem <= alu_in2_pre_mux;
-            pc_plus_4_ex_mem  <= pc_plus_4_ex;
-            rd_ex_mem         <= rd_ex;
-            byte_size_ex_mem  <= byte_size_ex;
-            funct3_ex_mem     <= funct3_ex;
-
-            // [FIX-FENCE-SQUASH] When stall_any is caused solely by fence_stall,
-            // allow the instruction already in EX (the sw before the fence) to
-            // pass through into MEM — do NOT insert a bubble.  For all other
-            // upstream stalls (imem miss, load-use, debug) the bubble is still
-            // needed to prevent double-issue.
-            if (stall_any && !fence_stall) begin
-                regwrite_ex_mem   <= 1'b0;
-                memread_ex_mem    <= 1'b0;
-                memwrite_ex_mem   <= 1'b0;
-                memtoreg_ex_mem   <= 1'b0;
-                jump_ex_mem       <= 1'b0;
-            end else begin
-                regwrite_ex_mem   <= regwrite_ex;
-                memread_ex_mem    <= memread_ex;
-                memwrite_ex_mem   <= memwrite_ex;
-                memtoreg_ex_mem   <= memtoreg_ex;
-                jump_ex_mem       <= jump_ex;
-            end
-        end
-    end
-
-    assign regwrite_mem   = regwrite_ex_mem;   assign memread_mem    = memread_ex_mem;
-    assign memwrite_mem   = memwrite_ex_mem;   assign memtoreg_mem   = memtoreg_ex_mem;
-    assign jump_mem       = jump_ex_mem;       assign alu_result_mem = alu_result_ex_mem;
-    assign write_data_mem = write_data_ex_mem; assign pc_plus_4_mem  = pc_plus_4_ex_mem;
-    assign rd_mem         = rd_ex_mem;         assign byte_size_mem  = byte_size_ex_mem;
-    assign funct3_mem     = funct3_ex_mem;
+    PIPELINE_REG_EX_MEM ex_mem_reg (
+        .clock          (clk),
+        .reset          (rst),
+        .stall_ex_mem   (stall_ex_mem),
+        .stall_any      (stall_any),
+        .fence_stall    (fence_stall),
+        // Control inputs
+        .regwrite_in    (regwrite_ex),
+        .memread_in     (memread_ex),
+        .memwrite_in    (memwrite_ex),
+        .memtoreg_in    (memtoreg_ex),
+        .jump_in        (jump_ex),
+        // Data inputs
+        .alu_result_in  (alu_result_ex),
+        .write_data_in  (alu_in2_pre_mux),
+        .pc_plus_4_in   (pc_plus_4_ex),
+        .rd_in          (rd_ex),
+        .byte_size_in   (byte_size_ex),
+        .funct3_in      (funct3_ex),
+        .is_mul_in      (is_mul_ex),
+        // Control outputs
+        .regwrite_out   (regwrite_mem),
+        .memread_out    (memread_mem),
+        .memwrite_out   (memwrite_mem),
+        .memtoreg_out   (memtoreg_mem),
+        .jump_out       (jump_mem),
+        // Data outputs
+        .alu_result_out (alu_result_mem),
+        .write_data_out (write_data_mem),
+        .pc_plus_4_out  (pc_plus_4_mem),
+        .rd_out         (rd_mem),
+        .byte_size_out  (byte_size_mem),
+        .funct3_out     (funct3_mem),
+        .is_mul_out     (is_mul_mem)
+    );
 
     // =========================================================================
     // STAGE 4: MEM — via LSU
@@ -575,65 +559,58 @@ module riscv_cpu_core (
     assign soc_lsu_sb_empty = lsu_idle;
 
     // =========================================================================
-    // MEM/WB REGISTER
+    // MEM/WB REGISTER (standalone module)
     // =========================================================================
-    reg regwrite_mem_wb, memtoreg_mem_wb, jump_mem_wb;
-    reg [31:0] alu_result_mem_wb, mem_data_mem_wb, pc_plus_4_mem_wb;
-    reg [4:0]  rd_mem_wb;
-
     reg lsu_committed_r;
     always @(posedge clk or posedge rst) begin
         if (rst)
             lsu_committed_r <= 1'b0;
         else
-            // [FIX-DRAIN] Bỏ check !stall_if để luôn ack lsu khi lsu xong
             lsu_committed_r <= lsu_result_valid;
     end
 
-    // LSU result luôn được ACK bất chấp pipeline tình trạng nào
+    // LSU result always ACK'd immediately
     assign lsu_result_ack = lsu_result_valid;
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            regwrite_mem_wb   <= 1'b0; memtoreg_mem_wb   <= 1'b0;
-            jump_mem_wb       <= 1'b0; alu_result_mem_wb <= 32'h0;
-            mem_data_mem_wb   <= 32'h0; pc_plus_4_mem_wb <= 32'h0;
-            rd_mem_wb         <= 5'b0;
-        end else begin
-            // [FIX-DRAIN] Bỏ !stall_if để luôn nhận load data bất kể fetch stall
-            if (lsu_result_valid) begin
-                mem_data_mem_wb   <= lsu_result_data;
-                rd_mem_wb         <= lsu_result_rd;
-                regwrite_mem_wb   <= 1'b1;
-                memtoreg_mem_wb   <= 1'b1;
-                jump_mem_wb       <= 1'b0;
-                alu_result_mem_wb <= alu_result_mem;
-                pc_plus_4_mem_wb  <= pc_plus_4_mem;
-            end 
-            // [FIX-DRAIN] Thay vì !stall_any, dùng !stall_ex_mem để đồng bộ tuyệt đối với EX/MEM.
-            // Điều này cho phép MEM stage thoái thác (drain) kết quả xướng trước khi upstream stall bị tắt.
-            else if (!stall_ex_mem && !lsu_committed_r) begin
-                alu_result_mem_wb <= alu_result_mem;
-                pc_plus_4_mem_wb  <= pc_plus_4_mem;
-                regwrite_mem_wb   <= regwrite_mem & ~memread_mem;
-                memtoreg_mem_wb   <= 1'b0;
-                jump_mem_wb       <= jump_mem;
-                rd_mem_wb         <= rd_mem;
-            end
-        end
-    end
-
-    assign regwrite_wb   = regwrite_mem_wb;  assign memtoreg_wb   = memtoreg_mem_wb;
-    assign jump_wb       = jump_mem_wb;      assign alu_result_wb = alu_result_mem_wb;
-    assign mem_data_wb   = mem_data_mem_wb;  assign pc_plus_4_wb  = pc_plus_4_mem_wb;
-    assign rd_wb         = rd_mem_wb;
+    PIPELINE_REG_MEM_WB mem_wb_reg (
+        .clock            (clk),
+        .reset            (rst),
+        .stall_ex_mem     (stall_ex_mem),
+        .lsu_committed    (lsu_committed_r),
+        // LSU result path (priority)
+        .lsu_result_valid (lsu_result_valid),
+        .lsu_result_data  (lsu_result_data),
+        .lsu_result_rd    (lsu_result_rd),
+        // Normal MEM stage path
+        .regwrite_in      (regwrite_mem),
+        .memread_in       (memread_mem),
+        .memtoreg_in      (memtoreg_mem),
+        .jump_in          (jump_mem),
+        .alu_result_in    (alu_result_mem),
+        .pc_plus_4_in     (pc_plus_4_mem),
+        .rd_in            (rd_mem),
+        .is_mul_in        (is_mul_mem),
+        .mul_result_in    (32'h0),       // unused: multiplier output timed via writeback_value_o
+        // Outputs to WB
+        .regwrite_out     (regwrite_wb),
+        .memtoreg_out     (memtoreg_wb),
+        .jump_out         (jump_wb),
+        .alu_result_out   (alu_result_wb),
+        .mem_data_out     (mem_data_wb),
+        .pc_plus_4_out    (pc_plus_4_wb),
+        .rd_out           (rd_wb),
+        .is_mul_out       (is_mul_wb),
+        .mul_result_out   ()              // unused: direct multiplier output used in WB mux
+    );
 
     // =========================================================================
     // STAGE 5: WB
     // =========================================================================
-    wire [31:0] wb_data_before_jump;
-    assign wb_data_before_jump = memtoreg_wb ? mem_data_wb : alu_result_wb;
-    assign write_back_data_wb  = jump_wb ? pc_plus_4_wb : wb_data_before_jump;
+    // Priority: jump (link reg) > MUL result > load data > ALU result
+    assign write_back_data_wb = jump_wb     ? pc_plus_4_wb    :
+                                is_mul_wb   ? mul_result_direct :
+                                memtoreg_wb ? mem_data_wb      :
+                                              alu_result_wb;
 
     // =========================================================================
     // HAZARD DETECTION UNIT
@@ -650,15 +627,24 @@ module riscv_cpu_core (
         .lsu_scoreboard (lsu_scoreboard),
         .fence_id       (fence_id),
         .lsu_idle       (lsu_idle),
+        .mul_in_ex      (is_mul_ex),
         .stall          (stall),
         .stall_if       (stall_if),
         .flush_if_id    (flush_if_id),
         .flush_id_ex    (flush_id_ex),
-        .fence_stall    (fence_stall)
+        .fence_stall    (fence_stall),
+        .lsu_dep_stall  (lsu_dep_stall)
     );
 
 // synopsys translate_off
-// ── Debug monitors: detect double-issue and trace UART writes ──
+// ── Debug monitors (simulation only) ──
+reg [31:0] lsu_store_count;
+always @(posedge clk or posedge rst) begin
+    if (rst) lsu_store_count <= 0;
+    else if (lsu_req_valid && lsu_req_ready && memwrite_mem)
+        lsu_store_count <= lsu_store_count + 1;
+end
+
 always @(posedge clk) begin
     if (!rst && lsu_req_valid && lsu_req_ready && memwrite_mem)
         $display("[%0t] [LSU-STORE] addr=0x%08h data=0x%08h strb=%04b sent=%b stall_any=%b stall_ex=%b",
@@ -666,50 +652,20 @@ always @(posedge clk) begin
                  lsu_req_sent, stall_any, stall_ex_mem);
 end
 
-// ── Trace forwarding when it happens (for debugging corruption) ──
 always @(posedge clk) begin
-    if (!rst && (forward_a == 2'b10 || forward_b == 2'b10)) begin
+    if (!rst && (forward_a == 2'b10 || forward_b == 2'b10))
         $display("[%0t] [FWD-MEM] fwd_a=%b fwd_b=%b rd_mem=x%0d alu_mem=0x%08h rs1=%0d rs2=%0d stall_any=%b regwrite_mem=%b pc_ex=0x%08h",
                  $time, forward_a, forward_b, rd_mem, alu_result_mem,
                  rs1_ex, rs2_ex, stall_any, regwrite_mem, pc_ex);
-    end
 end
 
-// ── Detailed EX stage trace for put_hex32_asm ──
-// Trace when PC is in put_hex32_asm AND store count is between 5 and 10
-// (covering the CAFE nibble extraction around the corruption)
-always @(posedge clk) begin
-    if (!rst && pc_ex >= 32'h0000006c && pc_ex <= 32'h00000084 && lsu_store_count >= 15 && lsu_store_count <= 22) begin
-        $display("[%0t] [EX-HEX] pc=0x%03h alu_ctrl=%04b in1=0x%08h in2=0x%08h result=0x%08h alusrc=%b fwd_a=%b fwd_b=%b stall_any=%b rd=%0d rs1=%0d regwrite_mem=%b rd_mem=%0d alu_mem=0x%08h",
-                 $time, pc_ex, alu_control_ex, alu_in1, alu_in2, alu_result_ex,
-                 alusrc_ex, forward_a, forward_b, stall_any,
-                 rd_ex, rs1_ex, regwrite_mem, rd_mem, alu_result_mem);
-    end
-end
-
-// ── Trace WB writes to x13, x14, x15 (ALL values, not just large) ──
-always @(posedge clk) begin
-    if (!rst && regwrite_wb && (rd_wb == 13 || rd_wb == 14 || rd_wb == 15) && lsu_store_count >= 15 && lsu_store_count <= 22)
-        $display("[%0t] [WB-HEX] x%0d <= 0x%08h  memtoreg=%b",
-                 $time, rd_wb, write_back_data_wb, memtoreg_wb);
-end
-
-// ── Trace all large WB writes ──
 always @(posedge clk) begin
     if (!rst && regwrite_wb && rd_wb != 0 && (write_back_data_wb[31:8] != 0) && write_back_data_wb != 32'h10001ff0 && write_back_data_wb != 32'h10000100)
         $display("[%0t] [WB] x%0d <= 0x%08h  memtoreg=%b jump=%b",
                  $time, rd_wb, write_back_data_wb, memtoreg_wb, jump_wb);
 end
 
-reg [31:0] lsu_store_count;
-always @(posedge clk or posedge rst) begin
-    if (rst) lsu_store_count <= 0;
-    else if (lsu_req_valid && lsu_req_ready && memwrite_mem)
-        lsu_store_count <= lsu_store_count + 1;
-end
+initial $display("[RTL-VERSION] riscv_cpu_core CLEAN-v3 + modular pipeline registers loaded");
 // synopsys translate_on
-    // synopsys translate_off
-    initial $display("[RTL-VERSION] riscv_cpu_core FIX-DOUBLE-ISSUE-v2 + FIX-BYTELANE + FIX-FWD-STALL loaded");
-    // synopsys translate_on
 
 endmodule

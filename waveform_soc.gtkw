@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
-[*] Tue Mar 24 07:57:21 2026
+[*] Mon Apr 20 02:56:18 2026
 [*]
-[dumpfile] "/home/chithang/Project/SoC_full/waveform_soc.vcd"
-[dumpfile_mtime] "Tue Mar 24 07:52:58 2026"
-[dumpfile_size] 2654919
-[savefile] "/home/chithang/Project/SoC_full/waveform_soc.gtkw"
-[timestart] 0
+[dumpfile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_soc.vcd"
+[dumpfile_mtime] "Mon Apr 20 02:05:03 2026"
+[dumpfile_size] 41367573
+[savefile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_soc.gtkw"
+[timestart] 25313800
 [size] 1920 1031
 [pos] -46 -30
-*-22.100000 20800000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.900001 25432400 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] run_soc.
 [treeopen] run_soc.soc.
 [treeopen] run_soc.soc.u_ascon.
@@ -132,8 +132,83 @@ run_soc.soc.u_ascon.u_core_cpu.mode[1:0]
 @22
 run_soc.soc.u_ascon.u_core_cpu.nonce_in[127:0]
 run_soc.soc.u_ascon.u_core_cpu.tag_out[127:0]
-@23
 run_soc.soc.u_ascon.u_core_cpu.data_out[127:0]
+@200
+-ASON-DMA
+@23
+run_soc.soc.u_ascon.u_dma.M_AXI_ARADDR[31:0]
+@c00022
+run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+@28
+(0)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(1)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(2)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(3)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(4)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(5)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(6)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(7)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(8)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(9)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(10)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(11)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(12)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(13)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(14)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(15)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(16)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(17)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(18)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(19)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(20)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(21)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(22)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(23)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(24)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(25)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(26)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(27)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(28)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(29)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(30)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(31)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(32)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(33)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(34)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(35)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(36)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(37)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(38)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(39)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(40)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(41)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(42)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(43)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(44)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(45)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(46)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(47)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(48)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(49)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(50)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(51)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(52)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(53)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(54)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(55)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(56)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(57)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(58)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(59)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(60)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(61)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(62)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+(63)run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+@1401200
+-group_end
+@22
+run_soc.soc.u_ascon.u_dma.M_AXI_AWADDR[31:0]
+run_soc.soc.u_ascon.u_dma.M_AXI_WDATA[63:0]
 @200
 -
 [pattern_trace] 1

@@ -30,8 +30,8 @@ module LSU (
     input  wire        dcache_ready
 );
 
-    localparam SB_DEPTH = 8;
-    localparam SB_BITS  = 3;
+    localparam SB_DEPTH = 4;
+    localparam SB_BITS  = 2;
 
     reg [31:0] sb_addr  [0:SB_DEPTH-1];
     reg [31:0] sb_wdata [0:SB_DEPTH-1];

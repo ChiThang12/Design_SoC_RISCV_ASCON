@@ -1,126 +1,133 @@
+// ============================================================================
+// PIPELINE_REG_ID_EX.v — ID/EX Pipeline Register (Refactored)
+// ============================================================================
+// Supports:
+//   - flush: insert NOP bubble (clear all control + data)
+//   - stall: hold current values
+//   - fwd_capture: when stalled, capture forwarded operand values to prevent
+//     stale data after forwarding window closes (FIX-FWD-STALL)
+//
+// Port naming: _in suffix = from ID stage, _out suffix = to EX stage
+// ============================================================================
+
 module PIPELINE_REG_ID_EX (
-    input clock,
-    input reset,
-    input flush,
-    input stall,
-    
-    // Control signals input
-    input regwrite_in,
-    input alusrc_in,
-    input memread_in,
-    input memwrite_in,
-    input memtoreg_in,
-    input branch_in,
-    input jump_in,
-    
-    // Data inputs
-    input [31:0] read_data1_in,
-    input [31:0] read_data2_in,
-    input [31:0] imm_in,
-    input [31:0] pc_in,
-    
-    // Register addresses
-    input [4:0] rs1_in,
-    input [4:0] rs2_in,
-    input [4:0] rd_in,
-    
-    // Function codes
-    input [2:0] funct3_in,
-    input [6:0] funct7_in,
-    
-    // Control signals output
-    output reg regwrite_out,
-    output reg alusrc_out,
-    output reg memread_out,
-    output reg memwrite_out,
-    output reg memtoreg_out,
-    output reg branch_out,
-    output reg jump_out,
-    
-    // Data outputs
+    input wire        clock,
+    input wire        reset,
+    input wire        flush,
+    input wire        stall,
+
+    // --- Forwarding capture during stall (FIX-FWD-STALL) ---
+    input wire [1:0]  fwd_a_sel,          // current forward_a selection
+    input wire [1:0]  fwd_b_sel,          // current forward_b selection
+    input wire [31:0] fwd_a_data,         // forwarded operand A value
+    input wire [31:0] fwd_b_data,         // forwarded operand B (pre-mux) value
+
+    // --- Control signals ---
+    input wire        regwrite_in,
+    input wire        alusrc_in,
+    input wire        memread_in,
+    input wire        memwrite_in,
+    input wire        memtoreg_in,
+    input wire        branch_in,
+    input wire        jump_in,
+
+    // --- Data ---
+    input wire [31:0] read_data1_in,
+    input wire [31:0] read_data2_in,
+    input wire [31:0] imm_in,
+    input wire [31:0] pc_in,
+
+    // --- Register addresses ---
+    input wire [4:0]  rs1_in,
+    input wire [4:0]  rs2_in,
+    input wire [4:0]  rd_in,
+
+    // --- Function codes & opcode ---
+    input wire [2:0]  funct3_in,
+    input wire [6:0]  funct7_in,
+    input wire [3:0]  alu_control_in,
+    input wire [1:0]  byte_size_in,
+    input wire [6:0]  opcode_in,
+
+    // --- Control outputs ---
+    output reg        regwrite_out,
+    output reg        alusrc_out,
+    output reg        memread_out,
+    output reg        memwrite_out,
+    output reg        memtoreg_out,
+    output reg        branch_out,
+    output reg        jump_out,
+
+    // --- Data outputs ---
     output reg [31:0] read_data1_out,
     output reg [31:0] read_data2_out,
     output reg [31:0] imm_out,
     output reg [31:0] pc_out,
-    
-    // Register addresses
-    output reg [4:0] rs1_out,
-    output reg [4:0] rs2_out,
-    output reg [4:0] rd_out,
-    
-    // Function codes
-    output reg [2:0] funct3_out,
-    output reg [6:0] funct7_out
+
+    // --- Register address outputs ---
+    output reg [4:0]  rs1_out,
+    output reg [4:0]  rs2_out,
+    output reg [4:0]  rd_out,
+
+    // --- Function code & opcode outputs ---
+    output reg [2:0]  funct3_out,
+    output reg [6:0]  funct7_out,
+    output reg [3:0]  alu_control_out,
+    output reg [1:0]  byte_size_out,
+    output reg [6:0]  opcode_out
 );
 
     always @(posedge clock or posedge reset) begin
-        if (reset) begin
-            // Reset: Clear all control signals and data
-            regwrite_out <= 1'b0;
-            alusrc_out <= 1'b0;
-            memread_out <= 1'b0;
-            memwrite_out <= 1'b0;
-            memtoreg_out <= 1'b0;
-            branch_out <= 1'b0;
-            jump_out <= 1'b0;
-            
-            read_data1_out <= 32'h00000000;
-            read_data2_out <= 32'h00000000;
-            imm_out <= 32'h00000000;
-            pc_out <= 32'h00000000;
-            
-            rs1_out <= 5'b00000;
-            rs2_out <= 5'b00000;
-            rd_out <= 5'b00000;
-            
-            funct3_out <= 3'b000;
-            funct7_out <= 7'b0000000;
+        if (reset || flush) begin
+            regwrite_out    <= 1'b0;
+            alusrc_out      <= 1'b0;
+            memread_out     <= 1'b0;
+            memwrite_out    <= 1'b0;
+            memtoreg_out    <= 1'b0;
+            branch_out      <= 1'b0;
+            jump_out        <= 1'b0;
+            read_data1_out  <= 32'h0;
+            read_data2_out  <= 32'h0;
+            imm_out         <= 32'h0;
+            pc_out          <= 32'h0;
+            rs1_out         <= 5'b0;
+            rs2_out         <= 5'b0;
+            rd_out          <= 5'b0;
+            funct3_out      <= 3'b0;
+            funct7_out      <= 7'b0;
+            alu_control_out <= 4'b0;
+            byte_size_out   <= 2'b0;
+            opcode_out      <= 7'b0;
+        end else if (!stall) begin
+            // Normal latch from ID stage
+            regwrite_out    <= regwrite_in;
+            alusrc_out      <= alusrc_in;
+            memread_out     <= memread_in;
+            memwrite_out    <= memwrite_in;
+            memtoreg_out    <= memtoreg_in;
+            branch_out      <= branch_in;
+            jump_out        <= jump_in;
+            read_data1_out  <= read_data1_in;
+            read_data2_out  <= read_data2_in;
+            imm_out         <= imm_in;
+            pc_out          <= pc_in;
+            rs1_out         <= rs1_in;
+            rs2_out         <= rs2_in;
+            rd_out          <= rd_in;
+            funct3_out      <= funct3_in;
+            funct7_out      <= funct7_in;
+            alu_control_out <= alu_control_in;
+            byte_size_out   <= byte_size_in;
+            opcode_out      <= opcode_in;
+        end else begin
+            // [FIX-FWD-STALL] During stall, capture forwarded values
+            // to prevent stale data when forwarding window expires.
+            // Only update operand registers that are currently being forwarded.
+            if (fwd_a_sel != 2'b00)
+                read_data1_out <= fwd_a_data;
+            if (fwd_b_sel != 2'b00)
+                read_data2_out <= fwd_b_data;
         end
-        else if (flush) begin
-            // Flush: Clear control signals to NOP (data can be kept)
-            regwrite_out <= 1'b0;
-            alusrc_out <= 1'b0;
-            memread_out <= 1'b0;
-            memwrite_out <= 1'b0;
-            memtoreg_out <= 1'b0;
-            branch_out <= 1'b0;
-            jump_out <= 1'b0;
-            
-            read_data1_out <= 32'h00000000;
-            read_data2_out <= 32'h00000000;
-            imm_out <= 32'h00000000;
-            pc_out <= 32'h00000000;
-            
-            rs1_out <= 5'b00000;
-            rs2_out <= 5'b00000;
-            rd_out <= 5'b00000;
-            
-            funct3_out <= 3'b000;
-            funct7_out <= 7'b0000000;
-        end
-        else if (!stall) begin
-            // Normal operation: Update all signals
-            regwrite_out <= regwrite_in;
-            alusrc_out <= alusrc_in;
-            memread_out <= memread_in;
-            memwrite_out <= memwrite_in;
-            memtoreg_out <= memtoreg_in;
-            branch_out <= branch_in;
-            jump_out <= jump_in;
-            
-            read_data1_out <= read_data1_in;
-            read_data2_out <= read_data2_in;
-            imm_out <= imm_in;
-            pc_out <= pc_in;
-            
-            rs1_out <= rs1_in;
-            rs2_out <= rs2_in;
-            rd_out <= rd_in;
-            
-            funct3_out <= funct3_in;
-            funct7_out <= funct7_in;
-        end
-        // If stall=1: Hold current values (no else clause)
     end
 
 endmodule

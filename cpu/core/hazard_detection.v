@@ -14,11 +14,15 @@ module hazard_detection (
     input wire        fence_id,
     input wire        lsu_idle,
 
+    // MUL in EX: result ready 2 cycles later (same as load-use pattern)
+    input wire        mul_in_ex,
+
     output wire       stall,
     output wire       stall_if,
     output wire       flush_if_id,
     output wire       flush_id_ex,
-    output wire       fence_stall
+    output wire       fence_stall,
+    output wire       lsu_dep_stall
 );
 
     wire load_use_hazard;
@@ -34,6 +38,7 @@ module hazard_detection (
     wire lsu_dependency_stall;
     assign lsu_dependency_stall = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
                                   (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
+    assign lsu_dep_stall = lsu_dependency_stall;
 
     wire imem_stall;
     assign imem_stall = !imem_ready;
@@ -42,7 +47,15 @@ module hazard_detection (
     // (store buffer rỗng, load queue rỗng, không có in-flight transaction)
     assign fence_stall = fence_id && !lsu_idle;
 
-    assign stall    = load_use_hazard || mem_load_stall || lsu_dependency_stall || fence_stall;
+    // MUL result stall: mirrors load-use — stall 1 cycle if instr after MUL
+    // reads the MUL destination before writeback_value_o is valid.
+    wire mul_result_stall;
+    assign mul_result_stall = mul_in_ex &&
+                              (rd_id_ex != 5'b0) &&
+                              ((rs1_id != 5'b0 && rs1_id == rd_id_ex) ||
+                               (rs2_id != 5'b0 && rs2_id == rd_id_ex));
+
+    assign stall    = load_use_hazard || mem_load_stall || lsu_dependency_stall || fence_stall || mul_result_stall;
     assign stall_if = imem_stall;
 
     assign flush_if_id = branch_taken;
@@ -54,6 +67,6 @@ module hazard_detection (
     // Với LSU scoreboard: scoreboard set khi load vào LQ, nên
     // lsu_dependency_stall cũng sẽ fire, nhưng flush vẫn cần thiết
     // để insert bubble đúng vị trí trong pipeline.
-    assign flush_id_ex = load_use_hazard || mem_load_stall || branch_taken || fence_stall;
+    assign flush_id_ex = load_use_hazard || mem_load_stall || branch_taken || fence_stall || mul_result_stall;
 
 endmodule
