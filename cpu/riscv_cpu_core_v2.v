@@ -65,9 +65,27 @@ module riscv_cpu_core (
 );
 
     // =========================================================================
-    // IRQ aggregation
+    // IRQ aggregation — 2-FF CDC synchronizer chain
+    // Prevents metastability when IRQ lines come from a different clock domain.
+    // Adds 2-cycle latency to IRQ recognition (acceptable for interrupt handling).
     // =========================================================================
-    wire irq_pending = external_irq | timer_irq | sw_irq;
+    reg ext_irq_s1, ext_irq_s2;
+    reg tmr_irq_s1, tmr_irq_s2;
+    reg sw_irq_s1,  sw_irq_s2;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            ext_irq_s1 <= 1'b0; ext_irq_s2 <= 1'b0;
+            tmr_irq_s1 <= 1'b0; tmr_irq_s2 <= 1'b0;
+            sw_irq_s1  <= 1'b0; sw_irq_s2  <= 1'b0;
+        end else begin
+            ext_irq_s1 <= external_irq; ext_irq_s2 <= ext_irq_s1;
+            tmr_irq_s1 <= timer_irq;    tmr_irq_s2 <= tmr_irq_s1;
+            sw_irq_s1  <= sw_irq;       sw_irq_s2  <= sw_irq_s1;
+        end
+    end
+
+    wire irq_pending = ext_irq_s2 | tmr_irq_s2 | sw_irq_s2;
 
     reg irq_pending_lat;
     always @(posedge clk or posedge rst) begin
@@ -100,6 +118,22 @@ module riscv_cpu_core (
     // =========================================================================
     // DEBUG MODE FSM
     //
+    // 2-FF CDC synchronizers for debug_haltreq / debug_resumereq coming from
+    // the JTAG clock domain. Without synchronization, metastability in the FSM
+    // can cause undefined state transitions.
+    reg dbg_halt_s1,   dbg_halt_s2;
+    reg dbg_resume_s1, dbg_resume_s2;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            dbg_halt_s1   <= 1'b0; dbg_halt_s2   <= 1'b0;
+            dbg_resume_s1 <= 1'b0; dbg_resume_s2 <= 1'b0;
+        end else begin
+            dbg_halt_s1   <= debug_haltreq;   dbg_halt_s2   <= dbg_halt_s1;
+            dbg_resume_s1 <= debug_resumereq; dbg_resume_s2 <= dbg_resume_s1;
+        end
+    end
+
     // 3 trạng thái:
     //   DBG_RUNNING : CPU chạy bình thường
     //   DBG_HALTING : CPU nhận haltreq, đang chờ pipeline + LSU drain
@@ -142,7 +176,7 @@ module riscv_cpu_core (
             case (dbg_state)
                 DBG_RUNNING: begin
                     // Chờ bus idle trước khi bước vào HALTING
-                    if (debug_haltreq && lsu_sb_empty_w && !dcache_req) begin
+                    if (dbg_halt_s2 && lsu_sb_empty_w && !dcache_req) begin
                         dbg_state <= DBG_HALTING;
                     end
                 end
@@ -154,9 +188,9 @@ module riscv_cpu_core (
                     debug_mode <= 1'b1;
                 end
                 DBG_HALTED: begin
-                    // WHY check !debug_haltreq: DM có thể giữ haltreq=1 nhiều
+                    // WHY check !dbg_halt_s2: DM có thể giữ haltreq=1 nhiều
                     // cycle. Chỉ resume khi resumereq pulse xuất hiện.
-                    if (debug_resumereq) begin
+                    if (dbg_resume_s2) begin
                         dbg_state  <= DBG_RUNNING;
                         debug_mode <= 1'b0;
                     end
@@ -220,6 +254,7 @@ module riscv_cpu_core (
     wire zero_flag_ex, less_than_ex, less_than_u_ex;
     wire branch_taken_ex;
     wire [31:0] target_pc_ex;
+    wire [31:0] branch_target_ex;
     wire pc_src_ex;
     wire [31:0] pc_plus_4_ex;
 
@@ -252,10 +287,30 @@ module riscv_cpu_core (
     wire stall, stall_if, stall_any;
     wire fence_stall;
     wire lsu_dep_stall;
+    wire mul_ex_stall_wire;
     wire flush_if_id, flush_id_ex;
 
     // stall_any includes debug_mode to freeze entire pipeline during D-mode
     assign stall_any = stall | stall_if | debug_mode;
+
+    // Fix 9C: Static backward branch prediction wires
+    wire predict_taken_ex;
+    wire predict_taken_id;
+    wire mispredict_ex;
+
+    // Predict taken when branch in ID and immediate is negative (backward = loop branch)
+    // Guard with !stall_any to prevent double-prediction when branch is stalled in ID
+    assign predict_taken_id = branch_id && imm_id[31] && !stall_any;
+    assign mispredict_ex    = predict_taken_ex && !branch_taken_ex && branch_ex;
+
+    // IFU redirect priority: mispredict recovery > actual branch/jump > prediction
+    wire        ifu_pc_src    = mispredict_ex || pc_src_ex || predict_taken_id;
+    wire [31:0] ifu_target_pc = mispredict_ex  ? pc_plus_4_ex  :
+                                pc_src_ex      ? target_pc_ex  :
+                                                 branch_target_id;
+
+    // Fix 10C: Multiplier stall — don't freeze multiplier during its own extra cycle
+    wire mul_hold = stall_any && !mul_ex_stall_wire;
 
     // stall_ex_mem: only LSU dependency stall freezes EX/MEM
     // (fence_stall must NOT freeze — pre-fence store must reach MEM)
@@ -270,9 +325,9 @@ module riscv_cpu_core (
     IFU instruction_fetch (
         .clock            (clk),
         .reset            (rst),
-        .pc_src           (pc_src_ex),
+        .pc_src           (ifu_pc_src),
         .stall            (stall_any),      // debug_mode → stall_any → IFU dừng fetch
-        .target_pc        (target_pc_ex),
+        .target_pc        (ifu_target_pc),
         .imem_addr        (imem_addr),
         .imem_valid       (imem_valid),
         .imem_rdata       (imem_rdata),
@@ -332,6 +387,10 @@ module riscv_cpu_core (
     // =========================================================================
     // ID/EX PIPELINE REGISTER (standalone module)
     // =========================================================================
+    // Pre-compute branch target in ID stage to remove adder from EX critical path.
+    // pc_id and imm_id are both available here; result passes through ID/EX register.
+    wire [31:0] branch_target_id = pc_id + imm_id;
+
     PIPELINE_REG_ID_EX id_ex_reg (
         .clock           (clk),
         .reset           (rst),
@@ -349,12 +408,14 @@ module riscv_cpu_core (
         .memwrite_in     (memwrite_id),
         .memtoreg_in     (memtoreg_id),
         .branch_in       (branch_id),
+        .predict_taken_in(predict_taken_id),
         .jump_in         (jump_id),
         // Data inputs
         .read_data1_in   (read_data1_id),
         .read_data2_in   (read_data2_id),
         .imm_in          (imm_id),
         .pc_in           (pc_id),
+        .branch_target_in(branch_target_id),
         // Register addresses
         .rs1_in          (rs1_id),
         .rs2_in          (rs2_id),
@@ -372,12 +433,14 @@ module riscv_cpu_core (
         .memwrite_out    (memwrite_ex),
         .memtoreg_out    (memtoreg_ex),
         .branch_out      (branch_ex),
+        .predict_taken_out(predict_taken_ex),
         .jump_out        (jump_ex),
         // Data outputs
         .read_data1_out  (read_data1_ex),
         .read_data2_out  (read_data2_ex),
         .imm_out         (imm_ex),
         .pc_out          (pc_ex),
+        .branch_target_out(branch_target_ex),
         // Register address outputs
         .rs1_out         (rs1_ex),
         .rs2_out         (rs2_ex),
@@ -400,19 +463,33 @@ module riscv_cpu_core (
         .forward_a   (forward_a),    .forward_b   (forward_b)
     );
 
-    assign alu_in1_forwarded = (forward_a == 2'b10) ? alu_result_mem :
-                               (forward_a == 2'b01) ? write_back_data_wb :
-                               read_data1_ex;
+    // Fix 11: AND-OR MUX — selectors are mutually exclusive, so synthesis maps to
+    // exactly 2 gate levels (AND then OR) instead of a priority carry chain (~30 gates).
+    // Cuts the is_mul_wb→write_back_data_wb→alu_in1_forwarded→ID/EX-reg critical path.
+    wire fwd_a_mem  = (forward_a == 2'b10);
+    wire fwd_a_wb   = (forward_a == 2'b01);
+    wire fwd_a_none = (forward_a == 2'b00);
+    assign alu_in1_forwarded = ({32{fwd_a_mem}}  & alu_result_mem)    |
+                               ({32{fwd_a_wb}}   & write_back_data_wb) |
+                               ({32{fwd_a_none}} & read_data1_ex);
 
-    assign alu_in1 = (opcode_ex == 7'b0110111) ? 32'h0 :
-                     (opcode_ex == 7'b0010111) ? pc_ex  :
-                     alu_in1_forwarded;
+    wire is_lui_ex   = (opcode_ex == 7'b0110111);
+    wire is_auipc_ex = (opcode_ex == 7'b0010111);
+    wire alu_in1_use_fwd = !is_lui_ex && !is_auipc_ex;
 
-    assign alu_in2_pre_mux = (forward_b == 2'b10) ? alu_result_mem :
-                             (forward_b == 2'b01) ? write_back_data_wb :
-                             read_data2_ex;
+    assign alu_in1 = ({32{is_lui_ex}}       & 32'h0)            |
+                     ({32{is_auipc_ex}}     & pc_ex)             |
+                     ({32{alu_in1_use_fwd}} & alu_in1_forwarded);
 
-    assign alu_in2 = alusrc_ex ? imm_ex : alu_in2_pre_mux;
+    wire fwd_b_mem  = (forward_b == 2'b10);
+    wire fwd_b_wb   = (forward_b == 2'b01);
+    wire fwd_b_none = (forward_b == 2'b00);
+    assign alu_in2_pre_mux = ({32{fwd_b_mem}}  & alu_result_mem)    |
+                             ({32{fwd_b_wb}}   & write_back_data_wb) |
+                             ({32{fwd_b_none}} & read_data2_ex);
+
+    assign alu_in2 = ({32{alusrc_ex}}  & imm_ex)         |
+                     ({32{!alusrc_ex}} & alu_in2_pre_mux);
 
     alu arithmetic_logic_unit (
         .in1        (alu_in1),     .in2        (alu_in2),
@@ -439,7 +516,9 @@ module riscv_cpu_core (
 
     wire        is_mul_ex  = (alu_control_ex == ALU_MUL_CODE) | (alu_control_ex == ALU_MULH_CODE);
     wire [1:0]  mul_op_ex  = (alu_control_ex == ALU_MULH_CODE) ? 2'b01 : 2'b00;
-    wire        mul_valid_ex = is_mul_ex & !stall_any & !flush_id_ex_final;
+    // mul_valid_ex uses mul_hold (not stall_any) so E1 fires on cycle N even
+    // though mul_ex_stall=1 makes stall_any=1 on that cycle.
+    wire        mul_valid_ex = is_mul_ex & !mul_hold & !flush_id_ex_final;
 
     riscv_multiplier multiplier_unit (
         .clk_i            (clk),
@@ -448,15 +527,18 @@ module riscv_cpu_core (
         .mul_op_i         (mul_op_ex),
         .operand_a_i      (alu_in1_forwarded),  // forwarded rs1 (pre-LUI/AUIPC mux)
         .operand_b_i      (alu_in2_pre_mux),    // forwarded rs2 (pre-alusrc mux)
-        .hold_i           (stall_any),
-        .writeback_value_o(mul_result_direct)   // valid at WB stage (2 cycles after EX)
+        .hold_i           (mul_hold),
+        .mul_hold_e15_i   (mul_hold),
+        .writeback_value_o(mul_result_direct)   // valid at WB stage (3 cycles after EX)
     );
 
     assign pc_plus_4_ex = pc_ex + 32'd4;
 
     wire [31:0] jalr_target;
     assign jalr_target  = (alu_in1 + imm_ex) & 32'hFFFFFFFE;
-    assign target_pc_ex = (opcode_ex == 7'b1100111) ? jalr_target : pc_ex + imm_ex;
+    // branch_target_ex = pc_id + imm_id, pre-computed in ID stage to remove
+    // this adder from the EX stage critical path.
+    assign target_pc_ex = (opcode_ex == 7'b1100111) ? jalr_target : branch_target_ex;
     assign pc_src_ex    = (branch_ex & branch_taken_ex) | jump_ex;
 
     // =========================================================================
@@ -606,34 +688,40 @@ module riscv_cpu_core (
     // =========================================================================
     // STAGE 5: WB
     // =========================================================================
-    // Priority: jump (link reg) > MUL result > load data > ALU result
-    assign write_back_data_wb = jump_wb     ? pc_plus_4_wb    :
-                                is_mul_wb   ? mul_result_direct :
-                                memtoreg_wb ? mem_data_wb      :
-                                              alu_result_wb;
+    // AND-OR MUX: 4 cases mutually exclusive (jump/mul/load/alu can't overlap).
+    // is_alu_wb is the complement so selectors are exhaustive (Fix 11).
+    wire is_alu_wb = !jump_wb && !is_mul_wb && !memtoreg_wb;
+    assign write_back_data_wb = ({32{jump_wb}}     & pc_plus_4_wb)     |
+                                ({32{is_mul_wb}}   & mul_result_direct) |
+                                ({32{memtoreg_wb}} & mem_data_wb)       |
+                                ({32{is_alu_wb}}   & alu_result_wb);
 
     // =========================================================================
     // HAZARD DETECTION UNIT
     // =========================================================================
     hazard_detection hazard_unit (
+        .clk            (clk),
+        .rst            (rst),
         .memread_id_ex  (memread_ex),
         .rd_id_ex       (rd_ex),
         .rs1_id         (rs1_id),
         .rs2_id         (rs2_id),
-        .memread_mem    (memread_mem),
-        .rd_mem         (rd_mem),
         .branch_taken   (pc_src_ex),
         .imem_ready     (imem_ready),
         .lsu_scoreboard (lsu_scoreboard),
         .fence_id       (fence_id),
         .lsu_idle       (lsu_idle),
         .mul_in_ex      (is_mul_ex),
+        .predict_taken_ex(predict_taken_ex),
+        .predict_taken_id(predict_taken_id),
+        .mispredict_ex  (mispredict_ex),
         .stall          (stall),
         .stall_if       (stall_if),
         .flush_if_id    (flush_if_id),
         .flush_id_ex    (flush_id_ex),
         .fence_stall    (fence_stall),
-        .lsu_dep_stall  (lsu_dep_stall)
+        .lsu_dep_stall  (lsu_dep_stall),
+        .mul_ex_stall   (mul_ex_stall_wire)
     );
 
 // synopsys translate_off

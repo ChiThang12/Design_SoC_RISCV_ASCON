@@ -50,11 +50,17 @@ module alu (
     // ========================================================================
     // Main ALU Operation MUX
     // ========================================================================
+    // Pre-compute add/sub as separate wires so synthesis sees them as
+    // independent parallel adders and avoids sharing gate-level logic.
+    wire [31:0] add_result = in1 + in2;
+    wire [31:0] sub_result = in1 - in2;
+
+    // synthesis parallel_case full_case
     always @(*) begin
         case (alu_control)
             // --- RV32I: Arithmetic ---
-            ALU_ADD:  alu_result = in1 + in2;
-            ALU_SUB:  alu_result = in1 - in2;
+            ALU_ADD:  alu_result = add_result;
+            ALU_SUB:  alu_result = sub_result;
 
             // --- RV32I: Logic ---
             ALU_AND:  alu_result = in1 & in2;
@@ -78,7 +84,11 @@ module alu (
     // ========================================================================
     // Comparison Flags — independent of alu_result (shorter timing path)
     // ========================================================================
-    assign zero_flag   = (alu_result == 32'd0);
+    // zero_flag computed directly from operands (32-bit XOR + NOR tree, ~1.3 ns)
+    // rather than from alu_result (~4-5 ns adder path).
+    // Correct because branch_logic only uses zero_flag for BEQ/BNE, where
+    // alu_control is always ALU_SUB, so (in1 - in2 == 0) ≡ (in1 == in2).
+    assign zero_flag   = (in1 == in2);
     assign less_than   = (in1_signed < in2_signed);
     assign less_than_u = (in1 < in2);
 

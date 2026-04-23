@@ -29,6 +29,7 @@ module PIPELINE_REG_ID_EX (
     input wire        memwrite_in,
     input wire        memtoreg_in,
     input wire        branch_in,
+    input wire        predict_taken_in,
     input wire        jump_in,
 
     // --- Data ---
@@ -36,6 +37,7 @@ module PIPELINE_REG_ID_EX (
     input wire [31:0] read_data2_in,
     input wire [31:0] imm_in,
     input wire [31:0] pc_in,
+    input wire [31:0] branch_target_in,
 
     // --- Register addresses ---
     input wire [4:0]  rs1_in,
@@ -56,6 +58,7 @@ module PIPELINE_REG_ID_EX (
     output reg        memwrite_out,
     output reg        memtoreg_out,
     output reg        branch_out,
+    output reg        predict_taken_out,
     output reg        jump_out,
 
     // --- Data outputs ---
@@ -63,6 +66,7 @@ module PIPELINE_REG_ID_EX (
     output reg [31:0] read_data2_out,
     output reg [31:0] imm_out,
     output reg [31:0] pc_out,
+    output reg [31:0] branch_target_out,
 
     // --- Register address outputs ---
     output reg [4:0]  rs1_out,
@@ -78,18 +82,42 @@ module PIPELINE_REG_ID_EX (
 );
 
     always @(posedge clock or posedge reset) begin
-        if (reset || flush) begin
+        if (reset) begin
             regwrite_out    <= 1'b0;
             alusrc_out      <= 1'b0;
             memread_out     <= 1'b0;
             memwrite_out    <= 1'b0;
             memtoreg_out    <= 1'b0;
             branch_out      <= 1'b0;
+            predict_taken_out <= 1'b0;
             jump_out        <= 1'b0;
             read_data1_out  <= 32'h0;
             read_data2_out  <= 32'h0;
             imm_out         <= 32'h0;
             pc_out          <= 32'h0;
+            branch_target_out <= 32'h0;
+            rs1_out         <= 5'b0;
+            rs2_out         <= 5'b0;
+            rd_out          <= 5'b0;
+            funct3_out      <= 3'b0;
+            funct7_out      <= 7'b0;
+            alu_control_out <= 4'b0;
+            byte_size_out   <= 2'b0;
+            opcode_out      <= 7'b0;
+        end else if (flush) begin
+            regwrite_out    <= 1'b0;
+            alusrc_out      <= 1'b0;
+            memread_out     <= 1'b0;
+            memwrite_out    <= 1'b0;
+            memtoreg_out    <= 1'b0;
+            branch_out      <= 1'b0;
+            predict_taken_out <= 1'b0;
+            jump_out        <= 1'b0;
+            read_data1_out  <= 32'h0;
+            read_data2_out  <= 32'h0;
+            imm_out         <= 32'h0;
+            pc_out          <= 32'h0;
+            branch_target_out <= 32'h0;
             rs1_out         <= 5'b0;
             rs2_out         <= 5'b0;
             rd_out          <= 5'b0;
@@ -106,11 +134,13 @@ module PIPELINE_REG_ID_EX (
             memwrite_out    <= memwrite_in;
             memtoreg_out    <= memtoreg_in;
             branch_out      <= branch_in;
+            predict_taken_out <= predict_taken_in;
             jump_out        <= jump_in;
             read_data1_out  <= read_data1_in;
             read_data2_out  <= read_data2_in;
             imm_out         <= imm_in;
             pc_out          <= pc_in;
+            branch_target_out <= branch_target_in;
             rs1_out         <= rs1_in;
             rs2_out         <= rs2_in;
             rd_out          <= rd_in;
