@@ -1,6 +1,6 @@
 @echo off
 REM ============================================
-REM run_verilog.bat (with log)
+REM run_verilog.bat (with log folder)
 REM ============================================
 
 SET STD=
@@ -30,7 +30,14 @@ IF "%SRC%"=="" (
 
 REM Extract file name without extension
 FOR %%F IN (%SRC%) DO SET NAME=%%~nF
-SET LOG=%NAME%.log
+
+REM 👉 Tạo thư mục log nếu chưa có
+SET LOG_DIR=log
+IF NOT EXIST %LOG_DIR% (
+    mkdir %LOG_DIR%
+)
+
+SET LOG=%LOG_DIR%\%NAME%.log
 
 echo ============================================
 echo Source   : %SRC%

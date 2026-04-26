@@ -25,7 +25,12 @@ if [[ -z "$SRC" ]]; then
 fi
 
 NAME=$(basename "$SRC" .v)
-LOG="${NAME}.log"
+
+# 👉 Tạo thư mục log nếu chưa tồn tại
+LOG_DIR="log"
+mkdir -p "$LOG_DIR"
+
+LOG="${LOG_DIR}/${NAME}.log"
 
 echo "============================================"
 echo "Source   : $SRC"
