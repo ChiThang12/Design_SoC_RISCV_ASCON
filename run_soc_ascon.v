@@ -38,7 +38,7 @@
 // ============================================================================
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
-`define TIMEOUT         5000 // tăng lên 100000: cần đủ cho POR(1040cy) + CPU chạy
+`define TIMEOUT         200000 // boot overhead ~3100cy (POR+fabric_rst+boot_ctrl 2048w) + CPU
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
@@ -82,7 +82,15 @@ wire jtag_tdo_en_w;
 // (firmware chỉ TX, TB monitor bắt trên uart_tx_w)
 wire uart_tx_w;
 wire uart_rx_w;
-assign uart_rx_w = uart_tx_w;  // loopback — thay bằng 1'b1 nếu không cần RX
+assign uart_rx_w = 1'b1;  // idle high — loopback gây echo làm nhiễu UART monitor
+
+// GPIO — split in/out/oe, driven from TB
+wire [31:0] gpio_out_w;
+wire [31:0] gpio_oe_w;
+reg  [31:0] gpio_in_r;
+
+// WDT reset request — TB intercepts, NOT applied to DUT
+wire wdt_rst_req_w;
 
 soc_top soc (
     .clk       (clk),
@@ -96,7 +104,13 @@ soc_top soc (
     .tms       (jtag_tms_r),
     .tdi       (jtag_tdi_r),
     .tdo       (jtag_tdo_w),
-    .tdo_en    (jtag_tdo_en_w)
+    .tdo_en    (jtag_tdo_en_w),
+    // GPIO
+    .gpio_out  (gpio_out_w),
+    .gpio_oe   (gpio_oe_w),
+    .gpio_in   (gpio_in_r),
+    // WDT
+    .wdt_rst_req (wdt_rst_req_w)
 );
 
 // ============================================================================
@@ -412,6 +426,51 @@ wire [31:0] s9_wdata   = soc.s9_wdata;
 wire        s9_wvalid  = soc.s9_wvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// [L4] Crossbar → S6 (GPIO)
+// ─────────────────────────────────────────────────────────────────────────────
+wire [31:0] s6_araddr  = soc.s6_araddr;
+wire        s6_arvalid = soc.s6_arvalid;
+wire        s6_arready = soc.s6_arready;
+wire [31:0] s6_awaddr  = soc.s6_awaddr;
+wire        s6_awvalid = soc.s6_awvalid;
+wire        s6_awready = soc.s6_awready;
+wire [31:0] s6_wdata   = soc.s6_wdata;
+wire        s6_wvalid  = soc.s6_wvalid;
+wire        s6_wready  = soc.s6_wready;
+wire [1:0]  s6_bresp   = soc.s6_bresp;
+wire        s6_bvalid  = soc.s6_bvalid;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [L5] Crossbar → S8 (Timer/WDT)
+// ─────────────────────────────────────────────────────────────────────────────
+wire [31:0] s8_araddr  = soc.s8_araddr;
+wire        s8_arvalid = soc.s8_arvalid;
+wire        s8_arready = soc.s8_arready;
+wire [31:0] s8_awaddr  = soc.s8_awaddr;
+wire        s8_awvalid = soc.s8_awvalid;
+wire        s8_awready = soc.s8_awready;
+wire [31:0] s8_wdata   = soc.s8_wdata;
+wire        s8_wvalid  = soc.s8_wvalid;
+wire        s8_wready  = soc.s8_wready;
+wire [1:0]  s8_bresp   = soc.s8_bresp;
+wire        s8_bvalid  = soc.s8_bvalid;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [L6] Crossbar → S11 (DMA Ctrl Config @ 0x6001_0000)
+// ─────────────────────────────────────────────────────────────────────────────
+wire [31:0] s11_araddr  = soc.s11_araddr;
+wire        s11_arvalid = soc.s11_arvalid;
+wire        s11_arready = soc.s11_arready;
+wire [31:0] s11_awaddr  = soc.s11_awaddr;
+wire        s11_awvalid = soc.s11_awvalid;
+wire        s11_awready = soc.s11_awready;
+wire [31:0] s11_wdata   = soc.s11_wdata;
+wire        s11_wvalid  = soc.s11_wvalid;
+wire        s11_wready  = soc.s11_wready;
+wire [1:0]  s11_bresp   = soc.s11_bresp;
+wire        s11_bvalid  = soc.s11_bvalid;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // [M] CLINT & Interrupt wires
 // ─────────────────────────────────────────────────────────────────────────────
 wire        mtime_tick   = soc.mtime_tick;
@@ -503,11 +562,12 @@ wire        cpu_debug_mode   = soc.u_cpu.debug_mode;
 // [S] PLIC taps  [NEW-4]
 // ─────────────────────────────────────────────────────────────────────────────
 // IRQ source vector theo PLIC spec:
-//   bit[0] = reserved, bit[1]=uart_irq, bit[2..7]=unused,
-//   bit[8]=ascon_irq, bit[9]=dma_irq
+//   bit[0]=reserved, bit[1]=uart_irq, bit[2..3]=unused, bit[4]=gpio_irq,
+//   bit[5..7]=timer/wdt, bit[8]=ascon_irq, bit[9]=dma_irq
 wire [31:0] plic_irq_src     = {22'd0, soc.dma_irq, soc.ascon_irq,
-                                 5'd0, soc.uart_irq, 1'b0};
+                                 3'd0, soc.gpio_irq, soc.uart_irq, 1'b0};
 wire        plic_meip        = soc.external_irq;   // PLIC output → CPU
+wire        gpio_irq_w       = soc.gpio_irq;       // GPIO IRQ → PLIC src[4]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [T] UART internal taps  [NEW-2]
@@ -522,6 +582,13 @@ wire        plic_meip        = soc.external_irq;   // PLIC output → CPU
 wire        fabric_rst_n_w   = soc.fabric_rst_n;
 wire        cpu_rst_n_w      = soc.cpu_rst_n;
 wire        periph_rst_n_w   = soc.periph_rst_n;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [V] Boot Controller taps  [NEW-BOOT]
+// ─────────────────────────────────────────────────────────────────────────────
+wire        boot_done_w   = soc.boot_done;
+wire        boot_we_w     = soc.imem_boot_we;
+wire [31:0] boot_addr_w   = soc.imem_boot_addr;
 
 // ============================================================================
 // Counters & State
@@ -550,12 +617,24 @@ integer s3_access_cnt;
 integer s4_access_cnt;
 integer s5_access_cnt;   // [NEW-6] UART
 integer s9_access_cnt;   // [NEW-6] PLIC
-integer s6_access_cnt;   // stub access (nên = 0)
+integer s6_access_cnt;   // GPIO accesses
 integer s7_access_cnt;
-integer s8_access_cnt;
+integer s8_access_cnt;   // Timer/WDT accesses
+integer s11_access_cnt;  // DMA Ctrl Config accesses
+integer s11_dma_wr_cnt;  // DMA config write count
 integer decerr_cnt;
 integer xbar_conflict_cnt;
-integer stub_slverr_cnt; // [NEW-6] SLVERR từ stub slaves S6/S7/S8/S10
+integer stub_slverr_cnt; // SLVERR từ stub slaves S7/S10 (S6 GPIO + S8 Timer đã real)
+
+// GPIO / WDT event counters
+integer gpio_irq_cnt;
+integer wdt_rst_req_cnt;
+
+// UART protocol result tracking
+integer uart_pass_cnt;
+integer uart_fail_cnt;
+reg     uart_all_pass;
+reg     uart_some_fail;
 
 integer ascon_start_cnt;
 integer ascon_dma_start_cnt;
@@ -607,6 +686,10 @@ reg [31:0] sb_addr [0:255];
 reg [31:0] sb_data [0:255];
 integer    sb_cnt;
 
+// Boot tracking
+integer boot_word_cnt;
+reg     prev_boot_done;
+
 // Edge detection registers
 reg prev_ascon_dma_done_st;
 reg prev_ascon_core_done;
@@ -622,10 +705,16 @@ reg prev_uart_irq;       // [NEW-8]
 reg prev_dma_irq;        // [NEW-8]
 reg prev_jtag_ndmreset;  // [NEW-3]
 reg prev_jtag_halted;    // [NEW-3]
+reg prev_gpio_irq;       // GPIO IRQ edge detect
+reg prev_wdt_rst_req;    // WDT reset request edge detect
 
 // UART rx buffer  [NEW-2]
 reg [7:0]  uart_rx_buf [0:255];
 integer    uart_rx_count;
+
+// UART line buffer for [PASS]/[FAIL] parsing
+reg [7:0]  uart_line_buf [0:127];
+integer    uart_line_len;
 
 // ============================================================================
 // Waveform dump
@@ -646,7 +735,7 @@ end
 // (2) Instruction Retire & Stall
 // ============================================================================
 always @(posedge clk) begin
-    if (ext_rst_n_r && fabric_rst_n_w) begin
+    if (ext_rst_n_r && cpu_rst_n_w) begin
         if (!stall_if && instr_if !== 32'h0)
             instr_retired = instr_retired + 1;
 
@@ -669,7 +758,7 @@ end
 // (3) DCache Load/Store Logger
 // ============================================================================
 always @(posedge clk) begin
-    if (ext_rst_n_r && fabric_rst_n_w && dc_req && dc_ready) begin
+    if (ext_rst_n_r && cpu_rst_n_w && dc_req && dc_ready) begin
         if (dc_we) begin
             if (!program_done) begin
                 dmem_wr_cnt = dmem_wr_cnt + 1;
@@ -726,7 +815,7 @@ end
 // ============================================================================
 reg [31:0] m0_ar_addr_saved;
 always @(posedge clk) begin
-    if (ext_rst_n_r) begin
+    if (ext_rst_n_r && fabric_rst_n_w) begin  // gate with fabric_rst_n to suppress X-state noise before reset
         if (m0_arvalid && m0_arready) begin
             m0_ar_burst_cnt  = m0_ar_burst_cnt + 1;
             m0_ar_start      = cycle_count;
@@ -1067,14 +1156,40 @@ always @(posedge clk) begin
                          cycle_count, s9_awaddr[21:0], s9_wdata);
         end
 
-        // ── Stub slave SLVERR detection (S6/S7/S8/S10) ──────────────────────
-        if ((soc.s6_bvalid && soc.s6_bresp == 2'b10) ||
-            (soc.s7_bvalid && soc.s7_bresp == 2'b10) ||
-            (soc.s8_bvalid && soc.s8_bresp == 2'b10) ||
+        // ── S6 GPIO traffic ──────────────────────────────────────────────────
+        if (s6_arvalid && s6_arready) begin
+            s6_access_cnt = s6_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S6-GPIO] READ  offset=0x%02h",
+                         cycle_count, s6_araddr[7:0]);
+        end
+        if (s6_awvalid && s6_awready) begin
+            s6_access_cnt = s6_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S6-GPIO] WRITE offset=0x%02h  data=0x%08h",
+                         cycle_count, s6_awaddr[7:0], s6_wdata);
+        end
+
+        // ── S8 Timer/WDT traffic ──────────────────────────────────────────────
+        if (s8_arvalid && s8_arready) begin
+            s8_access_cnt = s8_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S8-TIMER] READ  offset=0x%02h",
+                         cycle_count, s8_araddr[7:0]);
+        end
+        if (s8_awvalid && s8_awready) begin
+            s8_access_cnt = s8_access_cnt + 1;
+            if (`LOG_LEVEL >= 2)
+                $display("[%6d] [S8-TIMER] WRITE offset=0x%02h  data=0x%08h",
+                         cycle_count, s8_awaddr[7:0], s8_wdata);
+        end
+
+        // ── Stub slave SLVERR detection (S7=SPI stub, S10=OTP stub only) ────
+        if ((soc.s7_bvalid && soc.s7_bresp == 2'b10) ||
             (soc.s10_bvalid && soc.s10_bresp == 2'b10)) begin
             stub_slverr_cnt = stub_slverr_cnt + 1;
             if (`LOG_LEVEL >= 1)
-                $display("[%6d] [WARN] Stub slave SLVERR (GPIO/SPI/Timer/OTP not yet implemented)",
+                $display("[%6d] [WARN] Stub slave SLVERR (SPI/OTP not implemented)",
                          cycle_count);
         end
     end
@@ -1181,19 +1296,23 @@ end
 // ============================================================================
 always @(posedge clk) begin
     if (!ext_rst_n_r) begin
-        prev_timer_irq <= 1'b0;
-        prev_sw_irq    <= 1'b0;
-        prev_soft_rst  <= 1'b0;
-        prev_ext_irq   <= 1'b0;
-        prev_uart_irq  <= 1'b0;
-        prev_dma_irq   <= 1'b0;
+        prev_timer_irq   <= 1'b0;
+        prev_sw_irq      <= 1'b0;
+        prev_soft_rst    <= 1'b0;
+        prev_ext_irq     <= 1'b0;
+        prev_uart_irq    <= 1'b0;
+        prev_dma_irq     <= 1'b0;
+        prev_gpio_irq    <= 1'b0;
+        prev_wdt_rst_req <= 1'b0;
     end else begin
-        prev_timer_irq <= timer_irq;
-        prev_sw_irq    <= sw_irq;
-        prev_soft_rst  <= soft_rst_pulse;
-        prev_ext_irq   <= ext_irq;
-        prev_uart_irq  <= uart_irq_w;
-        prev_dma_irq   <= dma_irq_w;
+        prev_timer_irq   <= timer_irq;
+        prev_sw_irq      <= sw_irq;
+        prev_soft_rst    <= soft_rst_pulse;
+        prev_ext_irq     <= ext_irq;
+        prev_uart_irq    <= uart_irq_w;
+        prev_dma_irq     <= dma_irq_w;
+        prev_gpio_irq    <= gpio_irq_w;
+        prev_wdt_rst_req <= wdt_rst_req_w;
     end
 end
 
@@ -1231,6 +1350,39 @@ always @(posedge clk) begin
             $display("[%6d] [DMA] irq_out raised #%0d  → PLIC src[9]",
                      cycle_count, dma_irq_cnt);
         end
+        // GPIO IRQ
+        if (gpio_irq_w && !prev_gpio_irq) begin
+            gpio_irq_cnt = gpio_irq_cnt + 1;
+            $display("[%6d] [GPIO] irq raised #%0d  → PLIC src[4]  gpio_in=0x%08h  gpio_out=0x%08h",
+                     cycle_count, gpio_irq_cnt, gpio_in_r, gpio_out_w);
+        end
+        // WDT reset request interceptor
+        if (wdt_rst_req_w && !prev_wdt_rst_req) begin
+            wdt_rst_req_cnt = wdt_rst_req_cnt + 1;
+            $display("[%6d] [WDT] wdt_rst_req asserted #%0d  (TB intercepts — DUT NOT reset)",
+                     cycle_count, wdt_rst_req_cnt);
+        end
+    end
+end
+
+// ============================================================================
+// (10b) Boot Controller Logger  [NEW-BOOT]
+// ============================================================================
+always @(posedge clk) begin
+    if (!fabric_rst_n_w) begin
+        boot_word_cnt <= 0;
+        prev_boot_done <= 1'b0;
+    end else begin
+        prev_boot_done <= boot_done_w;
+        if (boot_we_w) begin
+            boot_word_cnt = boot_word_cnt + 1;
+            if (boot_word_cnt == 1)
+                $display("[%6d] [BOOT] boot_ctrl: START loading IMEM (2048 words)",
+                         cycle_count);
+        end
+        if (boot_done_w && !prev_boot_done)
+            $display("[%6d] [BOOT] boot_ctrl: DONE (%0d words written) → cpu_rst_n releasing",
+                     cycle_count, boot_word_cnt);
     end
 end
 
@@ -1284,6 +1436,86 @@ always @(posedge clk) begin
 end
 
 // ============================================================================
+// (11b) S11 DMA Config Slave Monitor
+// Decode offset → CH/REG name; log WRITE operations to DMA registers.
+// Register map: CH[0-3] × 4 regs (SRC/DST/LEN/CTRL) at offset 0x000..0x03F
+//   STATUS=0x080, IRQ_EN=0x084, IRQ_STATUS=0x088
+// ============================================================================
+always @(posedge clk) begin
+    if (ext_rst_n_r) begin
+        if (s11_awvalid && s11_awready) begin
+            s11_access_cnt = s11_access_cnt + 1;
+        end
+        if (s11_arvalid && s11_arready) begin
+            s11_access_cnt = s11_access_cnt + 1;
+        end
+        if (s11_wvalid && s11_wready) begin
+            s11_dma_wr_cnt = s11_dma_wr_cnt + 1;
+        end
+        // Decode write: log when W channel fires together with latched AW addr
+        if (s11_wvalid && s11_wready && soc.s11_awvalid) begin
+            begin : s11_decode
+                reg [11:0] offset;
+                reg [1:0]  ch;
+                reg [1:0]  reg_sel;
+                offset  = soc.s11_awaddr[11:0];
+                ch      = offset[5:4];
+                reg_sel = offset[3:2];
+                if (offset[11:6] == 6'b000000) begin
+                    // Channel register range 0x000..0x03F
+                    case (reg_sel)
+                        2'd0: $display("[%6d] [S11-DMA] WRITE ch=%0d SRC  addr=0x%08h data=0x%08h",
+                                       cycle_count, ch, soc.s11_awaddr, s11_wdata);
+                        2'd1: $display("[%6d] [S11-DMA] WRITE ch=%0d DST  addr=0x%08h data=0x%08h",
+                                       cycle_count, ch, soc.s11_awaddr, s11_wdata);
+                        2'd2: $display("[%6d] [S11-DMA] WRITE ch=%0d LEN  addr=0x%08h data=0x%08h",
+                                       cycle_count, ch, soc.s11_awaddr, s11_wdata);
+                        2'd3: $display("[%6d] [S11-DMA] WRITE ch=%0d CTRL addr=0x%08h data=0x%08h%s",
+                                       cycle_count, ch, soc.s11_awaddr, s11_wdata,
+                                       s11_wdata[1] ? " (START!)" : "");
+                    endcase
+                end else if (offset[7:0] == 8'h80) begin
+                    $display("[%6d] [S11-DMA] WRITE STATUS addr=0x%08h data=0x%08h",
+                             cycle_count, soc.s11_awaddr, s11_wdata);
+                end else if (offset[7:0] == 8'h84) begin
+                    $display("[%6d] [S11-DMA] WRITE IRQ_EN addr=0x%08h data=0x%08h",
+                             cycle_count, soc.s11_awaddr, s11_wdata);
+                end else if (offset[7:0] == 8'h88) begin
+                    $display("[%6d] [S11-DMA] WRITE IRQ_STATUS addr=0x%08h data=0x%08h (W1C clear)",
+                             cycle_count, soc.s11_awaddr, s11_wdata);
+                end else begin
+                    $display("[%6d] [S11-DMA] WRITE offset=0x%03h data=0x%08h (unknown)",
+                             cycle_count, offset, s11_wdata);
+                end
+            end
+        end
+    end
+end
+
+// ============================================================================
+// (11c) GPIO Output Change Monitor
+// Log khi gpio_out hoặc gpio_oe thay đổi để theo dõi firmware output.
+// ============================================================================
+reg [31:0] prev_gpio_out;
+reg [31:0] prev_gpio_oe;
+
+always @(posedge clk) begin
+    if (!ext_rst_n_r) begin
+        prev_gpio_out <= 32'h0;
+        prev_gpio_oe  <= 32'h0;
+    end else begin
+        if (gpio_out_w !== prev_gpio_out || gpio_oe_w !== prev_gpio_oe) begin
+            if (fabric_rst_n_w) begin
+                $display("[%6d] [GPIO-OUT] gpio_out=0x%08h  OE=0x%08h",
+                         cycle_count, gpio_out_w, gpio_oe_w);
+            end
+            prev_gpio_out <= gpio_out_w;
+            prev_gpio_oe  <= gpio_oe_w;
+        end
+    end
+end
+
+// ============================================================================
 // (12) UART TX Monitor — bắt serial stream 8N1  [NEW-2]
 //
 // WHY dùng procedural (initial + forever) thay vì always:
@@ -1330,8 +1562,35 @@ initial begin
                 uart_rx_buf[uart_rx_count] = rx_byte;
                 uart_rx_count = uart_rx_count + 1;
             end
+            // Line parser: accumulate until '\n', then parse
+            if (rx_byte == 8'h0A) begin  // '\n'
+                parse_uart_line();
+                uart_line_len = 0;
+            end else if (rx_byte != 8'h0D) begin  // skip '\r'
+                if (uart_line_len < 127) begin
+                    uart_line_buf[uart_line_len] = rx_byte;
+                    uart_line_len = uart_line_len + 1;
+                end
+            end
         end
     end
+end
+
+// ============================================================================
+// (12b) GPIO Stimulus Driver
+// ============================================================================
+initial begin
+    gpio_in_r = 32'h0;
+    // Wait for cpu_rst_n to be released (boot_ctrl done)
+    @(posedge cpu_rst_n_w);
+    // Wait 5000 cycles after CPU starts to let firmware initialize
+    repeat(5000) @(posedge clk);
+    // Assert gpio_in[8]: rising edge → triggers GPIO edge IRQ for test_gpio
+    gpio_in_r[8] = 1'b1;
+    $display("[%6d] [GPIO-STIM] gpio_in[8] asserted (rising edge IRQ trigger)", cycle_count);
+    repeat(100) @(posedge clk);
+    gpio_in_r[8] = 1'b0;
+    $display("[%6d] [GPIO-STIM] gpio_in[8] deasserted", cycle_count);
 end
 
 // ============================================================================
@@ -1341,7 +1600,7 @@ always @(posedge clk) begin
     if (!ext_rst_n_r) begin
         halt_cnt <= 0; ring_ptr <= 0;
         match2   <= 0; match4   <= 0;
-    end else if (cycle_count > 30 && fabric_rst_n_w) begin
+    end else if (cycle_count > 30 && cpu_rst_n_w) begin
 
         if (pc_if === prev_pc && !dc_req && lsu_sb_empty) begin
             halt_cnt <= halt_cnt + 1;
@@ -1433,6 +1692,7 @@ initial begin
     s4_access_cnt        = 0;   s5_access_cnt        = 0;
     s6_access_cnt        = 0;   s7_access_cnt        = 0;
     s8_access_cnt        = 0;   s9_access_cnt        = 0;
+    s11_access_cnt       = 0;   s11_dma_wr_cnt       = 0;
     decerr_cnt           = 0;   xbar_conflict_cnt    = 0;
     stub_slverr_cnt      = 0;
     m0_ar_start          = 0;
@@ -1464,11 +1724,17 @@ initial begin
     uart_tx_byte_cnt     = 0;   uart_irq_cnt         = 0;
     plic_meip_cnt        = 0;   jtag_ndmreset_cnt    = 0;
     jtag_halt_cnt        = 0;   dma_irq_cnt          = 0;
+    boot_word_cnt        = 0;   prev_boot_done       = 0;
+    gpio_irq_cnt         = 0;   wdt_rst_req_cnt      = 0;
+    uart_pass_cnt        = 0;   uart_fail_cnt        = 0;
+    uart_all_pass        = 1'b0; uart_some_fail      = 1'b0;
+    uart_line_len        = 0;
 
     for (i = 0; i < 256; i = i + 1) begin
         sb_addr[i] = 0; sb_data[i] = 0;
         uart_rx_buf[i] = 0;
     end
+    for (i = 0; i < 128; i = i + 1) uart_line_buf[i] = 0;
     for (i = 0; i < 8; i = i + 1) pc_ring[i] = 0;
 
     print_banner();
@@ -1492,12 +1758,20 @@ initial begin
     por_n_r = 1'b1;
     $display("[%6d] por_n released — waiting for fabric_rst_n...", cycle_count);
 
-    // Chờ fabric_rst_n thực sự release từ clk_reset_ctrl (thay vì fixed repeat(5))
+    // Chờ fabric_rst_n release → boot_ctrl bắt đầu copy IMEM
     @(posedge fabric_rst_n_w);
-    repeat(3) @(posedge clk);   // 3 cycle margin sau khi fabric_rst_n lên
+    $display("[%6d] fabric_rst_n released -> boot_ctrl loading IMEM (2048 words)...",
+             cycle_count);
+
+    // Chờ boot_ctrl hoàn tất (2048 cycles) → cpu_rst_n release
+    @(posedge boot_done_w);
+    $display("[%6d] boot_done asserted -> waiting for cpu_rst_n...", cycle_count);
+
+    @(posedge cpu_rst_n_w);
+    repeat(3) @(posedge clk);   // 3 cycle margin sau khi cpu_rst_n lên
 
     if (`LOG_LEVEL >= 1)
-        $display("[%6d] Reset sequence complete — Execution started\n", cycle_count);
+        $display("[%6d] cpu_rst_n released -> CPU execution started\n", cycle_count);
 
     // IRQ path monitor: phát hiện ascon_irq=1 nhưng plic_meip=0 (PLIC threshold/enable bug)
     $monitor("[MON %0t] ascon_irq=%b  plic_meip=%b  uart_irq=%b  dma_irq=%b",
@@ -1718,8 +1992,11 @@ task print_report;
         $display("|  S3 SoCCtrl accesses=%0d", s3_access_cnt);
         $display("|  S4 CLINT   accesses=%0d", s4_access_cnt);
         $display("|  S5 UART    accesses=%0d", s5_access_cnt);
+        $display("|  S6 GPIO    accesses=%0d  (irq_raised=%0d)", s6_access_cnt, gpio_irq_cnt);
+        $display("|  S8 Timer   accesses=%0d  (wdt_rst_req=%0d)", s8_access_cnt, wdt_rst_req_cnt);
         $display("|  S9 PLIC    accesses=%0d", s9_access_cnt);
-        $display("|  S6/S7/S8/S10 (stub) accesses: (check stub_slverr_cnt=%0d)", stub_slverr_cnt);
+        $display("|  S11 DMA-Cfg accesses=%0d  (writes=%0d)", s11_access_cnt, s11_dma_wr_cnt);
+        $display("|  S7/S10 stub SLVERR count: %0d", stub_slverr_cnt);
         $display("+----------------------------------------------------------------+");
 
         // ── (6) ASCON Summary ────────────────────────────────────────────────
@@ -1770,7 +2047,9 @@ task print_report;
         $display("|  PLIC meip     : %0d  (PLIC → CPU.external_irq)", plic_meip_cnt);
         $display("|  ascon_irq     : %0d  → PLIC src[8]", ascon_irq_cnt);
         $display("|  uart_irq      : %0d  → PLIC src[1,2]", uart_irq_cnt);
+        $display("|  gpio_irq      : %0d  → PLIC src[4]", gpio_irq_cnt);
         $display("|  dma_irq       : %0d  → PLIC src[9]", dma_irq_cnt);
+        $display("|  wdt_rst_req   : %0d  (TB intercept, DUT not reset)", wdt_rst_req_cnt);
         $display("|  soft_rst_pulse: %0d", soft_rst_cnt);
         $display("|  mtime_tick period: 100 cycles (1 MHz @ 100 MHz)");
         $display("+----------------------------------------------------------------+");
@@ -1790,6 +2069,30 @@ task print_report;
         end else begin
             $display("|  (no UART output)");
         end
+        $display("|  --- Test Protocol Results ---");
+        $display("|  [PASS] count  : %0d", uart_pass_cnt);
+        $display("|  [FAIL] count  : %0d", uart_fail_cnt);
+        if (uart_all_pass)
+            $display("|  >>> ALL_PASS seen in UART output <<<");
+        else if (uart_some_fail)
+            $display("|  >>> SOME_FAIL seen in UART output <<<");
+        else if (uart_tx_byte_cnt > 0)
+            $display("|  (no ALL_PASS/SOME_FAIL line seen yet)");
+        $display("+----------------------------------------------------------------+");
+
+        // ── TEST RESULTS ─────────────────────────────────────────────────────
+        $display("");
+        $display("+--- TEST RESULTS -----------------------------------------------+");
+        $display("|  TESTS: PASS=%-4d FAIL=%-4d", uart_pass_cnt, uart_fail_cnt);
+        if (uart_pass_cnt > 0 && uart_fail_cnt == 0)
+            $display("|  [OK]  ALL %0d TEST(S) PASSED", uart_pass_cnt);
+        else if (uart_fail_cnt > 0)
+            $display("|  [!!]  %0d TEST(S) FAILED", uart_fail_cnt);
+        else
+            $display("|  (no test results detected)");
+        $display("|  DMA config writes : %0d  (S11 accesses total: %0d)",
+                 s11_dma_wr_cnt, s11_access_cnt);
+        $display("|  DMA IRQ raised    : %0d  → PLIC src[9]", dma_irq_cnt);
         $display("+----------------------------------------------------------------+");
 
         // ── (9) JTAG Debug Summary  [NEW-3] ──────────────────────────────────
@@ -1922,6 +2225,69 @@ task print_dmem_snapshot;
     end
 endtask
 
+// ============================================================================
+// UART Line Parser — detect [PASS]/[FAIL]/ALL_PASS/SOME_FAIL
+// Called after every '\n' received on UART TX serial stream.
+// uart_line_buf[0..uart_line_len-1] contains the line without CR/LF.
+// ============================================================================
+task parse_uart_line;
+    integer p;
+    reg match_pass, match_fail, match_all_pass, match_some_fail;
+    begin
+        match_pass      = (uart_line_len >= 6 &&
+                           uart_line_buf[0] == "[" && uart_line_buf[1] == "P" &&
+                           uart_line_buf[2] == "A" && uart_line_buf[3] == "S" &&
+                           uart_line_buf[4] == "S" && uart_line_buf[5] == "]");
+        match_fail      = (uart_line_len >= 6 &&
+                           uart_line_buf[0] == "[" && uart_line_buf[1] == "F" &&
+                           uart_line_buf[2] == "A" && uart_line_buf[3] == "I" &&
+                           uart_line_buf[4] == "L" && uart_line_buf[5] == "]");
+        match_all_pass  = (uart_line_len >= 8 &&
+                           uart_line_buf[0] == "A" && uart_line_buf[1] == "L" &&
+                           uart_line_buf[2] == "L" && uart_line_buf[3] == "_" &&
+                           uart_line_buf[4] == "P" && uart_line_buf[5] == "A" &&
+                           uart_line_buf[6] == "S" && uart_line_buf[7] == "S");
+        match_some_fail = (uart_line_len >= 9 &&
+                           uart_line_buf[0] == "S" && uart_line_buf[1] == "O" &&
+                           uart_line_buf[2] == "M" && uart_line_buf[3] == "E" &&
+                           uart_line_buf[4] == "_" && uart_line_buf[5] == "F" &&
+                           uart_line_buf[6] == "A" && uart_line_buf[7] == "I" &&
+                           uart_line_buf[8] == "L");
+
+        if (match_pass) begin
+            uart_pass_cnt = uart_pass_cnt + 1;
+            $write("[%6d] [TEST-RESULT] *** PASS #%0d *** : ", cycle_count, uart_pass_cnt);
+            for (p = 0; p < uart_line_len; p = p + 1) $write("%s", uart_line_buf[p]);
+            $display("");
+        end else if (match_fail) begin
+            uart_fail_cnt = uart_fail_cnt + 1;
+            $write("[%6d] [TEST-RESULT] *** FAIL #%0d *** : ", cycle_count, uart_fail_cnt);
+            for (p = 0; p < uart_line_len; p = p + 1) $write("%s", uart_line_buf[p]);
+            $display("");
+        end else if (match_all_pass) begin
+            uart_all_pass = 1'b1;
+            $write("[%6d] [RESULT] ", cycle_count);
+            for (p = 0; p < uart_line_len; p = p + 1) $write("%s", uart_line_buf[p]);
+            $display(" ← ALL_PASS");
+            // Firmware finished successfully — print report and exit
+            program_done = 1;
+            print_report("ALL_PASS from firmware");
+            #(CLK_PERIOD * 4);
+            $finish(0);
+        end else if (match_some_fail) begin
+            uart_some_fail = 1'b1;
+            $write("[%6d] [RESULT] ", cycle_count);
+            for (p = 0; p < uart_line_len; p = p + 1) $write("%s", uart_line_buf[p]);
+            $display(" ← SOME_FAIL");
+            // Firmware finished with failures
+            program_done = 1;
+            print_report("SOME_FAIL from firmware");
+            #(CLK_PERIOD * 4);
+            $finish(1);
+        end
+    end
+endtask
+
 task print_banner;
     begin
         $display("");
@@ -1939,9 +2305,9 @@ task print_banner;
         $display("|     S3  SoCCtrl  0x3000_0000 - 0x3000_0FFF  ( 4 KB)            |");
         $display("|     S4  CLINT    0x4000_0000 - 0x4000_FFFF  (64 KB)            |");
         $display("|     S5  UART     0x5000_0000 - 0x5000_0FFF  ( 4 KB)  [NEW]     |");
-        $display("|     S6  GPIO     0x5001_0000               stub→SLVERR         |");
+        $display("|     S6  GPIO     0x5001_0000 - 0x5001_001F  (32-bit, IRQ)       |");
         $display("|     S7  SPI      0x5002_0000               stub→SLVERR         |");
-        $display("|     S8  Timer    0x5003_0000               stub→SLVERR         |");
+        $display("|     S8  Timer    0x5003_0000 - 0x5003_002F  (T0/T1/WDT)        |");
         $display("|     S9  PLIC     0x5004_0000 - 0x5004_0FFF  ( 4 KB)  [NEW]     |");
         $display("|     S10 OTP      0x6000_0000               stub→SLVERR         |");
         $display("|     S11 DMA-Cfg  0x6001_0000 - 0x6001_0FFF  ( 4 KB)  [NEW]     |");
@@ -1956,7 +2322,8 @@ task print_banner;
         $display("|   SoC instances: u_clkrst u_cpu u_icache u_dcache              |");
         $display("|     u_ascon u_width_conv u_crossbar u_imem u_dmem              |");
         $display("|     u_soc_ctrl u_clint u_uart u_plic u_jtag u_dma_ctrl         |");
-        $display("|     u_gpio_stub u_spi_stub u_timer_stub u_otp_stub             |");
+        $display("|     u_gpio u_timer (real RTL)  u_spi_stub u_otp_stub           |");
+        $display("|   GPIO: gpio_in driven from TB  |  WDT: TB intercepts rst_req  |");
         $display("+-----------------------------------------------------------------+");
         $display("|   LOG_LEVEL=%0d   TIMEOUT=%0d cyc   HALT_STABLE=%0d cyc         |",
                  `LOG_LEVEL, `TIMEOUT, `HALT_STABLE);

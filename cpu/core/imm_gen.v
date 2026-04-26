@@ -7,7 +7,6 @@ module imm_gen (
     // RISC-V Opcode Definition
     // ========================================================================
     localparam [6:0]
-        OP_R_TYPE   = 7'b0110011,    // R-type (no immediate)
         OP_I_TYPE   = 7'b0010011,    // I-type: ADDI, ANDI, ORI, etc.
         OP_LOAD     = 7'b0000011,    // I-type: LW, LH, LB
         OP_JALR     = 7'b1100111,    // I-type: JALR

@@ -24,12 +24,17 @@ module inst_mem_axi_slave #(
     parameter DATA_WIDTH    = 32,
     parameter ID_WIDTH      = 4,
     parameter MEM_SIZE      = 4096,
-    parameter MEM_INIT_FILE = "memory/program.hex"
+    parameter MEM_INIT_FILE = ""   // unused — boot_ctrl loads at runtime
 )(
     input wire clk,
     input wire rst_n,
 
-    // Write channels (read-only memory → always SLVERR)
+    // ── Boot sideband write port (from boot_ctrl, bypasses crossbar) ─────────
+    input  wire                    boot_we,
+    input  wire [ADDR_WIDTH-1:0]   boot_addr,
+    input  wire [DATA_WIDTH-1:0]   boot_wdata,
+
+    // Write channels (now writable — used by JTAG debugger via AXI)
     input  wire [ID_WIDTH-1:0]     S_AXI_AWID,
     input  wire [ADDR_WIDTH-1:0]   S_AXI_AWADDR,
     input  wire [7:0]              S_AXI_AWLEN,
@@ -118,11 +123,25 @@ module inst_mem_axi_slave #(
     wire                  burst_last;
     wire [DATA_WIDTH-1:0] simple_inst;
 
+    // ── Write mux: boot sideband has priority, then AXI write ────────────────
+    // boot_we is only active during boot (before cpu_rst_n releases).
+    // AXI writes (JTAG debugger) only happen after boot_done, so no conflict.
+    wire                    imem_wr_en;
+    wire [ADDR_WIDTH-1:0]   imem_wr_addr;
+    wire [DATA_WIDTH-1:0]   imem_wr_data;
+    wire [DATA_WIDTH/8-1:0] imem_wr_strb;
+
+    wire axi_wr_pulse;   // one-cycle write pulse from AXI write channel
+
+    assign imem_wr_en   = boot_we | axi_wr_pulse;
+    assign imem_wr_addr = boot_we ? boot_addr  : axi_wr_addr_r;
+    assign imem_wr_data = boot_we ? boot_wdata : axi_wr_data_r;
+    assign imem_wr_strb = boot_we ? {DATA_WIDTH/8{1'b1}} : axi_wr_strb_r;
+
     inst_mem #(
-        .MEM_SIZE      (MEM_SIZE),
-        .ADDR_WIDTH    (ADDR_WIDTH),
-        .DATA_WIDTH    (DATA_WIDTH),
-        .MEM_INIT_FILE (MEM_INIT_FILE)
+        .MEM_SIZE   (MEM_SIZE),
+        .ADDR_WIDTH (ADDR_WIDTH),
+        .DATA_WIDTH (DATA_WIDTH)
     ) imem (
         .clk              (clk),
         .rst_n            (rst_n),
@@ -134,7 +153,11 @@ module inst_mem_axi_slave #(
         .burst_data       (burst_data),
         .burst_valid      (burst_valid),
         .burst_last       (burst_last),
-        .burst_ready      (S_AXI_RREADY)
+        .burst_ready      (S_AXI_RREADY),
+        .wr_en            (imem_wr_en),
+        .wr_addr          (imem_wr_addr),
+        .wr_data          (imem_wr_data),
+        .wr_strb          (imem_wr_strb)
     );
 
     assign S_AXI_RDATA  = burst_data;
@@ -143,45 +166,67 @@ module inst_mem_axi_slave #(
     assign S_AXI_RVALID = burst_valid;
 
     // =========================================================================
-    // Write channels — always SLVERR
-    // [FIX-CRIT-3] Dùng combinational AWREADY/WREADY
+    // Write channels — writable SRAM (used by JTAG debugger to load programs)
+    // [FIX-CRIT-3] Combinational AWREADY/WREADY
     // =========================================================================
     localparam [1:0] WR_IDLE = 2'b00,
                      WR_DATA = 2'b01,
                      WR_RESP = 2'b10;
-    reg [1:0]        wr_state;
-    reg [ID_WIDTH-1:0] bid_r;
+    reg [1:0]               wr_state;
+    reg [ID_WIDTH-1:0]      bid_r;
+    reg [ADDR_WIDTH-1:0]    axi_wr_addr_r;
+    reg [DATA_WIDTH-1:0]    axi_wr_data_r;
+    reg [DATA_WIDTH/8-1:0]  axi_wr_strb_r;
+    reg                     axi_wr_pulse_r;
 
-    // [FIX-CRIT-3] AWREADY combinational: HIGH khi WR_IDLE
+    assign axi_wr_pulse = axi_wr_pulse_r;
+
+    // [FIX-CRIT-3] AWREADY combinational: HIGH when WR_IDLE
     assign S_AXI_AWREADY = (wr_state == WR_IDLE);
 
-    // [FIX] WREADY combinational: HIGH khi WR_DATA
+    // [FIX] WREADY combinational: HIGH when WR_DATA
     assign S_AXI_WREADY  = (wr_state == WR_DATA);
 
     wire aw_handshake = S_AXI_AWVALID && S_AXI_AWREADY;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wr_state     <= WR_IDLE;
-            S_AXI_BID    <= {ID_WIDTH{1'b0}};
-            S_AXI_BRESP  <= RESP_SLVERR;
-            S_AXI_BVALID <= 1'b0;
-            bid_r        <= {ID_WIDTH{1'b0}};
+            wr_state        <= WR_IDLE;
+            S_AXI_BID       <= {ID_WIDTH{1'b0}};
+            S_AXI_BRESP     <= RESP_OKAY;
+            S_AXI_BVALID    <= 1'b0;
+            bid_r           <= {ID_WIDTH{1'b0}};
+            axi_wr_addr_r   <= {ADDR_WIDTH{1'b0}};
+            axi_wr_data_r   <= {DATA_WIDTH{1'b0}};
+            axi_wr_strb_r   <= {DATA_WIDTH/8{1'b0}};
+            axi_wr_pulse_r  <= 1'b0;
         end else begin
+            axi_wr_pulse_r <= 1'b0;   // default: no write this cycle
+
             case (wr_state)
                 WR_IDLE: begin
                     if (aw_handshake) begin
-                        bid_r    <= S_AXI_AWID;
-                        wr_state <= WR_DATA;
+                        bid_r         <= S_AXI_AWID;
+                        axi_wr_addr_r <= S_AXI_AWADDR;
+                        wr_state      <= WR_DATA;
                     end
                 end
                 WR_DATA: begin
-                    // WREADY = combinational (see assign above)
-                    if (S_AXI_WVALID && S_AXI_WLAST) begin
-                        S_AXI_BID    <= bid_r;
-                        S_AXI_BRESP  <= RESP_SLVERR;
-                        S_AXI_BVALID <= 1'b1;
-                        wr_state     <= WR_RESP;
+                    if (S_AXI_WVALID) begin
+                        // Capture and write to memory
+                        axi_wr_data_r  <= S_AXI_WDATA;
+                        axi_wr_strb_r  <= S_AXI_WSTRB;
+                        axi_wr_pulse_r <= 1'b1;
+
+                        if (S_AXI_WLAST) begin
+                            S_AXI_BID    <= bid_r;
+                            S_AXI_BRESP  <= RESP_OKAY;
+                            S_AXI_BVALID <= 1'b1;
+                            wr_state     <= WR_RESP;
+                        end else begin
+                            // Advance address for burst writes
+                            axi_wr_addr_r <= axi_wr_addr_r + (DATA_WIDTH/8);
+                        end
                     end
                 end
                 WR_RESP: begin
@@ -207,8 +252,10 @@ module inst_mem_axi_slave #(
             $display("[IMEM] Beat: data=0x%h last=%b rid=0x%h @ %0t",
                      S_AXI_RDATA, S_AXI_RLAST, S_AXI_RID, $time);
         if (aw_handshake)
-            $display("[IMEM] Write attempt (SLVERR): addr=0x%h @ %0t",
-                     S_AXI_AWADDR, $time);
+            $display("[IMEM] AXI Write: addr=0x%h @ %0t", S_AXI_AWADDR, $time);
+        if (boot_we)
+            $display("[IMEM] Boot write: addr=0x%h data=0x%h @ %0t",
+                     boot_addr, boot_wdata, $time);
     end
     `endif
 

@@ -103,9 +103,10 @@ module riscv_multiplier (
     wire signed [33:0] pp_ll_w = $signed(a_lo) * $signed(b_lo);
     wire signed [33:0] pp_lh_w = $signed(a_lo) * $signed(b_hi);
     wire signed [33:0] pp_hl_w = $signed(a_hi) * $signed(b_lo);
-    wire signed [33:0] pp_hh_w = $signed(a_hi) * $signed(b_hi);
+    wire signed [29:0] pp_hh_w = ($signed(a_hi) * $signed(b_hi));  // bits[33:30] exceed 64-bit result range
 
-    reg signed [33:0] pp_ll_e15_q, pp_lh_e15_q, pp_hl_e15_q, pp_hh_e15_q;
+    reg signed [33:0] pp_ll_e15_q, pp_lh_e15_q, pp_hl_e15_q;
+    reg        [29:0] pp_hh_e15_q;
     reg               mulhi_sel_e15_q;
 
     always @(posedge clk_i or posedge rst_i) begin
@@ -113,7 +114,7 @@ module riscv_multiplier (
             pp_ll_e15_q     <= 34'b0;
             pp_lh_e15_q     <= 34'b0;
             pp_hl_e15_q     <= 34'b0;
-            pp_hh_e15_q     <= 34'b0;
+            pp_hh_e15_q     <= 30'b0;
             mulhi_sel_e15_q <= 1'b0;
         end else if (!mul_hold_e15_i) begin
             pp_ll_e15_q     <= pp_ll_w;
@@ -128,13 +129,14 @@ module riscv_multiplier (
     // E1.5→E2: Sum four partial products with positional shifts (~12-14 gate levels)
     // Equivalent to: (a_hi<<17 + a_lo) * (b_hi<<17 + b_lo)
     //   = pp_hh<<34 + pp_hl<<17 + pp_lh<<17 + pp_ll
-    // Sign-extend each 34-bit product before shifting to 65 bits.
+    // Sign-extend each 34-bit product to exactly 64 bits before summing.
+    // pp_hh<<34 only contributes to bits [63:34], so only pp_hh[29:0] are kept.
     // ========================================================================
-    wire [64:0] mult_result_w =
-          {{31{pp_ll_e15_q[33]}}, pp_ll_e15_q}
-        + {{14{pp_lh_e15_q[33]}}, pp_lh_e15_q, 17'b0}
-        + {{14{pp_hl_e15_q[33]}}, pp_hl_e15_q, 17'b0}
-        + {{14{pp_hh_e15_q[33]}}, pp_hh_e15_q, 34'b0};
+    wire [63:0] mult_result_w =
+          {{30{pp_ll_e15_q[33]}}, pp_ll_e15_q}        // [LINT-FIX] 30+34 = 64b
+        + {{13{pp_lh_e15_q[33]}}, pp_lh_e15_q, 17'b0} // [LINT-FIX] 13+34+17 = 64b
+        + {{13{pp_hl_e15_q[33]}}, pp_hl_e15_q, 17'b0} // [LINT-FIX] 13+34+17 = 64b
+        + {pp_hh_e15_q, 34'b0};                       // 30+34 = 64b
 
     wire [31:0] result_r = mulhi_sel_e15_q ? mult_result_w[63:32]
                                             : mult_result_w[31:0];

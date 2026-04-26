@@ -33,13 +33,7 @@ module alu (
         ALU_SRL   = 4'b0110,
         ALU_SRA   = 4'b0111,
         ALU_SLT   = 4'b1000,
-        ALU_SLTU  = 4'b1001,
-        ALU_MUL   = 4'b1010,
-        ALU_MULH  = 4'b1011,
-        ALU_DIV   = 4'b1100,
-        ALU_DIVU  = 4'b1101,
-        ALU_REM   = 4'b1110,
-        ALU_REMU  = 4'b1111;
+        ALU_SLTU  = 4'b1001;
 
     // ========================================================================
     // Signed operands (reused for comparisons)
@@ -54,8 +48,6 @@ module alu (
     // independent parallel adders and avoids sharing gate-level logic.
     wire [31:0] add_result = in1 + in2;
     wire [31:0] sub_result = in1 - in2;
-
-    // synthesis parallel_case full_case
     always @(*) begin
         case (alu_control)
             // --- RV32I: Arithmetic ---

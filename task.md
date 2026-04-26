@@ -1,23 +1,44 @@
-# ASCON SoC Throughput Optimization — Task Tracker
+---
 
-## Phase 1: Quick Wins — Firmware & Config
-- `[ ]` 1.0 Pre-research: verify IRQ path, burst support, DMA FSM state
-- `[ ]` 1.1 Enable interrupt + `wfi` in main.c (replace poll loop)
-- `[ ]` 1.2 Set DMA_BURST for burst transfers (if RTL supports)
-- `[ ]` 1.3 Increase payload 64B → 1024B
-- `[ ]` 1.4 Optimize ASCON_WRITE macro (reduce fence overhead)
-- `[ ]` 1.5 Rebuild firmware + re-run simulation
-- `[ ]` 1.6 Compare throughput results
+## Task List (task.md)
 
-## Phase 2: DMA Pipeline — RTL
-- `[ ]` 2.1 Refactor DMA FSM: separate Read/Core/Write engines
-- `[ ]` 2.2 Add input FIFO between Read engine and ASCON core
-- `[ ]` 2.3 Implement AXI burst (configurable ARLEN)
-- `[ ]` 2.4 Verify data_valid/data_ready handshake pipelined
-- `[ ]` 2.5 Re-run simulation + verify correctness + measure throughput
+### [TB] Testbench run_soc_ascon.v
+- [ ] **TB-1**: Thêm biến `pass_cnt`, `fail_cnt`, `all_pass_detected` vào declaration section
+- [ ] **TB-2**: Thêm UART pass/fail pattern matcher (sau newline detection, quét `uart_line`)
+- [ ] **TB-3**: Thêm wire taps S11 (`s11_aw_valid`, `s11_aw_addr`, `s11_w_data`, `s11_ar_addr`)
+- [ ] **TB-4**: Thêm always block monitor S11 với register decode
+- [ ] **TB-5**: Thêm always block GPIO change monitor
+- [ ] **TB-6**: Cập nhật `print_report()` task với TEST RESULTS section
 
-## Phase 3: Bus Architecture — SoC RTL
-- `[ ]` 3.1 Remove/bypass 64→32 width converter
-- `[ ]` 3.2 Dual-port DMEM for CPU + DMA
-- `[ ]` 3.3 Verify ASCON DMA interrupt via PLIC
-- `[ ]` 3.4 Final throughput measurement
+### [FW] Firmware DMA
+- [ ] **FW-1**: Tạo file `gnu_toolchain/tests/test_dma.c` với skeleton + UART init
+- [ ] **FW-2**: Implement Test 1 (CH0 polling 256B)
+- [ ] **FW-3**: Implement Test 2 (CH1 IRQ-driven 64B + ISR)
+- [ ] **FW-4**: Implement Test 3 (CH2+CH3 simultaneous)
+- [ ] **FW-5**: Implement Test 4 (alignment error)
+- [ ] **FW-6**: Thêm `test_dma.c` vào `build_all.sh`
+- [ ] **FW-7**: Thêm `test_dma.c` vào `test_integration.c` (→ 7/7)
+
+### [VERIFY] Xác nhận
+- [ ] **V-1**: Build: `./build_all.sh` → check `test_dma.hex` tồn tại
+- [ ] **V-2**: Run `test_dma.hex` qua `run_soc_ascon.v` → tìm `[TEST-RESULT] *** PASS ***`
+- [ ] **V-3**: Run `test_integration.hex` → tìm `ALL_PASS 7/7`
+
+---
+
+## Verification
+
+```bash
+# Build
+cd gnu_toolchain && ./build_all.sh
+
+# Chạy test DMA riêng
+cp tests/test_dma.hex ../memory/program.hex
+~/workflow/run_verilog.sh ../run_soc_ascon.v
+rtk read ../run_soc_ascon.log   # tìm [TEST-RESULT] PASS, [S11-DMA] WRITE
+
+# Chạy integration (7 tests)
+cp tests/test_integration.hex ../memory/program.hex
+~/workflow/run_verilog.sh ../run_soc_ascon.v
+rtk read ../run_soc_ascon.log   # tìm ALL_PASS 7/7, TESTS: PASS=7 FAIL=0
+```

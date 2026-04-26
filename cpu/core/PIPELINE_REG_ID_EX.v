@@ -27,7 +27,6 @@ module PIPELINE_REG_ID_EX (
     input wire        alusrc_in,
     input wire        memread_in,
     input wire        memwrite_in,
-    input wire        memtoreg_in,
     input wire        branch_in,
     input wire        predict_taken_in,
     input wire        jump_in,
@@ -46,7 +45,6 @@ module PIPELINE_REG_ID_EX (
 
     // --- Function codes & opcode ---
     input wire [2:0]  funct3_in,
-    input wire [6:0]  funct7_in,
     input wire [3:0]  alu_control_in,
     input wire [1:0]  byte_size_in,
     input wire [6:0]  opcode_in,
@@ -56,7 +54,6 @@ module PIPELINE_REG_ID_EX (
     output reg        alusrc_out,
     output reg        memread_out,
     output reg        memwrite_out,
-    output reg        memtoreg_out,
     output reg        branch_out,
     output reg        predict_taken_out,
     output reg        jump_out,
@@ -75,7 +72,6 @@ module PIPELINE_REG_ID_EX (
 
     // --- Function code & opcode outputs ---
     output reg [2:0]  funct3_out,
-    output reg [6:0]  funct7_out,
     output reg [3:0]  alu_control_out,
     output reg [1:0]  byte_size_out,
     output reg [6:0]  opcode_out
@@ -87,7 +83,6 @@ module PIPELINE_REG_ID_EX (
             alusrc_out      <= 1'b0;
             memread_out     <= 1'b0;
             memwrite_out    <= 1'b0;
-            memtoreg_out    <= 1'b0;
             branch_out      <= 1'b0;
             predict_taken_out <= 1'b0;
             jump_out        <= 1'b0;
@@ -100,7 +95,6 @@ module PIPELINE_REG_ID_EX (
             rs2_out         <= 5'b0;
             rd_out          <= 5'b0;
             funct3_out      <= 3'b0;
-            funct7_out      <= 7'b0;
             alu_control_out <= 4'b0;
             byte_size_out   <= 2'b0;
             opcode_out      <= 7'b0;
@@ -109,7 +103,6 @@ module PIPELINE_REG_ID_EX (
             alusrc_out      <= 1'b0;
             memread_out     <= 1'b0;
             memwrite_out    <= 1'b0;
-            memtoreg_out    <= 1'b0;
             branch_out      <= 1'b0;
             predict_taken_out <= 1'b0;
             jump_out        <= 1'b0;
@@ -122,7 +115,6 @@ module PIPELINE_REG_ID_EX (
             rs2_out         <= 5'b0;
             rd_out          <= 5'b0;
             funct3_out      <= 3'b0;
-            funct7_out      <= 7'b0;
             alu_control_out <= 4'b0;
             byte_size_out   <= 2'b0;
             opcode_out      <= 7'b0;
@@ -132,7 +124,6 @@ module PIPELINE_REG_ID_EX (
             alusrc_out      <= alusrc_in;
             memread_out     <= memread_in;
             memwrite_out    <= memwrite_in;
-            memtoreg_out    <= memtoreg_in;
             branch_out      <= branch_in;
             predict_taken_out <= predict_taken_in;
             jump_out        <= jump_in;
@@ -145,7 +136,6 @@ module PIPELINE_REG_ID_EX (
             rs2_out         <= rs2_in;
             rd_out          <= rd_in;
             funct3_out      <= funct3_in;
-            funct7_out      <= funct7_in;
             alu_control_out <= alu_control_in;
             byte_size_out   <= byte_size_in;
             opcode_out      <= opcode_in;

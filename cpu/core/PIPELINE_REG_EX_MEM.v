@@ -24,7 +24,6 @@ module PIPELINE_REG_EX_MEM (
     input wire        regwrite_in,
     input wire        memread_in,
     input wire        memwrite_in,
-    input wire        memtoreg_in,
     input wire        jump_in,
 
     // --- Data ---
@@ -44,7 +43,6 @@ module PIPELINE_REG_EX_MEM (
     output reg        regwrite_out,
     output reg        memread_out,
     output reg        memwrite_out,
-    output reg        memtoreg_out,
     output reg        jump_out,
 
     // --- Data outputs ---
@@ -66,7 +64,6 @@ module PIPELINE_REG_EX_MEM (
             regwrite_out  <= 1'b0;
             memread_out   <= 1'b0;
             memwrite_out  <= 1'b0;
-            memtoreg_out  <= 1'b0;
             jump_out      <= 1'b0;
             is_mul_out    <= 1'b0;
             alu_result_out <= 32'h0;
@@ -92,14 +89,12 @@ module PIPELINE_REG_EX_MEM (
                 regwrite_out <= 1'b0;
                 memread_out  <= 1'b0;
                 memwrite_out <= 1'b0;
-                memtoreg_out <= 1'b0;
                 jump_out     <= 1'b0;
                 is_mul_out   <= 1'b0;
             end else begin
                 regwrite_out <= regwrite_in;
                 memread_out  <= memread_in;
                 memwrite_out <= memwrite_in;
-                memtoreg_out <= memtoreg_in;
                 jump_out     <= jump_in;
                 is_mul_out   <= is_mul_in;
             end

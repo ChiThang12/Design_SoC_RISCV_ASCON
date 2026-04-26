@@ -12,7 +12,6 @@
 `include "cpu/core/PIPELINE_REG_EX_MEM.v"
 `include "cpu/core/PIPELINE_REG_MEM_WB.v"
 `include "cpu/core/LSU.v"
-
 module riscv_cpu_core (
     input wire clk,
     input wire rst,
@@ -223,28 +222,29 @@ module riscv_cpu_core (
     wire [6:0] funct7_id = instr_id[31:25];
 
     wire [3:0] alu_control_id;
-    wire regwrite_id, alusrc_id, memread_id, memwrite_id, memtoreg_id;
+    wire regwrite_id, alusrc_id, memread_id, memwrite_id;
     wire branch_id, jump_id, fence_id;
     wire [1:0] byte_size_id;
 
     // =========================================================================
     // [FENCE-TYPE] Decode pred/succ bits từ FENCE instruction
     // =========================================================================
-    wire [3:0] fence_pred      = instr_id[27:24];
+    wire fence_pred_w    = instr_id[24];  // W — memory write
+    wire fence_pred_r    = instr_id[25];  // R — memory read
+    wire fence_pred_i    = instr_id[27];  // I — input device
     wire       fence_is_fencei = funct3_id[0];
 
     wire fence_active = fence_id && !fence_stall;
-    assign dcache_fence_type[0] = fence_active && (fence_is_fencei | fence_pred[0] | fence_pred[3]);
-    assign dcache_fence_type[1] = fence_active && (fence_is_fencei | fence_pred[1] | fence_pred[3]);
+    assign dcache_fence_type[0] = fence_active && (fence_is_fencei | fence_pred_w | fence_pred_i);
+    assign dcache_fence_type[1] = fence_active && (fence_is_fencei | fence_pred_r | fence_pred_i);
 
     wire [31:0] read_data1_id, read_data2_id, imm_id;
 
-    wire regwrite_ex, alusrc_ex, memread_ex, memwrite_ex, memtoreg_ex;
+    wire regwrite_ex, alusrc_ex, memread_ex, memwrite_ex;
     wire branch_ex, jump_ex;
     wire [31:0] read_data1_ex, read_data2_ex, imm_ex, pc_ex;
     wire [4:0]  rs1_ex, rs2_ex, rd_ex;
     wire [2:0]  funct3_ex;
-    wire [6:0]  funct7_ex;
     wire [3:0]  alu_control_ex;
     wire [1:0]  byte_size_ex;
     wire [6:0]  opcode_ex;
@@ -258,7 +258,7 @@ module riscv_cpu_core (
     wire pc_src_ex;
     wire [31:0] pc_plus_4_ex;
 
-    wire regwrite_mem, memread_mem, memwrite_mem, memtoreg_mem;
+    wire regwrite_mem, memread_mem, memwrite_mem;
     wire [31:0] alu_result_mem, write_data_mem, pc_plus_4_mem;
     wire [4:0]  rd_mem;
     wire [1:0]  byte_size_mem;
@@ -359,10 +359,8 @@ module riscv_cpu_core (
         .alusrc     (alusrc_id),
         .memread    (memread_id),
         .memwrite   (memwrite_id),
-        .memtoreg   (memtoreg_id),
         .branch     (branch_id),
         .jump       (jump_id),
-        .aluop      (),
         .byte_size  (byte_size_id),
         .fence      (fence_id)
     );
@@ -406,7 +404,6 @@ module riscv_cpu_core (
         .alusrc_in       (alusrc_id),
         .memread_in      (memread_id),
         .memwrite_in     (memwrite_id),
-        .memtoreg_in     (memtoreg_id),
         .branch_in       (branch_id),
         .predict_taken_in(predict_taken_id),
         .jump_in         (jump_id),
@@ -422,7 +419,6 @@ module riscv_cpu_core (
         .rd_in           (rd_id),
         // Function codes
         .funct3_in       (funct3_id),
-        .funct7_in       (funct7_id),
         .alu_control_in  (alu_control_id),
         .byte_size_in    (byte_size_id),
         .opcode_in       (opcode_id),
@@ -431,7 +427,6 @@ module riscv_cpu_core (
         .alusrc_out      (alusrc_ex),
         .memread_out     (memread_ex),
         .memwrite_out    (memwrite_ex),
-        .memtoreg_out    (memtoreg_ex),
         .branch_out      (branch_ex),
         .predict_taken_out(predict_taken_ex),
         .jump_out        (jump_ex),
@@ -447,7 +442,6 @@ module riscv_cpu_core (
         .rd_out          (rd_ex),
         // Function code outputs
         .funct3_out      (funct3_ex),
-        .funct7_out      (funct7_ex),
         .alu_control_out (alu_control_ex),
         .byte_size_out   (byte_size_ex),
         .opcode_out      (opcode_ex)
@@ -463,33 +457,69 @@ module riscv_cpu_core (
         .forward_a   (forward_a),    .forward_b   (forward_b)
     );
 
-    // Fix 11: AND-OR MUX — selectors are mutually exclusive, so synthesis maps to
-    // exactly 2 gate levels (AND then OR) instead of a priority carry chain (~30 gates).
-    // Cuts the is_mul_wb→write_back_data_wb→alu_in1_forwarded→ID/EX-reg critical path.
+    // Flat AND-OR mux: expand WB source inline to eliminate cascaded mux levels.
+    // OLD: alu_in1_forwarded (3-way) → alu_in1 (3-way) = 4 extra gate levels on critical path.
+    // NEW: single 8-way OR of AND terms, all selectors mutually exclusive.
     wire fwd_a_mem  = (forward_a == 2'b10);
     wire fwd_a_wb   = (forward_a == 2'b01);
     wire fwd_a_none = (forward_a == 2'b00);
-    assign alu_in1_forwarded = ({32{fwd_a_mem}}  & alu_result_mem)    |
-                               ({32{fwd_a_wb}}   & write_back_data_wb) |
-                               ({32{fwd_a_none}} & read_data1_ex);
-
-    wire is_lui_ex   = (opcode_ex == 7'b0110111);
-    wire is_auipc_ex = (opcode_ex == 7'b0010111);
-    wire alu_in1_use_fwd = !is_lui_ex && !is_auipc_ex;
-
-    assign alu_in1 = ({32{is_lui_ex}}       & 32'h0)            |
-                     ({32{is_auipc_ex}}     & pc_ex)             |
-                     ({32{alu_in1_use_fwd}} & alu_in1_forwarded);
-
     wire fwd_b_mem  = (forward_b == 2'b10);
     wire fwd_b_wb   = (forward_b == 2'b01);
     wire fwd_b_none = (forward_b == 2'b00);
-    assign alu_in2_pre_mux = ({32{fwd_b_mem}}  & alu_result_mem)    |
-                             ({32{fwd_b_wb}}   & write_back_data_wb) |
-                             ({32{fwd_b_none}} & read_data2_ex);
 
-    assign alu_in2 = ({32{alusrc_ex}}  & imm_ex)         |
-                     ({32{!alusrc_ex}} & alu_in2_pre_mux);
+    // Kept for multiplier operands, store data, and ID/EX forwarding-capture port
+    assign alu_in1_forwarded = ({32{fwd_a_mem}}  & alu_result_mem)    |
+                               ({32{fwd_a_wb}}   & write_back_data_wb) |
+                               ({32{fwd_a_none}} & read_data1_ex);
+    assign alu_in2_pre_mux   = ({32{fwd_b_mem}}  & alu_result_mem)    |
+                               ({32{fwd_b_wb}}   & write_back_data_wb) |
+                               ({32{fwd_b_none}} & read_data2_ex);
+
+    wire is_lui_ex      = (opcode_ex == 7'b0110111);
+    wire is_auipc_ex    = (opcode_ex == 7'b0010111);
+    wire not_lui_auipc  = !is_lui_ex && !is_auipc_ex;
+
+    // WB source selectors (shared between alu_in1 and alu_in2 paths)
+    wire wb_sel_jump = jump_wb;
+    wire wb_sel_mul  = is_mul_wb;
+    wire wb_sel_load = memtoreg_wb;
+    wire wb_sel_alu  = !jump_wb && !is_mul_wb && !memtoreg_wb;
+
+    // alu_in1: 8 mutually exclusive cases (LUI / AUIPC / MEM-fwd / WB×4 / RF)
+    wire alu1_lui      = is_lui_ex;
+    wire alu1_auipc    = is_auipc_ex;
+    wire alu1_fwdmem   = not_lui_auipc && fwd_a_mem;
+    wire alu1_wb_jump  = not_lui_auipc && fwd_a_wb && wb_sel_jump;
+    wire alu1_wb_mul   = not_lui_auipc && fwd_a_wb && wb_sel_mul;
+    wire alu1_wb_load  = not_lui_auipc && fwd_a_wb && wb_sel_load;
+    wire alu1_wb_alu   = not_lui_auipc && fwd_a_wb && wb_sel_alu;
+    wire alu1_rf       = not_lui_auipc && !fwd_a_mem && !fwd_a_wb;
+
+    assign alu_in1 = ({32{alu1_lui}}     & 32'h0)            |
+                     ({32{alu1_auipc}}   & pc_ex)             |
+                     ({32{alu1_fwdmem}}  & alu_result_mem)    |
+                     ({32{alu1_wb_jump}} & pc_plus_4_wb)      |
+                     ({32{alu1_wb_mul}}  & mul_result_direct) |
+                     ({32{alu1_wb_load}} & mem_data_wb)       |
+                     ({32{alu1_wb_alu}}  & alu_result_wb)     |
+                     ({32{alu1_rf}}      & read_data1_ex);
+
+    // alu_in2: 7 mutually exclusive cases (IMM / MEM-fwd / WB×4 / RF)
+    wire alu2_imm      = alusrc_ex;
+    wire alu2_fwdmem   = !alusrc_ex && fwd_b_mem;
+    wire alu2_wb_jump  = !alusrc_ex && fwd_b_wb && wb_sel_jump;
+    wire alu2_wb_mul   = !alusrc_ex && fwd_b_wb && wb_sel_mul;
+    wire alu2_wb_load  = !alusrc_ex && fwd_b_wb && wb_sel_load;
+    wire alu2_wb_alu   = !alusrc_ex && fwd_b_wb && wb_sel_alu;
+    wire alu2_rf       = !alusrc_ex && !fwd_b_mem && !fwd_b_wb;
+
+    assign alu_in2 = ({32{alu2_imm}}     & imm_ex)            |
+                     ({32{alu2_fwdmem}}  & alu_result_mem)    |
+                     ({32{alu2_wb_jump}} & pc_plus_4_wb)      |
+                     ({32{alu2_wb_mul}}  & mul_result_direct) |
+                     ({32{alu2_wb_load}} & mem_data_wb)       |
+                     ({32{alu2_wb_alu}}  & alu_result_wb)     |
+                     ({32{alu2_rf}}      & read_data2_ex);
 
     alu arithmetic_logic_unit (
         .in1        (alu_in1),     .in2        (alu_in2),
@@ -554,7 +584,6 @@ module riscv_cpu_core (
         .regwrite_in    (regwrite_ex),
         .memread_in     (memread_ex),
         .memwrite_in    (memwrite_ex),
-        .memtoreg_in    (memtoreg_ex),
         .jump_in        (jump_ex),
         // Data inputs
         .alu_result_in  (alu_result_ex),
@@ -568,7 +597,6 @@ module riscv_cpu_core (
         .regwrite_out   (regwrite_mem),
         .memread_out    (memread_mem),
         .memwrite_out   (memwrite_mem),
-        .memtoreg_out   (memtoreg_mem),
         .jump_out       (jump_mem),
         // Data outputs
         .alu_result_out (alu_result_mem),
@@ -666,13 +694,11 @@ module riscv_cpu_core (
         // Normal MEM stage path
         .regwrite_in      (regwrite_mem),
         .memread_in       (memread_mem),
-        .memtoreg_in      (memtoreg_mem),
         .jump_in          (jump_mem),
         .alu_result_in    (alu_result_mem),
         .pc_plus_4_in     (pc_plus_4_mem),
         .rd_in            (rd_mem),
         .is_mul_in        (is_mul_mem),
-        .mul_result_in    (32'h0),       // unused: multiplier output timed via writeback_value_o
         // Outputs to WB
         .regwrite_out     (regwrite_wb),
         .memtoreg_out     (memtoreg_wb),
@@ -681,8 +707,7 @@ module riscv_cpu_core (
         .mem_data_out     (mem_data_wb),
         .pc_plus_4_out    (pc_plus_4_wb),
         .rd_out           (rd_wb),
-        .is_mul_out       (is_mul_wb),
-        .mul_result_out   ()              // unused: direct multiplier output used in WB mux
+        .is_mul_out       (is_mul_wb)
     );
 
     // =========================================================================
@@ -723,37 +748,5 @@ module riscv_cpu_core (
         .lsu_dep_stall  (lsu_dep_stall),
         .mul_ex_stall   (mul_ex_stall_wire)
     );
-
-// synopsys translate_off
-// ── Debug monitors (simulation only) ──
-reg [31:0] lsu_store_count;
-always @(posedge clk or posedge rst) begin
-    if (rst) lsu_store_count <= 0;
-    else if (lsu_req_valid && lsu_req_ready && memwrite_mem)
-        lsu_store_count <= lsu_store_count + 1;
-end
-
-always @(posedge clk) begin
-    if (!rst && lsu_req_valid && lsu_req_ready && memwrite_mem)
-        $display("[%0t] [LSU-STORE] addr=0x%08h data=0x%08h strb=%04b sent=%b stall_any=%b stall_ex=%b",
-                 $time, alu_result_mem, wdata_shifted, lsu_req_wstrb,
-                 lsu_req_sent, stall_any, stall_ex_mem);
-end
-
-always @(posedge clk) begin
-    if (!rst && (forward_a == 2'b10 || forward_b == 2'b10))
-        $display("[%0t] [FWD-MEM] fwd_a=%b fwd_b=%b rd_mem=x%0d alu_mem=0x%08h rs1=%0d rs2=%0d stall_any=%b regwrite_mem=%b pc_ex=0x%08h",
-                 $time, forward_a, forward_b, rd_mem, alu_result_mem,
-                 rs1_ex, rs2_ex, stall_any, regwrite_mem, pc_ex);
-end
-
-always @(posedge clk) begin
-    if (!rst && regwrite_wb && rd_wb != 0 && (write_back_data_wb[31:8] != 0) && write_back_data_wb != 32'h10001ff0 && write_back_data_wb != 32'h10000100)
-        $display("[%0t] [WB] x%0d <= 0x%08h  memtoreg=%b jump=%b",
-                 $time, rd_wb, write_back_data_wb, memtoreg_wb, jump_wb);
-end
-
-initial $display("[RTL-VERSION] riscv_cpu_core CLEAN-v3 + modular pipeline registers loaded");
-// synopsys translate_on
 
 endmodule

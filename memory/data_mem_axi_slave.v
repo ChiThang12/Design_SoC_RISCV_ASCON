@@ -333,22 +333,21 @@ module data_mem_axi4_slave #(
         end
     end
 
-always @(posedge clk) begin
-    if (S_AXI_ARVALID && S_AXI_ARREADY)
-        $display("[DMEM AXI] Read  burst: addr=0x%h len=%0d @ %0t",
-                 S_AXI_ARADDR, S_AXI_ARLEN+1, $time);
-
-    if (S_AXI_RVALID && S_AXI_RREADY)
-        $display("[DMEM AXI] Read  data:  data=0x%h last=%b @ %0t",
-                 S_AXI_RDATA, S_AXI_RLAST, $time);
-
-    if (S_AXI_AWVALID && S_AXI_AWREADY)
-        $display("[DMEM AXI] Write burst: addr=0x%h len=%0d @ %0t",
-                 S_AXI_AWADDR, S_AXI_AWLEN+1, $time);
-
-    if (S_AXI_WVALID && S_AXI_WREADY)
-        $display("[DMEM AXI] Write data:  data=0x%h strb=%b last=%b @ %0t",
-                 S_AXI_WDATA, S_AXI_WSTRB, S_AXI_WLAST, $time);
-end
+// [DEBUG-DISABLED] DMEM AXI traffic log — disabled to reduce simulation noise.
+// Re-enable by uncommenting the block below.
+// always @(posedge clk) begin
+//     if (S_AXI_ARVALID && S_AXI_ARREADY)
+//         $display("[DMEM AXI] Read  burst: addr=0x%h len=%0d @ %0t",
+//                  S_AXI_ARADDR, S_AXI_ARLEN+1, $time);
+//     if (S_AXI_RVALID && S_AXI_RREADY)
+//         $display("[DMEM AXI] Read  data:  data=0x%h last=%b @ %0t",
+//                  S_AXI_RDATA, S_AXI_RLAST, $time);
+//     if (S_AXI_AWVALID && S_AXI_AWREADY)
+//         $display("[DMEM AXI] Write burst: addr=0x%h len=%0d @ %0t",
+//                  S_AXI_AWADDR, S_AXI_AWLEN+1, $time);
+//     if (S_AXI_WVALID && S_AXI_WREADY)
+//         $display("[DMEM AXI] Write data:  data=0x%h strb=%b last=%b @ %0t",
+//                  S_AXI_WDATA, S_AXI_WSTRB, S_AXI_WLAST, $time);
+// end
 
 endmodule

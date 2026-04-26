@@ -78,6 +78,16 @@ module clk_reset_ctrl #(
     input  wire soft_rst_pulse, // Soft reset 1-cycle pulse từ soc_ctrl_slave
 
     // =========================================================================
+    // Boot done — CPU held in reset until boot_ctrl finishes loading IMEM
+    //
+    // WHY: IMEM is now a blank SRAM loaded by boot_ctrl at startup.
+    // If CPU were released before loading completes, it would fetch NOPs or
+    // garbage. boot_done=0 keeps cpu_rst_n=0; after all PROG_WORDS written,
+    // boot_done=1 and cpu_rst_n follows combined_cpu_rst_n normally.
+    // =========================================================================
+    input  wire boot_done,      // from boot_ctrl (active-high, sticky)
+
+    // =========================================================================
     // JTAG Non-Debug Module Reset  [THÊM MỚI]
     //
     // ndmreset = 1 (active-high, theo RISC-V debug spec §3.3):
@@ -176,9 +186,10 @@ module clk_reset_ctrl #(
         .rst_sync_n  (ndm_rst_n_sync)
     );
 
-    // combined_cpu_rst_n: thêm ndmreset vào chain reset của CPU và peripheral
+    // combined_cpu_rst_n: thêm ndmreset + boot_done vào chain reset CPU/periph
     // WHY AND: active-low → bất kỳ nguồn nào pull xuống 0 → reset assert
-    wire combined_cpu_rst_n = combined_rst_n & ndm_rst_n_sync;
+    // boot_done=0 giữ CPU reset cho đến khi boot_ctrl nạp xong IMEM
+    wire combined_cpu_rst_n = combined_rst_n & ndm_rst_n_sync & boot_done;
 
     // =========================================================================
     // Stage 3: 2FF synchronizer cho mỗi reset domain

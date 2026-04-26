@@ -8,10 +8,8 @@ module control (
     output reg alusrc,
     output reg memread,
     output reg memwrite,
-    output reg memtoreg,
     output reg branch,
     output reg jump,
-    output reg [1:0] aluop,
     output reg [1:0] byte_size,
     output reg fence
 );
@@ -68,7 +66,6 @@ module control (
         F3_REMU     = 3'b111;
 
     localparam [6:0]
-        F7_DEFAULT  = 7'b0000000,
         F7_SUB_SRA  = 7'b0100000,
         F7_MULDIV   = 7'b0000001;
 
@@ -77,11 +74,9 @@ module control (
         alusrc      = 0;
         memread     = 0;
         memwrite    = 0;
-        memtoreg    = 0;
         branch      = 0;
         jump        = 0;
         fence       = 0;
-        aluop       = 2'b00;
         byte_size   = 2'b10;
         alu_control = ALU_ADD;
 
@@ -89,7 +84,6 @@ module control (
             OP_R_TYPE: begin
                 regwrite = 1;
                 alusrc   = 0;
-                aluop    = 2'b10;
                 if (funct7 == F7_MULDIV) begin
                     case (funct3)
                         F3_MUL:   alu_control = ALU_MUL;
@@ -124,7 +118,6 @@ module control (
             OP_I_TYPE: begin
                 regwrite = 1;
                 alusrc   = 1;
-                aluop    = 2'b10;
                 case (funct3)
                     F3_ADD_SUB: alu_control = ALU_ADD;
                     F3_SLL:     alu_control = ALU_SLL;
@@ -145,7 +138,6 @@ module control (
                 regwrite    = 1;
                 alusrc      = 1;
                 memread     = 1;
-                memtoreg    = 1;
                 alu_control = ALU_ADD;
                 case (funct3)
                     F3_BYTE:   byte_size = 2'b00;
@@ -209,7 +201,6 @@ module control (
                 alusrc      = 0;
                 memread     = 0;
                 memwrite    = 0;
-                memtoreg    = 0;
                 branch      = 0;
                 jump        = 0;
                 fence       = 0;

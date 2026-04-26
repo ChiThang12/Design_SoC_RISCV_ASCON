@@ -28,7 +28,7 @@ module inst_mem #(
     parameter MEM_SIZE      = 4096,
     parameter ADDR_WIDTH    = 32,
     parameter DATA_WIDTH    = 32,
-    parameter MEM_INIT_FILE = ""
+    parameter MEM_INIT_FILE = ""   // unused — IMEM is now a blank SRAM; boot_ctrl loads it
 )(
     input wire clk,
     input wire rst_n,
@@ -44,7 +44,13 @@ module inst_mem #(
     output wire [DATA_WIDTH-1:0] burst_data,
     output reg                   burst_valid,
     output reg                   burst_last,
-    input  wire                  burst_ready
+    input  wire                  burst_ready,
+
+    // Write port (shared by boot sideband and AXI write path)
+    input  wire                    wr_en,
+    input  wire [ADDR_WIDTH-1:0]   wr_addr,
+    input  wire [DATA_WIDTH-1:0]   wr_data,
+    input  wire [DATA_WIDTH/8-1:0] wr_strb
 );
 
     localparam MEM_DEPTH = MEM_SIZE / (DATA_WIDTH/8);
@@ -159,24 +165,29 @@ module inst_mem #(
     end
 
     // ========================================================================
-    // Memory Initialization
+    // Write port (byte-enable)
+    // Used by boot sideband during boot phase, and by AXI write path (JTAG).
+    // ========================================================================
+    wire [ADDR_BITS-1:0] wr_word_addr;
+    assign wr_word_addr = wr_addr[ADDR_BITS+1:2];   // byte→word index
+
+    integer b;
+    always @(posedge clk) begin
+        if (wr_en) begin
+            for (b = 0; b < DATA_WIDTH/8; b = b + 1) begin
+                if (wr_strb[b])
+                    memory[wr_word_addr][b*8 +: 8] <= wr_data[b*8 +: 8];
+            end
+        end
+    end
+
+    // ========================================================================
+    // Memory Initialization — blank SRAM (boot_ctrl loads program at runtime)
     // ========================================================================
     integer i;
     initial begin
         for (i = 0; i < MEM_DEPTH; i = i + 1)
-            memory[i] = 32'h00000013;  // NOP
-
-        if (MEM_INIT_FILE != "") begin
-            $readmemh(MEM_INIT_FILE, memory);
-            $display("[IMEM] Loaded from %s", MEM_INIT_FILE);
-        end else begin
-            `ifndef TESTBENCH_MODE
-                $readmemh("cpu/memory_axi4full/program.hex", memory);
-                $display("[IMEM] Loaded from cpu/memory_axi4full/program.hex");
-            `else
-                $display("[IMEM] TESTBENCH_MODE - initialized to NOP");
-            `endif
-        end
+            memory[i] = 32'h00000013;  // NOP (safe default until boot completes)
     end
 
 endmodule

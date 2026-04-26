@@ -9,7 +9,7 @@
 //   ✅ ascon_ip_top      — ASCON accelerator (S2, M2 DMA)
 //   ✅ axi_width_conv    — 64→32 bit converter cho ASCON DMA
 //   ✅ axi4_crossbar_5m12s — crossbar mở rộng (5M × 12S)
-//   ✅ inst_mem_axi_slave  — IMEM (S0)
+//   ✅ inst_mem_axi_slave  — IMEM (S0, SRAM — loaded by boot_ctrl)
 //   ✅ data_mem_axi4_slave — DMEM (S1)
 //   ✅ soc_ctrl_slave    — SoC Control (S3)
 //   ✅ clint             — CLINT (S4)
@@ -17,21 +17,24 @@
 //   ✅ plic_top          — PLIC (S9)
 //   ✅ jtag_debug_top    — JTAG DTM + DM (M4)
 //   ✅ dma_ctrl          — DMA Controller (S11, M3)
+//   ✅ boot_ctrl         — Boot Controller (loads IMEM, gates cpu_rst_n)
+//   ✅ gpio_top          — GPIO 32-bit (S6)
+//   ✅ timer_top         — Timer0/1 + WDT (S8)
 //
 // Topology Bus:
 //   Masters: M0=ICache, M1=DCache, M2=ASCON-DMA, M3=DMA-Ctrl, M4=JTAG-DM
 //   Slaves:  S0=IMEM, S1=DMEM, S2=ASCON, S3=SoC-Ctrl, S4=CLINT,
-//            S5=UART, S6=GPIO*, S7=SPI*, S8=Timer/WDT*, S9=PLIC,
+//            S5=UART, S6=GPIO, S7=SPI*, S8=Timer/WDT, S9=PLIC,
 //            S10=OTP*, S11=DMA-Ctrl-Config
 //   (* = stub/tie-off, chưa có module thực)
 //
 // IRQ routing:
 //   uart_irq    → plic irq_src[1] (tx) / [2] (rx)  [hợp nhất tại plic input]
 //   spi_irq     → plic irq_src[3]   (stub=0)
-//   gpio_irq    → plic irq_src[4]   (stub=0)
-//   timer0_irq  → plic irq_src[5]   (stub=0)
-//   timer1_irq  → plic irq_src[6]   (stub=0)
-//   wdt_irq     → plic irq_src[7]   (stub=0)
+//   gpio_irq    → plic irq_src[4]   (từ gpio_top)
+//   timer0_irq  → plic irq_src[5]   (từ timer_top)
+//   timer1_irq  → plic irq_src[6]   (từ timer_top)
+//   wdt_irq     → plic irq_src[7]   (từ timer_top.wdt_core)
 //   ascon_irq   → plic irq_src[8]
 //   dma_irq     → plic irq_src[9]
 //   plic.meip   → cpu.external_irq
@@ -74,6 +77,9 @@
 `include "plic/plic_top.v"
 `include "jtag/jtag_debug_top.v"
 `include "dma/dma_ctrl.v"
+`include "boot/boot_ctrl.v"
+`include "peripheral/gpio/gpio_top.v"
+`include "peripheral/timer/timer_top.v"
 
 module soc_top #(
     // ── AXI parameters ────────────────────────────────────────────────────
@@ -134,7 +140,15 @@ module soc_top #(
     input  wire tms,
     input  wire tdi,
     output wire tdo,
-    output wire tdo_en         // HIGH khi Shift-DR/IR (để điều khiển tri-state pad)
+    output wire tdo_en,        // HIGH khi Shift-DR/IR (để điều khiển tri-state pad)
+
+    // ── GPIO IO pads (split in/out/oe cho simulation) ─────────────────────────
+    output wire [31:0] gpio_out,   // pad output data
+    output wire [31:0] gpio_oe,    // output enable (1=drive, 0=hi-Z)
+    input  wire [31:0] gpio_in,    // pad input data
+
+    // ── WDT reset request ─────────────────────────────────────────────────────
+    output wire wdt_rst_req        // active-high, từ watchdog
 );
 
 // ============================================================================
@@ -163,19 +177,39 @@ clk_reset_ctrl #(
     .POR_CYCLES       (POR_CYCLES),
     .SOFT_RST_STRETCH (SOFT_RST_STRETCH)
 ) u_clkrst (
-    .clk_in       (clk),
-    .por_n        (por_n),
-    .ext_rst_n    (ext_rst_n),
+    .clk_in        (clk),
+    .por_n         (por_n),
+    .ext_rst_n     (ext_rst_n),
     .soft_rst_pulse(soft_rst_pulse),
-    .ndmreset     (jtag_ndmreset),  // JTAG DM → reset CPU+periph không reset fabric
-    .test_en      (1'b0),           // không dùng scan mode ở đây
-    .core_clk_en  (1'b1),
-    .periph_clk_en(1'b1),
-    .clk_core     (clk_core),
-    .clk_periph   (clk_periph),
-    .fabric_rst_n (fabric_rst_n),
-    .cpu_rst_n    (cpu_rst_n),
-    .periph_rst_n (periph_rst_n)
+    .ndmreset      (jtag_ndmreset), // JTAG DM → reset CPU+periph không reset fabric
+    .boot_done     (boot_done),     // boot_ctrl → giữ cpu_rst_n cho đến khi IMEM loaded
+    .test_en       (1'b0),
+    .core_clk_en   (1'b1),
+    .periph_clk_en (1'b1),
+    .clk_core      (clk_core),
+    .clk_periph    (clk_periph),
+    .fabric_rst_n  (fabric_rst_n),
+    .cpu_rst_n     (cpu_rst_n),
+    .periph_rst_n  (periph_rst_n)
+);
+
+// ============================================================================
+// SECTION 1b: Boot Controller
+//
+// Chạy trên fabric_rst_n (giống crossbar). Copies boot ROM → IMEM via sideband
+// port. Sau khi xong, asserts boot_done → clk_reset_ctrl releases cpu_rst_n.
+// CPU chỉ bắt đầu fetch khi IMEM đã có nội dung hợp lệ.
+// ============================================================================
+boot_ctrl #(
+    .BOOT_FILE  (IMEM_INIT_FILE),
+    .PROG_WORDS (IMEM_SIZE / 4)
+) u_boot (
+    .clk        (clk),
+    .rst_n      (fabric_rst_n),
+    .boot_we    (imem_boot_we),
+    .boot_addr  (imem_boot_addr),
+    .boot_wdata (imem_boot_wdata),
+    .boot_done  (boot_done)
 );
 
 // ============================================================================
@@ -233,8 +267,18 @@ wire sw_irq;         // CLINT → CPU (machine software interrupt)
 wire ascon_irq;      // ASCON → PLIC source[8]
 wire uart_irq;       // UART  → PLIC source[1] (tx) & [2] (rx) — hợp nhất 1 wire
 wire dma_irq;        // DMA   → PLIC source[9]
+wire gpio_irq;       // GPIO  → PLIC source[4]
+wire timer0_irq;     // Timer0 → PLIC source[5]
+wire timer1_irq;     // Timer1 → PLIC source[6]
+wire wdt_irq;        // WDT   → PLIC source[7]
 wire soc_ctrl_irq_out; // soc_ctrl_slave.irq_out — giữ lại để tương thích,
                        // nhưng không dùng làm external_irq (PLIC đảm nhiệm)
+
+// ── Boot controller signal ────────────────────────────────────────────────────
+wire boot_done;        // từ boot_ctrl → clk_reset_ctrl (giải phóng cpu_rst_n)
+wire        imem_boot_we;
+wire [31:0] imem_boot_addr;
+wire [31:0] imem_boot_wdata;
 
 // ============================================================================
 // SECTION 5: JTAG Debug wires
@@ -605,21 +649,35 @@ wire                    s11_bvalid,  s11_bready;
 // rresp=SLVERR, bvalid/rvalid pulse sau 1 cycle.
 // ============================================================================
 
-// ── S6: GPIO stub ────────────────────────────────────────────────────────────
-axi4_decerr_slave #(
-    .ID_WIDTH(ID_WIDTH), .DATA_WIDTH(DATA_WIDTH)
-) u_gpio_stub (
-    .clk      (clk),
-    .rst_n    (fabric_rst_n),
-    .s_arid   (s6_arid),   .s_araddr (s6_araddr), .s_arlen  (s6_arlen),
-    .s_arvalid(s6_arvalid),.s_arready(s6_arready),
-    .s_rid    (s6_rid),    .s_rdata  (s6_rdata),  .s_rresp  (s6_rresp),
-    .s_rlast  (s6_rlast),  .s_rvalid (s6_rvalid), .s_rready (s6_rready),
-    .s_awid   (s6_awid),   .s_awaddr (s6_awaddr), .s_awlen  (s6_awlen),
-    .s_awvalid(s6_awvalid),.s_awready(s6_awready),
-    .s_wlast  (s6_wlast),  .s_wvalid (s6_wvalid), .s_wready (s6_wready),
-    .s_bid    (s6_bid),    .s_bresp  (s6_bresp),
-    .s_bvalid (s6_bvalid), .s_bready (s6_bready)
+// ── S6: GPIO ──────────────────────────────────────────────────────────────────
+gpio_top #(
+    .ADDR_WIDTH (ADDR_WIDTH),
+    .DATA_WIDTH (DATA_WIDTH),
+    .ID_WIDTH   (ID_WIDTH),
+    .GPIO_WIDTH (32)
+) u_gpio (
+    .clk           (clk_periph),
+    .rst_n         (periph_rst_n),
+    .S_AXI_AWID    (s6_awid),   .S_AXI_AWADDR  (s6_awaddr),
+    .S_AXI_AWLEN   (s6_awlen),  .S_AXI_AWSIZE  (s6_awsize),
+    .S_AXI_AWBURST (s6_awburst),.S_AXI_AWPROT  (s6_awprot),
+    .S_AXI_AWVALID (s6_awvalid),.S_AXI_AWREADY (s6_awready),
+    .S_AXI_WDATA   (s6_wdata),  .S_AXI_WSTRB   (s6_wstrb),
+    .S_AXI_WLAST   (s6_wlast),  .S_AXI_WVALID  (s6_wvalid),
+    .S_AXI_WREADY  (s6_wready),
+    .S_AXI_BID     (s6_bid),    .S_AXI_BRESP   (s6_bresp),
+    .S_AXI_BVALID  (s6_bvalid), .S_AXI_BREADY  (s6_bready),
+    .S_AXI_ARID    (s6_arid),   .S_AXI_ARADDR  (s6_araddr),
+    .S_AXI_ARLEN   (s6_arlen),  .S_AXI_ARSIZE  (s6_arsize),
+    .S_AXI_ARBURST (s6_arburst),.S_AXI_ARPROT  (s6_arprot),
+    .S_AXI_ARVALID (s6_arvalid),.S_AXI_ARREADY (s6_arready),
+    .S_AXI_RID     (s6_rid),    .S_AXI_RDATA   (s6_rdata),
+    .S_AXI_RRESP   (s6_rresp),  .S_AXI_RLAST   (s6_rlast),
+    .S_AXI_RVALID  (s6_rvalid), .S_AXI_RREADY  (s6_rready),
+    .gpio_out      (gpio_out),
+    .gpio_oe       (gpio_oe),
+    .gpio_in       (gpio_in),
+    .gpio_irq      (gpio_irq)
 );
 
 // ── S7: SPI stub ─────────────────────────────────────────────────────────────
@@ -639,21 +697,34 @@ axi4_decerr_slave #(
     .s_bvalid (s7_bvalid), .s_bready (s7_bready)
 );
 
-// ── S8: Timer/WDT stub ───────────────────────────────────────────────────────
-axi4_decerr_slave #(
-    .ID_WIDTH(ID_WIDTH), .DATA_WIDTH(DATA_WIDTH)
-) u_timer_stub (
-    .clk      (clk),
-    .rst_n    (fabric_rst_n),
-    .s_arid   (s8_arid),   .s_araddr (s8_araddr), .s_arlen  (s8_arlen),
-    .s_arvalid(s8_arvalid),.s_arready(s8_arready),
-    .s_rid    (s8_rid),    .s_rdata  (s8_rdata),  .s_rresp  (s8_rresp),
-    .s_rlast  (s8_rlast),  .s_rvalid (s8_rvalid), .s_rready (s8_rready),
-    .s_awid   (s8_awid),   .s_awaddr (s8_awaddr), .s_awlen  (s8_awlen),
-    .s_awvalid(s8_awvalid),.s_awready(s8_awready),
-    .s_wlast  (s8_wlast),  .s_wvalid (s8_wvalid), .s_wready (s8_wready),
-    .s_bid    (s8_bid),    .s_bresp  (s8_bresp),
-    .s_bvalid (s8_bvalid), .s_bready (s8_bready)
+// ── S8: Timer/WDT ────────────────────────────────────────────────────────────
+timer_top #(
+    .ADDR_WIDTH (ADDR_WIDTH),
+    .DATA_WIDTH (DATA_WIDTH),
+    .ID_WIDTH   (ID_WIDTH)
+) u_timer (
+    .clk           (clk_periph),
+    .rst_n         (periph_rst_n),
+    .S_AXI_AWID    (s8_awid),   .S_AXI_AWADDR  (s8_awaddr),
+    .S_AXI_AWLEN   (s8_awlen),  .S_AXI_AWSIZE  (s8_awsize),
+    .S_AXI_AWBURST (s8_awburst),.S_AXI_AWPROT  (s8_awprot),
+    .S_AXI_AWVALID (s8_awvalid),.S_AXI_AWREADY (s8_awready),
+    .S_AXI_WDATA   (s8_wdata),  .S_AXI_WSTRB   (s8_wstrb),
+    .S_AXI_WLAST   (s8_wlast),  .S_AXI_WVALID  (s8_wvalid),
+    .S_AXI_WREADY  (s8_wready),
+    .S_AXI_BID     (s8_bid),    .S_AXI_BRESP   (s8_bresp),
+    .S_AXI_BVALID  (s8_bvalid), .S_AXI_BREADY  (s8_bready),
+    .S_AXI_ARID    (s8_arid),   .S_AXI_ARADDR  (s8_araddr),
+    .S_AXI_ARLEN   (s8_arlen),  .S_AXI_ARSIZE  (s8_arsize),
+    .S_AXI_ARBURST (s8_arburst),.S_AXI_ARPROT  (s8_arprot),
+    .S_AXI_ARVALID (s8_arvalid),.S_AXI_ARREADY (s8_arready),
+    .S_AXI_RID     (s8_rid),    .S_AXI_RDATA   (s8_rdata),
+    .S_AXI_RRESP   (s8_rresp),  .S_AXI_RLAST   (s8_rlast),
+    .S_AXI_RVALID  (s8_rvalid), .S_AXI_RREADY  (s8_rready),
+    .timer0_irq    (timer0_irq),
+    .timer1_irq    (timer1_irq),
+    .wdt_irq       (wdt_irq),
+    .wdt_rst_req   (wdt_rst_req)
 );
 
 // ── S10: OTP stub ────────────────────────────────────────────────────────────
@@ -716,7 +787,7 @@ riscv_cpu_core u_cpu (
 // ============================================================================
 icache_top u_icache (
     .clk         (clk_core),
-    .rst_n       (fabric_rst_n),
+    .rst_n       (cpu_rst_n),    // must use cpu_rst_n: keeps ICache in reset until boot_ctrl finishes loading IMEM
 
     .cpu_addr    (cpu_imem_addr),
     .cpu_req     (cpu_imem_valid),
@@ -1236,14 +1307,18 @@ axi4_crossbar_5m12s #(
 // SECTION 18: INSTANCE — inst_mem_axi_slave  (S0 — IMEM)
 // ============================================================================
 inst_mem_axi_slave #(
-    .ADDR_WIDTH    (ADDR_WIDTH),
-    .DATA_WIDTH    (DATA_WIDTH),
-    .ID_WIDTH      (ID_WIDTH),
-    .MEM_SIZE      (IMEM_SIZE),
-    .MEM_INIT_FILE (IMEM_INIT_FILE)
+    .ADDR_WIDTH (ADDR_WIDTH),
+    .DATA_WIDTH (DATA_WIDTH),
+    .ID_WIDTH   (ID_WIDTH),
+    .MEM_SIZE   (IMEM_SIZE)
+    // MEM_INIT_FILE not used — boot_ctrl loads at runtime
 ) u_imem (
-    .clk           (clk),
-    .rst_n         (fabric_rst_n),
+    .clk            (clk),
+    .rst_n          (fabric_rst_n),
+    // Boot sideband write port
+    .boot_we        (imem_boot_we),
+    .boot_addr      (imem_boot_addr),
+    .boot_wdata     (imem_boot_wdata),
     .S_AXI_AWID    (s0_awid),   .S_AXI_AWADDR  (s0_awaddr),
     .S_AXI_AWLEN   (s0_awlen),  .S_AXI_AWSIZE  (s0_awsize),
     .S_AXI_AWBURST (s0_awburst),.S_AXI_AWPROT  (s0_awprot),
@@ -1444,10 +1519,10 @@ plic_top #(
     .irq_src        ({22'd0,         // [31:10] reserved
                       dma_irq,       // [9]  DMA done/error
                       ascon_irq,     // [8]  ASCON crypto done
-                      1'b0,          // [7]  WDT (stub)
-                      1'b0,          // [6]  TIMER1 (stub)
-                      1'b0,          // [5]  TIMER0 (stub)
-                      1'b0,          // [4]  GPIO (stub)
+                      wdt_irq,       // [7]  WDT warning
+                      timer1_irq,    // [6]  Timer 1 timeout
+                      timer0_irq,    // [5]  Timer 0 timeout
+                      gpio_irq,      // [4]  GPIO edge/level
                       1'b0,          // [3]  SPI (stub)
                       uart_irq,      // [2]  UART RX (hợp nhất)
                       uart_irq,      // [1]  UART TX (hợp nhất)
@@ -1568,15 +1643,18 @@ endmodule
 //
 // Checklist kết nối:
 //   ✅ clk_reset_ctrl: thay wire fabric_rst_n=ext_rst_n nguy hiểm
+//   ✅ boot_ctrl: load IMEM, giữ cpu_rst_n cho đến khi boot_done
 //   ✅ CPU: kết nối debug_halt/resume + external_irq từ PLIC
 //   ✅ ICache/DCache: dùng clk_core
 //   ✅ ASCON + width_conv: giống cũ, giữ nguyên
-//   ✅ Crossbar 5m12s: thêm M3(DMA), M4(JTAG), S5-S11
+//   ✅ Crossbar 5m12s: giữ nguyên 5M×12S
 //   ✅ UART: S5, clk_periph, periph_rst_n, irq→PLIC[1,2]
+//   ✅ GPIO: S6, 32-bit, clk_periph, irq→PLIC[4]
+//   ✅ Timer/WDT: S8, clk_periph, timer0_irq→PLIC[5], timer1_irq→PLIC[6], wdt_irq→PLIC[7]
 //   ✅ PLIC: S9, tổng hợp tất cả IRQ, meip→CPU
 //   ✅ JTAG: M4, ndmreset→clk_reset_ctrl, halt/resume←→CPU
 //   ✅ DMA: S11(config)+M3(transfer), irq→PLIC[9]
-//   ✅ Stub slaves: S6(GPIO),S7(SPI),S8(Timer),S10(OTP) → DECERR
+//   ✅ Stub slaves: S7(SPI), S10(OTP) → DECERR
 //   ✅ soc_ctrl: giữ lại (soft_rst, cache stats), irq_out không dùng
 //   ✅ CLINT: giữ nguyên, timer_irq/sw_irq→CPU bypass PLIC
 // ============================================================================

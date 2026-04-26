@@ -1,0 +1,87 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Sun Apr 26 08:23:04 2026
+[*]
+[dumpfile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_soc.vcd"
+[dumpfile_mtime] "Sun Apr 26 08:14:29 2026"
+[dumpfile_size] 60596758
+[savefile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_soc_slave.gtkw"
+[timestart] 0
+[size] 1488 841
+[pos] -46 -30
+*-27.600000 109400000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] run_soc.
+[treeopen] run_soc.soc.
+[treeopen] run_soc.soc.u_ascon.
+[sst_width] 248
+[signals_width] 451
+[sst_expanded] 1
+[sst_vpaned_height] 251
+@200
+-CPU
+-CPU - I 
+@22
+run_soc.soc.u_cpu.imem_addr[31:0]
+run_soc.soc.u_cpu.imem_rdata[31:0]
+@28
+run_soc.soc.u_cpu.imem_ready
+run_soc.soc.u_cpu.imem_valid
+@200
+-CPU - D
+@22
+run_soc.soc.u_cpu.dcache_addr[31:0]
+run_soc.soc.u_cpu.dcache_rdata[31:0]
+run_soc.soc.u_cpu.dcache_wdata[31:0]
+@28
+run_soc.soc.u_cpu.dcache_we
+run_soc.soc.u_cpu.dcache_ready
+run_soc.soc.u_cpu.dcache_req
+@200
+-
+-ASCON
+@22
+run_soc.soc.u_ascon.u_core_cpu.ad_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.nonce_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.data_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.key_in[127:0]
+run_soc.soc.u_ascon.u_core_cpu.perm_state_out[319:0]
+@28
+run_soc.soc.u_ascon.u_core_cpu.mode[1:0]
+@22
+run_soc.soc.u_ascon.u_core_cpu.init_state_out[319:0]
+run_soc.soc.u_ascon.u_core_cpu.data_out[127:0]
+run_soc.soc.u_ascon.u_core_cpu.tag_out[127:0]
+@200
+-ASCON - DMA
+@22
+run_soc.soc.u_ascon.u_dma.M_AXI_ARADDR[31:0]
+run_soc.soc.u_ascon.u_dma.M_AXI_AWADDR[31:0]
+run_soc.soc.u_ascon.u_dma.M_AXI_RDATA[63:0]
+run_soc.soc.u_ascon.u_dma.M_AXI_WDATA[63:0]
+@200
+-ASCON - AXI4
+@22
+run_soc.soc.u_ascon.u_slave.S_AXI_ARADDR[31:0]
+run_soc.soc.u_ascon.u_slave.S_AXI_AWADDR[31:0]
+run_soc.soc.u_ascon.u_slave.S_AXI_RDATA[31:0]
+run_soc.soc.u_ascon.u_slave.S_AXI_WDATA[31:0]
+@200
+-
+-GPIO
+@22
+run_soc.soc.u_gpio.gpio_in[31:0]
+@28
+run_soc.soc.u_gpio.gpio_irq
+@22
+run_soc.soc.u_gpio.gpio_oe[31:0]
+run_soc.soc.u_gpio.gpio_out[31:0]
+@200
+-UART
+@29
+run_soc.soc.u_uart.clk
+@28
+run_soc.soc.u_uart.irq_out
+run_soc.soc.u_uart.uart_rx
+run_soc.soc.u_uart.uart_tx
+[pattern_trace] 1
+[pattern_trace] 0

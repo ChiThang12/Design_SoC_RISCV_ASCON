@@ -26,7 +26,6 @@ module PIPELINE_REG_MEM_WB (
     // --- Normal MEM stage path ---
     input wire        regwrite_in,
     input wire        memread_in,        // for masking regwrite on pending loads
-    input wire        memtoreg_in,
     input wire        jump_in,
     input wire [31:0] alu_result_in,
     input wire [31:0] pc_plus_4_in,
@@ -34,7 +33,6 @@ module PIPELINE_REG_MEM_WB (
 
     // --- MUL result path ---
     input wire        is_mul_in,
-    input wire [31:0] mul_result_in,
 
     // --- Outputs to WB ---
     output reg        regwrite_out,
@@ -44,8 +42,7 @@ module PIPELINE_REG_MEM_WB (
     output reg [31:0] mem_data_out,
     output reg [31:0] pc_plus_4_out,
     output reg [4:0]  rd_out,
-    output reg        is_mul_out,
-    output reg [31:0] mul_result_out
+    output reg        is_mul_out
 );
 
     always @(posedge clock or posedge reset) begin
@@ -57,7 +54,6 @@ module PIPELINE_REG_MEM_WB (
             alu_result_out <= 32'h0;
             mem_data_out   <= 32'h0;
             pc_plus_4_out  <= 32'h0;
-            mul_result_out <= 32'h0;
             rd_out         <= 5'b0;
         end else begin
             if (lsu_result_valid) begin
@@ -70,7 +66,6 @@ module PIPELINE_REG_MEM_WB (
                 is_mul_out     <= 1'b0;
                 alu_result_out <= alu_result_in;
                 pc_plus_4_out  <= pc_plus_4_in;
-                mul_result_out <= mul_result_in;
             end else if (!stall_ex_mem && !lsu_committed) begin
                 // Normal pass-through from MEM stage
                 alu_result_out <= alu_result_in;
@@ -80,7 +75,7 @@ module PIPELINE_REG_MEM_WB (
                 jump_out       <= jump_in;
                 rd_out         <= rd_in;
                 is_mul_out     <= is_mul_in;
-                mul_result_out <= mul_result_in;
+                mem_data_out   <= 32'h0; // [LINT-FIX] clear when no LSU result (memtoreg_out=0 so WB ignores this)
             end
         end
     end
