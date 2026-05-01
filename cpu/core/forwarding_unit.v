@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module forwarding_unit (
     // Source registers in EX stage
     input [4:0] rs1_ex,

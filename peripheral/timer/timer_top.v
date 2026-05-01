@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // timer_top.v — Timer/WDT Peripheral Top-Level (AXI4-Full Slave S8)
 //

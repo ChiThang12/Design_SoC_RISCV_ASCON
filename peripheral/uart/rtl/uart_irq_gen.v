@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : uart_irq_gen
 // Project : RISC-V SoC — UART peripheral

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : ascon_axi_slave
 // Version : 2.4  (FIX-MODE-OVERLAP: tách bit enc_dec khỏi bit variant)

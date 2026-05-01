@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // dma_reg_slave.v — AXI4-Full Slave: DMA Controller Configuration Registers
 //

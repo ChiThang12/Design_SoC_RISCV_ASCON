@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // File     : tb_ascon_axi_slave.v
 // Version  : 2.0  (original TB — pair with ascon_axi_slave v1.1 fixed RTL)

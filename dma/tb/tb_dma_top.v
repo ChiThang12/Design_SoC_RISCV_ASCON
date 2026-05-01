@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 // ============================================================================
 // dma_ctrl_tb.v — Testbench đầy đủ cho DMA Controller (dma_ctrl.v)
 //

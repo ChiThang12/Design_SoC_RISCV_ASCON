@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // dma_axi_master.v — AXI4-Full Master Interface cho DMA Controller (M3)
 //

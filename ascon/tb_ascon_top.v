@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Testbench : tb_ascon_top.v
 // Target    : ascon_ip_top v5 (bỏ AXI-Stream, fix DMA race)

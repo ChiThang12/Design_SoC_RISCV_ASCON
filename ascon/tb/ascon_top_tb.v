@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Testbench : tb_ascon_CORE  (v2.0 — production, all checks verified)
 // Target    : ascon_CORE.v v12+ (mode_int = mode, no bit inversion)

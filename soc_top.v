@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // soc_top.v  —  RISC-V Research SoC Top-Level  (Full Integration)
 //
@@ -188,6 +190,13 @@ wire periph_busy;
 wire periph_wake_event;
 wire periph_gate_allow;
 
+// Declare missing implicit wires
+wire boot_done;
+wire ascon_o_busy;
+wire imem_boot_we;
+wire [31:0] imem_boot_addr;
+wire [31:0] imem_boot_wdata;
+
 // WHY cpu_rst active-high: riscv_cpu_core dùng "rst" active-high convention
 wire cpu_rst = ~cpu_rst_n;
 
@@ -341,10 +350,7 @@ assign periph_wake_req = external_irq | !uart_rx | gpio_irq |
                          timer0_irq | timer1_irq | wdt_irq;
 
 // ── Boot controller signal ────────────────────────────────────────────────────
-wire boot_done;        // từ boot_ctrl → clk_reset_ctrl (giải phóng cpu_rst_n)
-wire        imem_boot_we;
-wire [31:0] imem_boot_addr;
-wire [31:0] imem_boot_wdata;
+// (Wires declared at the top of the file to fix implicit definition warning)
 
 // ============================================================================
 // SECTION 5: JTAG Debug wires
@@ -369,7 +375,7 @@ wire jtag_running;
 
 wire [127:0] ascon_o_tag;
 wire         ascon_o_tag_valid;
-wire         ascon_o_busy;
+// ascon_o_busy declared at the top
 
 // ============================================================================
 // SECTION 7: Cache statistics wires

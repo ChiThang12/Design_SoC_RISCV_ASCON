@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 `include "memory/data_mem_axi_slave.v"
 `include "memory/inst_mem_axi_slave.v"
 

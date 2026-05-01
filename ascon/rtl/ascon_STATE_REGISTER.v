@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ascon_STATE_REGISTER  (OPT v5 — fix: latch state_in thay vì init_state)
 //

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : plic_regfile  (FIXED)
 // BUG FIXES: 1=claim_pulse double-driver  2=NUM_SRC truncation

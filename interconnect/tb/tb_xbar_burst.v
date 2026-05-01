@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 // ============================================================================
 // tb_xbar_burst.v — Focused debug TB: Crossbar + Master Mux
 //

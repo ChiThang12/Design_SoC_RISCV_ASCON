@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // soc_hs.v  —  RISC-V Research SoC Physical Wrapper (Pad Ring)
 //

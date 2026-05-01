@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 // ============================================================================
 // Testbench : uart_top_tb
 // DUT       : uart_top

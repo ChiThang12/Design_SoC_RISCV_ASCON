@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // jtag_dtm.v — JTAG Debug Transport Module
 //

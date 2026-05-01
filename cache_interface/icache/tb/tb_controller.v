@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // Simple debug testbench for prefetch issue
 `timescale 1ns/1ps
 `include "cpu/interface/icache/tb/icache_controller.v"

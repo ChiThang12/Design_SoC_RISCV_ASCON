@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: SUBSTITUTION_LAYER_PIPELINED  (v1)
 //

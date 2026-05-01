@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module inst_mem (
     input  [31:0] PC,                  // Program Counter - địa chỉ byte hiện tại
     input         reset,               // Tín hiệu reset (không sử dụng cho ROM)

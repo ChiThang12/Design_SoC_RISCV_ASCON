@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: dcache_top  —  Write-Back + Write-Allocate version
 // Thêm AXI4 ID signals để kết nối vào axi4_crossbar (M1)

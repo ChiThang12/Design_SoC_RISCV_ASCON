@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module LSU (
     input wire clk,
     input wire rst,
@@ -102,7 +104,11 @@ module LSU (
     //   Full partial merge cần đọc cache + merge = thay đổi kiến trúc lớn.
     // =========================================================================
     integer fi;
-    always @(*) begin
+    always @(req_addr,
+             sb_valid[0], sb_valid[1], sb_valid[2], sb_valid[3],
+             sb_addr[0],  sb_addr[1],  sb_addr[2],  sb_addr[3],
+             sb_wstrb[0], sb_wstrb[1], sb_wstrb[2], sb_wstrb[3],
+             sb_wdata[0], sb_wdata[1], sb_wdata[2], sb_wdata[3]) begin
         fwd_hit_r  = 1'b0;
         fwd_data_r = 32'h0;
         fwd_strb_r = 4'b0000;
@@ -296,6 +302,10 @@ module LSU (
         end
     end
 
+    wire [31:0] drain_addr  = sb_addr [sb_rd_ptr];
+    wire [31:0] drain_wdata = sb_wdata[sb_rd_ptr];
+    wire [3:0]  drain_wstrb = sb_wstrb[sb_rd_ptr];
+
     always @(*) begin
         dcache_req   = 1'b0;
         dcache_we    = 1'b0;
@@ -310,9 +320,9 @@ module LSU (
         end else if (drain_state == DRAIN_REQ) begin
             dcache_req   = 1'b1;
             dcache_we    = 1'b1;
-            dcache_addr  = sb_addr [sb_rd_ptr];
-            dcache_wdata = sb_wdata[sb_rd_ptr];
-            dcache_wstrb = sb_wstrb[sb_rd_ptr];
+            dcache_addr  = drain_addr;
+            dcache_wdata = drain_wdata;
+            dcache_wstrb = drain_wstrb;
         end
     end
 

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : dma_write_engine
 // Version : v4.0  (FWFT + Dynamic AXI Burst)

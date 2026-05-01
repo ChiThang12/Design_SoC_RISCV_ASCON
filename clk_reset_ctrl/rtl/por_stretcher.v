@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : por_stretcher
 // Project : RISC-V SoC

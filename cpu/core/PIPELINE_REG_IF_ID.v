@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module PIPELINE_REG_IF_ID (
     input clock,
     input reset,

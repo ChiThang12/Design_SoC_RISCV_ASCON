@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // timer_channel.v — Single 32-bit Timer Channel
 //

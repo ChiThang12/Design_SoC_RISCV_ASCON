@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================
 // Module: ascon_CORE  (v12 — fix mode_int: bỏ đảo bit, dùng mode trực tiếp)
 //

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // dma_arbiter.v — Round-Robin Arbitration cho 4 kênh DMA
 //

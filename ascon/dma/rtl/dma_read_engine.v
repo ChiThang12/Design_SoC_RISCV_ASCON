@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : dma_read_engine
 // Project : ASCON Crypto Accelerator IP

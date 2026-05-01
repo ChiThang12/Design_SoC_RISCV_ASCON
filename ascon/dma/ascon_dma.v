@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : ascon_dma
 // Project : ASCON Crypto Accelerator IP

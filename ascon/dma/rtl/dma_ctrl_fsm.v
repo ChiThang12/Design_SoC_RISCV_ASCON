@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : dma_ctrl_fsm  (v3.0 — Optimized Concurrent/Decoupled)
 //

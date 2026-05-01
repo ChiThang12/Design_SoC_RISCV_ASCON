@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // axi4_addr_decoder.v
 // [Fix 6] Mở rộng lên 12 slave: S9=PLIC, S10=OTP, S11=DMA_CTRL

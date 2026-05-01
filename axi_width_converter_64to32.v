@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // axi_width_converter_64to32.v  (fixed)
 // AXI4 Data Width Converter: 64-bit Master -> 32-bit Slave

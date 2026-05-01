@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 `include "cache_interface/dcache/dcache_defines.vh"
 
 // ============================================================================

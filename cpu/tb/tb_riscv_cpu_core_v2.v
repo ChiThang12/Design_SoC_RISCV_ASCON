@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // tb_riscv_cpu_core_v2.v  — Icarus Verilog compatible (FINAL v4)
 //

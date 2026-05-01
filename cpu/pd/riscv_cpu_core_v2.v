@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 `include "cpu/core/IFU.v"
 `include "cpu/core/reg_file.v"
 `include "cpu/core/imm_gen.v"

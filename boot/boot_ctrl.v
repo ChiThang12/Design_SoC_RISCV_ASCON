@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // boot_ctrl.v — Boot Controller (Top Wrapper)
 //

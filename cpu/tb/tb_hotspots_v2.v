@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 `include "cpu/riscv_cpu_core_v2.v"
 
 module tb_hotspots_v2;

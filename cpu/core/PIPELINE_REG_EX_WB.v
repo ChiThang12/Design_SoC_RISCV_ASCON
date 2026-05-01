@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module PIPELINE_REG_EX_WB (
     input clock,
     input reset,

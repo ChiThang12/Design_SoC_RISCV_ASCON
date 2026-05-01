@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ascon_PERMUTATION  (v8 — correct FSM, G_SBOX_PIPELINE=0 default)
 //

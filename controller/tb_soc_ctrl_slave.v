@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // =============================================================================
 // Testbench : tb_soc_ctrl_slave
 // DUT       : soc_ctrl_slave (Verilog IEEE 1364-2001)

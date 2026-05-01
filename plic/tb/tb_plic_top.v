@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 // ============================================================
 // Testbench : plic_top_tb
 // DUT       : plic_top (+ plic_regfile, plic_gateway, plic_priority_encoder)

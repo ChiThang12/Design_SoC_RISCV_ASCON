@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // =============================================================================
 // Module   : soc_ctrl_slave
 // Project  : RISC-V + ASCON SoC

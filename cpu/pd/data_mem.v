@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module data_mem (
     input             clock,          // Xung clock
     input      [31:0] address,        // Địa chỉ truy cập (byte address)

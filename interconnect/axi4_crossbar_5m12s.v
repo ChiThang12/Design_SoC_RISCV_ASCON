@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // axi4_crossbar_5m12s.v  —  AXI4 Non-blocking Crossbar (5 Master × 12 Slave)
 // All `define macros expanded to plain Verilog for readability & tool compat.

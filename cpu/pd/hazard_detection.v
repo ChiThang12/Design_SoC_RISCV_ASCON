@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 module hazard_detection (
     input wire        memread_id_ex,
     input wire [4:0]  rd_id_ex,

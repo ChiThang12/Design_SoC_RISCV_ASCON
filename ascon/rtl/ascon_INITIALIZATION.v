@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================
 // Module: ascon_INITIALIZATION  (v2 — fix IV_128A)
 //

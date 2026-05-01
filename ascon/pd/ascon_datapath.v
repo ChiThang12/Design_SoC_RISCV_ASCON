@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================
 // Module: ascon_DATAPATH  (v2 — GCD dual-rate fix)
 //

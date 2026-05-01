@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // uart_boot_ctrl.v — UART-based Boot Controller
 //

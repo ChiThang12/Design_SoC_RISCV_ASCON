@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================
 // Module: ascon_TAG_COMPARATOR
 // Description: Constant-time comparison of computed tag vs

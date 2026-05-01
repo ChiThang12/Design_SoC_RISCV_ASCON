@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Testbench : tb_clk_reset_ctrl
 // DUT       : clk_reset_ctrl

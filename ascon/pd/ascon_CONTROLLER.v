@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ascon_CONTROLLER  (v14 — fix: mode decode align với convention mới)
 //

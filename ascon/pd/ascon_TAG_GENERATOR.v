@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ascon_TAG_GENERATOR  (OPT v2 — bswap rút gọn)
 //

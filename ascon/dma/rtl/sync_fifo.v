@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : sync_fifo
 // Project : ASCON Crypto Accelerator IP

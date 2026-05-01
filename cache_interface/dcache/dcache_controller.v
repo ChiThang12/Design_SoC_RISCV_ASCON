@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: dcache_controller  —  Write-Back + Write-Allocate
 // FIXED VERSION

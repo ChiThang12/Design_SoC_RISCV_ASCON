@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : ascon_ip_top  (v5 — bỏ AXI-Stream, fix INCR burst, fix DMA race)
 //

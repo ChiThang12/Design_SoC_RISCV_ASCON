@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 // ============================================================================
 // run_soc_imem.v — CPU fetch liên tục, log data flow theo từng tầng
 //

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // File     : tb_ascon_dma.v
 // Project  : RISC-V SoC — ASCON Crypto Accelerator IP

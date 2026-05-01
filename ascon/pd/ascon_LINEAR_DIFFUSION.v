@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module 3.3: LINEAR_DIFFUSION
 // Mô tả: Linear diffusion layer với rotation cụ thể cho mỗi word

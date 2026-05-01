@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // `include "cpu/interface/icache/icache_defines.vh"
 
 // // ============================================================================

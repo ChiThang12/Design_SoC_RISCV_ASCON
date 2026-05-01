@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // ASCON_PERMUTATION Testbench
 // Mô tả: Testbench đầy đủ cho module ASCON_PERMUTATION và các sub-modules

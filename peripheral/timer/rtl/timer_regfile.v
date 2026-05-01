@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // timer_regfile.v — Timer Register File with AXI4-Full Slave Interface
 //

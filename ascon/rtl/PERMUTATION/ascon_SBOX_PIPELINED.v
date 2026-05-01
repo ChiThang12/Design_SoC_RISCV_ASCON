@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ASCON_SBOX_PIPELINED  (v1 — 2-stage pipeline S-box)
 //

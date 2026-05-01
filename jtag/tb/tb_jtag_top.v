@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Testbench : tb_jtag_debug_top  (v3 — sửa thêm 8 FAIL từ v2)
 // DUT       : jtag_debug_top (jtag_tap + jtag_dtm + riscv_dm)

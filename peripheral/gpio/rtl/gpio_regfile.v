@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // gpio_regfile.v — GPIO Register File with AXI4-Lite Slave Interface
 //

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // gpio_iocell.v — GPIO IO Cell (Input synchronizer + interrupt detector)
 //

@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : clk_reset_ctrl
 // Project : RISC-V SoC

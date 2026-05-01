@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // gpio_top.v — GPIO Peripheral Top-Level (AXI4-Full Slave S6)
 //

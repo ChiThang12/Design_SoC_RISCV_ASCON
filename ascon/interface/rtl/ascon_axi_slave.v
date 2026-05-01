@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : ascon_axi_slave
 // Version : 2.2  (AXI4-Full slave + DATA_LEN register + BUG fixes)

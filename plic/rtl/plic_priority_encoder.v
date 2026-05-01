@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module  : plic_priority_encoder
 // Project : RISC-V SoC — PLIC

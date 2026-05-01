@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // axi4_master_mux_5m.v
 // Arbitration + mux cho MỘT slave port — hỗ trợ 5 Master.

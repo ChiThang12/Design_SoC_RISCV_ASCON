@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 `include "cache_interface/icache/icache_defines.vh"
 `include "cache_interface/icache/icache_tag_array.v"
 `include "cache_interface/icache/icache_data_array.v"

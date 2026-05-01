@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ascon_PERMUTATION  (v9 — Unrolled Pipeline Architecture)
 //

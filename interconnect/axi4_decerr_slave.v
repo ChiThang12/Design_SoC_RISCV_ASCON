@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // axi4_decerr_slave.v
 // Xử lý giao dịch tới địa chỉ không ánh xạ — trả về DECERR

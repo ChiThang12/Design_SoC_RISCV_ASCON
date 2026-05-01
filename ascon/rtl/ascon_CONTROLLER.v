@@ -1,3 +1,5 @@
+`timescale 1ns/1ps
+
 // ============================================================================
 // Module: ascon_CONTROLLER  (v9 — Pipeline-aware FSM)
 //

@@ -1,4 +1,6 @@
 `timescale 1ns/1ps
+
+`timescale 1ns/1ps
 `include "ascon/rtl/PERMUTATION/ascon_SBOX.v"
 module tb_sbox;
     reg [4:0] in;
