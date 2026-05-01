@@ -71,7 +71,8 @@ module LSU (
                       (drain_state == DRAIN_IDLE) &&
                       !result_valid;
 
-    // Khi fence active: không nhận request mới
+    // `fence` đã được core gate theo trạng thái quiescent của LSU.
+    // Ở đây chỉ cần chặn request mới trong cycle thực thi FENCE.
     assign req_ready = fence ? 1'b0 :
                        (req_is_load ? !lq_full : !sb_full);
 

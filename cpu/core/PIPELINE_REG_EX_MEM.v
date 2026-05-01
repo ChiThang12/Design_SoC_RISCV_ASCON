@@ -3,9 +3,9 @@
 // ============================================================================
 // Supports:
 //   - stall_ex_mem: freeze when LSU dependency stall
-//   - bubble insertion: when upstream stall_any && !fence_stall, insert NOP
-//     to prevent double-issue of the instruction held in EX
-//   - fence_stall bypass: instruction before FENCE must pass through to MEM
+//   - pass-once control: while upstream is stalled, each distinct EX instruction
+//     is allowed to advance into MEM exactly once; replayed copies are bubbled
+//     to prevent duplicate side effects
 //
 // Design note: data path always latches when !stall_ex_mem.
 // Control signals are selectively cleared (bubble) based on stall conditions.
@@ -18,7 +18,7 @@ module PIPELINE_REG_EX_MEM (
     // Stall controls
     input wire        stall_ex_mem,     // freeze entire register (LSU dependency)
     input wire        stall_any,        // upstream stall (imem miss, load-use, debug)
-    input wire        fence_stall,      // FENCE stall — do NOT bubble pre-fence insn
+    input wire        fence_stall,      // kept for interface compatibility
 
     // --- Control signals ---
     input wire        regwrite_in,
@@ -59,6 +59,14 @@ module PIPELINE_REG_EX_MEM (
     output reg        is_mul_out
 );
 
+    reg [78:0] stalled_sig_r;
+    reg        stalled_sig_valid_r;
+    wire [78:0] ex_sig = {
+        regwrite_in, memread_in, memwrite_in, jump_in, is_mul_in,
+        rd_in, byte_size_in, funct3_in, alu_result_in, pc_plus_4_in
+    };
+    wire same_stalled_sig = stalled_sig_valid_r && (ex_sig == stalled_sig_r);
+
     always @(posedge clock or posedge reset) begin
         if (reset) begin
             regwrite_out  <= 1'b0;
@@ -72,6 +80,8 @@ module PIPELINE_REG_EX_MEM (
             rd_out        <= 5'b0;
             byte_size_out <= 2'b0;
             funct3_out    <= 3'b0;
+            stalled_sig_r <= 79'b0;
+            stalled_sig_valid_r <= 1'b0;
         end else if (!stall_ex_mem) begin
             // Data path: always latch
             alu_result_out <= alu_result_in;
@@ -81,11 +91,9 @@ module PIPELINE_REG_EX_MEM (
             byte_size_out  <= byte_size_in;
             funct3_out     <= funct3_in;
 
-            // Control path: bubble insertion logic
-            // [FIX-FENCE-SQUASH] When stall_any is caused solely by fence_stall,
-            // allow the instruction already in EX (the sw before the fence) to
-            // pass through into MEM — do NOT insert a bubble.
-            if (stall_any && !fence_stall) begin
+            // Control path: while upstream is stalled, let each distinct EX
+            // instruction advance exactly once, then bubble duplicate replays.
+            if (stall_any && same_stalled_sig) begin
                 regwrite_out <= 1'b0;
                 memread_out  <= 1'b0;
                 memwrite_out <= 1'b0;
@@ -97,6 +105,13 @@ module PIPELINE_REG_EX_MEM (
                 memwrite_out <= memwrite_in;
                 jump_out     <= jump_in;
                 is_mul_out   <= is_mul_in;
+            end
+
+            if (stall_any) begin
+                stalled_sig_r <= ex_sig;
+                stalled_sig_valid_r <= 1'b1;
+            end else begin
+                stalled_sig_valid_r <= 1'b0;
             end
         end
     end

@@ -63,6 +63,14 @@ module riscv_cpu_core (
     output wire debug_running     // CPU → DM: đang chạy bình thường
 );
 
+    localparam [6:0]
+        OP_R_TYPE = 7'b0110011,
+        OP_I_TYPE = 7'b0010011,
+        OP_LOAD   = 7'b0000011,
+        OP_STORE  = 7'b0100011,
+        OP_BRANCH = 7'b1100011,
+        OP_JALR   = 7'b1100111;
+
     // =========================================================================
     // IRQ aggregation — 2-FF CDC synchronizer chain
     // Prevents metastability when IRQ lines come from a different clock domain.
@@ -90,10 +98,10 @@ module riscv_cpu_core (
     always @(posedge clk or posedge rst) begin
         if (rst)
             irq_pending_lat <= 1'b0;
-        else if (irq_pending)
-            irq_pending_lat <= 1'b1;
         else if (irq_flush_done)
             irq_pending_lat <= 1'b0;
+        else if (irq_pending)
+            irq_pending_lat <= 1'b1;
     end
 
     reg irq_flush_done_r;
@@ -225,6 +233,8 @@ module riscv_cpu_core (
     wire regwrite_id, alusrc_id, memread_id, memwrite_id;
     wire branch_id, jump_id, fence_id;
     wire [1:0] byte_size_id;
+    wire rs1_used_id;
+    wire rs2_used_id;
 
     // =========================================================================
     // [FENCE-TYPE] Decode pred/succ bits từ FENCE instruction
@@ -239,6 +249,19 @@ module riscv_cpu_core (
     assign dcache_fence_type[1] = fence_active && (fence_is_fencei | fence_pred_r | fence_pred_i);
 
     wire [31:0] read_data1_id, read_data2_id, imm_id;
+
+    // Decode true source usage early so hazard detection does not treat
+    // immediate bits as rs2 dependencies on I-type instructions.
+    assign rs1_used_id = (opcode_id == OP_R_TYPE) ||
+                         (opcode_id == OP_I_TYPE) ||
+                         (opcode_id == OP_LOAD)   ||
+                         (opcode_id == OP_STORE)  ||
+                         (opcode_id == OP_BRANCH) ||
+                         (opcode_id == OP_JALR);
+
+    assign rs2_used_id = (opcode_id == OP_R_TYPE) ||
+                         (opcode_id == OP_STORE)  ||
+                         (opcode_id == OP_BRANCH);
 
     wire regwrite_ex, alusrc_ex, memread_ex, memwrite_ex;
     wire branch_ex, jump_ex;
@@ -634,19 +657,34 @@ module riscv_cpu_core (
         endcase
     end
 
-    // [FIX-DOUBLE-ISSUE] lsu_req_sent
-    reg lsu_req_sent;
+    // [FIX-DOUBLE-ISSUE] Track which MEM-stage request has already been
+    // accepted by LSU. Signature includes PC+4 so consecutive identical
+    // loads/stores still issue independently.
+    reg        lsu_req_sent;
+    reg [74:0] lsu_req_sig_r;
+    wire       lsu_req_valid_raw = memread_mem | memwrite_mem;
+    wire [74:0] lsu_req_sig = {memread_mem, memwrite_mem, rd_mem, lsu_req_wstrb, alu_result_mem, pc_plus_4_mem};
+    wire       lsu_req_new  = (lsu_req_sig != lsu_req_sig_r);
+    wire       lsu_req_fire;
+
     always @(posedge clk or posedge rst) begin
-        if (rst)
-            lsu_req_sent <= 1'b0;
-        else begin
-            if (!stall_ex_mem && !stall_any)
+        if (rst) begin
+            lsu_req_sent  <= 1'b0;
+            lsu_req_sig_r <= 75'b0;
+        end else begin
+            if (lsu_req_fire) begin
+                lsu_req_sent  <= 1'b1;
+                lsu_req_sig_r <= lsu_req_sig;
+            end else if (!lsu_req_valid_raw) begin
                 lsu_req_sent <= 1'b0;
-            else if (lsu_req_valid && lsu_req_ready)
-                lsu_req_sent <= 1'b1;
+            end else if (lsu_req_new) begin
+                lsu_req_sent  <= 1'b0;
+                lsu_req_sig_r <= lsu_req_sig;
+            end
         end
     end
-    assign lsu_req_valid = (memread_mem | memwrite_mem) & !lsu_req_sent;
+    assign lsu_req_valid = lsu_req_valid_raw & (!lsu_req_sent || lsu_req_new);
+    assign lsu_req_fire  = lsu_req_valid && lsu_req_ready;
 
     wire soc_lsu_sb_empty;
 
@@ -656,6 +694,8 @@ module riscv_cpu_core (
         .req_addr    (alu_result_mem), .req_wdata   (wdata_shifted),
         .req_wstrb   (lsu_req_wstrb),  .req_is_load (memread_mem),
         .req_rd      (rd_mem),         .req_funct3  (funct3_mem),
+        // fence reaches LSU only after hazard logic has observed quiescent LSU.
+        // This keeps FENCE from blocking pre-existing load/store drain activity.
         .fence       (|dcache_fence_type),
         .result_valid(lsu_result_valid), .result_data(lsu_result_data),
         .result_rd   (lsu_result_rd),  .result_ack  (lsu_result_ack),
@@ -731,9 +771,14 @@ module riscv_cpu_core (
         .rd_id_ex       (rd_ex),
         .rs1_id         (rs1_id),
         .rs2_id         (rs2_id),
+        .rs1_used_id    (rs1_used_id),
+        .rs2_used_id    (rs2_used_id),
         .branch_taken   (pc_src_ex),
         .imem_ready     (imem_ready),
         .lsu_scoreboard (lsu_scoreboard),
+        .mem_stage_pending(lsu_req_valid),
+        .memread_mem_stage(memread_mem),
+        .rd_mem_stage   (rd_mem),
         .fence_id       (fence_id),
         .lsu_idle       (lsu_idle),
         .mul_in_ex      (is_mul_ex),

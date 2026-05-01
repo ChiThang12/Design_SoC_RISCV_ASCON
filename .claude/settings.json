@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path // \"\"' | { read -r f; [[ \"$f\" == *.v ]] && ./workflow/ulint_verilog.sh \"$f\" 2>&1 | tail -8 || true; }",
+            "timeout": 30,
+            "statusMessage": "Lint checking .v file..."
+          }
+        ]
+      }
+    ]
+  }
+}

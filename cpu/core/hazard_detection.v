@@ -6,10 +6,15 @@ module hazard_detection (
     input wire [4:0]  rd_id_ex,
     input wire [4:0]  rs1_id,
     input wire [4:0]  rs2_id,
+    input wire        rs1_used_id,
+    input wire        rs2_used_id,
 
     input wire        branch_taken,
     input wire        imem_ready,
     input wire [31:0] lsu_scoreboard,
+    input wire        mem_stage_pending,
+    input wire        memread_mem_stage,
+    input wire [4:0]  rd_mem_stage,
 
     input wire        fence_id,
     input wire        lsu_idle,
@@ -34,24 +39,33 @@ module hazard_detection (
     wire load_use_hazard;
     assign load_use_hazard = memread_id_ex &&
                              (rd_id_ex != 5'b0) &&
-                             ((rd_id_ex == rs1_id) || (rd_id_ex == rs2_id));
+                             ((rs1_used_id && (rd_id_ex == rs1_id)) ||
+                              (rs2_used_id && (rd_id_ex == rs2_id)));
 
     wire lsu_dependency_stall;
-    assign lsu_dependency_stall = (rs1_id != 5'b0 && lsu_scoreboard[rs1_id]) ||
-                                  (rs2_id != 5'b0 && lsu_scoreboard[rs2_id]);
-    assign lsu_dep_stall = lsu_dependency_stall;
+    assign lsu_dependency_stall = (rs1_used_id && (rs1_id != 5'b0) && lsu_scoreboard[rs1_id]) ||
+                                  (rs2_used_id && (rs2_id != 5'b0) && lsu_scoreboard[rs2_id]);
+
+    // Close the 1-cycle gap between EX load-use stall and LSU scoreboard set.
+    wire mem_load_issue_hazard;
+    assign mem_load_issue_hazard = mem_stage_pending &&
+                                   memread_mem_stage &&
+                                   (rd_mem_stage != 5'b0) &&
+                                   ((rs1_used_id && (rd_mem_stage == rs1_id)) ||
+                                    (rs2_used_id && (rd_mem_stage == rs2_id)));
+    assign lsu_dep_stall = lsu_dependency_stall || mem_load_issue_hazard;
 
     wire imem_stall;
     assign imem_stall = !imem_ready;
 
-    assign fence_stall = fence_id && !lsu_idle;
+    assign fence_stall = fence_id && (!lsu_idle || mem_stage_pending);
 
     // MUL result stall: stall 1 cycle if instruction after MUL reads MUL destination
     wire mul_result_stall;
     assign mul_result_stall = mul_in_ex &&
                               (rd_id_ex != 5'b0) &&
-                              ((rs1_id != 5'b0 && rs1_id == rd_id_ex) ||
-                               (rs2_id != 5'b0 && rs2_id == rd_id_ex));
+                              ((rs1_used_id && (rs1_id != 5'b0) && (rs1_id == rd_id_ex)) ||
+                               (rs2_used_id && (rs2_id != 5'b0) && (rs2_id == rd_id_ex)));
 
     // mul_ex_stall: hold pipeline 1 extra cycle when MUL first enters EX (Fix 10B)
     // Allows E1.5 partial-product stage to compute before E2 captures result.
@@ -63,7 +77,7 @@ module hazard_detection (
     end
     assign mul_ex_stall = mul_in_ex && !mul_ex_stall_done_r;
 
-    assign stall    = load_use_hazard || lsu_dependency_stall || fence_stall || mul_result_stall || mul_ex_stall;
+    assign stall    = load_use_hazard || lsu_dep_stall || fence_stall || mul_result_stall || mul_ex_stall;
     assign stall_if = imem_stall;
 
     // Fix 9B: prediction-aware flush
