@@ -140,7 +140,7 @@ module ascon_PERMUTATION #(
         // Since we always unroll all 12 but only use first `rounds` outputs:
         // Use a registered mux in the "running" cycle
         reg [319:0] mux_out;
-        always @(*) begin
+        always @(rnd_reg, round_wire[1], round_wire[2], round_wire[3], round_wire[4], round_wire[5], round_wire[6], round_wire[7], round_wire[8], round_wire[9], round_wire[10], round_wire[11], round_wire[12]) begin
             case (rnd_reg)
                 4'd1:  mux_out = round_wire[1];
                 4'd2:  mux_out = round_wire[2];

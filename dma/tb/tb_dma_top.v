@@ -140,6 +140,7 @@ wire                m_bready;
 // IRQ output
 // ============================================================
 wire irq_out;
+wire dma_busy_o;
 
 // ============================================================
 // Memory Model (TB — mô phỏng SRAM 8KB)
@@ -200,7 +201,8 @@ dma_ctrl #(
     .M_AXI_BID     (m_bid),     .M_AXI_BRESP  (m_bresp),
     .M_AXI_BVALID  (m_bvalid),  .M_AXI_BREADY (m_bready),
 
-    .irq_out       (irq_out)
+    .irq_out       (irq_out),
+    .dma_busy_o    (dma_busy_o)
 );
 
 // ============================================================

@@ -74,7 +74,8 @@ module timer_top #(
     output wire wdt_irq,
 
     // ── WDT reset request (active-high) ──────────────────────────────────────
-    output wire wdt_rst_req
+    output wire wdt_rst_req,
+    output wire timer_active_o
 );
 
     // ── Timer 0 wires ────────────────────────────────────────────────────────
@@ -171,5 +172,7 @@ module timer_top #(
         .wdt_irq       (wdt_irq),
         .wdt_rst_req   (wdt_rst_req)
     );
+
+    assign timer_active_o = t0_en | t1_en | wdt_en;
 
 endmodule

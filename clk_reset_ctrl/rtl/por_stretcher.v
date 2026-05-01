@@ -12,6 +12,8 @@
 // POR_CYCLES = 1000 → tại 100 MHz = 10 µs (đáp ứng yêu cầu spec ≥10 µs).
 // ============================================================================
 
+// PROVIDES: por_n_out (POR stretched ≥ POR_CYCLES cycles, glitch-filtered, active-low)
+// REQUIRES: clk (any freq), por_n_raw (pad POR, active-low, may bounce)
 module por_stretcher #(
     parameter POR_CYCLES = 1000   // WHY 1000: 10µs @ 100MHz. Tăng nếu VDD rise chậm hơn.
 ) (

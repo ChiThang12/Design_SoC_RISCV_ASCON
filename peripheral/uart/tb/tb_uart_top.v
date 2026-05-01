@@ -73,6 +73,7 @@ wire uart_rx_w = loopback_en ? uart_tx_w : uart_rx_drive;
 
 // ---- IRQ ----
 wire irq_out;
+wire uart_active;
 
 // ---- DUT ----
 uart_top #(
@@ -98,7 +99,8 @@ uart_top #(
     .s_axi_rresp(rresp),   .s_axi_rlast(rlast),
     .s_axi_rvalid(rvalid), .s_axi_rready(rready),
     .uart_tx(uart_tx_w),   .uart_rx(uart_rx_w),
-    .irq_out(irq_out)
+    .irq_out(irq_out),
+    .uart_active(uart_active)
 );
 
 // ---- Waveform & Timeout ----

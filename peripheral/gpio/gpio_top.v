@@ -70,7 +70,8 @@ module gpio_top #(
     input  wire [GPIO_WIDTH-1:0]    gpio_in,    // pad input data
 
     // ── IRQ to PLIC ───────────────────────────────────────────────────────────
-    output wire                     gpio_irq
+    output wire                     gpio_irq,
+    output wire                     gpio_wake_armed_o
 );
 
     // Internal wires between regfile and iocell
@@ -134,5 +135,7 @@ module gpio_top #(
         .irq_raw      (irq_raw_w),
         .gpio_irq     (gpio_irq)
     );
+
+    assign gpio_wake_armed_o = |irq_en_w;
 
 endmodule

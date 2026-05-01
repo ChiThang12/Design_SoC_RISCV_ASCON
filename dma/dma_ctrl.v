@@ -127,7 +127,8 @@ module dma_ctrl #(
     output wire                  M_AXI_BREADY,
 
     // ── IRQ → PLIC ────────────────────────────────────────────────────────
-    output wire                  irq_out
+    output wire                  irq_out,
+    output wire                  dma_busy_o
 );
 
     // =========================================================================
@@ -315,6 +316,8 @@ module dma_ctrl #(
         .wr_wready(ch3_wr_wready), .wr_bresp(ch3_wr_bresp),
         .wr_bvalid(ch3_wr_bvalid), .wr_bready()
     );
+
+    assign dma_busy_o = |ch_busy_w;
 
     // =========================================================================
     // u_arbiter — Round-robin

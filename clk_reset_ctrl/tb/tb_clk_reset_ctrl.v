@@ -67,15 +67,28 @@ module tb_clk_reset_ctrl;
     reg  ext_rst_n;
     reg  soft_rst_pulse;
     reg  ndmreset;
+    reg  boot_done;
     reg  test_en;
     reg  core_clk_en;
     reg  periph_clk_en;
+    reg  cpu_wfi;
+    reg  ascon_busy;
+    reg  core_bus_active;
+    reg  core_wake_event;
+    reg  periph_bus_active;
+    reg  periph_busy;
+    reg  periph_wake_event;
+    reg  periph_gate_allow;
+    reg  periph_wake_req;   // AON async wake request [MỚI]
 
     wire clk_core;
     wire clk_periph;
+    wire clk_aon;           // always-on clock [MỚI]
     wire fabric_rst_n;
     wire cpu_rst_n;
     wire periph_rst_n;
+    wire aon_rst_n;         // AON domain reset [MỚI]
+    wire wake_ack;          // periph clock stable [MỚI]
 
     // -----------------------------------------------------------------------
     // DUT
@@ -84,19 +97,32 @@ module tb_clk_reset_ctrl;
         .POR_CYCLES      (POR_CYCLES),
         .SOFT_RST_STRETCH(SOFT_RST_STRETCH)
     ) dut (
-        .clk_in        (clk_in),
-        .por_n         (por_n),
-        .ext_rst_n     (ext_rst_n),
-        .soft_rst_pulse(soft_rst_pulse),
-        .ndmreset      (ndmreset),
-        .test_en       (test_en),
-        .core_clk_en   (core_clk_en),
-        .periph_clk_en (periph_clk_en),
-        .clk_core      (clk_core),
-        .clk_periph    (clk_periph),
-        .fabric_rst_n  (fabric_rst_n),
-        .cpu_rst_n     (cpu_rst_n),
-        .periph_rst_n  (periph_rst_n)
+        .clk_in           (clk_in),
+        .por_n            (por_n),
+        .ext_rst_n        (ext_rst_n),
+        .soft_rst_pulse   (soft_rst_pulse),
+        .boot_done        (boot_done),
+        .ndmreset         (ndmreset),
+        .test_en          (test_en),
+        .core_clk_en      (core_clk_en),
+        .periph_clk_en    (periph_clk_en),
+        .cpu_wfi          (cpu_wfi),
+        .ascon_busy       (ascon_busy),
+        .core_bus_active  (core_bus_active),
+        .core_wake_event  (core_wake_event),
+        .periph_bus_active(periph_bus_active),
+        .periph_busy      (periph_busy),
+        .periph_wake_event(periph_wake_event),
+        .periph_gate_allow(periph_gate_allow),
+        .periph_wake_req  (periph_wake_req),
+        .clk_core         (clk_core),
+        .clk_periph       (clk_periph),
+        .clk_aon          (clk_aon),
+        .fabric_rst_n     (fabric_rst_n),
+        .cpu_rst_n        (cpu_rst_n),
+        .periph_rst_n     (periph_rst_n),
+        .aon_rst_n        (aon_rst_n),
+        .wake_ack         (wake_ack)
     );
 
     // -----------------------------------------------------------------------
@@ -161,9 +187,19 @@ module tb_clk_reset_ctrl;
             ext_rst_n      = 1'b0;
             soft_rst_pulse = 1'b0;
             ndmreset       = 1'b0;
+            boot_done      = 1'b1;
             test_en        = 1'b0;
             core_clk_en    = 1'b1;
             periph_clk_en  = 1'b1;
+            cpu_wfi        = 1'b0;
+            ascon_busy     = 1'b0;
+            core_bus_active = 1'b0;
+            core_wake_event = 1'b0;
+            periph_bus_active = 1'b0;
+            periph_busy    = 1'b0;
+            periph_wake_event = 1'b0;
+            periph_gate_allow = 1'b1;
+            periph_wake_req   = 1'b0;
             wait_cycles(4);
 
             // Release POR và ext_rst đồng bộ với cạnh lên
@@ -220,9 +256,19 @@ module tb_clk_reset_ctrl;
         ext_rst_n      = 1'b0;
         soft_rst_pulse = 1'b0;
         ndmreset       = 1'b0;
+        boot_done      = 1'b1;
         test_en        = 1'b0;
         core_clk_en    = 1'b1;
         periph_clk_en  = 1'b1;
+        cpu_wfi        = 1'b0;
+        ascon_busy     = 1'b0;
+        core_bus_active = 1'b0;
+        core_wake_event = 1'b0;
+        periph_bus_active = 1'b0;
+        periph_busy    = 1'b0;
+        periph_wake_event = 1'b0;
+        periph_gate_allow = 1'b1;
+        periph_wake_req   = 1'b0;
 
         wait_cycles(2);
         check1("TC_RST_01a fabric_rst_n [POR low]", fabric_rst_n, 1'b0);
@@ -647,6 +693,125 @@ module tb_clk_reset_ctrl;
         // Sau stretch đầu + margin: release (pulse 2 bị ignore)
         wait_cycles(SOFT_RST_STRETCH + 5);
         check1("TC_SEQ_04c fabric_rst_n [after 1st stretch]", fabric_rst_n, 1'b1);
+
+        // ===================================================================
+        // TC_AON_01: clk_aon luôn chạy kể cả khi core_clk_en=0, periph_clk_en=0
+        //
+        // WHY test: AON domain phải alive kể cả khi cả CORE và PERIPH bị gate.
+        //   Nếu clk_aon bị gate, wake detector sẽ không chạy và SoC không
+        //   thể tỉnh dậy từ sleep mode. clk_aon = clk_in (không qua ICG).
+        // EXPECT: clk_aon toggling (s0 ≠ s1) bất kể enable state.
+        // ===================================================================
+        $display("\n--- TC_AON_01: clk_aon LUON chay du core_clk_en=0, periph_clk_en=0 ---");
+        full_release;
+        @(negedge clk_in); #1;
+        core_clk_en   = 1'b0;
+        periph_clk_en = 1'b0;
+        #(CLK_PERIOD * 3);
+        check1("TC_AON_01a clk_core gated", clk_core,   1'b0);
+        check1("TC_AON_01b clk_periph gated", clk_periph, 1'b0);
+        // clk_aon vẫn phải toggling
+        s0 = clk_aon;
+        #(CLK_PERIOD/2);
+        s1 = clk_aon;
+        if (s0 !== s1) begin
+            $display("[PASS] %0t  TC_AON_01c clk_aon toggling when core+periph gated", $time);
+            pass_cnt = pass_cnt + 1;
+        end else begin
+            $display("[FAIL] %0t  TC_AON_01c clk_aon NOT toggling (s0=%b s1=%b)",
+                     $time, s0, s1);
+            fail_cnt = fail_cnt + 1;
+        end
+        // Khôi phục
+        @(negedge clk_in); #1;
+        core_clk_en   = 1'b1;
+        periph_clk_en = 1'b1;
+
+        // ===================================================================
+        // TC_AON_02: aon_rst_n KHÔNG bị ảnh hưởng bởi soft_rst
+        //
+        // WHY test: wake-up state (wake_pend SR-latch) phải tồn tại qua
+        //   soft_rst. Nếu aon_rst_n xuống khi soft_rst → CPU không thể
+        //   biết nguyên nhân wake-up sau khi reset xong.
+        //   aon_combined_rst_n = por_n_stretched & ext_rst_n (không có soft_rst_n_w).
+        // EXPECT: aon_rst_n=1 trong khi fabric_rst_n=0 (soft_rst active).
+        // ===================================================================
+        $display("\n--- TC_AON_02: aon_rst_n KHONG bi soft_rst ---");
+        full_release;
+        wait_cycles(2);
+
+        @(posedge clk_in); #1;
+        soft_rst_pulse = 1'b1;
+        @(posedge clk_in); #1;
+        soft_rst_pulse = 1'b0;
+
+        wait_cycles(3);
+        // fabric_rst_n phải = 0 (soft_rst ảnh hưởng combined_rst_n)
+        check1("TC_AON_02a fabric_rst_n [soft_rst]", fabric_rst_n, 1'b0);
+        // aon_rst_n phải = 1 (soft_rst KHÔNG trong aon_combined_rst_n)
+        check1("TC_AON_02b aon_rst_n [soft_rst - KHONG bi anh huong]", aon_rst_n, 1'b1);
+
+        wait_cycles(SOFT_RST_STRETCH + 5);
+        check1("TC_AON_02c fabric_rst_n [after soft_rst]", fabric_rst_n, 1'b1);
+        check1("TC_AON_02d aon_rst_n   [after soft_rst]", aon_rst_n,    1'b1);
+
+        // ===================================================================
+        // TC_AON_03: periph_wake_req=1 → clk_periph bật, wake_ack assert
+        //
+        // WHY test: đây là cơ chế wake-up chính của AON domain. Khi
+        //   peripheral clock bị gate (idle), một signal từ AON (UART RX
+        //   start bit, GPIO edge, Timer match) kéo periph_wake_req=1.
+        //   Sau 1 FF cycle: periph_clk_dyn_en_r=1 → clk_periph bật.
+        //   wake_ack = periph_clk_dyn_en_r → assert cùng lúc.
+        // EXPECT: sau khi periph_wake_req=1, clock bật và wake_ack=1.
+        // ===================================================================
+        $display("\n--- TC_AON_03: periph_wake_req=1 → clk_periph bat, wake_ack=1 ---");
+        full_release;
+        // Để periph clock tự tắt: tắt tất cả busy/wake signals
+        wait_cycles(2);
+        @(negedge clk_in); #1;
+        periph_gate_allow  = 1'b1;
+        periph_busy        = 1'b0;
+        periph_wake_event  = 1'b0;
+        periph_bus_active  = 1'b0;
+        periph_wake_req    = 1'b0;
+        // Chờ PERIPH_IDLE_HOLD_CYCLES + margin để clock tắt
+        // (testbench dùng default params, không override PERIPH_IDLE_HOLD_CYCLES
+        //  nên dùng giá trị default=64. Dùng một giá trị nhỏ hơn để test nhanh hơn)
+        // Thay vào đó dùng periph_clk_en=0 để force gate ngay
+        @(negedge clk_in); #1;
+        periph_clk_en = 1'b0;
+        #(CLK_PERIOD * 2);
+        check1("TC_AON_03a clk_periph gated before wake", clk_periph, 1'b0);
+        check1("TC_AON_03b wake_ack before wake", wake_ack, 1'b0);
+
+        // Re-enable periph_clk_en (cần để periph_clk_req có thể assert)
+        // Sau đó assert periph_wake_req
+        @(negedge clk_in); #1;
+        periph_clk_en = 1'b1;
+
+        @(posedge clk_in); #1;
+        periph_wake_req = 1'b1;  // async wake từ AON
+
+        // Sau 1-2 cycle FF sampling: periph_clk_dyn_en_r=1 → clock bật
+        wait_cycles(3);
+        check1("TC_AON_03c wake_ack after periph_wake_req", wake_ack, 1'b1);
+        // Kiểm tra clk_periph đang chạy
+        s0 = clk_periph;
+        #(CLK_PERIOD/2);
+        s1 = clk_periph;
+        if (s0 !== s1) begin
+            $display("[PASS] %0t  TC_AON_03d clk_periph toggling after wake_req", $time);
+            pass_cnt = pass_cnt + 1;
+        end else begin
+            $display("[FAIL] %0t  TC_AON_03d clk_periph NOT toggling after wake_req (s0=%b s1=%b)",
+                     $time, s0, s1);
+            fail_cnt = fail_cnt + 1;
+        end
+
+        // Clear wake_req → clock có thể gate lại sau HOLD cycle
+        @(posedge clk_in); #1;
+        periph_wake_req = 1'b0;
 
         // ===================================================================
         // Kết quả tổng hợp

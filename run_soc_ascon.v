@@ -1,5 +1,5 @@
 `timescale 1ns/1ps
-`include "soc_top.v"
+`include "soc_hs.v"
 
 // ============================================================================
 //  run_soc_ascon.v  —  Universal Debug Testbench  v6.0
@@ -16,7 +16,7 @@
 //          Monitor tự tính bit period từ tham số CLK_PERIOD và BAUD_DIV.
 //
 //  [NEW-3] JTAG taps: monitor ndmreset, haltreq, resumereq, halted, running
-//          từ soc.u_jtag và soc.jtag_ndmreset để log sự kiện debug session.
+//          từ chip.u_soc_top.u_jtag và chip.u_soc_top.jtag_ndmreset để log sự kiện debug session.
 //
 //  [NEW-4] PLIC taps: irq_src vector, meip output, per-source pending.
 //          Log khi meip thay đổi để theo dõi interrupt flow.
@@ -84,32 +84,38 @@ wire uart_tx_w;
 wire uart_rx_w;
 assign uart_rx_w = 1'b1;  // idle high — loopback gây echo làm nhiễu UART monitor
 
-// GPIO — split in/out/oe, driven from TB
-wire [31:0] gpio_out_w;
-wire [31:0] gpio_oe_w;
+// GPIO — inout pad
+wire [31:0] gpio_w;
 reg  [31:0] gpio_in_r;
+assign gpio_w = gpio_in_r;
+wire [31:0] gpio_out_w = chip.core_gpio_out;
+wire [31:0] gpio_oe_w  = chip.core_gpio_oe;
 
 // WDT reset request — TB intercepts, NOT applied to DUT
 wire wdt_rst_req_w;
 
-soc_top soc (
-    .clk       (clk),
-    .por_n     (por_n_r),        // [NEW-1]
-    .ext_rst_n (ext_rst_n_r),
+assign jtag_tdo_en_w = chip.core_tdo_en; // To preserve the tap
+
+soc_hs #(.SIM_MODE(1)) chip (
+    .clk_in      (clk),
+    .por_n       (por_n_r),
+    .ext_rst_n   (ext_rst_n_r),
     // UART
-    .uart_tx   (uart_tx_w),
-    .uart_rx   (uart_rx_w),
+    .uart_tx     (uart_tx_w),
+    .uart_rx     (uart_rx_w),
     // JTAG
-    .tck       (jtag_tck_r),
-    .tms       (jtag_tms_r),
-    .tdi       (jtag_tdi_r),
-    .tdo       (jtag_tdo_w),
-    .tdo_en    (jtag_tdo_en_w),
+    .tck         (jtag_tck_r),
+    .tms         (jtag_tms_r),
+    .tdi         (jtag_tdi_r),
+    .tdo         (jtag_tdo_w),
+    // SPI (Stub)
+    .spi_sck     (),
+    .spi_mosi    (),
+    .spi_miso    (1'b1),
+    .spi_cs_n    (),
     // GPIO
-    .gpio_out  (gpio_out_w),
-    .gpio_oe   (gpio_oe_w),
-    .gpio_in   (gpio_in_r),
-    // WDT
+    .gpio        (gpio_w),
+    // WDT reset request
     .wdt_rst_req (wdt_rst_req_w)
 );
 
@@ -118,445 +124,445 @@ soc_top soc (
 // ============================================================================
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [A] CPU Pipeline  (instance: soc.u_cpu)
+// [A] CPU Pipeline  (instance: chip.u_soc_top.u_cpu)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] pc_if     = soc.u_cpu.pc_if;
-wire [31:0] instr_if  = soc.u_cpu.instr_if;
-wire        stall_if  = soc.u_cpu.stall_if;
+wire [31:0] pc_if     = chip.u_soc_top.u_cpu.pc_if;
+wire [31:0] instr_if  = chip.u_soc_top.u_cpu.instr_if;
+wire        stall_if  = chip.u_soc_top.u_cpu.stall_if;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [B] CPU ↔ ICache
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] ic_cpu_addr  = soc.cpu_imem_addr;
-wire        ic_cpu_req   = soc.cpu_imem_valid;
-wire [31:0] ic_cpu_rdata = soc.icache_imem_rdata;
-wire        ic_cpu_ready = soc.icache_imem_ready;
+wire [31:0] ic_cpu_addr  = chip.u_soc_top.cpu_imem_addr;
+wire        ic_cpu_req   = chip.u_soc_top.cpu_imem_valid;
+wire [31:0] ic_cpu_rdata = chip.u_soc_top.icache_imem_rdata;
+wire        ic_cpu_ready = chip.u_soc_top.icache_imem_ready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [C] CPU ↔ DCache
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] dc_addr  = soc.cpu_dcache_addr;
-wire [31:0] dc_wdata = soc.cpu_dcache_wdata;
-wire [3:0]  dc_wstrb = soc.cpu_dcache_wstrb;
-wire        dc_req   = soc.cpu_dcache_req;
-wire        dc_we    = soc.cpu_dcache_we;
-wire [31:0] dc_rdata = soc.dcache_cpu_rdata;
-wire        dc_ready = soc.dcache_cpu_ready;
+wire [31:0] dc_addr  = chip.u_soc_top.cpu_dcache_addr;
+wire [31:0] dc_wdata = chip.u_soc_top.cpu_dcache_wdata;
+wire [3:0]  dc_wstrb = chip.u_soc_top.cpu_dcache_wstrb;
+wire        dc_req   = chip.u_soc_top.cpu_dcache_req;
+wire        dc_we    = chip.u_soc_top.cpu_dcache_we;
+wire [31:0] dc_rdata = chip.u_soc_top.dcache_cpu_rdata;
+wire        dc_ready = chip.u_soc_top.dcache_cpu_ready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [D] M0 (ICache) → Crossbar
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  m0_arid    = soc.m0_arid;
-wire [31:0] m0_araddr  = soc.m0_araddr;
-wire [7:0]  m0_arlen   = soc.m0_arlen;
-wire [2:0]  m0_arsize  = soc.m0_arsize;
-wire [1:0]  m0_arburst = soc.m0_arburst;
-wire        m0_arvalid = soc.m0_arvalid;
-wire        m0_arready = soc.m0_arready;
-wire [3:0]  m0_rid     = soc.m0_rid;
-wire [31:0] m0_rdata   = soc.m0_rdata;
-wire [1:0]  m0_rresp   = soc.m0_rresp;
-wire        m0_rlast   = soc.m0_rlast;
-wire        m0_rvalid  = soc.m0_rvalid;
-wire        m0_rready  = soc.m0_rready;
-wire        m0_awvalid = soc.m0_awvalid;
-wire [31:0] m0_awaddr  = soc.m0_awaddr;
-wire [1:0]  m0_bresp   = soc.m0_bresp;
-wire        m0_bvalid  = soc.m0_bvalid;
+wire [3:0]  m0_arid    = chip.u_soc_top.m0_arid;
+wire [31:0] m0_araddr  = chip.u_soc_top.m0_araddr;
+wire [7:0]  m0_arlen   = chip.u_soc_top.m0_arlen;
+wire [2:0]  m0_arsize  = chip.u_soc_top.m0_arsize;
+wire [1:0]  m0_arburst = chip.u_soc_top.m0_arburst;
+wire        m0_arvalid = chip.u_soc_top.m0_arvalid;
+wire        m0_arready = chip.u_soc_top.m0_arready;
+wire [3:0]  m0_rid     = chip.u_soc_top.m0_rid;
+wire [31:0] m0_rdata   = chip.u_soc_top.m0_rdata;
+wire [1:0]  m0_rresp   = chip.u_soc_top.m0_rresp;
+wire        m0_rlast   = chip.u_soc_top.m0_rlast;
+wire        m0_rvalid  = chip.u_soc_top.m0_rvalid;
+wire        m0_rready  = chip.u_soc_top.m0_rready;
+wire        m0_awvalid = chip.u_soc_top.m0_awvalid;
+wire [31:0] m0_awaddr  = chip.u_soc_top.m0_awaddr;
+wire [1:0]  m0_bresp   = chip.u_soc_top.m0_bresp;
+wire        m0_bvalid  = chip.u_soc_top.m0_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [E] M1 (DCache) → Crossbar
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  m1_arid    = soc.m1_arid;
-wire [31:0] m1_araddr  = soc.m1_araddr;
-wire [7:0]  m1_arlen   = soc.m1_arlen;
-wire [2:0]  m1_arsize  = soc.m1_arsize;
-wire [1:0]  m1_arburst = soc.m1_arburst;
-wire        m1_arvalid = soc.m1_arvalid;
-wire        m1_arready = soc.m1_arready;
-wire [3:0]  m1_rid     = soc.m1_rid;
-wire [31:0] m1_rdata   = soc.m1_rdata;
-wire [1:0]  m1_rresp   = soc.m1_rresp;
-wire        m1_rlast   = soc.m1_rlast;
-wire        m1_rvalid  = soc.m1_rvalid;
-wire        m1_rready  = soc.m1_rready;
-wire [3:0]  m1_awid    = soc.m1_awid;
-wire [31:0] m1_awaddr  = soc.m1_awaddr;
-wire [7:0]  m1_awlen   = soc.m1_awlen;
-wire [2:0]  m1_awsize  = soc.m1_awsize;
-wire [1:0]  m1_awburst = soc.m1_awburst;
-wire        m1_awvalid = soc.m1_awvalid;
-wire        m1_awready = soc.m1_awready;
-wire [31:0] m1_wdata   = soc.m1_wdata;
-wire [3:0]  m1_wstrb   = soc.m1_wstrb;
-wire        m1_wlast   = soc.m1_wlast;
-wire        m1_wvalid  = soc.m1_wvalid;
-wire        m1_wready  = soc.m1_wready;
-wire [3:0]  m1_bid     = soc.m1_bid;
-wire [1:0]  m1_bresp   = soc.m1_bresp;
-wire        m1_bvalid  = soc.m1_bvalid;
-wire        m1_bready  = soc.m1_bready;
+wire [3:0]  m1_arid    = chip.u_soc_top.m1_arid;
+wire [31:0] m1_araddr  = chip.u_soc_top.m1_araddr;
+wire [7:0]  m1_arlen   = chip.u_soc_top.m1_arlen;
+wire [2:0]  m1_arsize  = chip.u_soc_top.m1_arsize;
+wire [1:0]  m1_arburst = chip.u_soc_top.m1_arburst;
+wire        m1_arvalid = chip.u_soc_top.m1_arvalid;
+wire        m1_arready = chip.u_soc_top.m1_arready;
+wire [3:0]  m1_rid     = chip.u_soc_top.m1_rid;
+wire [31:0] m1_rdata   = chip.u_soc_top.m1_rdata;
+wire [1:0]  m1_rresp   = chip.u_soc_top.m1_rresp;
+wire        m1_rlast   = chip.u_soc_top.m1_rlast;
+wire        m1_rvalid  = chip.u_soc_top.m1_rvalid;
+wire        m1_rready  = chip.u_soc_top.m1_rready;
+wire [3:0]  m1_awid    = chip.u_soc_top.m1_awid;
+wire [31:0] m1_awaddr  = chip.u_soc_top.m1_awaddr;
+wire [7:0]  m1_awlen   = chip.u_soc_top.m1_awlen;
+wire [2:0]  m1_awsize  = chip.u_soc_top.m1_awsize;
+wire [1:0]  m1_awburst = chip.u_soc_top.m1_awburst;
+wire        m1_awvalid = chip.u_soc_top.m1_awvalid;
+wire        m1_awready = chip.u_soc_top.m1_awready;
+wire [31:0] m1_wdata   = chip.u_soc_top.m1_wdata;
+wire [3:0]  m1_wstrb   = chip.u_soc_top.m1_wstrb;
+wire        m1_wlast   = chip.u_soc_top.m1_wlast;
+wire        m1_wvalid  = chip.u_soc_top.m1_wvalid;
+wire        m1_wready  = chip.u_soc_top.m1_wready;
+wire [3:0]  m1_bid     = chip.u_soc_top.m1_bid;
+wire [1:0]  m1_bresp   = chip.u_soc_top.m1_bresp;
+wire        m1_bvalid  = chip.u_soc_top.m1_bvalid;
+wire        m1_bready  = chip.u_soc_top.m1_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [F] M2 (ASCON DMA 32-bit, sau width converter) → Crossbar
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  m2_arid    = soc.m2_arid;
-wire [31:0] m2_araddr  = soc.m2_araddr;
-wire [7:0]  m2_arlen   = soc.m2_arlen;
-wire [2:0]  m2_arsize  = soc.m2_arsize;
-wire [1:0]  m2_arburst = soc.m2_arburst;
-wire        m2_arvalid = soc.m2_arvalid;
-wire        m2_arready = soc.m2_arready;
-wire [3:0]  m2_rid     = soc.m2_rid;
-wire [31:0] m2_rdata   = soc.m2_rdata;
-wire [1:0]  m2_rresp   = soc.m2_rresp;
-wire        m2_rlast   = soc.m2_rlast;
-wire        m2_rvalid  = soc.m2_rvalid;
-wire        m2_rready  = soc.m2_rready;
-wire [3:0]  m2_awid    = soc.m2_awid;
-wire [31:0] m2_awaddr  = soc.m2_awaddr;
-wire [7:0]  m2_awlen   = soc.m2_awlen;
-wire [2:0]  m2_awsize  = soc.m2_awsize;
-wire [1:0]  m2_awburst = soc.m2_awburst;
-wire        m2_awvalid = soc.m2_awvalid;
-wire        m2_awready = soc.m2_awready;
-wire [31:0] m2_wdata   = soc.m2_wdata;
-wire [3:0]  m2_wstrb   = soc.m2_wstrb;
-wire        m2_wlast   = soc.m2_wlast;
-wire        m2_wvalid  = soc.m2_wvalid;
-wire        m2_wready  = soc.m2_wready;
-wire [3:0]  m2_bid     = soc.m2_bid;
-wire [1:0]  m2_bresp   = soc.m2_bresp;
-wire        m2_bvalid  = soc.m2_bvalid;
-wire        m2_bready  = soc.m2_bready;
+wire [3:0]  m2_arid    = chip.u_soc_top.m2_arid;
+wire [31:0] m2_araddr  = chip.u_soc_top.m2_araddr;
+wire [7:0]  m2_arlen   = chip.u_soc_top.m2_arlen;
+wire [2:0]  m2_arsize  = chip.u_soc_top.m2_arsize;
+wire [1:0]  m2_arburst = chip.u_soc_top.m2_arburst;
+wire        m2_arvalid = chip.u_soc_top.m2_arvalid;
+wire        m2_arready = chip.u_soc_top.m2_arready;
+wire [3:0]  m2_rid     = chip.u_soc_top.m2_rid;
+wire [31:0] m2_rdata   = chip.u_soc_top.m2_rdata;
+wire [1:0]  m2_rresp   = chip.u_soc_top.m2_rresp;
+wire        m2_rlast   = chip.u_soc_top.m2_rlast;
+wire        m2_rvalid  = chip.u_soc_top.m2_rvalid;
+wire        m2_rready  = chip.u_soc_top.m2_rready;
+wire [3:0]  m2_awid    = chip.u_soc_top.m2_awid;
+wire [31:0] m2_awaddr  = chip.u_soc_top.m2_awaddr;
+wire [7:0]  m2_awlen   = chip.u_soc_top.m2_awlen;
+wire [2:0]  m2_awsize  = chip.u_soc_top.m2_awsize;
+wire [1:0]  m2_awburst = chip.u_soc_top.m2_awburst;
+wire        m2_awvalid = chip.u_soc_top.m2_awvalid;
+wire        m2_awready = chip.u_soc_top.m2_awready;
+wire [31:0] m2_wdata   = chip.u_soc_top.m2_wdata;
+wire [3:0]  m2_wstrb   = chip.u_soc_top.m2_wstrb;
+wire        m2_wlast   = chip.u_soc_top.m2_wlast;
+wire        m2_wvalid  = chip.u_soc_top.m2_wvalid;
+wire        m2_wready  = chip.u_soc_top.m2_wready;
+wire [3:0]  m2_bid     = chip.u_soc_top.m2_bid;
+wire [1:0]  m2_bresp   = chip.u_soc_top.m2_bresp;
+wire        m2_bvalid  = chip.u_soc_top.m2_bvalid;
+wire        m2_bready  = chip.u_soc_top.m2_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [F2] M3 (DMA Controller) → Crossbar  [NEW-5]
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  m3_arid    = soc.m3_arid;
-wire [31:0] m3_araddr  = soc.m3_araddr;
-wire [7:0]  m3_arlen   = soc.m3_arlen;
-wire        m3_arvalid = soc.m3_arvalid;
-wire        m3_arready = soc.m3_arready;
-wire [31:0] m3_rdata   = soc.m3_rdata;
-wire [1:0]  m3_rresp   = soc.m3_rresp;
-wire        m3_rlast   = soc.m3_rlast;
-wire        m3_rvalid  = soc.m3_rvalid;
-wire        m3_rready  = soc.m3_rready;
-wire [3:0]  m3_awid    = soc.m3_awid;
-wire [31:0] m3_awaddr  = soc.m3_awaddr;
-wire [7:0]  m3_awlen   = soc.m3_awlen;
-wire        m3_awvalid = soc.m3_awvalid;
-wire        m3_awready = soc.m3_awready;
-wire [31:0] m3_wdata   = soc.m3_wdata;
-wire [3:0]  m3_wstrb   = soc.m3_wstrb;
-wire        m3_wlast   = soc.m3_wlast;
-wire        m3_wvalid  = soc.m3_wvalid;
-wire        m3_wready  = soc.m3_wready;
-wire [3:0]  m3_bid     = soc.m3_bid;
-wire [1:0]  m3_bresp   = soc.m3_bresp;
-wire        m3_bvalid  = soc.m3_bvalid;
-wire        m3_bready  = soc.m3_bready;
+wire [3:0]  m3_arid    = chip.u_soc_top.m3_arid;
+wire [31:0] m3_araddr  = chip.u_soc_top.m3_araddr;
+wire [7:0]  m3_arlen   = chip.u_soc_top.m3_arlen;
+wire        m3_arvalid = chip.u_soc_top.m3_arvalid;
+wire        m3_arready = chip.u_soc_top.m3_arready;
+wire [31:0] m3_rdata   = chip.u_soc_top.m3_rdata;
+wire [1:0]  m3_rresp   = chip.u_soc_top.m3_rresp;
+wire        m3_rlast   = chip.u_soc_top.m3_rlast;
+wire        m3_rvalid  = chip.u_soc_top.m3_rvalid;
+wire        m3_rready  = chip.u_soc_top.m3_rready;
+wire [3:0]  m3_awid    = chip.u_soc_top.m3_awid;
+wire [31:0] m3_awaddr  = chip.u_soc_top.m3_awaddr;
+wire [7:0]  m3_awlen   = chip.u_soc_top.m3_awlen;
+wire        m3_awvalid = chip.u_soc_top.m3_awvalid;
+wire        m3_awready = chip.u_soc_top.m3_awready;
+wire [31:0] m3_wdata   = chip.u_soc_top.m3_wdata;
+wire [3:0]  m3_wstrb   = chip.u_soc_top.m3_wstrb;
+wire        m3_wlast   = chip.u_soc_top.m3_wlast;
+wire        m3_wvalid  = chip.u_soc_top.m3_wvalid;
+wire        m3_wready  = chip.u_soc_top.m3_wready;
+wire [3:0]  m3_bid     = chip.u_soc_top.m3_bid;
+wire [1:0]  m3_bresp   = chip.u_soc_top.m3_bresp;
+wire        m3_bvalid  = chip.u_soc_top.m3_bvalid;
+wire        m3_bready  = chip.u_soc_top.m3_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [F3] M4 (JTAG Debug Module SBA) → Crossbar  [NEW-5]
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  m4_arid    = soc.m4_arid;
-wire [31:0] m4_araddr  = soc.m4_araddr;
-wire [7:0]  m4_arlen   = soc.m4_arlen;
-wire        m4_arvalid = soc.m4_arvalid;
-wire        m4_arready = soc.m4_arready;
-wire [31:0] m4_rdata   = soc.m4_rdata;
-wire [1:0]  m4_rresp   = soc.m4_rresp;
-wire        m4_rlast   = soc.m4_rlast;
-wire        m4_rvalid  = soc.m4_rvalid;
-wire        m4_rready  = soc.m4_rready;
-wire [3:0]  m4_awid    = soc.m4_awid;
-wire [31:0] m4_awaddr  = soc.m4_awaddr;
-wire        m4_awvalid = soc.m4_awvalid;
-wire        m4_awready = soc.m4_awready;
-wire [31:0] m4_wdata   = soc.m4_wdata;
-wire        m4_wlast   = soc.m4_wlast;
-wire        m4_wvalid  = soc.m4_wvalid;
-wire        m4_wready  = soc.m4_wready;
-wire [1:0]  m4_bresp   = soc.m4_bresp;
-wire        m4_bvalid  = soc.m4_bvalid;
-wire        m4_bready  = soc.m4_bready;
+wire [3:0]  m4_arid    = chip.u_soc_top.m4_arid;
+wire [31:0] m4_araddr  = chip.u_soc_top.m4_araddr;
+wire [7:0]  m4_arlen   = chip.u_soc_top.m4_arlen;
+wire        m4_arvalid = chip.u_soc_top.m4_arvalid;
+wire        m4_arready = chip.u_soc_top.m4_arready;
+wire [31:0] m4_rdata   = chip.u_soc_top.m4_rdata;
+wire [1:0]  m4_rresp   = chip.u_soc_top.m4_rresp;
+wire        m4_rlast   = chip.u_soc_top.m4_rlast;
+wire        m4_rvalid  = chip.u_soc_top.m4_rvalid;
+wire        m4_rready  = chip.u_soc_top.m4_rready;
+wire [3:0]  m4_awid    = chip.u_soc_top.m4_awid;
+wire [31:0] m4_awaddr  = chip.u_soc_top.m4_awaddr;
+wire        m4_awvalid = chip.u_soc_top.m4_awvalid;
+wire        m4_awready = chip.u_soc_top.m4_awready;
+wire [31:0] m4_wdata   = chip.u_soc_top.m4_wdata;
+wire        m4_wlast   = chip.u_soc_top.m4_wlast;
+wire        m4_wvalid  = chip.u_soc_top.m4_wvalid;
+wire        m4_wready  = chip.u_soc_top.m4_wready;
+wire [1:0]  m4_bresp   = chip.u_soc_top.m4_bresp;
+wire        m4_bvalid  = chip.u_soc_top.m4_bvalid;
+wire        m4_bready  = chip.u_soc_top.m4_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [G] DMA raw 64-bit wires (ASCON M_AXI trước width converter)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  dma_awid    = soc.dma_awid;
-wire [31:0] dma_awaddr  = soc.dma_awaddr;
-wire [7:0]  dma_awlen   = soc.dma_awlen;
-wire        dma_awvalid = soc.dma_awvalid;
-wire        dma_awready = soc.dma_awready;
-wire [63:0] dma_wdata   = soc.dma_wdata;
-wire [7:0]  dma_wstrb   = soc.dma_wstrb;
-wire        dma_wlast   = soc.dma_wlast;
-wire        dma_wvalid  = soc.dma_wvalid;
-wire        dma_wready  = soc.dma_wready;
-wire [1:0]  dma_bresp   = soc.dma_bresp;
-wire        dma_bvalid  = soc.dma_bvalid;
-wire [3:0]  dma_arid    = soc.dma_arid;
-wire [31:0] dma_araddr  = soc.dma_araddr;
-wire [7:0]  dma_arlen   = soc.dma_arlen;
-wire        dma_arvalid = soc.dma_arvalid;
-wire        dma_arready = soc.dma_arready;
-wire [63:0] dma_rdata   = soc.dma_rdata;
-wire [1:0]  dma_rresp   = soc.dma_rresp;
-wire        dma_rlast   = soc.dma_rlast;
-wire        dma_rvalid  = soc.dma_rvalid;
-wire        dma_rready  = soc.dma_rready;
+wire [3:0]  dma_awid    = chip.u_soc_top.dma_awid;
+wire [31:0] dma_awaddr  = chip.u_soc_top.dma_awaddr;
+wire [7:0]  dma_awlen   = chip.u_soc_top.dma_awlen;
+wire        dma_awvalid = chip.u_soc_top.dma_awvalid;
+wire        dma_awready = chip.u_soc_top.dma_awready;
+wire [63:0] dma_wdata   = chip.u_soc_top.dma_wdata;
+wire [7:0]  dma_wstrb   = chip.u_soc_top.dma_wstrb;
+wire        dma_wlast   = chip.u_soc_top.dma_wlast;
+wire        dma_wvalid  = chip.u_soc_top.dma_wvalid;
+wire        dma_wready  = chip.u_soc_top.dma_wready;
+wire [1:0]  dma_bresp   = chip.u_soc_top.dma_bresp;
+wire        dma_bvalid  = chip.u_soc_top.dma_bvalid;
+wire [3:0]  dma_arid    = chip.u_soc_top.dma_arid;
+wire [31:0] dma_araddr  = chip.u_soc_top.dma_araddr;
+wire [7:0]  dma_arlen   = chip.u_soc_top.dma_arlen;
+wire        dma_arvalid = chip.u_soc_top.dma_arvalid;
+wire        dma_arready = chip.u_soc_top.dma_arready;
+wire [63:0] dma_rdata   = chip.u_soc_top.dma_rdata;
+wire [1:0]  dma_rresp   = chip.u_soc_top.dma_rresp;
+wire        dma_rlast   = chip.u_soc_top.dma_rlast;
+wire        dma_rvalid  = chip.u_soc_top.dma_rvalid;
+wire        dma_rready  = chip.u_soc_top.dma_rready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [H] Crossbar → S0 (IMEM)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  s0_arid    = soc.s0_arid;
-wire [31:0] s0_araddr  = soc.s0_araddr;
-wire [7:0]  s0_arlen   = soc.s0_arlen;
-wire        s0_arvalid = soc.s0_arvalid;
-wire        s0_arready = soc.s0_arready;
-wire [3:0]  s0_rid     = soc.s0_rid;
-wire [31:0] s0_rdata   = soc.s0_rdata;
-wire [1:0]  s0_rresp   = soc.s0_rresp;
-wire        s0_rlast   = soc.s0_rlast;
-wire        s0_rvalid  = soc.s0_rvalid;
-wire        s0_rready  = soc.s0_rready;
+wire [3:0]  s0_arid    = chip.u_soc_top.s0_arid;
+wire [31:0] s0_araddr  = chip.u_soc_top.s0_araddr;
+wire [7:0]  s0_arlen   = chip.u_soc_top.s0_arlen;
+wire        s0_arvalid = chip.u_soc_top.s0_arvalid;
+wire        s0_arready = chip.u_soc_top.s0_arready;
+wire [3:0]  s0_rid     = chip.u_soc_top.s0_rid;
+wire [31:0] s0_rdata   = chip.u_soc_top.s0_rdata;
+wire [1:0]  s0_rresp   = chip.u_soc_top.s0_rresp;
+wire        s0_rlast   = chip.u_soc_top.s0_rlast;
+wire        s0_rvalid  = chip.u_soc_top.s0_rvalid;
+wire        s0_rready  = chip.u_soc_top.s0_rready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [I] Crossbar → S1 (DMEM)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [3:0]  s1_arid    = soc.s1_arid;
-wire [31:0] s1_araddr  = soc.s1_araddr;
-wire [7:0]  s1_arlen   = soc.s1_arlen;
-wire        s1_arvalid = soc.s1_arvalid;
-wire        s1_arready = soc.s1_arready;
-wire [3:0]  s1_rid     = soc.s1_rid;
-wire [31:0] s1_rdata   = soc.s1_rdata;
-wire [1:0]  s1_rresp   = soc.s1_rresp;
-wire        s1_rlast   = soc.s1_rlast;
-wire        s1_rvalid  = soc.s1_rvalid;
-wire        s1_rready  = soc.s1_rready;
-wire [3:0]  s1_awid    = soc.s1_awid;
-wire [31:0] s1_awaddr  = soc.s1_awaddr;
-wire        s1_awvalid = soc.s1_awvalid;
-wire        s1_awready = soc.s1_awready;
-wire [31:0] s1_wdata   = soc.s1_wdata;
-wire [3:0]  s1_wstrb   = soc.s1_wstrb;
-wire        s1_wlast   = soc.s1_wlast;
-wire        s1_wvalid  = soc.s1_wvalid;
-wire        s1_wready  = soc.s1_wready;
-wire [1:0]  s1_bresp   = soc.s1_bresp;
-wire        s1_bvalid  = soc.s1_bvalid;
-wire        s1_bready  = soc.s1_bready;
+wire [3:0]  s1_arid    = chip.u_soc_top.s1_arid;
+wire [31:0] s1_araddr  = chip.u_soc_top.s1_araddr;
+wire [7:0]  s1_arlen   = chip.u_soc_top.s1_arlen;
+wire        s1_arvalid = chip.u_soc_top.s1_arvalid;
+wire        s1_arready = chip.u_soc_top.s1_arready;
+wire [3:0]  s1_rid     = chip.u_soc_top.s1_rid;
+wire [31:0] s1_rdata   = chip.u_soc_top.s1_rdata;
+wire [1:0]  s1_rresp   = chip.u_soc_top.s1_rresp;
+wire        s1_rlast   = chip.u_soc_top.s1_rlast;
+wire        s1_rvalid  = chip.u_soc_top.s1_rvalid;
+wire        s1_rready  = chip.u_soc_top.s1_rready;
+wire [3:0]  s1_awid    = chip.u_soc_top.s1_awid;
+wire [31:0] s1_awaddr  = chip.u_soc_top.s1_awaddr;
+wire        s1_awvalid = chip.u_soc_top.s1_awvalid;
+wire        s1_awready = chip.u_soc_top.s1_awready;
+wire [31:0] s1_wdata   = chip.u_soc_top.s1_wdata;
+wire [3:0]  s1_wstrb   = chip.u_soc_top.s1_wstrb;
+wire        s1_wlast   = chip.u_soc_top.s1_wlast;
+wire        s1_wvalid  = chip.u_soc_top.s1_wvalid;
+wire        s1_wready  = chip.u_soc_top.s1_wready;
+wire [1:0]  s1_bresp   = chip.u_soc_top.s1_bresp;
+wire        s1_bvalid  = chip.u_soc_top.s1_bvalid;
+wire        s1_bready  = chip.u_soc_top.s1_bready;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [J] Crossbar → S2 (ASCON slave)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s2_araddr  = soc.s2_araddr;
-wire        s2_arvalid = soc.s2_arvalid;
-wire        s2_arready = soc.s2_arready;
-wire [31:0] s2_rdata   = soc.s2_rdata;
-wire [1:0]  s2_rresp   = soc.s2_rresp;
-wire        s2_rvalid  = soc.s2_rvalid;
-wire [31:0] s2_awaddr  = soc.s2_awaddr;
-wire        s2_awvalid = soc.s2_awvalid;
-wire        s2_awready = soc.s2_awready;
-wire [31:0] s2_wdata   = soc.s2_wdata;
-wire        s2_wvalid  = soc.s2_wvalid;
-wire [1:0]  s2_bresp   = soc.s2_bresp;
-wire        s2_bvalid  = soc.s2_bvalid;
+wire [31:0] s2_araddr  = chip.u_soc_top.s2_araddr;
+wire        s2_arvalid = chip.u_soc_top.s2_arvalid;
+wire        s2_arready = chip.u_soc_top.s2_arready;
+wire [31:0] s2_rdata   = chip.u_soc_top.s2_rdata;
+wire [1:0]  s2_rresp   = chip.u_soc_top.s2_rresp;
+wire        s2_rvalid  = chip.u_soc_top.s2_rvalid;
+wire [31:0] s2_awaddr  = chip.u_soc_top.s2_awaddr;
+wire        s2_awvalid = chip.u_soc_top.s2_awvalid;
+wire        s2_awready = chip.u_soc_top.s2_awready;
+wire [31:0] s2_wdata   = chip.u_soc_top.s2_wdata;
+wire        s2_wvalid  = chip.u_soc_top.s2_wvalid;
+wire [1:0]  s2_bresp   = chip.u_soc_top.s2_bresp;
+wire        s2_bvalid  = chip.u_soc_top.s2_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [K] Crossbar → S3 (SoC Ctrl)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s3_araddr  = soc.s3_araddr;
-wire        s3_arvalid = soc.s3_arvalid;
-wire        s3_arready = soc.s3_arready;
-wire [31:0] s3_awaddr  = soc.s3_awaddr;
-wire        s3_awvalid = soc.s3_awvalid;
-wire        s3_awready = soc.s3_awready;
-wire [31:0] s3_wdata   = soc.s3_wdata;
-wire        s3_wvalid  = soc.s3_wvalid;
-wire [31:0] s3_rdata   = soc.s3_rdata;
-wire        s3_rvalid  = soc.s3_rvalid;
+wire [31:0] s3_araddr  = chip.u_soc_top.s3_araddr;
+wire        s3_arvalid = chip.u_soc_top.s3_arvalid;
+wire        s3_arready = chip.u_soc_top.s3_arready;
+wire [31:0] s3_awaddr  = chip.u_soc_top.s3_awaddr;
+wire        s3_awvalid = chip.u_soc_top.s3_awvalid;
+wire        s3_awready = chip.u_soc_top.s3_awready;
+wire [31:0] s3_wdata   = chip.u_soc_top.s3_wdata;
+wire        s3_wvalid  = chip.u_soc_top.s3_wvalid;
+wire [31:0] s3_rdata   = chip.u_soc_top.s3_rdata;
+wire        s3_rvalid  = chip.u_soc_top.s3_rvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L] Crossbar → S4 (CLINT)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s4_araddr  = soc.s4_araddr;
-wire        s4_arvalid = soc.s4_arvalid;
-wire        s4_arready = soc.s4_arready;
-wire [31:0] s4_awaddr  = soc.s4_awaddr;
-wire        s4_awvalid = soc.s4_awvalid;
-wire        s4_awready = soc.s4_awready;
-wire [31:0] s4_wdata   = soc.s4_wdata;
-wire        s4_wvalid  = soc.s4_wvalid;
-wire [31:0] s4_rdata   = soc.s4_rdata;
-wire        s4_rvalid  = soc.s4_rvalid;
+wire [31:0] s4_araddr  = chip.u_soc_top.s4_araddr;
+wire        s4_arvalid = chip.u_soc_top.s4_arvalid;
+wire        s4_arready = chip.u_soc_top.s4_arready;
+wire [31:0] s4_awaddr  = chip.u_soc_top.s4_awaddr;
+wire        s4_awvalid = chip.u_soc_top.s4_awvalid;
+wire        s4_awready = chip.u_soc_top.s4_awready;
+wire [31:0] s4_wdata   = chip.u_soc_top.s4_wdata;
+wire        s4_wvalid  = chip.u_soc_top.s4_wvalid;
+wire [31:0] s4_rdata   = chip.u_soc_top.s4_rdata;
+wire        s4_rvalid  = chip.u_soc_top.s4_rvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L2] Crossbar → S5 (UART)  [NEW-6]
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s5_araddr  = soc.s5_araddr;
-wire        s5_arvalid = soc.s5_arvalid;
-wire        s5_arready = soc.s5_arready;
-wire [31:0] s5_awaddr  = soc.s5_awaddr;
-wire        s5_awvalid = soc.s5_awvalid;
-wire        s5_awready = soc.s5_awready;
-wire [31:0] s5_wdata   = soc.s5_wdata;
-wire        s5_wvalid  = soc.s5_wvalid;
-wire        s5_wready  = soc.s5_wready;
-wire [31:0] s5_rdata   = soc.s5_rdata;
-wire        s5_rvalid  = soc.s5_rvalid;
-wire [1:0]  s5_bresp   = soc.s5_bresp;
-wire        s5_bvalid  = soc.s5_bvalid;
+wire [31:0] s5_araddr  = chip.u_soc_top.s5_araddr;
+wire        s5_arvalid = chip.u_soc_top.s5_arvalid;
+wire        s5_arready = chip.u_soc_top.s5_arready;
+wire [31:0] s5_awaddr  = chip.u_soc_top.s5_awaddr;
+wire        s5_awvalid = chip.u_soc_top.s5_awvalid;
+wire        s5_awready = chip.u_soc_top.s5_awready;
+wire [31:0] s5_wdata   = chip.u_soc_top.s5_wdata;
+wire        s5_wvalid  = chip.u_soc_top.s5_wvalid;
+wire        s5_wready  = chip.u_soc_top.s5_wready;
+wire [31:0] s5_rdata   = chip.u_soc_top.s5_rdata;
+wire        s5_rvalid  = chip.u_soc_top.s5_rvalid;
+wire [1:0]  s5_bresp   = chip.u_soc_top.s5_bresp;
+wire        s5_bvalid  = chip.u_soc_top.s5_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L3] Crossbar → S9 (PLIC)  [NEW-6]
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s9_araddr  = soc.s9_araddr;
-wire        s9_arvalid = soc.s9_arvalid;
-wire        s9_arready = soc.s9_arready;
-wire [31:0] s9_awaddr  = soc.s9_awaddr;
-wire        s9_awvalid = soc.s9_awvalid;
-wire        s9_awready = soc.s9_awready;
-wire [31:0] s9_wdata   = soc.s9_wdata;
-wire        s9_wvalid  = soc.s9_wvalid;
+wire [31:0] s9_araddr  = chip.u_soc_top.s9_araddr;
+wire        s9_arvalid = chip.u_soc_top.s9_arvalid;
+wire        s9_arready = chip.u_soc_top.s9_arready;
+wire [31:0] s9_awaddr  = chip.u_soc_top.s9_awaddr;
+wire        s9_awvalid = chip.u_soc_top.s9_awvalid;
+wire        s9_awready = chip.u_soc_top.s9_awready;
+wire [31:0] s9_wdata   = chip.u_soc_top.s9_wdata;
+wire        s9_wvalid  = chip.u_soc_top.s9_wvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L4] Crossbar → S6 (GPIO)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s6_araddr  = soc.s6_araddr;
-wire        s6_arvalid = soc.s6_arvalid;
-wire        s6_arready = soc.s6_arready;
-wire [31:0] s6_awaddr  = soc.s6_awaddr;
-wire        s6_awvalid = soc.s6_awvalid;
-wire        s6_awready = soc.s6_awready;
-wire [31:0] s6_wdata   = soc.s6_wdata;
-wire        s6_wvalid  = soc.s6_wvalid;
-wire        s6_wready  = soc.s6_wready;
-wire [1:0]  s6_bresp   = soc.s6_bresp;
-wire        s6_bvalid  = soc.s6_bvalid;
+wire [31:0] s6_araddr  = chip.u_soc_top.s6_araddr;
+wire        s6_arvalid = chip.u_soc_top.s6_arvalid;
+wire        s6_arready = chip.u_soc_top.s6_arready;
+wire [31:0] s6_awaddr  = chip.u_soc_top.s6_awaddr;
+wire        s6_awvalid = chip.u_soc_top.s6_awvalid;
+wire        s6_awready = chip.u_soc_top.s6_awready;
+wire [31:0] s6_wdata   = chip.u_soc_top.s6_wdata;
+wire        s6_wvalid  = chip.u_soc_top.s6_wvalid;
+wire        s6_wready  = chip.u_soc_top.s6_wready;
+wire [1:0]  s6_bresp   = chip.u_soc_top.s6_bresp;
+wire        s6_bvalid  = chip.u_soc_top.s6_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L5] Crossbar → S8 (Timer/WDT)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s8_araddr  = soc.s8_araddr;
-wire        s8_arvalid = soc.s8_arvalid;
-wire        s8_arready = soc.s8_arready;
-wire [31:0] s8_awaddr  = soc.s8_awaddr;
-wire        s8_awvalid = soc.s8_awvalid;
-wire        s8_awready = soc.s8_awready;
-wire [31:0] s8_wdata   = soc.s8_wdata;
-wire        s8_wvalid  = soc.s8_wvalid;
-wire        s8_wready  = soc.s8_wready;
-wire [1:0]  s8_bresp   = soc.s8_bresp;
-wire        s8_bvalid  = soc.s8_bvalid;
+wire [31:0] s8_araddr  = chip.u_soc_top.s8_araddr;
+wire        s8_arvalid = chip.u_soc_top.s8_arvalid;
+wire        s8_arready = chip.u_soc_top.s8_arready;
+wire [31:0] s8_awaddr  = chip.u_soc_top.s8_awaddr;
+wire        s8_awvalid = chip.u_soc_top.s8_awvalid;
+wire        s8_awready = chip.u_soc_top.s8_awready;
+wire [31:0] s8_wdata   = chip.u_soc_top.s8_wdata;
+wire        s8_wvalid  = chip.u_soc_top.s8_wvalid;
+wire        s8_wready  = chip.u_soc_top.s8_wready;
+wire [1:0]  s8_bresp   = chip.u_soc_top.s8_bresp;
+wire        s8_bvalid  = chip.u_soc_top.s8_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L6] Crossbar → S11 (DMA Ctrl Config @ 0x6001_0000)
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] s11_araddr  = soc.s11_araddr;
-wire        s11_arvalid = soc.s11_arvalid;
-wire        s11_arready = soc.s11_arready;
-wire [31:0] s11_awaddr  = soc.s11_awaddr;
-wire        s11_awvalid = soc.s11_awvalid;
-wire        s11_awready = soc.s11_awready;
-wire [31:0] s11_wdata   = soc.s11_wdata;
-wire        s11_wvalid  = soc.s11_wvalid;
-wire        s11_wready  = soc.s11_wready;
-wire [1:0]  s11_bresp   = soc.s11_bresp;
-wire        s11_bvalid  = soc.s11_bvalid;
+wire [31:0] s11_araddr  = chip.u_soc_top.s11_araddr;
+wire        s11_arvalid = chip.u_soc_top.s11_arvalid;
+wire        s11_arready = chip.u_soc_top.s11_arready;
+wire [31:0] s11_awaddr  = chip.u_soc_top.s11_awaddr;
+wire        s11_awvalid = chip.u_soc_top.s11_awvalid;
+wire        s11_awready = chip.u_soc_top.s11_awready;
+wire [31:0] s11_wdata   = chip.u_soc_top.s11_wdata;
+wire        s11_wvalid  = chip.u_soc_top.s11_wvalid;
+wire        s11_wready  = chip.u_soc_top.s11_wready;
+wire [1:0]  s11_bresp   = chip.u_soc_top.s11_bresp;
+wire        s11_bvalid  = chip.u_soc_top.s11_bvalid;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [M] CLINT & Interrupt wires
 // ─────────────────────────────────────────────────────────────────────────────
-wire        mtime_tick   = soc.mtime_tick;
-wire        timer_irq    = soc.timer_irq;
-wire        sw_irq       = soc.sw_irq;
-wire        ext_irq      = soc.external_irq;   // PLIC meip → CPU [NEW-8]
-wire        uart_irq_w   = soc.uart_irq;       // [NEW-8]
-wire        dma_irq_w    = soc.dma_irq;        // [NEW-8]
-wire        ascon_irq_w  = soc.ascon_irq;
-wire        clint_timer_out = soc.u_clint.timer_irq;
-wire        clint_sw_out    = soc.u_clint.sw_irq;
+wire        mtime_tick   = chip.u_soc_top.mtime_tick;
+wire        timer_irq    = chip.u_soc_top.timer_irq;
+wire        sw_irq       = chip.u_soc_top.sw_irq;
+wire        ext_irq      = chip.u_soc_top.external_irq;   // PLIC meip → CPU [NEW-8]
+wire        uart_irq_w   = chip.u_soc_top.uart_irq;       // [NEW-8]
+wire        dma_irq_w    = chip.u_soc_top.dma_irq;        // [NEW-8]
+wire        ascon_irq_w  = chip.u_soc_top.ascon_irq;
+wire        clint_timer_out = chip.u_soc_top.u_clint.timer_irq;
+wire        clint_sw_out    = chip.u_soc_top.u_clint.sw_irq;
 
 // soft_rst_pulse: không còn là output port — đọc từ internal wire
-wire        soft_rst_pulse = soc.soft_rst_pulse;
+wire        soft_rst_pulse = chip.u_soc_top.soft_rst_pulse;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [N] SoC Ctrl internal
 // ─────────────────────────────────────────────────────────────────────────────
-wire        soc_ctrl_irq_out   = soc.soc_ctrl_irq_out;  // deprecated, không dùng
-wire        soc_ctrl_soft_rst  = soc.u_soc_ctrl.soft_rst_pulse;
-wire [31:0] icache_stat_hits   = soc.icache_stat_hits;
-wire [31:0] icache_stat_misses = soc.icache_stat_misses;
-wire [31:0] dcache_stat_hits   = soc.dcache_stat_hits;
-wire [31:0] dcache_stat_misses = soc.dcache_stat_misses;
-wire [31:0] dcache_stat_writes = soc.dcache_stat_writes;
+wire        soc_ctrl_irq_out   = chip.u_soc_top.soc_ctrl_irq_out;  // deprecated, không dùng
+wire        soc_ctrl_soft_rst  = chip.u_soc_top.u_soc_ctrl.soft_rst_pulse;
+wire [31:0] icache_stat_hits   = chip.u_soc_top.icache_stat_hits;
+wire [31:0] icache_stat_misses = chip.u_soc_top.icache_stat_misses;
+wire [31:0] dcache_stat_hits   = chip.u_soc_top.dcache_stat_hits;
+wire [31:0] dcache_stat_misses = chip.u_soc_top.dcache_stat_misses;
+wire [31:0] dcache_stat_writes = chip.u_soc_top.dcache_stat_writes;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [O] ASCON IP internal
 // ─────────────────────────────────────────────────────────────────────────────
-wire [31:0] ascon_status_word  = soc.u_ascon.u_slave.status_word;
-wire        ascon_core_busy    = soc.u_ascon.u_slave.core_busy;
-wire        ascon_core_done    = soc.u_ascon.u_slave.core_done;
-wire        ascon_dma_busy     = soc.u_ascon.u_slave.dma_busy;
-wire        ascon_dma_done_st  = soc.u_ascon.u_slave.status_dma_done;
-wire        ascon_dma_error    = soc.u_ascon.u_slave.status_dma_error;
-wire        ascon_core_start   = soc.u_ascon.u_slave.core_start;
-wire        ascon_dma_start    = soc.u_ascon.u_slave.dma_start;
-wire        ascon_soft_rst     = soc.u_ascon.u_slave.core_soft_rst;
-wire [31:0] ascon_dma_src_r    = soc.u_ascon.u_slave.reg_dma_src;
-wire [31:0] ascon_dma_dst_r    = soc.u_ascon.u_slave.reg_dma_dst;
-wire [31:0] ascon_dma_len_r    = soc.u_ascon.u_slave.reg_dma_len;
-wire        ascon_reg_dma_en   = soc.u_ascon.u_slave.reg_dma_en;
-wire        ascon_irq_wire     = soc.ascon_irq;
+wire [31:0] ascon_status_word  = chip.u_soc_top.u_ascon.u_slave.status_word;
+wire        ascon_core_busy    = chip.u_soc_top.u_ascon.u_slave.core_busy;
+wire        ascon_core_done    = chip.u_soc_top.u_ascon.u_slave.core_done;
+wire        ascon_dma_busy     = chip.u_soc_top.u_ascon.u_slave.dma_busy;
+wire        ascon_dma_done_st  = chip.u_soc_top.u_ascon.u_slave.status_dma_done;
+wire        ascon_dma_error    = chip.u_soc_top.u_ascon.u_slave.status_dma_error;
+wire        ascon_core_start   = chip.u_soc_top.u_ascon.u_slave.core_start;
+wire        ascon_dma_start    = chip.u_soc_top.u_ascon.u_slave.dma_start;
+wire        ascon_soft_rst     = chip.u_soc_top.u_ascon.u_slave.core_soft_rst;
+wire [31:0] ascon_dma_src_r    = chip.u_soc_top.u_ascon.u_slave.reg_dma_src;
+wire [31:0] ascon_dma_dst_r    = chip.u_soc_top.u_ascon.u_slave.reg_dma_dst;
+wire [31:0] ascon_dma_len_r    = chip.u_soc_top.u_ascon.u_slave.reg_dma_len;
+wire        ascon_reg_dma_en   = chip.u_soc_top.u_ascon.u_slave.reg_dma_en;
+wire        ascon_irq_wire     = chip.u_soc_top.ascon_irq;
 
-wire [127:0] ascon_key_in     = soc.u_ascon.u_slave.core_key;
-wire [127:0] ascon_nonce_in   = soc.u_ascon.u_slave.core_nonce;
-wire [127:0] ascon_data_in    = soc.u_ascon.core_data_in_mux;
-wire [6:0]   ascon_data_len   = soc.u_ascon.u_slave.core_data_len;
-wire [1:0]   ascon_mode_w     = soc.u_ascon.u_slave.core_mode;
-wire         ascon_enc_dec_w  = soc.u_ascon.u_slave.core_enc_dec;
-wire         ascon_dma_en_w   = soc.u_ascon.u_slave.reg_dma_en;
-wire [31:0]  ascon_ptext_0    = soc.u_ascon.dma_core_ptext_0;
-wire [31:0]  ascon_ptext_1    = soc.u_ascon.dma_core_ptext_1;
-wire         ascon_dma_data_v = soc.u_ascon.dma_core_data_valid;
-wire [127:0] ascon_ctext_out  = soc.u_ascon.core_data_out_w;
-wire         ascon_ctext_v    = soc.u_ascon.core_data_out_valid_w;
-wire [127:0] ascon_tag_out    = soc.u_ascon.core_tag_out_w;
-wire         ascon_tag_v      = soc.u_ascon.core_tag_valid_w;
-wire [31:0]  ascon_reg_ctext0 = soc.u_ascon.u_slave.reg_ctext_0;
-wire [31:0]  ascon_reg_ctext1 = soc.u_ascon.u_slave.reg_ctext_1;
-wire [31:0]  ascon_reg_tag0   = soc.u_ascon.u_slave.reg_tag_0;
-wire [31:0]  ascon_reg_tag1   = soc.u_ascon.u_slave.reg_tag_1;
-wire [31:0]  ascon_reg_tag2   = soc.u_ascon.u_slave.reg_tag_2;
-wire [31:0]  ascon_reg_tag3   = soc.u_ascon.u_slave.reg_tag_3;
+wire [127:0] ascon_key_in     = chip.u_soc_top.u_ascon.u_slave.core_key;
+wire [127:0] ascon_nonce_in   = chip.u_soc_top.u_ascon.u_slave.core_nonce;
+wire [127:0] ascon_data_in    = chip.u_soc_top.u_ascon.core_data_in_mux;
+wire [6:0]   ascon_data_len   = chip.u_soc_top.u_ascon.u_slave.core_data_len;
+wire [1:0]   ascon_mode_w     = chip.u_soc_top.u_ascon.u_slave.core_mode;
+wire         ascon_enc_dec_w  = chip.u_soc_top.u_ascon.u_slave.core_enc_dec;
+wire         ascon_dma_en_w   = chip.u_soc_top.u_ascon.u_slave.reg_dma_en;
+wire [31:0]  ascon_ptext_0    = chip.u_soc_top.u_ascon.dma_core_ptext_0;
+wire [31:0]  ascon_ptext_1    = chip.u_soc_top.u_ascon.dma_core_ptext_1;
+wire         ascon_dma_data_v = chip.u_soc_top.u_ascon.dma_core_data_valid;
+wire [127:0] ascon_ctext_out  = chip.u_soc_top.u_ascon.core_data_out_w;
+wire         ascon_ctext_v    = chip.u_soc_top.u_ascon.core_data_out_valid_w;
+wire [127:0] ascon_tag_out    = chip.u_soc_top.u_ascon.core_tag_out_w;
+wire         ascon_tag_v      = chip.u_soc_top.u_ascon.core_tag_valid_w;
+wire [31:0]  ascon_reg_ctext0 = chip.u_soc_top.u_ascon.u_slave.reg_ctext_0;
+wire [31:0]  ascon_reg_ctext1 = chip.u_soc_top.u_ascon.u_slave.reg_ctext_1;
+wire [31:0]  ascon_reg_tag0   = chip.u_soc_top.u_ascon.u_slave.reg_tag_0;
+wire [31:0]  ascon_reg_tag1   = chip.u_soc_top.u_ascon.u_slave.reg_tag_1;
+wire [31:0]  ascon_reg_tag2   = chip.u_soc_top.u_ascon.u_slave.reg_tag_2;
+wire [31:0]  ascon_reg_tag3   = chip.u_soc_top.u_ascon.u_slave.reg_tag_3;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// [P] LSU Store Buffer  (instance: soc.u_cpu)
+// [P] LSU Store Buffer  (instance: chip.u_soc_top.u_cpu)
 // ─────────────────────────────────────────────────────────────────────────────
-wire        lsu_sb_empty   = soc.u_cpu.lsu_unit.sb_empty;
-wire [2:0]  lsu_sb_count   = soc.u_cpu.lsu_unit.sb_count[2:0];
-wire        lsu_drain_idle = (soc.u_cpu.lsu_unit.drain_state == 0);
+wire        lsu_sb_empty   = chip.u_soc_top.u_cpu.lsu_unit.sb_empty;
+wire [2:0]  lsu_sb_count   = chip.u_soc_top.u_cpu.lsu_unit.sb_count[2:0];
+wire        lsu_drain_idle = (chip.u_soc_top.u_cpu.lsu_unit.drain_state == 0);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [R] JTAG Debug taps  [NEW-3]
 //
 // WHY tap ở đây thay vì chỉ xem IO pad tck/tms/tdi:
 //   jtag_ndmreset và halt/resume signal là internal — không có trên pad.
-//   Tap vào soc.jtag_ndmreset và soc.u_jtag để monitor debug session.
+//   Tap vào chip.u_soc_top.jtag_ndmreset và chip.u_soc_top.u_jtag để monitor debug session.
 // ─────────────────────────────────────────────────────────────────────────────
-wire        jtag_ndmreset_w  = soc.jtag_ndmreset;
-wire        jtag_haltreq_w   = soc.jtag_haltreq;
-wire        jtag_resumereq_w = soc.jtag_resumereq;
-wire        jtag_halted_w    = soc.jtag_halted;
-wire        jtag_running_w   = soc.jtag_running;
+wire        jtag_ndmreset_w  = chip.u_soc_top.jtag_ndmreset;
+wire        jtag_haltreq_w   = chip.u_soc_top.jtag_haltreq;
+wire        jtag_resumereq_w = chip.u_soc_top.jtag_resumereq;
+wire        jtag_halted_w    = chip.u_soc_top.jtag_halted;
+wire        jtag_running_w   = chip.u_soc_top.jtag_running;
 // CPU debug mode state (từ riscv_cpu_core FSM)
-wire        cpu_debug_mode   = soc.u_cpu.debug_mode;
+wire        cpu_debug_mode   = chip.u_soc_top.u_cpu.debug_mode;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [S] PLIC taps  [NEW-4]
@@ -564,10 +570,10 @@ wire        cpu_debug_mode   = soc.u_cpu.debug_mode;
 // IRQ source vector theo PLIC spec:
 //   bit[0]=reserved, bit[1]=uart_irq, bit[2..3]=unused, bit[4]=gpio_irq,
 //   bit[5..7]=timer/wdt, bit[8]=ascon_irq, bit[9]=dma_irq
-wire [31:0] plic_irq_src     = {22'd0, soc.dma_irq, soc.ascon_irq,
-                                 3'd0, soc.gpio_irq, soc.uart_irq, 1'b0};
-wire        plic_meip        = soc.external_irq;   // PLIC output → CPU
-wire        gpio_irq_w       = soc.gpio_irq;       // GPIO IRQ → PLIC src[4]
+wire [31:0] plic_irq_src     = {22'd0, chip.u_soc_top.dma_irq, chip.u_soc_top.ascon_irq,
+                                 3'd0, chip.u_soc_top.gpio_irq, chip.u_soc_top.uart_irq, 1'b0};
+wire        plic_meip        = chip.u_soc_top.external_irq;   // PLIC output → CPU
+wire        gpio_irq_w       = chip.u_soc_top.gpio_irq;       // GPIO IRQ → PLIC src[4]
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [T] UART internal taps  [NEW-2]
@@ -579,16 +585,16 @@ wire        gpio_irq_w       = soc.gpio_irq;       // GPIO IRQ → PLIC src[4]
 // ─────────────────────────────────────────────────────────────────────────────
 // [U] Reset domain taps (từ clk_reset_ctrl)  [NEW-7]
 // ─────────────────────────────────────────────────────────────────────────────
-wire        fabric_rst_n_w   = soc.fabric_rst_n;
-wire        cpu_rst_n_w      = soc.cpu_rst_n;
-wire        periph_rst_n_w   = soc.periph_rst_n;
+wire        fabric_rst_n_w   = chip.u_soc_top.fabric_rst_n;
+wire        cpu_rst_n_w      = chip.u_soc_top.cpu_rst_n;
+wire        periph_rst_n_w   = chip.u_soc_top.periph_rst_n;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [V] Boot Controller taps  [NEW-BOOT]
 // ─────────────────────────────────────────────────────────────────────────────
-wire        boot_done_w   = soc.boot_done;
-wire        boot_we_w     = soc.imem_boot_we;
-wire [31:0] boot_addr_w   = soc.imem_boot_addr;
+wire        boot_done_w   = chip.u_soc_top.boot_done;
+wire        boot_we_w     = chip.u_soc_top.imem_boot_we;
+wire [31:0] boot_addr_w   = chip.u_soc_top.imem_boot_addr;
 
 // ============================================================================
 // Counters & State
@@ -1185,8 +1191,8 @@ always @(posedge clk) begin
         end
 
         // ── Stub slave SLVERR detection (S7=SPI stub, S10=OTP stub only) ────
-        if ((soc.s7_bvalid && soc.s7_bresp == 2'b10) ||
-            (soc.s10_bvalid && soc.s10_bresp == 2'b10)) begin
+        if ((chip.u_soc_top.s7_bvalid && chip.u_soc_top.s7_bresp == 2'b10) ||
+            (chip.u_soc_top.s10_bvalid && chip.u_soc_top.s10_bresp == 2'b10)) begin
             stub_slverr_cnt = stub_slverr_cnt + 1;
             if (`LOG_LEVEL >= 1)
                 $display("[%6d] [WARN] Stub slave SLVERR (SPI/OTP not implemented)",
@@ -1453,36 +1459,36 @@ always @(posedge clk) begin
             s11_dma_wr_cnt = s11_dma_wr_cnt + 1;
         end
         // Decode write: log when W channel fires together with latched AW addr
-        if (s11_wvalid && s11_wready && soc.s11_awvalid) begin
+        if (s11_wvalid && s11_wready && chip.u_soc_top.s11_awvalid) begin
             begin : s11_decode
                 reg [11:0] offset;
                 reg [1:0]  ch;
                 reg [1:0]  reg_sel;
-                offset  = soc.s11_awaddr[11:0];
+                offset  = chip.u_soc_top.s11_awaddr[11:0];
                 ch      = offset[5:4];
                 reg_sel = offset[3:2];
                 if (offset[11:6] == 6'b000000) begin
                     // Channel register range 0x000..0x03F
                     case (reg_sel)
                         2'd0: $display("[%6d] [S11-DMA] WRITE ch=%0d SRC  addr=0x%08h data=0x%08h",
-                                       cycle_count, ch, soc.s11_awaddr, s11_wdata);
+                                       cycle_count, ch, chip.u_soc_top.s11_awaddr, s11_wdata);
                         2'd1: $display("[%6d] [S11-DMA] WRITE ch=%0d DST  addr=0x%08h data=0x%08h",
-                                       cycle_count, ch, soc.s11_awaddr, s11_wdata);
+                                       cycle_count, ch, chip.u_soc_top.s11_awaddr, s11_wdata);
                         2'd2: $display("[%6d] [S11-DMA] WRITE ch=%0d LEN  addr=0x%08h data=0x%08h",
-                                       cycle_count, ch, soc.s11_awaddr, s11_wdata);
+                                       cycle_count, ch, chip.u_soc_top.s11_awaddr, s11_wdata);
                         2'd3: $display("[%6d] [S11-DMA] WRITE ch=%0d CTRL addr=0x%08h data=0x%08h%s",
-                                       cycle_count, ch, soc.s11_awaddr, s11_wdata,
+                                       cycle_count, ch, chip.u_soc_top.s11_awaddr, s11_wdata,
                                        s11_wdata[1] ? " (START!)" : "");
                     endcase
                 end else if (offset[7:0] == 8'h80) begin
                     $display("[%6d] [S11-DMA] WRITE STATUS addr=0x%08h data=0x%08h",
-                             cycle_count, soc.s11_awaddr, s11_wdata);
+                             cycle_count, chip.u_soc_top.s11_awaddr, s11_wdata);
                 end else if (offset[7:0] == 8'h84) begin
                     $display("[%6d] [S11-DMA] WRITE IRQ_EN addr=0x%08h data=0x%08h",
-                             cycle_count, soc.s11_awaddr, s11_wdata);
+                             cycle_count, chip.u_soc_top.s11_awaddr, s11_wdata);
                 end else if (offset[7:0] == 8'h88) begin
                     $display("[%6d] [S11-DMA] WRITE IRQ_STATUS addr=0x%08h data=0x%08h (W1C clear)",
-                             cycle_count, soc.s11_awaddr, s11_wdata);
+                             cycle_count, chip.u_soc_top.s11_awaddr, s11_wdata);
                 end else begin
                     $display("[%6d] [S11-DMA] WRITE offset=0x%03h data=0x%08h (unknown)",
                              cycle_count, offset, s11_wdata);
@@ -1580,7 +1586,8 @@ end
 // (12b) GPIO Stimulus Driver
 // ============================================================================
 initial begin
-    gpio_in_r = 32'h0;
+    gpio_in_r = 32'hz;
+    gpio_in_r[8] = 1'b0;
     // Wait for cpu_rst_n to be released (boot_ctrl done)
     @(posedge cpu_rst_n_w);
     // Wait 5000 cycles after CPU starts to let firmware initialize
@@ -1883,7 +1890,7 @@ task print_report;
     integer bw_cycles, bw_bits;
     real    bw_bpc, bw_mbps;
     begin
-        ret = soc.u_cpu.register_file.registers[10];
+        ret = chip.u_soc_top.u_cpu.register_file.registers[10];
 
         $display("");
         $display("+=================================================================+");
@@ -2024,10 +2031,10 @@ task print_report;
         if (ascon_dma_done_cnt > 0) begin
             dma_base_off = ascon_dma_dst_r - 32'h10000000;
             for (dma_wi = 0; dma_wi < 20; dma_wi = dma_wi + 1) begin
-                dma_word = { soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 3],
-                             soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 2],
-                             soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 1],
-                             soc.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 0] };
+                dma_word = { chip.u_soc_top.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 3],
+                             chip.u_soc_top.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 2],
+                             chip.u_soc_top.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 1],
+                             chip.u_soc_top.u_dmem.dmem.memory[dma_base_off + dma_wi*4 + 0] };
                 if (dma_wi < 16)
                     $display("|  [0x%08h] BLK%0d_%s = 0x%08h",
                              ascon_dma_dst_r + dma_wi*4, dma_wi/2,
@@ -2124,7 +2131,7 @@ task print_report;
         $display("|  -----------------------------------------");
         nz = 0;
         for (j = 0; j < 32; j = j + 1) begin
-            wv = soc.u_cpu.register_file.registers[j];
+            wv = chip.u_soc_top.u_cpu.register_file.registers[j];
             if (wv !== 32'h0 || j == 2 || j == 10) begin
                 nz = nz + 1;
                 $display("|  x%-2d  %-5s   0x%08h   %0d",
@@ -2200,10 +2207,10 @@ task print_dmem_snapshot;
             $write("|  0x%08h  ", addr);
             for (col = 0; col < `DMEM_ROW_WORDS; col = col + 1) begin
                 // Đọc thẳng từ DMEM memory array (bắt cả DMA write)
-                wval = { soc.u_dmem.dmem.memory[(wi+col)*4 + 3],
-                         soc.u_dmem.dmem.memory[(wi+col)*4 + 2],
-                         soc.u_dmem.dmem.memory[(wi+col)*4 + 1],
-                         soc.u_dmem.dmem.memory[(wi+col)*4 + 0] };
+                wval = { chip.u_soc_top.u_dmem.dmem.memory[(wi+col)*4 + 3],
+                         chip.u_soc_top.u_dmem.dmem.memory[(wi+col)*4 + 2],
+                         chip.u_soc_top.u_dmem.dmem.memory[(wi+col)*4 + 1],
+                         chip.u_soc_top.u_dmem.dmem.memory[(wi+col)*4 + 0] };
                 $write("0x%08h  ", wval);
             end
             $display("");
@@ -2213,7 +2220,7 @@ task print_dmem_snapshot;
         $display("|  ASCII view:");
         $write("|  ");
         for (wi = 0; wi < `DMEM_DUMP_WORDS * 4; wi = wi + 1) begin
-            byte_val = soc.u_dmem.dmem.memory[wi];
+            byte_val = chip.u_soc_top.u_dmem.dmem.memory[wi];
             if (byte_val >= 8'h20 && byte_val <= 8'h7E) $write("%s", byte_val);
             else                                          $write(".");
             if ((wi & 15) == 15 && wi < `DMEM_DUMP_WORDS*4-1) begin

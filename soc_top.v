@@ -77,7 +77,7 @@
 `include "plic/plic_top.v"
 `include "jtag/jtag_debug_top.v"
 `include "dma/dma_ctrl.v"
-`include "boot/boot_ctrl.v"
+`include "boot/uart_boot_ctrl.v"
 `include "peripheral/gpio/gpio_top.v"
 `include "peripheral/timer/timer_top.v"
 
@@ -99,6 +99,9 @@ module soc_top #(
 
     // ── JTAG IDCODE ───────────────────────────────────────────────────────
     parameter [31:0] JTAG_IDCODE = 32'hDEAD_0001,
+
+    // ── Boot mode ─────────────────────────────────────────────────────────
+    parameter        SIM_MODE    = 0,     // 0=UART boot (HW), 1=fast $readmemh (sim)
 
     // ── Crossbar slave address map (S0–S11) ───────────────────────────────
     parameter [31:0] S0_BASE  = 32'h0000_0000,  // IMEM      8 KB
@@ -165,10 +168,25 @@ module soc_top #(
 wire fabric_rst_n;   // reset cho crossbar, cache, SRAM, CLINT, SoC-Ctrl
 wire cpu_rst_n;      // reset cho CPU core (bị ảnh hưởng bởi ndmreset)
 wire periph_rst_n;   // reset cho UART, PLIC, DMA (bị ảnh hưởng bởi ndmreset)
+wire aon_rst_n;      // reset cho AON domain (chỉ POR+ext, không soft/ndm)
 wire clk_core;       // gated clock cho CORE domain (CPU + cache + ASCON)
 wire clk_periph;     // gated clock cho PERIPH domain (UART, SPI, GPIO, ...)
+wire clk_aon;        // always-on clock = clk_in, không bao giờ gate
+wire wake_ack;       // periph clock đang chạy → AON có thể clear wake_pend
+wire periph_wake_req;// async wake request từ AON domain
 wire soft_rst_pulse; // từ soc_ctrl_slave → clk_reset_ctrl (1-cycle pulse)
 wire jtag_ndmreset;  // từ jtag_debug_top → clk_reset_ctrl
+wire cpu_wfi;
+wire uart_active;
+wire timer_active;
+wire gpio_wake_armed;
+wire dma_busy;
+wire core_bus_active;
+wire core_wake_event;
+wire periph_bus_active;
+wire periph_busy;
+wire periph_wake_event;
+wire periph_gate_allow;
 
 // WHY cpu_rst active-high: riscv_cpu_core dùng "rst" active-high convention
 wire cpu_rst = ~cpu_rst_n;
@@ -186,11 +204,23 @@ clk_reset_ctrl #(
     .test_en       (1'b0),
     .core_clk_en   (1'b1),
     .periph_clk_en (1'b1),
-    .clk_core      (clk_core),
-    .clk_periph    (clk_periph),
-    .fabric_rst_n  (fabric_rst_n),
-    .cpu_rst_n     (cpu_rst_n),
-    .periph_rst_n  (periph_rst_n)
+    .cpu_wfi       (cpu_wfi),
+    .ascon_busy    (ascon_o_busy),
+    .core_bus_active(core_bus_active),
+    .core_wake_event(core_wake_event),
+    .periph_bus_active(periph_bus_active),
+    .periph_busy      (periph_busy),
+    .periph_wake_event(periph_wake_event),
+    .periph_gate_allow(periph_gate_allow),
+    .periph_wake_req  (periph_wake_req),
+    .clk_core         (clk_core),
+    .clk_periph       (clk_periph),
+    .clk_aon          (clk_aon),
+    .fabric_rst_n     (fabric_rst_n),
+    .cpu_rst_n        (cpu_rst_n),
+    .periph_rst_n     (periph_rst_n),
+    .aon_rst_n        (aon_rst_n),
+    .wake_ack         (wake_ack)
 );
 
 // ============================================================================
@@ -200,12 +230,14 @@ clk_reset_ctrl #(
 // port. Sau khi xong, asserts boot_done → clk_reset_ctrl releases cpu_rst_n.
 // CPU chỉ bắt đầu fetch khi IMEM đã có nội dung hợp lệ.
 // ============================================================================
-boot_ctrl #(
+uart_boot_ctrl #(
+    .SIM_MODE   (SIM_MODE),
     .BOOT_FILE  (IMEM_INIT_FILE),
     .PROG_WORDS (IMEM_SIZE / 4)
 ) u_boot (
     .clk        (clk),
     .rst_n      (fabric_rst_n),
+    .uart_rx    (uart_rx),        // shared với u_uart (S5 ở periph_rst=0 trong boot)
     .boot_we    (imem_boot_we),
     .boot_addr  (imem_boot_addr),
     .boot_wdata (imem_boot_wdata),
@@ -253,6 +285,11 @@ wire [31:0] dcache_cpu_rdata;
 wire        dcache_cpu_ready;
 wire [1:0]  cpu_dcache_fence_type;
 
+assign core_bus_active =
+    m0_arvalid | m0_awvalid | m0_wvalid | m0_rvalid | m0_bvalid |
+    m1_arvalid | m1_awvalid | m1_wvalid | m1_rvalid | m1_bvalid |
+    m2_arvalid | m2_awvalid | m2_wvalid | m2_rvalid | m2_bvalid;
+
 // ============================================================================
 // SECTION 4: Interrupt wires
 //
@@ -273,6 +310,35 @@ wire timer1_irq;     // Timer1 → PLIC source[6]
 wire wdt_irq;        // WDT   → PLIC source[7]
 wire soc_ctrl_irq_out; // soc_ctrl_slave.irq_out — giữ lại để tương thích,
                        // nhưng không dùng làm external_irq (PLIC đảm nhiệm)
+
+assign core_wake_event = external_irq | timer_irq | sw_irq |
+                         jtag_haltreq | jtag_resumereq | jtag_ndmreset |
+                         !boot_done;
+
+assign periph_bus_active =
+    s5_awvalid | s5_wvalid | s5_arvalid | s5_bvalid | s5_rvalid |
+    s6_awvalid | s6_wvalid | s6_arvalid | s6_bvalid | s6_rvalid |
+    s8_awvalid | s8_wvalid | s8_arvalid | s8_bvalid | s8_rvalid |
+    s9_awvalid | s9_wvalid | s9_arvalid | s9_bvalid | s9_rvalid |
+    s11_awvalid | s11_wvalid | s11_arvalid | s11_bvalid | s11_rvalid |
+    m3_arvalid | m3_awvalid | m3_wvalid | m3_rvalid | m3_bvalid;
+
+assign periph_busy = uart_active | timer_active | dma_busy |
+                     uart_irq | gpio_irq | timer0_irq | timer1_irq | wdt_irq |
+                     external_irq;
+
+assign periph_wake_event = uart_irq | gpio_irq | timer0_irq | timer1_irq |
+                           wdt_irq | dma_irq | external_irq |
+                           !uart_rx | jtag_haltreq | jtag_resumereq | jtag_ndmreset;
+
+assign periph_gate_allow = !timer_active && !gpio_wake_armed && !dma_busy;
+
+// periph_wake_req: AON domain wake signal — chỉ dùng signal luôn valid kể
+// cả khi clk_periph bị gate. uart_rx là pad level (không phụ thuộc clock).
+// Khi peripheral được cập nhật có clk_aon port, chuyển timer/gpio/irq sang
+// logic AON thực sự.
+assign periph_wake_req = external_irq | !uart_rx | gpio_irq |
+                         timer0_irq | timer1_irq | wdt_irq;
 
 // ── Boot controller signal ────────────────────────────────────────────────────
 wire boot_done;        // từ boot_ctrl → clk_reset_ctrl (giải phóng cpu_rst_n)
@@ -677,7 +743,8 @@ gpio_top #(
     .gpio_out      (gpio_out),
     .gpio_oe       (gpio_oe),
     .gpio_in       (gpio_in),
-    .gpio_irq      (gpio_irq)
+    .gpio_irq      (gpio_irq),
+    .gpio_wake_armed_o(gpio_wake_armed)
 );
 
 // ── S7: SPI stub ─────────────────────────────────────────────────────────────
@@ -724,7 +791,8 @@ timer_top #(
     .timer0_irq    (timer0_irq),
     .timer1_irq    (timer1_irq),
     .wdt_irq       (wdt_irq),
-    .wdt_rst_req   (wdt_rst_req)
+    .wdt_rst_req   (wdt_rst_req),
+    .timer_active_o(timer_active)
 );
 
 // ── S10: OTP stub ────────────────────────────────────────────────────────────
@@ -779,7 +847,8 @@ riscv_cpu_core u_cpu (
     .debug_haltreq   (jtag_haltreq),
     .debug_resumereq (jtag_resumereq),
     .debug_halted    (jtag_halted),
-    .debug_running   (jtag_running)
+    .debug_running   (jtag_running),
+    .cpu_wfi_o       (cpu_wfi)
 );
 
 // ============================================================================
@@ -1402,6 +1471,11 @@ soc_ctrl_slave #(
     .dcache_misses  (dcache_stat_misses),
     .dcache_writes  (dcache_stat_writes),
     .ascon_irq      (ascon_irq),
+    .uart_irq       (uart_irq),
+    .gpio_irq       (gpio_irq),
+    .spi_irq        (1'b0),
+    .timer_irq      (timer_irq),
+    .wdt_irq        (wdt_irq),
     .irq_out        (soc_ctrl_irq_out),   // WHY không dùng: PLIC thay thế vai trò này
     .soft_rst_pulse (soft_rst_pulse)
 );
@@ -1468,7 +1542,8 @@ uart_top #(
     .s_axi_rvalid   (s5_rvalid), .s_axi_rready  (s5_rready),
     .uart_tx        (uart_tx),
     .uart_rx        (uart_rx),
-    .irq_out        (uart_irq)
+    .irq_out        (uart_irq),
+    .uart_active    (uart_active)
 );
 
 // ============================================================================
@@ -1634,7 +1709,8 @@ dma_ctrl #(
     .M_AXI_BID     (m3_bid),    .M_AXI_BRESP   (m3_bresp),
     .M_AXI_BVALID  (m3_bvalid), .M_AXI_BREADY  (m3_bready),
 
-    .irq_out       (dma_irq)    // → PLIC source[9]
+    .irq_out       (dma_irq),   // → PLIC source[9]
+    .dma_busy_o    (dma_busy)
 );
 
 endmodule

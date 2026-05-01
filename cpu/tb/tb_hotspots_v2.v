@@ -43,7 +43,8 @@ riscv_cpu_core dut (
     .debug_haltreq   (1'b0),
     .debug_resumereq (1'b0),
     .debug_halted    (),
-    .debug_running   ()
+    .debug_running   (),
+    .cpu_wfi_o       ()
 );
 
 reg [31:0] imem [0:255];

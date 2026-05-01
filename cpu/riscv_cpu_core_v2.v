@@ -60,7 +60,8 @@ module riscv_cpu_core (
     input  wire debug_haltreq,    // DM → CPU: yêu cầu vào D-mode
     input  wire debug_resumereq,  // DM → CPU: yêu cầu thoát D-mode
     output wire debug_halted,     // CPU → DM: đang trong D-mode, pipeline frozen
-    output wire debug_running     // CPU → DM: đang chạy bình thường
+    output wire debug_running,    // CPU → DM: đang chạy bình thường
+    output wire cpu_wfi_o         // CPU → SoC: đang chờ interrupt
 );
 
     localparam [6:0]
@@ -95,6 +96,7 @@ module riscv_cpu_core (
     wire irq_pending = ext_irq_s2 | tmr_irq_s2 | sw_irq_s2;
 
     reg irq_pending_lat;
+    reg [1:0] irq_flush_cnt_r;
     always @(posedge clk or posedge rst) begin
         if (rst)
             irq_pending_lat <= 1'b0;
@@ -104,23 +106,17 @@ module riscv_cpu_core (
             irq_pending_lat <= 1'b1;
     end
 
-    reg irq_flush_done_r;
     always @(posedge clk or posedge rst) begin
-        if (rst)
-            irq_flush_done_r <= 1'b0;
-        else
-            irq_flush_done_r <= irq_pending_lat & ~irq_flush_done_r;
+        if (rst) begin
+            irq_flush_cnt_r <= 2'b00;
+        end else if ((irq_flush_cnt_r == 2'b00) && irq_pending_lat) begin
+            irq_flush_cnt_r <= 2'b11;
+        end else if (irq_flush_cnt_r != 2'b00) begin
+            irq_flush_cnt_r <= {1'b0, irq_flush_cnt_r[1]};
+        end
     end
-    wire irq_flush_done = irq_flush_done_r;
-
-    // Register irq_flush: removes combinational feedback into pipeline flush
-    // signals, trading 1 extra cycle of IRQ latency for better Fmax.
-    reg irq_flush_r;
-    always @(posedge clk or posedge rst) begin
-        if (rst) irq_flush_r <= 1'b0;
-        else     irq_flush_r <= irq_pending_lat & ~irq_flush_done_r;
-    end
-    wire irq_flush = irq_flush_r;
+    wire irq_flush_done = (irq_flush_cnt_r == 2'b01);
+    wire irq_flush = (irq_flush_cnt_r != 2'b00);
 
     // =========================================================================
     // DEBUG MODE FSM
@@ -213,6 +209,8 @@ module riscv_cpu_core (
     // Output signals cho jtag_debug_top
     assign debug_halted  = (dbg_state == DBG_HALTED);
     assign debug_running = (dbg_state == DBG_RUNNING);
+
+    reg cpu_wfi_r;
 
     // =========================================================================
     // Pipeline stage wires
@@ -313,23 +311,70 @@ module riscv_cpu_core (
     wire mul_ex_stall_wire;
     wire flush_if_id, flush_id_ex;
 
-    // stall_any includes debug_mode to freeze entire pipeline during D-mode
-    assign stall_any = stall | stall_if | debug_mode;
+    // stall_any includes debug_mode and WFI idle state to freeze the pipeline.
+    assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r;
 
-    // Fix 9C: Static backward branch prediction wires
+    localparam [6:0] OP_SYSTEM = 7'b1110011;
+    wire is_wfi_id = (opcode_id == OP_SYSTEM) &&
+                     (funct3_id == 3'b000) &&
+                     (rs1_id == 5'b00000) &&
+                     (rd_id == 5'b00000) &&
+                     (instr_id[31:20] == 12'h105);
+    wire wfi_wake = irq_pending | irq_pending_lat | dbg_halt_s2 | debug_mode;
+    wire wfi_enter = is_wfi_id && !cpu_wfi_r && !wfi_wake && !stall_any;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            cpu_wfi_r <= 1'b0;
+        end else if (wfi_wake) begin
+            cpu_wfi_r <= 1'b0;
+        end else if (wfi_enter) begin
+            cpu_wfi_r <= 1'b1;
+        end
+    end
+
+    assign cpu_wfi_o = cpu_wfi_r;
+
+    // 2-bit BHT predictor: 256 entries, indexed by PC[9:2].
     wire predict_taken_ex;
     wire predict_taken_id;
     wire mispredict_ex;
+    reg [1:0] bht_r [0:255];
+    integer bht_i;
+    wire [7:0] bht_idx_id = pc_id[9:2];
+    wire [7:0] bht_idx_ex = pc_ex[9:2];
+    wire [1:0] bht_state_id = bht_r[bht_idx_id];
+    wire bht_taken_id = bht_state_id[1];
 
-    // Predict taken when branch in ID and immediate is negative (backward = loop branch)
-    // Guard with !stall_any to prevent double-prediction when branch is stalled in ID
-    assign predict_taken_id = branch_id && imm_id[31] && !stall_any;
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            for (bht_i = 0; bht_i < 256; bht_i = bht_i + 1)
+                bht_r[bht_i] <= 2'b01;
+        end else if (branch_ex) begin
+            case ({branch_taken_ex, bht_r[bht_idx_ex]})
+                3'b0_00: bht_r[bht_idx_ex] <= 2'b00;
+                3'b0_01: bht_r[bht_idx_ex] <= 2'b00;
+                3'b0_10: bht_r[bht_idx_ex] <= 2'b01;
+                3'b0_11: bht_r[bht_idx_ex] <= 2'b10;
+                3'b1_00: bht_r[bht_idx_ex] <= 2'b01;
+                3'b1_01: bht_r[bht_idx_ex] <= 2'b10;
+                3'b1_10: bht_r[bht_idx_ex] <= 2'b11;
+                3'b1_11: bht_r[bht_idx_ex] <= 2'b11;
+                default: bht_r[bht_idx_ex] <= 2'b01;
+            endcase
+        end
+    end
+
+    // Guard with !stall_any to prevent re-predicting the same stalled branch.
+    assign predict_taken_id = branch_id && bht_taken_id && !stall_any;
     assign mispredict_ex    = predict_taken_ex && !branch_taken_ex && branch_ex;
 
-    // IFU redirect priority: mispredict recovery > actual branch/jump > prediction
-    wire        ifu_pc_src    = mispredict_ex || pc_src_ex || predict_taken_id;
+    // IFU redirect priority: mispredict recovery > actual branch/jump > WFI consume > prediction
+    wire [31:0] wfi_resume_pc = pc_id + 32'd4;
+    wire        ifu_pc_src    = mispredict_ex || pc_src_ex || wfi_enter || predict_taken_id;
     wire [31:0] ifu_target_pc = mispredict_ex  ? pc_plus_4_ex  :
                                 pc_src_ex      ? target_pc_ex  :
+                                wfi_enter      ? wfi_resume_pc :
                                                  branch_target_id;
 
     // Fix 10C: Multiplier stall — don't freeze multiplier during its own extra cycle
@@ -339,8 +384,8 @@ module riscv_cpu_core (
     // (fence_stall must NOT freeze — pre-fence store must reach MEM)
     wire stall_ex_mem = lsu_dep_stall;
 
-    wire flush_if_id_final = flush_if_id | irq_flush;
-    wire flush_id_ex_final = flush_id_ex | irq_flush;
+    wire flush_if_id_final = flush_if_id | irq_flush | wfi_enter;
+    wire flush_id_ex_final = flush_id_ex | irq_flush | wfi_enter;
 
     // =========================================================================
     // STAGE 1: IF
@@ -712,15 +757,17 @@ module riscv_cpu_core (
     // MEM/WB REGISTER (standalone module)
     // =========================================================================
     reg lsu_committed_r;
+    wire wb_passthrough_valid = !stall_ex_mem && !lsu_committed_r && !memread_mem && regwrite_mem;
+    wire lsu_result_commit = lsu_result_valid && !wb_passthrough_valid;
     always @(posedge clk or posedge rst) begin
         if (rst)
             lsu_committed_r <= 1'b0;
         else
-            lsu_committed_r <= lsu_result_valid;
+            lsu_committed_r <= lsu_result_commit;
     end
 
-    // LSU result always ACK'd immediately
-    assign lsu_result_ack = lsu_result_valid;
+    // Hold LSU result until MEM/WB is free so loads do not clobber ALU/MUL WB.
+    assign lsu_result_ack = lsu_result_commit;
 
     PIPELINE_REG_MEM_WB mem_wb_reg (
         .clock            (clk),
@@ -728,7 +775,7 @@ module riscv_cpu_core (
         .stall_ex_mem     (stall_ex_mem),
         .lsu_committed    (lsu_committed_r),
         // LSU result path (priority)
-        .lsu_result_valid (lsu_result_valid),
+        .lsu_result_valid (lsu_result_commit),
         .lsu_result_data  (lsu_result_data),
         .lsu_result_rd    (lsu_result_rd),
         // Normal MEM stage path

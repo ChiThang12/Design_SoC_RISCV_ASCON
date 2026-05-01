@@ -18,6 +18,8 @@
 // STRETCH_CYCLES = 8: đủ để truyền qua chuỗi reset_sync và flush pipeline CPU.
 // ============================================================================
 
+// PROVIDES: soft_rst_n (1-cycle pulse → stretched STRETCH_CYCLES cycles, active-low)
+// REQUIRES: clk, por_rst_n (POR gate — inhibit soft_rst before power stable), soft_rst_pulse (1-cycle same domain)
 module soft_rst_sync #(
     parameter STRETCH_CYCLES = 8   // WHY 8: đủ để flush 5-stage pipeline + 2FF sync
 ) (

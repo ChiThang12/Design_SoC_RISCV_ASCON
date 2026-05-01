@@ -19,23 +19,35 @@
 //   bên trong jtag_dtm (2-FF synchronizer tck→clk). Ở đây clk_reset_ctrl
 //   vẫn qua thêm reset_sync để chắc chắn — defense in depth.
 //
+// [THÊM MỚI v3] AON mini-domain:
+//   clk_aon = clk_in (không bao giờ gate) — cấp cho wake-up logic của
+//   UART RX detector, GPIO edge detector, Timer compare, PLIC.
+//   aon_rst_n chỉ bị POR + ext_rst, KHÔNG bị soft_rst hoặc ndmreset:
+//     WHY: wake logic phải giữ state xuyên suốt soft_rst và JTAG session.
+//   periph_wake_req (async từ AON) → ungate clk_periph ngay lập tức.
+//   wake_ack = periph_clk_dyn_en_r → AON logic biết clock đã ổn, clear wake_pend.
+//
 // Hierarchy:
 //   clk_reset_ctrl
-//   ├── por_stretcher       — kéo dài POR ≥10µs sau khi VDD ổn định
-//   ├── reset_sync u_sync_fabric  — đồng bộ reset vào domain CORE/FABRIC
-//   ├── reset_sync u_sync_cpu     — đồng bộ reset vào domain CPU
-//   ├── reset_sync u_sync_periph  — đồng bộ reset vào domain PERIPH
-//   ├── reset_sync u_sync_ndm    — đồng bộ ndmreset trước khi combine
-//   ├── soft_rst_sync       — tái đồng bộ soft_rst_pulse, kéo dài 8 cycle
-//   ├── clk_buf u_clk_core  — ICG gate cho domain CORE
-//   └── clk_buf u_clk_periph— ICG gate cho domain PERIPH
+//   ├── por_stretcher            — kéo dài POR ≥10µs sau khi VDD ổn định
+//   ├── reset_sync u_sync_fabric — đồng bộ reset vào domain CORE/FABRIC
+//   ├── reset_sync u_sync_cpu    — đồng bộ reset vào domain CPU
+//   ├── reset_sync u_sync_periph — đồng bộ reset vào domain PERIPH
+//   ├── reset_sync u_sync_ndm   — đồng bộ ndmreset trước khi combine
+//   ├── reset_sync u_sync_aon   — đồng bộ AON reset (por+ext only) [MỚI]
+//   ├── soft_rst_sync            — tái đồng bộ soft_rst_pulse, kéo dài 8 cycle
+//   ├── clk_buf u_clk_core       — ICG gate cho domain CORE
+//   └── clk_buf u_clk_periph     — ICG gate cho domain PERIPH
+//   (clk_aon = clk_in trực tiếp, không qua ICG)
 //
 // Reset logic (tất cả active-low):
-//   combined_rst_n       = por_n_stretched AND ext_rst_sync_n AND soft_rst_n
-//   combined_cpu_rst_n   = combined_rst_n AND ndm_rst_n   ← CPU thêm ndmreset
-//   fabric_rst_n         = combined_rst_n    (KHÔNG bị ảnh hưởng bởi ndmreset)
-//   cpu_rst_n            = combined_cpu_rst_n
-//   periph_rst_n         = combined_cpu_rst_n (peripheral cũng reset theo ndm)
+//   combined_rst_n       = por_n_stretched AND ext_rst_n AND soft_rst_n
+//   combined_cpu_rst_n   = combined_rst_n AND ndm_rst_n AND boot_done
+//   aon_combined_rst_n   = por_n_stretched AND ext_rst_n  (không soft, không ndm)
+//   fabric_rst_n         = sync(combined_rst_n)     — KHÔNG bị ndmreset
+//   cpu_rst_n            = sync(combined_cpu_rst_n)
+//   periph_rst_n         = sync(combined_cpu_rst_n)
+//   aon_rst_n            = sync(aon_combined_rst_n) — KHÔNG bị soft/ndm [MỚI]
 //
 // Kết nối trong soc_top.v:
 //   clk_reset_ctrl u_clkrst (
@@ -43,12 +55,17 @@
 //       .por_n           (por_n),
 //       .ext_rst_n       (ext_rst_n),
 //       .soft_rst_pulse  (soft_rst_pulse),
-//       .ndmreset        (jtag_ndmreset),   // ← MỚI, từ u_jtag.ndmreset
+//       .ndmreset        (jtag_ndmreset),
+//       .boot_done       (boot_done),
 //       .test_en         (1'b0),
 //       .core_clk_en     (1'b1),
 //       .periph_clk_en   (1'b1),
+//       .periph_wake_req (periph_wake_req),   // ← MỚI: async từ AON
 //       .clk_core        (clk_core),
 //       .clk_periph      (clk_periph),
+//       .clk_aon         (clk_aon),           // ← MỚI: always-on
+//       .aon_rst_n       (aon_rst_n),         // ← MỚI: AON reset
+//       .wake_ack        (wake_ack),           // ← MỚI: periph clock stable
 //       .fabric_rst_n    (fabric_rst_n),
 //       .cpu_rst_n       (cpu_rst_n),
 //       .periph_rst_n    (periph_rst_n)
@@ -61,9 +78,16 @@
 `include "clk_reset_ctrl/rtl/clk_buf.v"
 
 
+// PROVIDES: clk_core, clk_periph (ICG-gated); clk_aon (always-on);
+//           fabric_rst_n, cpu_rst_n, periph_rst_n, aon_rst_n (synced resets);
+//           wake_ack (periph clock stable signal for AON clear)
+// REQUIRES: clk_in (main osc), por_n, ext_rst_n, ndmreset, boot_done,
+//           periph_wake_req (async from AON domain), gating policy inputs
 module clk_reset_ctrl #(
     parameter POR_CYCLES       = 1000,  // 10µs @ 100MHz
-    parameter SOFT_RST_STRETCH = 8      // 8 cycle pulse stretch
+    parameter SOFT_RST_STRETCH = 8,     // 8 cycle pulse stretch
+    parameter CORE_IDLE_HOLD_CYCLES   = 32,
+    parameter PERIPH_IDLE_HOLD_CYCLES = 64
 ) (
     // =========================================================================
     // Clock inputs
@@ -115,21 +139,47 @@ module clk_reset_ctrl #(
     // =========================================================================
     // Clock enable cho từng power domain
     // =========================================================================
-    input  wire core_clk_en,    // 1=CORE domain active, 0=gate clock
-    input  wire periph_clk_en,  // 1=PERIPH domain active, 0=gate clock
+    input  wire core_clk_en,    // static allow/mask cho CORE gating policy
+    input  wire periph_clk_en,  // static allow/mask cho PERIPH gating policy
 
     // =========================================================================
-    // Clock outputs (gated)
+    // Dynamic clock-gating policy inputs (đã tổng hợp ở soc_top)
     // =========================================================================
-    output wire clk_core,       // clock đến CPU, Cache, ASCON, Crossbar
-    output wire clk_periph,     // clock đến UART, SPI, GPIO, Timer, PLIC
+    input  wire cpu_wfi,
+    input  wire ascon_busy,
+    input  wire core_bus_active,
+    input  wire core_wake_event,
+    input  wire periph_bus_active,
+    input  wire periph_busy,
+    input  wire periph_wake_event,
+    input  wire periph_gate_allow,
+
+    // =========================================================================
+    // AON wake request [MỚI]
+    //
+    // periph_wake_req = 1 (async từ AON domain):
+    //   → override gate condition → periph_clk_dyn_en_r set ngay lập tức
+    //   → sau FF sampling: periph clock bật, wake_ack assert
+    //   WHY async OK: periph_clk_dyn_en_r là FF → giải quyết metastability
+    //   trước khi tín hiệu đến ICG latch.
+    // =========================================================================
+    input  wire periph_wake_req,  // async wake từ AON (GPIO/UART RX/Timer)
+
+    // =========================================================================
+    // Clock outputs (gated + always-on)
+    // =========================================================================
+    output wire clk_core,         // clock đến CPU, Cache, ASCON, Crossbar (ICG)
+    output wire clk_periph,       // clock đến UART, SPI, GPIO, Timer, PLIC (ICG)
+    output wire clk_aon,          // always-on clock = clk_in, không bao giờ gate
 
     // =========================================================================
     // Reset outputs (active-low, đã đồng bộ)
     // =========================================================================
-    output wire fabric_rst_n,   // reset cho toàn bộ fabric — KHÔNG bị ndmreset
-    output wire cpu_rst_n,      // reset riêng cho CPU core — BỊ ndmreset
-    output wire periph_rst_n    // reset cho domain PERIPH — BỊ ndmreset
+    output wire fabric_rst_n,     // reset cho toàn bộ fabric — KHÔNG bị ndmreset
+    output wire cpu_rst_n,        // reset riêng cho CPU core — BỊ ndmreset
+    output wire periph_rst_n,     // reset cho domain PERIPH — BỊ ndmreset
+    output wire aon_rst_n,        // reset cho AON domain — chỉ POR+ext, KHÔNG soft/ndm
+    output wire wake_ack          // periph clock đang chạy → AON có thể clear wake_pend
 );
 
     // =========================================================================
@@ -192,6 +242,26 @@ module clk_reset_ctrl #(
     wire combined_cpu_rst_n = combined_rst_n & ndm_rst_n_sync & boot_done;
 
     // =========================================================================
+    // Stage 2d: AON reset — chỉ POR + ext_rst, KHÔNG soft_rst, KHÔNG ndmreset
+    //
+    // WHY tách riêng: wake-up logic trong peripheral (UART RX detector, GPIO
+    // edge detector, Timer compare) phải giữ trạng thái xuyên qua soft_rst
+    // và JTAG ndmreset. Nếu AON reset bị kéo xuống khi soft_rst → wake_pend
+    // bị xóa → CPU không thể tỉnh dậy khi reset xong.
+    // ext_rst_n được include vì đây là hard reset vật lý (nút reset trên board).
+    // =========================================================================
+    wire aon_combined_rst_n = por_n_stretched & ext_rst_n;
+
+    reset_sync u_sync_aon (
+        .clk        (clk_in),
+        .rst_async_n(aon_combined_rst_n),
+        .rst_sync_n (aon_rst_n)
+    );
+
+    // clk_aon: không qua ICG — luôn = clk_in bất kể mọi gate condition
+    assign clk_aon = clk_in;
+
+    // =========================================================================
     // Stage 3: 2FF synchronizer cho mỗi reset domain
     // =========================================================================
 
@@ -224,19 +294,74 @@ module clk_reset_ctrl #(
     // =========================================================================
     // Stage 4: Clock gating (ICG)
     // =========================================================================
+    reg [31:0] core_idle_hold_r;
+    reg [31:0] periph_idle_hold_r;
+    reg        core_clk_dyn_en_r;
+    reg        periph_clk_dyn_en_r;
+
+    wire core_clk_req =
+        core_clk_en &&
+        (core_wake_event || ascon_busy || core_bus_active || !cpu_wfi);
+
+    // periph_wake_req (async từ AON) nằm trong điều kiện OR → FF sampling tại
+    // posedge clk_in giải quyết metastability trước khi kết quả đến ICG latch
+    wire periph_clk_req =
+        periph_clk_en &&
+        (periph_wake_req || periph_wake_event || periph_bus_active ||
+         periph_busy || !periph_gate_allow);
+
+    always @(posedge clk_in or negedge combined_rst_n) begin
+        if (!combined_rst_n) begin
+            core_idle_hold_r    <= 32'd0;
+            periph_idle_hold_r  <= 32'd0;
+            core_clk_dyn_en_r   <= 1'b1;
+            periph_clk_dyn_en_r <= 1'b1;
+        end else begin
+            if (!core_clk_en) begin
+                core_idle_hold_r  <= 32'd0;
+                core_clk_dyn_en_r <= 1'b0;
+            end else if (core_clk_req) begin
+                core_idle_hold_r  <= (CORE_IDLE_HOLD_CYCLES > 0) ? (CORE_IDLE_HOLD_CYCLES - 1) : 0;
+                core_clk_dyn_en_r <= 1'b1;
+            end else if (core_idle_hold_r != 32'd0) begin
+                core_idle_hold_r  <= core_idle_hold_r - 32'd1;
+                core_clk_dyn_en_r <= 1'b1;
+            end else begin
+                core_clk_dyn_en_r <= 1'b0;
+            end
+
+            if (!periph_clk_en) begin
+                periph_idle_hold_r  <= 32'd0;
+                periph_clk_dyn_en_r <= 1'b0;
+            end else if (periph_clk_req) begin
+                periph_idle_hold_r  <= (PERIPH_IDLE_HOLD_CYCLES > 0) ? (PERIPH_IDLE_HOLD_CYCLES - 1) : 0;
+                periph_clk_dyn_en_r <= 1'b1;
+            end else if (periph_idle_hold_r != 32'd0) begin
+                periph_idle_hold_r  <= periph_idle_hold_r - 32'd1;
+                periph_clk_dyn_en_r <= 1'b1;
+            end else begin
+                periph_clk_dyn_en_r <= 1'b0;
+            end
+        end
+    end
 
     clk_buf u_clk_core (
         .clk_in  (clk_in),
-        .enable  (core_clk_en),
+        .enable  (core_clk_dyn_en_r),
         .test_en (test_en),
         .clk_out (clk_core)
     );
 
     clk_buf u_clk_periph (
         .clk_in  (clk_in),
-        .enable  (periph_clk_en),
+        .enable  (periph_clk_dyn_en_r),
         .test_en (test_en),
         .clk_out (clk_periph)
     );
+
+    // wake_ack: assert khi periph clock đang chạy ổn định
+    // AON logic dùng wake_ack để clear wake_pend SR-latch sau khi biết
+    // clk_periph đã bật và peripheral sẵn sàng xử lý interrupt.
+    assign wake_ack = periph_clk_dyn_en_r;
 
 endmodule

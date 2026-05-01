@@ -109,41 +109,34 @@ module data_mem_burst #(
         end
     end
 
+    wire [31:0] mem_word_aligned;
+    assign mem_word_aligned = {
+        memory[aligned_addr+3],
+        memory[aligned_addr+2],
+        memory[aligned_addr+1],
+        memory[aligned_addr+0]
+    };
+
     // Simple read (combinational)
     always @(*) begin
         if (memread) begin
             case (byte_size)
                 2'b00: begin
                     case (byte_offset)
-                        2'b00: read_data = sign_ext ?
-                            {{24{memory[aligned_addr+0][7]}}, memory[aligned_addr+0]} :
-                            {24'h0, memory[aligned_addr+0]};
-                        2'b01: read_data = sign_ext ?
-                            {{24{memory[aligned_addr+1][7]}}, memory[aligned_addr+1]} :
-                            {24'h0, memory[aligned_addr+1]};
-                        2'b10: read_data = sign_ext ?
-                            {{24{memory[aligned_addr+2][7]}}, memory[aligned_addr+2]} :
-                            {24'h0, memory[aligned_addr+2]};
-                        2'b11: read_data = sign_ext ?
-                            {{24{memory[aligned_addr+3][7]}}, memory[aligned_addr+3]} :
-                            {24'h0, memory[aligned_addr+3]};
+                        2'b00: read_data = sign_ext ? {{24{mem_word_aligned[7]}}, mem_word_aligned[7:0]} : {24'h0, mem_word_aligned[7:0]};
+                        2'b01: read_data = sign_ext ? {{24{mem_word_aligned[15]}}, mem_word_aligned[15:8]} : {24'h0, mem_word_aligned[15:8]};
+                        2'b10: read_data = sign_ext ? {{24{mem_word_aligned[23]}}, mem_word_aligned[23:16]} : {24'h0, mem_word_aligned[23:16]};
+                        2'b11: read_data = sign_ext ? {{24{mem_word_aligned[31]}}, mem_word_aligned[31:24]} : {24'h0, mem_word_aligned[31:24]};
                     endcase
                 end
                 2'b01: begin
                     case (byte_offset[1])
-                        1'b0: read_data = sign_ext ?
-                            {{16{memory[aligned_addr+1][7]}},
-                             memory[aligned_addr+1], memory[aligned_addr+0]} :
-                            {16'h0, memory[aligned_addr+1], memory[aligned_addr+0]};
-                        1'b1: read_data = sign_ext ?
-                            {{16{memory[aligned_addr+3][7]}},
-                             memory[aligned_addr+3], memory[aligned_addr+2]} :
-                            {16'h0, memory[aligned_addr+3], memory[aligned_addr+2]};
+                        1'b0: read_data = sign_ext ? {{16{mem_word_aligned[15]}}, mem_word_aligned[15:0]} : {16'h0, mem_word_aligned[15:0]};
+                        1'b1: read_data = sign_ext ? {{16{mem_word_aligned[31]}}, mem_word_aligned[31:16]} : {16'h0, mem_word_aligned[31:16]};
                     endcase
                 end
                 2'b10: begin
-                    read_data = {memory[aligned_addr+3], memory[aligned_addr+2],
-                                 memory[aligned_addr+1], memory[aligned_addr+0]};
+                    read_data = mem_word_aligned;
                 end
                 default: read_data = 32'h0;
             endcase

@@ -13,6 +13,8 @@
 //   đây là chuỗi đồng bộ hóa → không optimize / retime các FF này.
 // ============================================================================
 
+// PROVIDES: rst_sync_n (async-assert / sync-deassert, 2FF metastability filtered)
+// REQUIRES: clk (destination domain clock), rst_async_n (any domain, active-low)
 module reset_sync (
     input  wire clk,          // clock của domain nhận
     input  wire rst_async_n,  // reset bất đồng bộ đầu vào (active-low)

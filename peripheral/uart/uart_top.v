@@ -99,7 +99,8 @@ module uart_top #(
     // =========================================================================
     // Interrupt → PLIC source [0]
     // =========================================================================
-    output wire irq_out
+    output wire irq_out,
+    output wire uart_active
 );
 
     // =========================================================================
@@ -120,6 +121,7 @@ module uart_top #(
     wire [7:0] tx_fifo_dout;
     wire       tx_fifo_full, tx_fifo_empty;
     wire       tx_fifo_pop;   // từ uart_tx
+    wire       tx_busy_w;
 
     // RX FIFO ← RX sampler
     wire [7:0] rx_fifo_din;
@@ -233,7 +235,7 @@ module uart_top #(
         .fifo_empty(tx_fifo_empty),
         .fifo_pop  (tx_fifo_pop),
         .tx_out    (uart_tx),
-        .tx_busy   ()
+        .tx_busy   (tx_busy_w)
     );
 
     // =========================================================================
@@ -277,5 +279,7 @@ module uart_top #(
         .tx_empty_irq (tx_empty_irq_w),
         .rx_valid_irq (rx_valid_irq_w)
     );
+
+    assign uart_active = tx_busy_w | !tx_fifo_empty | !rx_fifo_empty;
 
 endmodule

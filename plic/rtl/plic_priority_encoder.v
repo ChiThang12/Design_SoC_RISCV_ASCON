@@ -31,15 +31,6 @@ module plic_priority_encoder #(
 
     localparam ID_W = $clog2(NUM_SRC);
 
-    // Unpack priority array
-    wire [PRIO_W-1:0] prio [0:NUM_SRC-1];
-    genvar gi;
-    generate
-        for (gi = 0; gi < NUM_SRC; gi = gi + 1) begin : unpack
-            assign prio[gi] = priority_flat[PRIO_W*gi +: PRIO_W];
-        end
-    endgenerate
-
     integer i;
     always @(*) begin
         claim_id   = {ID_W{1'b0}};
@@ -75,12 +66,12 @@ module plic_priority_encoder #(
         //   Nếu threshold>0 thì prio[i] > threshold > 0 ✓
         for (i = 1; i < NUM_SRC; i = i + 1) begin
             // Eligible: pending AND enabled AND priority > threshold
-            if (pending[i] && enabled[i] && (prio[i] > threshold)) begin
+            if (pending[i] && enabled[i] && (priority_flat[PRIO_W*i +: PRIO_W] > threshold)) begin
                 // Ghi đè chỉ khi STRICTLY higher priority
                 // Tie → giữ nguyên claim_id (ID nhỏ hơn đã ghi trước thắng)
-                if (prio[i] > claim_prio) begin
+                if (priority_flat[PRIO_W*i +: PRIO_W] > claim_prio) begin
                     claim_id   = i[ID_W-1:0];
-                    claim_prio = prio[i];
+                    claim_prio = priority_flat[PRIO_W*i +: PRIO_W];
                 end
             end
         end

@@ -166,10 +166,11 @@ module plic_regfile #(
 
     // FIX 4 read-side: ar_off[7]==0 prevents 0x080 being decoded as priority[32]
     reg [DATA_WIDTH-1:0] rdata_mux;
+    wire [PRIO_W-1:0] prio_read_val = prio_r[ar_off[6:2]];
     always @(*) begin
         rdata_mux = 32'd0;
         if (ar_off[11:8]==4'h0 && ar_off[7]==1'b0 && ar_off[1:0]==2'b00)
-            rdata_mux = {{(DATA_WIDTH-PRIO_W){1'b0}}, prio_r[ar_off[6:2]]};
+            rdata_mux = {{(DATA_WIDTH-PRIO_W){1'b0}}, prio_read_val};
         else if (ar_off == 12'h080)
             rdata_mux = {{(DATA_WIDTH-NUM_SRC){1'b0}}, pending_in[NUM_SRC-1:0]};
         else if (ar_off == 12'h100)

@@ -20,6 +20,8 @@
 //   Pragma KEEP_HIERARCHY ngăn Vivado/Quartus optimize module đi.
 // ============================================================================
 
+// PROVIDES: clk_out (ICG glitch-free gated clock), DFT test_en bypass
+// REQUIRES: clk_in (any freq), enable (must be stable before posedge for clean gate)
 module clk_buf (
     input  wire clk_in,    // clock đầu vào từ PLL hoặc pad
     input  wire enable,    // 1=clock chạy, 0=gate
