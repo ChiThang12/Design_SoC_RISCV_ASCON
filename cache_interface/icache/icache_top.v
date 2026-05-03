@@ -1,19 +1,17 @@
-`timescale 1ns/1ps
 
-`include "cache_interface/icache/icache_defines.vh"
+// ============================================================================
+// icache_top — thêm AXI4 ID signals để kết nối vào axi4_crossbar (M0)
+// ============================================================================
 `include "cache_interface/icache/icache_tag_array.v"
 `include "cache_interface/icache/icache_data_array.v"
 `include "cache_interface/icache/icache_axi_interface.v"
 `include "cache_interface/icache/icache_controller.v"
 
-// ============================================================================
-// icache_top — thêm AXI4 ID signals để kết nối vào axi4_crossbar (M0)
-// ============================================================================
 module icache_top #(
-    parameter CACHE_SIZE = `ICACHE_SIZE,
-    parameter LINE_SIZE  = `ICACHE_LINE_SIZE,
-    parameter ADDR_WIDTH = `ICACHE_ADDR_WIDTH,
-    parameter DATA_WIDTH = `ICACHE_DATA_WIDTH,
+    parameter CACHE_SIZE = 1024,
+    parameter LINE_SIZE  = 32,
+    parameter ADDR_WIDTH = 32,
+    parameter DATA_WIDTH = 32,
     parameter ID_WIDTH   = 4
 )(
     input wire clk,

@@ -1,21 +1,18 @@
-`timescale 1ns/1ps
-
 // ============================================================================
 // Module: dcache_top  —  Write-Back + Write-Allocate version
 // Thêm AXI4 ID signals để kết nối vào axi4_crossbar (M1)
 // ============================================================================
-
-`include "cache_interface/dcache/dcache_defines.vh"
 `include "cache_interface/dcache/dcache_tag_array.v"
 `include "cache_interface/dcache/dcache_data_array.v"
 `include "cache_interface/dcache/dcache_axi_interface.v"
 `include "cache_interface/dcache/dcache_controller.v"
 
+
 module dcache_top #(
-    parameter CACHE_SIZE = `DCACHE_SIZE,
-    parameter LINE_SIZE  = `DCACHE_LINE_SIZE,
-    parameter ADDR_WIDTH = `DCACHE_ADDR_WIDTH,
-    parameter DATA_WIDTH = `DCACHE_DATA_WIDTH,
+    parameter CACHE_SIZE = 8192,
+    parameter LINE_SIZE  = 16,
+    parameter ADDR_WIDTH = 32,
+    parameter DATA_WIDTH = 32,
     parameter ID_WIDTH   = 4
 )(
     input wire clk,

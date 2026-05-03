@@ -1,7 +1,3 @@
-`timescale 1ns/1ps
-
-`include "cache_interface/dcache/dcache_defines.vh"
-
 // ============================================================================
 // Module: dcache_axi_interface  —  Write-Back version
 // Thêm AXI4 ID signals để kết nối vào axi4_crossbar (M1)

@@ -1,41 +1,15 @@
 `timescale 1ns/1ps
 
-// ============================================================================
-// inst_mem.v - ZERO-LATENCY Instruction Memory for CPI=1.0
-// ============================================================================
-// FIXES:
-//
-// [FIX-BURST-LAST] Bug trong BURST_ACTIVE: khi advance current_addr, điều kiện
-//   burst_last phải dùng beat_count SAU KHI tăng (beat_count + 1), nhưng code
-//   gốc tính (beat_count + 1 == total_beats) trước khi update beat_count.
-//   Điều này đúng về mặt giá trị (beat_count vẫn là giá trị CŨ trong cùng cycle),
-//   nhưng có edge case: khi total_beats = 0 (single-beat, xử lý ở BURST_IDLE),
-//   và khi total_beats = 1 (2-beat burst), cần verify.
-//
-//   Cụ thể bug: với 2-beat burst (burst_len=1, total_beats=1):
-//     - Beat 0: IDLE→ACTIVE, burst_last = (1==0) = 0 ✓
-//     - Beat 1 (ACTIVE): beat_count=0, beat_count+1=1 == total_beats=1 → burst_last=1 ✓
-//   Logic đúng nhưng có thể bị off-by-one nếu beat_count update trước khi đánh giá.
-//   Fix: tách thành wire rõ ràng để dễ trace và tránh nhầm lẫn.
-//
-// [FIX-SINGLE-BEAT-HOLD] Khi burst_len=0 (single beat), BURST_ACTIVE nhận
-//   beat_count=0, total_beats=0 → điều kiện (beat_count+1 == total_beats) = (1==0) = false
-//   → burst_last sẽ KHÔNG bao giờ assert trong ACTIVE, gây treo!
-//   Gốc dùng burst_last <= (burst_len == 0) trong IDLE (đúng), nhưng trong ACTIVE
-//   cần check (beat_count + 1 >= total_beats) để handle case total_beats=0 đúng.
-//   Fix: dùng (beat_count >= total_beats) vì khi enter ACTIVE, beat đầu đã gửi.
-// ============================================================================
-
 module inst_mem #(
-    parameter MEM_SIZE      = 4096,
+    parameter MEM_SIZE      = 8192,
     parameter ADDR_WIDTH    = 32,
     parameter DATA_WIDTH    = 32,
-    parameter MEM_INIT_FILE = ""   // unused — IMEM is now a blank SRAM; boot_ctrl loads it
+    parameter MEM_INIT_FILE = ""
 )(
     input wire clk,
     input wire rst_n,
 
-    // Simple Interface (combinational)
+    // Direct read — 1-cycle latency (registered BRAM output)
     input  wire [ADDR_WIDTH-1:0] PC,
     output wire [DATA_WIDTH-1:0] Instruction_Code,
 
@@ -48,7 +22,7 @@ module inst_mem #(
     output reg                   burst_last,
     input  wire                  burst_ready,
 
-    // Write port (shared by boot sideband and AXI write path)
+    // Write port (boot sideband + AXI write path)
     input  wire                    wr_en,
     input  wire [ADDR_WIDTH-1:0]   wr_addr,
     input  wire [DATA_WIDTH-1:0]   wr_data,
@@ -59,25 +33,25 @@ module inst_mem #(
     localparam ADDR_LSB  = $clog2(DATA_WIDTH/8);
     localparam ADDR_BITS = $clog2(MEM_DEPTH);
 
-    // ========================================================================
-    // Memory Array
-    // ========================================================================
+    // (* ram_style = "block" *)   // uncomment để force BRAM trên Vivado
     reg [DATA_WIDTH-1:0] memory [0:MEM_DEPTH-1];
 
-    // Simple combinational read
-    // [FIX-ADDR-WRAP] Dùng modulo thay vì bit-slice cứng ADDR_BITS bits.
-    // Vấn đề gốc: ADDR_BITS=$clog2(1024)=10 → PC[11:2] chỉ 10 bits
-    // → PC=0x1000 wrap về index 0 → CPU loop vô tận.
-    // Fix: (PC >> ADDR_LSB) % MEM_DEPTH → index luôn trong [0,MEM_DEPTH-1].
-    wire [ADDR_WIDTH-1:0] word_addr_full;
-    wire [ADDR_BITS-1:0]  word_addr;
-    assign word_addr_full   = (PC >> ADDR_LSB) % MEM_DEPTH;
-    assign word_addr        = word_addr_full[ADDR_BITS-1:0];
-    assign Instruction_Code = memory[word_addr];
+    // =========================================================================
+    // Write port — synchronous byte-enable
+    // =========================================================================
+    wire [ADDR_BITS-1:0] wr_word_addr = wr_addr[ADDR_BITS+ADDR_LSB-1 : ADDR_LSB];
 
-    // ========================================================================
+    integer b;
+    always @(posedge clk) begin
+        if (wr_en)
+            for (b = 0; b < DATA_WIDTH/8; b = b + 1)
+                if (wr_strb[b])
+                    memory[wr_word_addr][b*8 +: 8] <= wr_data[b*8 +: 8];
+    end
+
+    // =========================================================================
     // Burst FSM
-    // ========================================================================
+    // =========================================================================
     localparam BURST_IDLE   = 1'b0;
     localparam BURST_ACTIVE = 1'b1;
 
@@ -86,35 +60,42 @@ module inst_mem #(
     reg [7:0]  beat_count;
     reg [7:0]  total_beats;
 
-    // ========================================================================
-    // Combinational burst_data (ZERO-LATENCY)
-    // ========================================================================
-    wire [ADDR_WIDTH-1:0] read_addr;
-    wire [ADDR_WIDTH-1:0] read_word_addr_full;
-    wire [ADDR_BITS-1:0]  read_word_addr;
+    wire [ADDR_WIDTH-1:0] next_addr    = current_addr + (DATA_WIDTH/8);
+    wire                  next_is_last = (beat_count + 8'd1 == total_beats);
 
-    assign read_addr           = (burst_state == BURST_IDLE && burst_req) ?
-                                 burst_addr : current_addr;
-    // [FIX-ADDR-WRAP] Dùng modulo giống PC path, tránh truncate bit cao
-    assign read_word_addr_full = (read_addr >> ADDR_LSB) % MEM_DEPTH;
-    assign read_word_addr      = read_word_addr_full[ADDR_BITS-1:0];
-    assign burst_data          = memory[read_word_addr];
+    // =========================================================================
+    // BRAM read — single registered port, 1-cycle latency
+    //
+    // Address presented at posedge T → data available at T+1.
+    // Timing aligns naturally with burst_valid (both set via registered assign):
+    //   T   : burst_req=1  → BRAM samples burst_addr, FSM sets burst_valid<=1
+    //   T+1 : burst_valid=1, bram_dout = memory[burst_addr]  ✓
+    //
+    // When advancing (beat N accepted at T_N): present next_addr to BRAM at T_N
+    // so data for beat N+1 is ready at T_N+1 when burst_valid still=1.
+    // =========================================================================
 
-    // Next address (combinational)
-    wire [ADDR_WIDTH-1:0] next_addr;
-    assign next_addr = current_addr + (DATA_WIDTH/8);
+    // advance=1 at posedge T_N → we need next beat's address at T_N for BRAM
+    wire advance = (burst_state == BURST_ACTIVE) && burst_valid && burst_ready && !burst_last;
 
-    // ========================================================================
-    // [FIX] burst_last decision wire — dùng trong BURST_ACTIVE
-    // Khi enter BURST_ACTIVE, beat 0 đã được gửi (valid/last set trong IDLE).
-    // beat_count đếm từ 0 sau khi beat 0 được handshaked.
-    // burst_last của beat tiếp theo = (beat_count + 1 == total_beats).
-    // Nhưng khi total_beats = 0 (single beat, không vào đây) → đã handled ở IDLE.
-    // Khi total_beats = 1: beat_count=0 → next_is_last = (0+1==1) = 1 ✓
-    // ========================================================================
-    wire next_is_last;
-    assign next_is_last = (beat_count + 8'd1 == total_beats);
+    wire [ADDR_WIDTH-1:0] bram_addr_sel;
+    assign bram_addr_sel = (burst_state == BURST_IDLE && burst_req) ? burst_addr :
+                           advance                                   ? next_addr  :
+                           (burst_state == BURST_ACTIVE)             ? current_addr :
+                                                                       PC;
 
+    wire [ADDR_BITS-1:0] bram_word_addr = bram_addr_sel[ADDR_BITS+ADDR_LSB-1 : ADDR_LSB];
+
+    reg [DATA_WIDTH-1:0] bram_dout;
+    always @(posedge clk)
+        bram_dout <= memory[bram_word_addr];
+
+    assign burst_data       = bram_dout;
+    assign Instruction_Code = bram_dout;   // 1-cycle latency (vestigial port — ICache sits in front)
+
+    // =========================================================================
+    // FSM state update
+    // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             burst_state  <= BURST_IDLE;
@@ -133,7 +114,6 @@ module inst_mem #(
                         total_beats  <= burst_len;
                         burst_state  <= BURST_ACTIVE;
                         burst_valid  <= 1'b1;
-                        // [FIX] Single-beat: burst_len=0 → last ngay beat đầu
                         burst_last   <= (burst_len == 8'd0);
                     end else begin
                         burst_valid  <= 1'b0;
@@ -144,20 +124,16 @@ module inst_mem #(
                 BURST_ACTIVE: begin
                     if (burst_ready && burst_valid) begin
                         if (burst_last) begin
-                            // Burst kết thúc
                             burst_state <= BURST_IDLE;
                             burst_valid <= 1'b0;
                             burst_last  <= 1'b0;
                         end else begin
-                            // Advance sang beat tiếp
                             beat_count   <= beat_count + 8'd1;
                             current_addr <= next_addr;
                             burst_valid  <= 1'b1;
-                            // [FIX] Dùng next_is_last wire (rõ ràng, dễ trace)
                             burst_last   <= next_is_last;
                         end
                     end
-                    // !ready → hold state (burst_data update combinationally)
                 end
 
                 default: burst_state <= BURST_IDLE;
@@ -166,30 +142,13 @@ module inst_mem #(
         end
     end
 
-    // ========================================================================
-    // Write port (byte-enable)
-    // Used by boot sideband during boot phase, and by AXI write path (JTAG).
-    // ========================================================================
-    wire [ADDR_BITS-1:0] wr_word_addr;
-    assign wr_word_addr = wr_addr[ADDR_BITS+1:2];   // byte→word index
-
-    integer b;
-    always @(posedge clk) begin
-        if (wr_en) begin
-            for (b = 0; b < DATA_WIDTH/8; b = b + 1) begin
-                if (wr_strb[b])
-                    memory[wr_word_addr][b*8 +: 8] <= wr_data[b*8 +: 8];
-            end
-        end
-    end
-
-    // ========================================================================
-    // Memory Initialization — blank SRAM (boot_ctrl loads program at runtime)
-    // ========================================================================
+    // =========================================================================
+    // Memory init — NOP fill (boot_ctrl loads actual program at runtime)
+    // =========================================================================
     integer i;
     initial begin
         for (i = 0; i < MEM_DEPTH; i = i + 1)
-            memory[i] = 32'h00000013;  // NOP (safe default until boot completes)
+            memory[i] = 32'h00000013;
     end
 
 endmodule

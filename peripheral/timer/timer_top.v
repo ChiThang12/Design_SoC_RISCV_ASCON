@@ -77,7 +77,13 @@ module timer_top #(
 
     // ── WDT reset request (active-high) ──────────────────────────────────────
     output wire wdt_rst_req,
-    output wire timer_active_o
+    output wire timer_active_o,
+
+    // ── AON wake interface (clk_aon domain) ──────────────────────────────────
+    input  wire clk_aon,
+    input  wire aon_rst_n,
+    input  wire wake_ack,
+    output wire timer_wake_req
 );
 
     // ── Timer 0 wires ────────────────────────────────────────────────────────
@@ -176,5 +182,29 @@ module timer_top #(
     );
 
     assign timer_active_o = t0_en | t1_en | wdt_en;
+
+    // ── AON timeout wake (clk_aon domain — chạy kể cả khi clk_periph gate)
+    // 2-FF CDC: bring clk_periph timeout flags vào clk_aon domain.
+    // periph_gate_allow=0 khi timer_active=1, nên flags chỉ assert khi
+    // periph_clk đang chạy → 2-FF đủ để capture sạch.
+    wire any_timeout_w = t0_timeout_flag | t1_timeout_flag | wdt_expired_flag;
+    reg timeout_aon_d1, timeout_aon_d2;
+    always @(posedge clk_aon or negedge aon_rst_n) begin
+        if (!aon_rst_n) begin
+            timeout_aon_d1 <= 1'b0;
+            timeout_aon_d2 <= 1'b0;
+        end else begin
+            timeout_aon_d1 <= any_timeout_w;
+            timeout_aon_d2 <= timeout_aon_d1;
+        end
+    end
+
+    reg timer_wake_pend_r;
+    always @(posedge clk_aon or negedge aon_rst_n) begin
+        if (!aon_rst_n)          timer_wake_pend_r <= 1'b0;
+        else if (wake_ack)       timer_wake_pend_r <= 1'b0;
+        else if (timeout_aon_d2) timer_wake_pend_r <= 1'b1;
+    end
+    assign timer_wake_req = timer_wake_pend_r;
 
 endmodule

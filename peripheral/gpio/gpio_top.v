@@ -73,7 +73,13 @@ module gpio_top #(
 
     // ── IRQ to PLIC ───────────────────────────────────────────────────────────
     output wire                     gpio_irq,
-    output wire                     gpio_wake_armed_o
+    output wire                     gpio_wake_armed_o,
+
+    // ── AON wake interface (clk_aon domain) ──────────────────────────────────
+    input  wire                     clk_aon,
+    input  wire                     aon_rst_n,
+    input  wire                     wake_ack,
+    output wire                     gpio_wake_req
 );
 
     // Internal wires between regfile and iocell
@@ -139,5 +145,28 @@ module gpio_top #(
     );
 
     assign gpio_wake_armed_o = |irq_en_w;
+
+    // ── AON edge-detect wake (clk_aon domain — chạy kể cả khi clk_periph gate)
+    // 2-FF sync gpio_in pads vào clk_aon domain, rồi detect any edge trên
+    // pin có irq_en_w=1. irq_en_w stable khi periph_clk off (write-before-sleep).
+    reg [GPIO_WIDTH-1:0] gpio_in_aon_d1, gpio_in_aon_d2;
+    always @(posedge clk_aon or negedge aon_rst_n) begin
+        if (!aon_rst_n) begin
+            gpio_in_aon_d1 <= {GPIO_WIDTH{1'b0}};
+            gpio_in_aon_d2 <= {GPIO_WIDTH{1'b0}};
+        end else begin
+            gpio_in_aon_d1 <= gpio_in;
+            gpio_in_aon_d2 <= gpio_in_aon_d1;
+        end
+    end
+    wire any_wake_edge_w = |((gpio_in_aon_d2 ^ gpio_in_aon_d1) & irq_en_w);
+
+    reg gpio_wake_pend_r;
+    always @(posedge clk_aon or negedge aon_rst_n) begin
+        if (!aon_rst_n)          gpio_wake_pend_r <= 1'b0;
+        else if (wake_ack)       gpio_wake_pend_r <= 1'b0;
+        else if (any_wake_edge_w) gpio_wake_pend_r <= 1'b1;
+    end
+    assign gpio_wake_req = gpio_wake_pend_r;
 
 endmodule

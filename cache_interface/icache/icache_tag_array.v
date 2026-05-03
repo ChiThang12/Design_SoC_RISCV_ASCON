@@ -1,7 +1,3 @@
-`timescale 1ns/1ps
-
-`include "cache_interface/icache/icache_defines.vh"
-
 // ============================================================================
 // icache_tag_array — 32 lines, index 5 bit, tag 22 bit
 // ============================================================================

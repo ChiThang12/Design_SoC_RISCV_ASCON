@@ -1,5 +1,3 @@
-`timescale 1ns/1ps
-
 // ============================================================================
 // Module: dcache_data_array  —  Write-Back version
 // ============================================================================
@@ -8,8 +6,6 @@
 // trong cùng một cycle cho eviction burst.
 // Write-first forwarding cho cả single-word và all-words read.
 // ============================================================================
-
-`include "cache_interface/dcache/dcache_defines.vh"
 
 module dcache_data_array (
     input wire clk,

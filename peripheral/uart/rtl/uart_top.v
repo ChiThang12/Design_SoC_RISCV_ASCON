@@ -102,7 +102,15 @@ module uart_top #(
     // Interrupt → PLIC source [0]
     // =========================================================================
     output wire irq_out,
-    output wire uart_active
+    output wire uart_active,
+
+    // =========================================================================
+    // AON wake interface (clk_aon domain)
+    // =========================================================================
+    input  wire clk_aon,
+    input  wire aon_rst_n,
+    input  wire wake_ack,
+    output wire uart_wake_req
 );
 
     // =========================================================================
@@ -283,5 +291,23 @@ module uart_top #(
     );
 
     assign uart_active = tx_busy_w | !tx_fifo_empty | !rx_fifo_empty;
+
+    // =========================================================================
+    // AON start-bit detector (clk_aon domain — chạy kể cả khi clk_periph gate)
+    // =========================================================================
+    reg uart_rx_aon_d1;
+    always @(posedge clk_aon or negedge aon_rst_n) begin
+        if (!aon_rst_n) uart_rx_aon_d1 <= 1'b1;
+        else            uart_rx_aon_d1 <= uart_rx;
+    end
+    wire start_bit_det_w = uart_rx_aon_d1 & ~uart_rx;  // falling edge = start bit
+
+    reg uart_wake_pend_r;
+    always @(posedge clk_aon or negedge aon_rst_n) begin
+        if (!aon_rst_n)          uart_wake_pend_r <= 1'b0;
+        else if (wake_ack)       uart_wake_pend_r <= 1'b0;
+        else if (start_bit_det_w) uart_wake_pend_r <= 1'b1;
+    end
+    assign uart_wake_req = uart_wake_pend_r | start_bit_det_w;
 
 endmodule

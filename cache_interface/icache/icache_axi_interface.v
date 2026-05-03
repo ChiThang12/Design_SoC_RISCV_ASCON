@@ -1,7 +1,3 @@
-`timescale 1ns/1ps
-
-`include "cache_interface/icache/icache_defines.vh"
-
 // ============================================================================
 // icache_axi_interface — ARLEN=7 (8 beats = 8 words = 1 cache line)
 // Thêm AXI4 ID signals để kết nối vào axi4_crossbar

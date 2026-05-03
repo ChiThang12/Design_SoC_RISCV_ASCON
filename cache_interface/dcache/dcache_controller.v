@@ -1,5 +1,3 @@
-`timescale 1ns/1ps
-
 // ============================================================================
 // Module: dcache_controller  —  Write-Back + Write-Allocate
 // FIXED VERSION
@@ -35,11 +33,6 @@
 //   [FIX-FLUSH-TAG-WAIT] 1-cycle tag latency
 //   [FIX-TC3] deferred pending write
 // ============================================================================
-
-`include "cache_interface/dcache/dcache_defines.vh"
-
-`define DCACHE_STATE_NC_READ   3'b110
-`define DCACHE_STATE_NC_WRITE  3'b111
 
 `define FLUSH_IDLE     3'd0
 `define FLUSH_SETTLE   3'd1
@@ -119,6 +112,16 @@ module dcache_controller (
     output reg [31:0]  stat_writes
 );
 
+    localparam [2:0]
+        DCACHE_STATE_IDLE         = 3'b000,
+        DCACHE_STATE_LOOKUP       = 3'b001,
+        DCACHE_STATE_REFILL       = 3'b010,
+        DCACHE_STATE_EVICT        = 3'b011,
+        DCACHE_STATE_WAIT         = 3'b100,
+        DCACHE_STATE_REFILL_DRAIN = 3'b101,
+        DCACHE_STATE_NC_READ      = 3'b110,
+        DCACHE_STATE_NC_WRITE     = 3'b111;
+
     wire fence_flush = fence_type[0];
     wire fence_inval = fence_type[1];
     wire fence_any   = |fence_type;
@@ -190,13 +193,13 @@ module dcache_controller (
 
     assign current_addr  = cur_addr;
     assign current_data  = cur_wdata;
-    assign current_valid = (state != `DCACHE_STATE_IDLE);
+    assign current_valid = (state != DCACHE_STATE_IDLE);
 
     reg [2:0] state, next_state;
 
     wire addr_is_nc = (cpu_addr[31:29] != 3'b000);
 
-    wire        idle_hit_check = (state == `DCACHE_STATE_IDLE)
+    wire        idle_hit_check = (state == DCACHE_STATE_IDLE)
                                  && cpu_req && !fence_any && !flush_busy;
 
     wire [31:0] lookup_addr   = idle_hit_check ? cpu_addr : cur_addr;
@@ -249,9 +252,9 @@ module dcache_controller (
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             tag_lookup_stable <= 1'b0;
-        else if (state == `DCACHE_STATE_IDLE)
+        else if (state == DCACHE_STATE_IDLE)
             tag_lookup_stable <= 1'b0;
-        else if (state == `DCACHE_STATE_LOOKUP)
+        else if (state == DCACHE_STATE_LOOKUP)
             tag_lookup_stable <= 1'b1;
         else
             tag_lookup_stable <= 1'b0;
@@ -275,7 +278,7 @@ module dcache_controller (
     // =========================================================================
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
-            state <= `DCACHE_STATE_IDLE;
+            state <= DCACHE_STATE_IDLE;
         else
             state <= next_state;
     end
@@ -287,61 +290,61 @@ module dcache_controller (
         next_state = state;
         case (state)
 
-            `DCACHE_STATE_IDLE: begin
+            DCACHE_STATE_IDLE: begin
                 if (!flush_busy && cpu_req && !fence_any) begin
                     if (addr_is_nc)
-                        next_state = cpu_we ? `DCACHE_STATE_NC_WRITE
-                                            : `DCACHE_STATE_NC_READ;
+                        next_state = cpu_we ? DCACHE_STATE_NC_WRITE
+                                            : DCACHE_STATE_NC_READ;
                     else if (idle_hit)
-                        next_state = `DCACHE_STATE_IDLE;
+                        next_state = DCACHE_STATE_IDLE;
                     else
-                        next_state = `DCACHE_STATE_LOOKUP;
+                        next_state = DCACHE_STATE_LOOKUP;
                 end
             end
 
-            `DCACHE_STATE_LOOKUP: begin
+            DCACHE_STATE_LOOKUP: begin
                 if (tag_lookup_stable) begin
                     if (tag_hit)
-                        next_state = `DCACHE_STATE_IDLE;
+                        next_state = DCACHE_STATE_IDLE;
                     else if (tag_dirty_out)
-                        next_state = `DCACHE_STATE_EVICT;
+                        next_state = DCACHE_STATE_EVICT;
                     else
-                        next_state = `DCACHE_STATE_REFILL;
+                        next_state = DCACHE_STATE_REFILL;
                 end
             end
 
-            `DCACHE_STATE_EVICT: begin
-                if (evict_done) next_state = `DCACHE_STATE_WAIT;
+            DCACHE_STATE_EVICT: begin
+                if (evict_done) next_state = DCACHE_STATE_WAIT;
             end
 
-            `DCACHE_STATE_WAIT: begin
-                next_state = `DCACHE_STATE_REFILL;
+            DCACHE_STATE_WAIT: begin
+                next_state = DCACHE_STATE_REFILL;
             end
 
-            `DCACHE_STATE_REFILL: begin
+            DCACHE_STATE_REFILL: begin
                 if (!cur_we && refill_data_valid && (refill_word == requested_offset)) begin
-                    if (refill_done) next_state = `DCACHE_STATE_IDLE;
-                    else             next_state = `DCACHE_STATE_REFILL_DRAIN;
+                    if (refill_done) next_state = DCACHE_STATE_IDLE;
+                    else             next_state = DCACHE_STATE_REFILL_DRAIN;
                 end else if (cur_we && refill_done) begin
-                    next_state = `DCACHE_STATE_IDLE;
+                    next_state = DCACHE_STATE_IDLE;
                 end else if (!cur_we && refill_done && requested_data_ready) begin
-                    next_state = `DCACHE_STATE_IDLE;
+                    next_state = DCACHE_STATE_IDLE;
                 end
             end
 
-            `DCACHE_STATE_REFILL_DRAIN: begin
-                if (refill_done) next_state = `DCACHE_STATE_IDLE;
+            DCACHE_STATE_REFILL_DRAIN: begin
+                if (refill_done) next_state = DCACHE_STATE_IDLE;
             end
 
-            `DCACHE_STATE_NC_READ: begin
-                if (refill_done) next_state = `DCACHE_STATE_IDLE;
+            DCACHE_STATE_NC_READ: begin
+                if (refill_done) next_state = DCACHE_STATE_IDLE;
             end
 
-            `DCACHE_STATE_NC_WRITE: begin
-                if (evict_done) next_state = `DCACHE_STATE_IDLE;
+            DCACHE_STATE_NC_WRITE: begin
+                if (evict_done) next_state = DCACHE_STATE_IDLE;
             end
 
-            default: next_state = `DCACHE_STATE_IDLE;
+            default: next_state = DCACHE_STATE_IDLE;
         endcase
     end
 
@@ -357,21 +360,21 @@ module dcache_controller (
 
         if (!flush_busy) begin
             case (state)
-                `DCACHE_STATE_IDLE: begin
+                DCACHE_STATE_IDLE: begin
                     if (cpu_req && idle_hit && !fence_any) begin
                         cpu_ready_int = 1'b1;
                         cpu_rdata_int = cpu_we ? 32'h0 : data_read_data;
                     end
                 end
 
-                `DCACHE_STATE_LOOKUP: begin
+                DCACHE_STATE_LOOKUP: begin
                     if (tag_lookup_stable && tag_hit) begin
                         cpu_ready_int = 1'b1;
                         cpu_rdata_int = cur_we ? 32'h0 : data_read_data;
                     end
                 end
 
-                `DCACHE_STATE_REFILL: begin
+                DCACHE_STATE_REFILL: begin
                     if (!cur_we && refill_data_valid && (refill_word == requested_offset)) begin
                         cpu_ready_int = 1'b1;
                         cpu_rdata_int = refill_data;
@@ -384,16 +387,16 @@ module dcache_controller (
                     end
                 end
 
-                `DCACHE_STATE_REFILL_DRAIN: ;
+                DCACHE_STATE_REFILL_DRAIN: ;
 
-                `DCACHE_STATE_NC_READ: begin
+                DCACHE_STATE_NC_READ: begin
                     if (refill_done) begin
                         cpu_ready_int = 1'b1;
                         cpu_rdata_int = refill_data;
                     end
                 end
 
-                `DCACHE_STATE_NC_WRITE: begin
+                DCACHE_STATE_NC_WRITE: begin
                     if (evict_done) begin
                         cpu_ready_int = 1'b1;
                         cpu_rdata_int = 32'h0;
@@ -574,7 +577,7 @@ module dcache_controller (
             if (!flush_busy) begin
                 case (state)
 
-                    `DCACHE_STATE_IDLE: begin
+                    DCACHE_STATE_IDLE: begin
                         requested_data_ready <= 1'b0;
                         pending_write        <= 1'b0;
 
@@ -628,7 +631,7 @@ module dcache_controller (
                         end
                     end
 
-                    `DCACHE_STATE_LOOKUP: begin
+                    DCACHE_STATE_LOOKUP: begin
                         if (tag_lookup_stable) begin
                             if (tag_hit) begin
                                 if (cur_we) begin
@@ -669,19 +672,19 @@ module dcache_controller (
                         end
                     end
 
-                    `DCACHE_STATE_EVICT: begin
+                    DCACHE_STATE_EVICT: begin
                         if (evict_done) begin
                             main_dirty_clear <= 1'b1;  // [FIX-2]
                             tag_dirty_index  <= evict_index_r;
                         end
                     end
 
-                    `DCACHE_STATE_WAIT: begin
+                    DCACHE_STATE_WAIT: begin
                         refill_addr  <= {cur_addr[31:4], 4'b0000};
                         refill_start <= 1'b1;
                     end
 
-                    `DCACHE_STATE_REFILL: begin
+                    DCACHE_STATE_REFILL: begin
                         if (refill_data_valid) begin
                             data_write_enable <= 1'b1;
                             data_write_index  <= refill_index_r;
@@ -721,7 +724,7 @@ module dcache_controller (
                         end
                     end
 
-                    `DCACHE_STATE_REFILL_DRAIN: begin
+                    DCACHE_STATE_REFILL_DRAIN: begin
                         if (refill_data_valid) begin
                             data_write_enable <= 1'b1;
                             data_write_index  <= refill_index_r;
@@ -737,8 +740,8 @@ module dcache_controller (
                         end
                     end
 
-                    `DCACHE_STATE_NC_READ:  ;
-                    `DCACHE_STATE_NC_WRITE: ;
+                    DCACHE_STATE_NC_READ:  ;
+                    DCACHE_STATE_NC_WRITE: ;
 
                     default: ;
                 endcase

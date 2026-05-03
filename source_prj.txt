@@ -1,0 +1,275 @@
+.
+├── .claude
+│   ├── commands
+│   └── rules
+├── .git
+│   ├── hooks
+│   ├── info
+│   ├── logs
+│   │   └── refs
+│   │       ├── heads
+│   │       └── remotes
+│   │           └── origin
+│   ├── objects
+│   │   ├── 03
+│   │   ├── 0c
+│   │   ├── 22
+│   │   ├── 2f
+│   │   ├── 33
+│   │   ├── 37
+│   │   ├── 3b
+│   │   ├── 3d
+│   │   ├── 5c
+│   │   ├── 63
+│   │   ├── 77
+│   │   ├── 7c
+│   │   ├── a0
+│   │   ├── b8
+│   │   ├── cf
+│   │   ├── info
+│   │   └── pack
+│   └── refs
+│       ├── heads
+│       ├── remotes
+│       │   └── origin
+│       └── tags
+├── ascon
+│   ├── SW_check
+│   │   └── __pycache__
+│   ├── dma
+│   │   ├── rtl
+│   │   │   ├── ascon_dma.v
+│   │   │   ├── dma_ctrl_fsm.v
+│   │   │   ├── dma_read_engine.v
+│   │   │   ├── dma_write_engine.v
+│   │   │   └── sync_fifo.v
+│   │   ├── tb
+│   │   │   └── tb_ascon_dma.v
+│   │   └── ascon_dma.v
+│   ├── interface
+│   │   ├── rtl
+│   │   │   └── ascon_axi_slave.v
+│   │   ├── tb
+│   │   │   └── tb_ascon_axi_slave.v
+│   │   └── ascon_axi_slave.v
+│   ├── pd
+│   │   ├── ascon_CONSTANT_ADDITION.v
+│   │   ├── ascon_CONTROLLER.v
+│   │   ├── ascon_CORE.v
+│   │   ├── ascon_INITIALIZATION.v
+│   │   ├── ascon_LINEAR_DIFFUSION.v
+│   │   ├── ascon_PERMUTATION.v
+│   │   ├── ascon_STATE_REGISTER.v
+│   │   ├── ascon_SUBTITUTION_LAYER.v
+│   │   ├── ascon_TAG_COMPARATOR.v
+│   │   ├── ascon_TAG_GENERATOR.v
+│   │   └── ascon_datapath.v
+│   ├── rtl
+│   │   ├── PERMUTATION
+│   │   │   ├── tb
+│   │   │   │   ├── tb_ASCON_PERMUTATION.v
+│   │   │   │   └── tb_Sbox.v
+│   │   │   ├── ascon_CONSTANT_ADDITION.v
+│   │   │   ├── ascon_LINEAR_DIFFUSION.v
+│   │   │   ├── ascon_PERMUTATION.v
+│   │   │   ├── ascon_ROUND_COMB.v
+│   │   │   ├── ascon_SBOX_PIPELINED.v
+│   │   │   └── ascon_SUBTITUTION_LAYER.v
+│   │   ├── ascon_CONTROLLER.v
+│   │   ├── ascon_CORE.v
+│   │   ├── ascon_INITIALIZATION.v
+│   │   ├── ascon_STATE_REGISTER.v
+│   │   ├── ascon_TAG_COMPARATOR.v
+│   │   ├── ascon_TAG_GENERATOR.v
+│   │   └── ascon_datapath.v
+│   ├── tb
+│   │   ├── __pycache__
+│   │   ├── ascon_top_tb.v
+│   │   ├── ascon_top_tb_v1.v
+│   │   └── tb_multi_block_dma.v
+│   ├── ascon_top.v
+│   ├── tb_ascon_top.v
+│   └── tb_axis_wrapper.v
+├── boot
+│   ├── rtl
+│   │   ├── boot_fsm.v
+│   │   └── boot_rom.v
+│   ├── boot_ctrl.v
+│   └── uart_boot_ctrl.v
+├── cache_interface
+│   ├── dcache
+│   │   ├── tb
+│   │   │   └── tb_dcache.v
+│   │   ├── dcache_axi_interface.v
+│   │   ├── dcache_controller.v
+│   │   ├── dcache_data_array.v
+│   │   ├── dcache_tag_array.v
+│   │   └── dcache_top.v
+│   └── icache
+│       ├── tb
+│       │   ├── tb_axi_interface.v
+│       │   ├── tb_controller.v
+│       │   ├── tb_data_array.v
+│       │   ├── tb_tag_array.v
+│       │   └── tb_top.v
+│       ├── icache_axi_interface.v
+│       ├── icache_controller.v
+│       ├── icache_data_array.v
+│       ├── icache_tag_array.v
+│       └── icache_top.v
+├── clk_reset_ctrl
+│   ├── rtl
+│   │   ├── clk_buf.v
+│   │   ├── clk_reset_ctrl.v
+│   │   ├── por_stretcher.v
+│   │   ├── reset_sync.v
+│   │   └── soft_rst_sync.v
+│   ├── tb
+│   │   └── tb_clk_reset_ctrl.v
+│   └── clk_reset_ctrl.v
+├── controller
+│   ├── soc_ctrl_slave.v
+│   └── tb_soc_ctrl_slave.v
+├── cpu
+│   ├── core
+│   │   ├── tb
+│   │   │   └── tb_lsu.v
+│   │   ├── IFU.v
+│   │   ├── LSU.v
+│   │   ├── PIPELINE_REG_EX_MEM.v
+│   │   ├── PIPELINE_REG_EX_WB.v
+│   │   ├── PIPELINE_REG_ID_EX.v
+│   │   ├── PIPELINE_REG_IF_ID.v
+│   │   ├── PIPELINE_REG_MEM_WB.v
+│   │   ├── alu.v
+│   │   ├── branch_logic.v
+│   │   ├── control.v
+│   │   ├── forwarding_unit.v
+│   │   ├── hazard_detection.v
+│   │   ├── imm_gen.v
+│   │   ├── reg_file.v
+│   │   └── riscv_multiplier.v
+│   ├── debug_cpu
+│   ├── pd
+│   │   ├── IFU.v
+│   │   ├── LSU.v
+│   │   ├── PIPELINE_REG_EX_MEM.v
+│   │   ├── PIPELINE_REG_EX_WB.v
+│   │   ├── PIPELINE_REG_ID_EX.v
+│   │   ├── PIPELINE_REG_IF_ID.v
+│   │   ├── PIPELINE_REG_MEM_WB.v
+│   │   ├── alu.v
+│   │   ├── branch_logic.v
+│   │   ├── control.v
+│   │   ├── data_mem.v
+│   │   ├── forwarding_unit.v
+│   │   ├── hazard_detection.v
+│   │   ├── imm_gen.v
+│   │   ├── inst_mem.v
+│   │   ├── reg_file.v
+│   │   ├── riscv_cpu_core_v2.v
+│   │   ├── riscv_divider.v
+│   │   └── riscv_multiplier.v
+│   ├── tb
+│   │   ├── run_soc.v
+│   │   ├── run_soc_dmem.v
+│   │   ├── run_soc_imem.v
+│   │   ├── tb_cpu_core.v
+│   │   ├── tb_debug_cpu_core.v
+│   │   ├── tb_hotspots_v2.v
+│   │   ├── tb_riscv_cpu_core.v
+│   │   ├── tb_riscv_cpu_core_v2.v
+│   │   ├── tb_riscv_soc_top.v
+│   │   └── tb_soc_core.v
+│   ├── cpu_core.v
+│   └── riscv_cpu_core_v2.v
+├── debug
+├── dma
+│   ├── rtl
+│   │   ├── dma_arbiter.v
+│   │   ├── dma_axi_master.v
+│   │   ├── dma_channel.v
+│   │   ├── dma_ctrl.v
+│   │   └── dma_reg_slave.v
+│   ├── tb
+│   │   └── tb_dma_top.v
+│   └── dma_ctrl.v
+├── gnu_toolchain
+│   ├── demo
+│   ├── include
+│   └── tests
+├── interconnect
+│   ├── tb
+│   │   ├── tb_axi4_crossbar.v
+│   │   └── tb_xbar_burst.v
+│   ├── axi4_addr_decoder.v
+│   ├── axi4_crossbar_5m12s.v
+│   ├── axi4_decerr_slave.v
+│   └── axi4_master_mux_5m.v
+├── jtag
+│   ├── rtl
+│   │   ├── jtag_debug_top.v
+│   │   ├── jtag_dtm.v
+│   │   ├── jtag_tap.v
+│   │   └── riscv_dm.v
+│   ├── tb
+│   │   └── tb_jtag_top.v
+│   └── jtag_debug_top.v
+├── log
+├── memory
+│   ├── tb
+│   │   ├── tb_datamem.v
+│   │   └── tb_instmem.v
+│   ├── data_mem_axi_slave.v
+│   ├── data_mem_burst.v
+│   ├── inst_mem.v
+│   ├── inst_mem_axi_slave.v
+│   └── tb_memory_axi_slaves.v
+├── peripheral
+│   ├── gpio
+│   │   ├── rtl
+│   │   │   ├── gpio_iocell.v
+│   │   │   └── gpio_regfile.v
+│   │   └── gpio_top.v
+│   ├── timer
+│   │   ├── rtl
+│   │   │   ├── timer_channel.v
+│   │   │   ├── timer_regfile.v
+│   │   │   └── wdt_core.v
+│   │   └── timer_top.v
+│   └── uart
+│       ├── rtl
+│       │   ├── uart_axi_slave.v
+│       │   ├── uart_baud_gen.v
+│       │   ├── uart_fifo.v
+│       │   ├── uart_irq_gen.v
+│       │   ├── uart_rx.v
+│       │   ├── uart_top.v
+│       │   └── uart_tx.v
+│       ├── tb
+│       │   └── tb_uart_top.v
+│       └── uart_top.v
+├── plan
+│   ├── archive
+│   └── weak1
+├── plic
+│   ├── rtl
+│   │   ├── plic_gateway.v
+│   │   ├── plic_priority_encoder.v
+│   │   ├── plic_regfile.v
+│   │   └── plic_top.v
+│   ├── tb
+│   │   └── tb_plic_top.v
+│   └── plic_top.v
+├── soc_top
+│   ├── rtl
+│   │   └── cpu_core.v
+│   └── tb
+│       └── tb_cpu_core.v
+├── specification
+├── workflow
+├── axi_width_converter_64to32.v
+├── clint.v
+├── run_soc_ascon.v
+├── soc_hs.v
+└── soc_top.v

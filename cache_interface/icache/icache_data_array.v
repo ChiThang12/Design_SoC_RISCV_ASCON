@@ -1,7 +1,3 @@
-`timescale 1ns/1ps
-
-`include "cache_interface/icache/icache_defines.vh"
-
 // ============================================================================
 // icache_data_array — 32 lines × 8 words = 256 entries (giữ nguyên depth)
 // Thay đổi: offset 2 bit → 3 bit, index 6 bit → 5 bit

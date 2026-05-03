@@ -1,5 +1,3 @@
-`timescale 1ns/1ps
-
 // ============================================================================
 // Module: dcache_tag_array — Direct-Mapped, 64 sets, 22-bit tag
 // ============================================================================
@@ -26,8 +24,6 @@
 // false eviction sau fence.
 //
 // ============================================================================
-
-`include "cache_interface/dcache/dcache_defines.vh"
 
 module dcache_tag_array #(
     parameter NUM_SETS  = 64,   // 6-bit index → 64 sets

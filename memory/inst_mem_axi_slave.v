@@ -136,7 +136,7 @@ module inst_mem_axi_slave #(
     wire axi_wr_pulse;   // one-cycle write pulse from AXI write channel
 
     assign imem_wr_en   = boot_we | axi_wr_pulse;
-    assign imem_wr_addr = boot_we ? boot_addr  : axi_wr_addr_r;
+    assign imem_wr_addr = boot_we ? boot_addr  : axi_wr_data_addr_r;
     assign imem_wr_data = boot_we ? boot_wdata : axi_wr_data_r;
     assign imem_wr_strb = boot_we ? {DATA_WIDTH/8{1'b1}} : axi_wr_strb_r;
 
@@ -177,6 +177,7 @@ module inst_mem_axi_slave #(
     reg [1:0]               wr_state;
     reg [ID_WIDTH-1:0]      bid_r;
     reg [ADDR_WIDTH-1:0]    axi_wr_addr_r;
+    reg [ADDR_WIDTH-1:0]    axi_wr_data_addr_r;  // [FIX-WR-ADDR] capture addr before increment
     reg [DATA_WIDTH-1:0]    axi_wr_data_r;
     reg [DATA_WIDTH/8-1:0]  axi_wr_strb_r;
     reg                     axi_wr_pulse_r;
@@ -198,9 +199,10 @@ module inst_mem_axi_slave #(
             S_AXI_BRESP     <= RESP_OKAY;
             S_AXI_BVALID    <= 1'b0;
             bid_r           <= {ID_WIDTH{1'b0}};
-            axi_wr_addr_r   <= {ADDR_WIDTH{1'b0}};
-            axi_wr_data_r   <= {DATA_WIDTH{1'b0}};
-            axi_wr_strb_r   <= {DATA_WIDTH/8{1'b0}};
+            axi_wr_addr_r      <= {ADDR_WIDTH{1'b0}};
+            axi_wr_data_addr_r <= {ADDR_WIDTH{1'b0}};
+            axi_wr_data_r      <= {DATA_WIDTH{1'b0}};
+            axi_wr_strb_r      <= {DATA_WIDTH/8{1'b0}};
             axi_wr_pulse_r  <= 1'b0;
         end else begin
             axi_wr_pulse_r <= 1'b0;   // default: no write this cycle
@@ -215,10 +217,11 @@ module inst_mem_axi_slave #(
                 end
                 WR_DATA: begin
                     if (S_AXI_WVALID) begin
-                        // Capture and write to memory
-                        axi_wr_data_r  <= S_AXI_WDATA;
-                        axi_wr_strb_r  <= S_AXI_WSTRB;
-                        axi_wr_pulse_r <= 1'b1;
+                        // Capture data and latch write address BEFORE advancing it
+                        axi_wr_data_r      <= S_AXI_WDATA;
+                        axi_wr_strb_r      <= S_AXI_WSTRB;
+                        axi_wr_data_addr_r <= axi_wr_addr_r;  // [FIX-WR-ADDR] pre-increment capture
+                        axi_wr_pulse_r     <= 1'b1;
 
                         if (S_AXI_WLAST) begin
                             S_AXI_BID    <= bid_r;

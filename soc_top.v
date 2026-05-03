@@ -176,6 +176,9 @@ wire clk_periph;     // gated clock cho PERIPH domain (UART, SPI, GPIO, ...)
 wire clk_aon;        // always-on clock = clk_in, không bao giờ gate
 wire wake_ack;       // periph clock đang chạy → AON có thể clear wake_pend
 wire periph_wake_req;// async wake request từ AON domain
+wire uart_wake_req;  // AON start-bit FF từ uart_top
+wire gpio_wake_req;  // AON edge-detect FF từ gpio_top
+wire timer_wake_req; // AON timeout FF từ timer_top
 wire soft_rst_pulse; // từ soc_ctrl_slave → clk_reset_ctrl (1-cycle pulse)
 wire jtag_ndmreset;  // từ jtag_debug_top → clk_reset_ctrl
 wire cpu_wfi;
@@ -342,12 +345,8 @@ assign periph_wake_event = uart_irq | gpio_irq | timer0_irq | timer1_irq |
 
 assign periph_gate_allow = !timer_active && !gpio_wake_armed && !dma_busy;
 
-// periph_wake_req: AON domain wake signal — chỉ dùng signal luôn valid kể
-// cả khi clk_periph bị gate. uart_rx là pad level (không phụ thuộc clock).
-// Khi peripheral được cập nhật có clk_aon port, chuyển timer/gpio/irq sang
-// logic AON thực sự.
-assign periph_wake_req = external_irq | !uart_rx | gpio_irq |
-                         timer0_irq | timer1_irq | wdt_irq;
+// periph_wake_req: chỉ dùng AON-domain FF outputs — valid kể cả khi clk_periph gate.
+assign periph_wake_req = uart_wake_req | gpio_wake_req | timer_wake_req | external_irq;
 
 // ── Boot controller signal ────────────────────────────────────────────────────
 // (Wires declared at the top of the file to fix implicit definition warning)
@@ -750,7 +749,11 @@ gpio_top #(
     .gpio_oe       (gpio_oe),
     .gpio_in       (gpio_in),
     .gpio_irq      (gpio_irq),
-    .gpio_wake_armed_o(gpio_wake_armed)
+    .gpio_wake_armed_o(gpio_wake_armed),
+    .clk_aon       (clk_aon),
+    .aon_rst_n     (aon_rst_n),
+    .wake_ack      (wake_ack),
+    .gpio_wake_req (gpio_wake_req)
 );
 
 // ── S7: SPI stub ─────────────────────────────────────────────────────────────
@@ -798,7 +801,11 @@ timer_top #(
     .timer1_irq    (timer1_irq),
     .wdt_irq       (wdt_irq),
     .wdt_rst_req   (wdt_rst_req),
-    .timer_active_o(timer_active)
+    .timer_active_o(timer_active),
+    .clk_aon       (clk_aon),
+    .aon_rst_n     (aon_rst_n),
+    .wake_ack      (wake_ack),
+    .timer_wake_req(timer_wake_req)
 );
 
 // ── S10: OTP stub ────────────────────────────────────────────────────────────
@@ -1549,7 +1556,11 @@ uart_top #(
     .uart_tx        (uart_tx),
     .uart_rx        (uart_rx),
     .irq_out        (uart_irq),
-    .uart_active    (uart_active)
+    .uart_active    (uart_active),
+    .clk_aon        (clk_aon),
+    .aon_rst_n      (aon_rst_n),
+    .wake_ack       (wake_ack),
+    .uart_wake_req  (uart_wake_req)
 );
 
 // ============================================================================

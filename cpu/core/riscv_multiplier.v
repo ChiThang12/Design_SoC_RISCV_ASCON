@@ -91,8 +91,8 @@ module riscv_multiplier (
     // E1.5: Decompose 33×33 into four 17×17 partial products (~10-12 gate levels)
     // (* keep=1 *) on sign bits prevents fanout >50 at synthesis.
     // ========================================================================
-    (* keep = 1 *) wire sign_a = operand_a_e1_q[32];
-    (* keep = 1 *) wire sign_b = operand_b_e1_q[32];
+wire sign_a = operand_a_e1_q[32];
+wire sign_b = operand_b_e1_q[32];
 
     // Split 33-bit signed operands into 17-bit halves.
     // a_hi carries the sign bit so signed arithmetic propagates correctly.

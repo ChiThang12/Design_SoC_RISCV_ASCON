@@ -1,7 +1,3 @@
-`timescale 1ns/1ps
-
-// `include "cpu/interface/icache/icache_defines.vh"
-
 // // ============================================================================
 // // icache_controller — 8 words/line, index 5 bit, offset 3 bit
 // // ============================================================================
@@ -211,8 +207,6 @@
 //         end
 //     end
 // endmodule
-
-`include "cache_interface/icache/icache_defines.vh"
 
 // ============================================================================
 // icache_controller — 8 words/line, index 5 bit, offset 3 bit
