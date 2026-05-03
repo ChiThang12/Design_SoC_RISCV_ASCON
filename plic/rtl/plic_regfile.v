@@ -172,15 +172,15 @@ module plic_regfile #(
     always @(*) begin
         rdata_mux = 32'd0;
         if (ar_off[11:8]==4'h0 && ar_off[7]==1'b0 && ar_off[1:0]==2'b00)
-            rdata_mux = {{(DATA_WIDTH-PRIO_W){1'b0}}, prio_read_val};
+            rdata_mux[PRIO_W-1:0] = prio_read_val;
         else if (ar_off == 12'h080)
-            rdata_mux = {{(DATA_WIDTH-NUM_SRC){1'b0}}, pending_in[NUM_SRC-1:0]};
+            rdata_mux[NUM_SRC-1:0] = pending_in[NUM_SRC-1:0];
         else if (ar_off == 12'h100)
-            rdata_mux = {{(DATA_WIDTH-NUM_SRC){1'b0}}, enable_r};
+            rdata_mux[NUM_SRC-1:0] = enable_r;
         else if (ar_off == 12'h200)
-            rdata_mux = {{(DATA_WIDTH-PRIO_W){1'b0}}, threshold_r};
+            rdata_mux[PRIO_W-1:0] = threshold_r;
         else if (ar_off == 12'h204)
-            rdata_mux = {{(DATA_WIDTH-ID_W){1'b0}}, claim_id_in};
+            rdata_mux[ID_W-1:0] = claim_id_in;
     end
 
     // AR latch — only manages AR state, does NOT drive claim_pulse_r
