@@ -1,0 +1,60 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu May  7 09:27:25 2026
+[*]
+[dumpfile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_periph.vcd"
+[dumpfile_mtime] "Thu May  7 09:25:40 2026"
+[dumpfile_size] 1381418901
+[savefile] "/home/chithang/Project/Design_SoC_RISCV_ASCON/waveform_soc_slave_dma.gtkw"
+[timestart] 432000000
+[size] 1792 1031
+[pos] -46 -30
+*-25.799999 47327000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] run_soc_periph.
+[treeopen] run_soc_periph.chip.
+[treeopen] run_soc_periph.chip.u_soc_top.
+[treeopen] run_soc_periph.chip.u_soc_top.u_uart.
+[sst_width] 248
+[signals_width] 340
+[sst_expanded] 1
+[sst_vpaned_height] 319
+@200
+-CPU
+@22
+run_soc_periph.chip.u_soc_top.u_cpu.imem_addr[31:0]
+run_soc_periph.chip.u_soc_top.u_cpu.imem_rdata[31:0]
+@28
+run_soc_periph.chip.u_soc_top.u_cpu.imem_ready
+run_soc_periph.chip.u_soc_top.u_cpu.imem_valid
+@200
+-
+@22
+run_soc_periph.chip.u_soc_top.u_cpu.dcache_addr[31:0]
+run_soc_periph.chip.u_soc_top.u_cpu.dcache_rdata[31:0]
+run_soc_periph.chip.u_soc_top.u_cpu.dcache_wdata[31:0]
+@200
+-DMEM
+@22
+run_soc_periph.chip.u_soc_top.u_dmem.S_AXI_ARADDR[31:0]
+run_soc_periph.chip.u_soc_top.u_dmem.S_AXI_AWADDR[31:0]
+run_soc_periph.chip.u_soc_top.u_dmem.S_AXI_RDATA[31:0]
+run_soc_periph.chip.u_soc_top.u_dmem.S_AXI_WDATA[31:0]
+@200
+-DMA
+@22
+run_soc_periph.chip.u_soc_top.u_dma_ctrl.M_AXI_ARADDR[31:0]
+run_soc_periph.chip.u_soc_top.u_dma_ctrl.M_AXI_AWADDR[31:0]
+run_soc_periph.chip.u_soc_top.u_dma_ctrl.M_AXI_RDATA[31:0]
+run_soc_periph.chip.u_soc_top.u_dma_ctrl.M_AXI_WDATA[31:0]
+@200
+-UART
+@22
+run_soc_periph.chip.u_soc_top.u_uart.s_axi_araddr[31:0]
+run_soc_periph.chip.u_soc_top.u_uart.s_axi_awaddr[31:0]
+run_soc_periph.chip.u_soc_top.u_uart.s_axi_rdata[31:0]
+run_soc_periph.chip.u_soc_top.u_uart.s_axi_wdata[31:0]
+@28
+run_soc_periph.chip.u_soc_top.u_uart.uart_rx
+run_soc_periph.chip.u_soc_top.u_uart.uart_tx
+[pattern_trace] 1
+[pattern_trace] 0

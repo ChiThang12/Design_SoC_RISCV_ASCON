@@ -12,11 +12,17 @@
 #define CLINT_BASE       0x40000000UL   /* S4: CLINT */
 #define UART_BASE        0x50000000UL   /* S5: UART */
 #define GPIO_BASE        0x50010000UL   /* S6: GPIO */
-#define SPI_BASE         0x50020000UL   /* S7: SPI stub (DECERR) */
+#define SPI_BASE         0x50020000UL   /* S7: SPI Master (spi_top) */
 #define TIMER_BASE       0x50030000UL   /* S8: Timer0/1 + WDT */
 #define PLIC_BASE        0x50040000UL   /* S9: PLIC */
 #define OTP_BASE         0x60000000UL   /* S10: OTP stub (DECERR) */
 #define DMA_BASE         0x60010000UL   /* S11: DMA Controller */
+
+/* ── DMA periph target addresses (dùng với dma_ch_setup_periph) ─────────── */
+#define UART_TX_DATA_ADDR  (UART_BASE + 0x00UL)  /* CH1 mode 10: DMEM→UART TX */
+#define UART_RX_DATA_ADDR  (UART_BASE + 0x04UL)  /* CH0 mode 01: UART RX→DMEM */
+#define SPI_TX_DATA_ADDR   (SPI_BASE  + 0x00UL)  /* CH3 mode 10: DMEM→SPI TX  */
+#define SPI_RX_DATA_ADDR   (SPI_BASE  + 0x04UL)  /* CH2 mode 01: SPI RX→DMEM  */
 
 /* ── MMIO register access helper ─────────────────────────────────────────── */
 #define MMIO_REG(base, offset) \

@@ -82,6 +82,8 @@
 `include "boot/uart_boot_ctrl.v"
 `include "peripheral/gpio/gpio_top.v"
 `include "peripheral/timer/timer_top.v"
+`include "peripheral/otp/otp_stub_slave.v"
+`include "peripheral/spi/spi_top.v"
 
 module soc_top #(
     // ── AXI parameters ────────────────────────────────────────────────────
@@ -152,6 +154,12 @@ module soc_top #(
     output wire [31:0] gpio_oe,    // output enable (1=drive, 0=hi-Z)
     input  wire [31:0] gpio_in,    // pad input data
 
+    // ── SPI IO pads ───────────────────────────────────────────────────────────
+    output wire        spi_sck,
+    output wire        spi_mosi,
+    input  wire        spi_miso,
+    output wire [3:0]  spi_cs_n,
+
     // ── WDT reset request ─────────────────────────────────────────────────────
     output wire wdt_rst_req        // active-high, từ watchdog
 );
@@ -182,10 +190,22 @@ wire timer_wake_req; // AON timeout FF từ timer_top
 wire soft_rst_pulse; // từ soc_ctrl_slave → clk_reset_ctrl (1-cycle pulse)
 wire jtag_ndmreset;  // từ jtag_debug_top → clk_reset_ctrl
 wire cpu_wfi;
+wire cpu_perf_stall;      // [A2] = stall_any from CPU
+wire cpu_perf_instr_ret;  // [A2] = regwrite_wb && !stall_any from CPU
 wire uart_active;
 wire timer_active;
 wire gpio_wake_armed;
 wire dma_busy;
+// DMA peripheral handshake
+// CH0: UART RX (periph-to-mem),  CH1: UART TX (mem-to-periph)
+// CH2: SPI  RX (periph-to-mem),  CH3: SPI  TX (mem-to-periph)
+wire uart_tx_dma_req, uart_rx_dma_req;
+wire spi_tx_dma_req,  spi_rx_dma_req;
+wire [3:0] dma_periph_req;
+wire [3:0] dma_periph_ack;
+assign dma_periph_req = {spi_tx_dma_req, spi_rx_dma_req,
+                         uart_tx_dma_req, uart_rx_dma_req};
+wire spi_irq;
 wire core_bus_active;
 wire core_wake_event;
 wire periph_bus_active;
@@ -756,21 +776,37 @@ gpio_top #(
     .gpio_wake_req (gpio_wake_req)
 );
 
-// ── S7: SPI stub ─────────────────────────────────────────────────────────────
-axi4_decerr_slave #(
-    .ID_WIDTH(ID_WIDTH), .DATA_WIDTH(DATA_WIDTH)
-) u_spi_stub (
-    .clk      (clk),
-    .rst_n    (fabric_rst_n),
-    .s_arid   (s7_arid),   .s_araddr (s7_araddr), .s_arlen  (s7_arlen),
-    .s_arvalid(s7_arvalid),.s_arready(s7_arready),
-    .s_rid    (s7_rid),    .s_rdata  (s7_rdata),  .s_rresp  (s7_rresp),
-    .s_rlast  (s7_rlast),  .s_rvalid (s7_rvalid), .s_rready (s7_rready),
-    .s_awid   (s7_awid),   .s_awaddr (s7_awaddr), .s_awlen  (s7_awlen),
-    .s_awvalid(s7_awvalid),.s_awready(s7_awready),
-    .s_wlast  (s7_wlast),  .s_wvalid (s7_wvalid), .s_wready (s7_wready),
-    .s_bid    (s7_bid),    .s_bresp  (s7_bresp),
-    .s_bvalid (s7_bvalid), .s_bready (s7_bready)
+// ── S7: SPI Master ────────────────────────────────────────────────────────────
+spi_top #(
+    .AXI_ADDR_WIDTH(ADDR_WIDTH),
+    .AXI_DATA_WIDTH(DATA_WIDTH),
+    .AXI_ID_WIDTH  (ID_WIDTH)
+) u_spi (
+    .clk           (clk_periph),
+    .rst_n         (periph_rst_n),
+    .s_axi_awid    (s7_awid),    .s_axi_awaddr  (s7_awaddr),
+    .s_axi_awlen   (s7_awlen),   .s_axi_awsize  (s7_awsize),
+    .s_axi_awburst (s7_awburst), .s_axi_awvalid (s7_awvalid),
+    .s_axi_awready (s7_awready),
+    .s_axi_wdata   (s7_wdata),   .s_axi_wstrb   (s7_wstrb),
+    .s_axi_wlast   (s7_wlast),   .s_axi_wvalid  (s7_wvalid),
+    .s_axi_wready  (s7_wready),
+    .s_axi_bid     (s7_bid),     .s_axi_bresp   (s7_bresp),
+    .s_axi_bvalid  (s7_bvalid),  .s_axi_bready  (s7_bready),
+    .s_axi_arid    (s7_arid),    .s_axi_araddr  (s7_araddr),
+    .s_axi_arlen   (s7_arlen),   .s_axi_arsize  (s7_arsize),
+    .s_axi_arburst (s7_arburst), .s_axi_arvalid (s7_arvalid),
+    .s_axi_arready (s7_arready),
+    .s_axi_rid     (s7_rid),     .s_axi_rdata   (s7_rdata),
+    .s_axi_rresp   (s7_rresp),   .s_axi_rlast   (s7_rlast),
+    .s_axi_rvalid  (s7_rvalid),  .s_axi_rready  (s7_rready),
+    .sck           (spi_sck),
+    .mosi          (spi_mosi),
+    .miso          (spi_miso),
+    .cs_n          (spi_cs_n),
+    .irq_out       (spi_irq),
+    .tx_dma_req    (spi_tx_dma_req),
+    .rx_dma_req    (spi_rx_dma_req)
 );
 
 // ── S8: Timer/WDT ────────────────────────────────────────────────────────────
@@ -808,18 +844,20 @@ timer_top #(
     .timer_wake_req(timer_wake_req)
 );
 
-// ── S10: OTP stub ────────────────────────────────────────────────────────────
-axi4_decerr_slave #(
-    .ID_WIDTH(ID_WIDTH), .DATA_WIDTH(DATA_WIDTH)
+// ── S10: OTP stub (DEVICE_ID=0xA5C0_CAFE, VER=1, others=0xDEADBEEF) ────────
+otp_stub_slave #(
+    .ADDR_WIDTH(ADDR_WIDTH), .DATA_WIDTH(DATA_WIDTH), .ID_WIDTH(ID_WIDTH)
 ) u_otp_stub (
     .clk      (clk),
     .rst_n    (fabric_rst_n),
     .s_arid   (s10_arid),   .s_araddr (s10_araddr), .s_arlen  (s10_arlen),
+    .s_arsize (s10_arsize), .s_arburst(s10_arburst),
     .s_arvalid(s10_arvalid),.s_arready(s10_arready),
     .s_rid    (s10_rid),    .s_rdata  (s10_rdata),  .s_rresp  (s10_rresp),
     .s_rlast  (s10_rlast),  .s_rvalid (s10_rvalid), .s_rready (s10_rready),
     .s_awid   (s10_awid),   .s_awaddr (s10_awaddr), .s_awlen  (s10_awlen),
     .s_awvalid(s10_awvalid),.s_awready(s10_awready),
+    .s_wdata  (s10_wdata),  .s_wstrb  (s10_wstrb),
     .s_wlast  (s10_wlast),  .s_wvalid (s10_wvalid), .s_wready (s10_wready),
     .s_bid    (s10_bid),    .s_bresp  (s10_bresp),
     .s_bvalid (s10_bvalid), .s_bready (s10_bready)
@@ -861,7 +899,9 @@ riscv_cpu_core u_cpu (
     .debug_resumereq (jtag_resumereq),
     .debug_halted    (jtag_halted),
     .debug_running   (jtag_running),
-    .cpu_wfi_o       (cpu_wfi)
+    .cpu_wfi_o       (cpu_wfi),
+    .perf_stall_o    (cpu_perf_stall),
+    .perf_instr_ret_o(cpu_perf_instr_ret)
 );
 
 // ============================================================================
@@ -1486,9 +1526,11 @@ soc_ctrl_slave #(
     .ascon_irq      (ascon_irq),
     .uart_irq       (uart_irq),
     .gpio_irq       (gpio_irq),
-    .spi_irq        (1'b0),
+    .spi_irq        (spi_irq),
     .timer_irq      (timer_irq),
     .wdt_irq        (wdt_irq),
+    .perf_stall_in     (cpu_perf_stall),
+    .perf_instr_ret_in (cpu_perf_instr_ret),
     .irq_out        (soc_ctrl_irq_out),   // WHY không dùng: PLIC thay thế vai trò này
     .soft_rst_pulse (soft_rst_pulse)
 );
@@ -1557,6 +1599,8 @@ uart_top #(
     .uart_rx        (uart_rx),
     .irq_out        (uart_irq),
     .uart_active    (uart_active),
+    .tx_dma_req     (uart_tx_dma_req),
+    .rx_dma_req     (uart_rx_dma_req),
     .clk_aon        (clk_aon),
     .aon_rst_n      (aon_rst_n),
     .wake_ack       (wake_ack),
@@ -1727,7 +1771,9 @@ dma_ctrl #(
     .M_AXI_BVALID  (m3_bvalid), .M_AXI_BREADY  (m3_bready),
 
     .irq_out       (dma_irq),   // → PLIC source[9]
-    .dma_busy_o    (dma_busy)
+    .dma_busy_o    (dma_busy),
+    .dma_req       (dma_periph_req),  // CH0=UART_RX, CH1=UART_TX, CH2=SPI_RX, CH3=SPI_TX
+    .dma_ack       (dma_periph_ack)
 );
 
 endmodule

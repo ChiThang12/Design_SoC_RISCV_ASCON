@@ -105,6 +105,12 @@ module uart_top #(
     output wire uart_active,
 
     // =========================================================================
+    // DMA handshake — flow control signals for periph mode
+    // =========================================================================
+    output wire tx_dma_req,   // TX FIFO has space  → DMA can write (mode 10)
+    output wire rx_dma_req,   // RX FIFO has data   → DMA can read  (mode 01)
+
+    // =========================================================================
     // AON wake interface (clk_aon domain)
     // =========================================================================
     input  wire clk_aon,
@@ -291,6 +297,8 @@ module uart_top #(
     );
 
     assign uart_active = tx_busy_w | !tx_fifo_empty | !rx_fifo_empty;
+    assign tx_dma_req  = !tx_fifo_full;
+    assign rx_dma_req  = !rx_fifo_empty;
 
     // =========================================================================
     // AON start-bit detector (clk_aon domain — chạy kể cả khi clk_periph gate)

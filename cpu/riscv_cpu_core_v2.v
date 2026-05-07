@@ -63,7 +63,9 @@ module riscv_cpu_core (
     input  wire debug_resumereq,  // DM → CPU: yêu cầu thoát D-mode
     output wire debug_halted,     // CPU → DM: đang trong D-mode, pipeline frozen
     output wire debug_running,    // CPU → DM: đang chạy bình thường
-    output wire cpu_wfi_o         // CPU → SoC: đang chờ interrupt
+    output wire cpu_wfi_o,        // CPU → SoC: đang chờ interrupt
+    output wire perf_stall_o,     // CPU → SoC: pipeline stalled (stall_any)
+    output wire perf_instr_ret_o  // CPU → SoC: instruction retired (regwrite_wb approx)
 );
 
     localparam [6:0]
@@ -335,7 +337,9 @@ module riscv_cpu_core (
         end
     end
 
-    assign cpu_wfi_o = cpu_wfi_r;
+    assign cpu_wfi_o        = cpu_wfi_r;
+assign perf_stall_o     = stall_any;
+assign perf_instr_ret_o = regwrite_wb && !stall_any;
 
     // 2-bit BHT predictor: 256 entries, indexed by PC[9:2].
     wire predict_taken_ex;

@@ -130,7 +130,13 @@ module dma_ctrl #(
 
     // ── IRQ → PLIC ────────────────────────────────────────────────────────
     output wire                  irq_out,
-    output wire                  dma_busy_o
+    output wire                  dma_busy_o,
+
+    // ── Peripheral handshake (per-channel) ───────────────────────────────
+    // Connect peripheral DMA-request outputs to dma_req[ch].
+    // dma_ack[ch] is a 1-cycle pulse after each word transfer.
+    input  wire [NUM_CH-1:0]     dma_req,  // from peripherals
+    output wire [NUM_CH-1:0]     dma_ack   // to peripherals
 );
 
     // =========================================================================
@@ -147,6 +153,10 @@ module dma_ctrl #(
     wire [NUM_CH-1:0] ch_done_w;
     wire [NUM_CH-1:0] ch_error_w;
     wire [NUM_CH-1:0] ch_busy_w;
+
+    // Periph ack wires from channels → dma_ack output
+    wire [NUM_CH-1:0] ch_periph_ack_w;
+    assign dma_ack = ch_periph_ack_w;
 
     // =========================================================================
     // Arbiter buses
@@ -247,6 +257,7 @@ module dma_ctrl #(
         .clk(clk), .rst_n(rst_n),
         .cfg_src(ch0_src), .cfg_dst(ch0_dst), .cfg_len(ch0_len),
         .cfg_mode(ch0_mode), .cfg_en(ch0_en), .cfg_start(ch0_start),
+        .periph_req(dma_req[0]), .periph_ack(ch_periph_ack_w[0]),
         .done(ch_done_w[0]), .error(ch_error_w[0]), .busy(ch_busy_w[0]),
         .rd_req(rd_req_w[0]), .rd_grant(rd_grant_w[0]), .rd_rel(rd_rel_w[0]),
         .wr_req(wr_req_w[0]), .wr_grant(wr_grant_w[0]), .wr_rel(wr_rel_w[0]),
@@ -266,6 +277,7 @@ module dma_ctrl #(
         .clk(clk), .rst_n(rst_n),
         .cfg_src(ch1_src), .cfg_dst(ch1_dst), .cfg_len(ch1_len),
         .cfg_mode(ch1_mode), .cfg_en(ch1_en), .cfg_start(ch1_start),
+        .periph_req(dma_req[1]), .periph_ack(ch_periph_ack_w[1]),
         .done(ch_done_w[1]), .error(ch_error_w[1]), .busy(ch_busy_w[1]),
         .rd_req(rd_req_w[1]), .rd_grant(rd_grant_w[1]), .rd_rel(rd_rel_w[1]),
         .wr_req(wr_req_w[1]), .wr_grant(wr_grant_w[1]), .wr_rel(wr_rel_w[1]),
@@ -285,6 +297,7 @@ module dma_ctrl #(
         .clk(clk), .rst_n(rst_n),
         .cfg_src(ch2_src), .cfg_dst(ch2_dst), .cfg_len(ch2_len),
         .cfg_mode(ch2_mode), .cfg_en(ch2_en), .cfg_start(ch2_start),
+        .periph_req(dma_req[2]), .periph_ack(ch_periph_ack_w[2]),
         .done(ch_done_w[2]), .error(ch_error_w[2]), .busy(ch_busy_w[2]),
         .rd_req(rd_req_w[2]), .rd_grant(rd_grant_w[2]), .rd_rel(rd_rel_w[2]),
         .wr_req(wr_req_w[2]), .wr_grant(wr_grant_w[2]), .wr_rel(wr_rel_w[2]),
@@ -304,6 +317,7 @@ module dma_ctrl #(
         .clk(clk), .rst_n(rst_n),
         .cfg_src(ch3_src), .cfg_dst(ch3_dst), .cfg_len(ch3_len),
         .cfg_mode(ch3_mode), .cfg_en(ch3_en), .cfg_start(ch3_start),
+        .periph_req(dma_req[3]), .periph_ack(ch_periph_ack_w[3]),
         .done(ch_done_w[3]), .error(ch_error_w[3]), .busy(ch_busy_w[3]),
         .rd_req(rd_req_w[3]), .rd_grant(rd_grant_w[3]), .rd_rel(rd_rel_w[3]),
         .wr_req(wr_req_w[3]), .wr_grant(wr_grant_w[3]), .wr_rel(wr_rel_w[3]),

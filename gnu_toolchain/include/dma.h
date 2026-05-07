@@ -23,8 +23,21 @@
  * ── CHn_CTRL bit layout ──────────────────────────────────────────────────
  *   [0]   EN    : enable channel (phải =1 trước khi START)
  *   [1]   START : self-clearing pulse, hardware clear sau 1 cycle
- *   [3:2] MODE  : 2'b00 = mem-to-mem (chỉ mode được hỗ trợ hiện tại)
- *                 2'b01/10 = periph modes (chưa implement, báo error)
+ *   [3:2] MODE  : 2'b00 = mem-to-mem  (burst 16-beat × 4 byte)
+ *                 2'b01 = periph-to-mem (word-by-word, gated by periph_req)
+ *                 2'b10 = mem-to-periph (word-by-word, gated by periph_req)
+ *                 2'b11 = reserved (báo error)
+ *
+ * ── Peripheral Channel Assignment (soc_top.v) ────────────────────────────
+ *   CH0 (mode 01): UART RX → DMEM   periph_req = !uart_rx_fifo_empty
+ *   CH1 (mode 10): DMEM → UART TX   periph_req = !uart_tx_fifo_full
+ *   CH2 (mode 01): SPI  RX → DMEM   periph_req = !spi_rx_fifo_empty
+ *   CH3 (mode 10): DMEM → SPI  TX   periph_req = !spi_tx_fifo_full
+ *
+ *   Ví dụ: DMA UART RX 16 bytes vào DMEM buf:
+ *     dma_ch_setup_periph(0, UART_RX_DATA_ADDR, buf, 16, DMA_CTRL_MODE_PERIPH_RX);
+ *   Ví dụ: DMA DMEM → SPI TX 16 bytes:
+ *     dma_ch_setup_periph(3, SPI_TX_DATA_ADDR,  buf, 16, DMA_CTRL_MODE_PERIPH_TX);
  *
  * ── STATUS bit layout ────────────────────────────────────────────────────
  *   [3:0]   DONE  : sticky, clear bằng ghi 1 vào STATUS[3:0]
@@ -32,15 +45,15 @@
  *   [11:8]  BUSY  : real-time, phản ánh trạng thái hiện tại channel
  *
  * ── IRQ ──────────────────────────────────────────────────────────────────
- *   irq_out = |(IRQ_EN & IRQ_STATUS) → PLIC[7]
+ *   irq_out = |(IRQ_EN & IRQ_STATUS) → PLIC[9]
  *   IRQ_STATUS set khi ch_done hoặc ch_error (bất kỳ channel nào)
  *   Clear bằng RW1C vào IRQ_STATUS
  *
  * ── Đặc điểm hardware ────────────────────────────────────────────────────
  *   - 4 channel độc lập (CH0..CH3), mỗi channel có line buffer 16×32-bit
- *   - Chỉ hỗ trợ mem-to-mem (MODE=0), DMA burst 16-beat × 4-byte = 64 byte/burst
- *   - Arbiter round-robin cho read bus và write bus (2 channel có thể hoạt động
- *     song song nếu 1 đọc và 1 ghi cùng lúc)
+ *   - mem-to-mem: burst 16-beat × 4 byte = 64 byte/burst
+ *   - periph mode: 1 word (4 byte) mỗi lần, gated by periph_req từ peripheral
+ *   - Arbiter round-robin cho read bus và write bus
  *   - Transfer length phải là bội số của 4 byte (word-aligned)
  *   - Địa chỉ src/dst phải word-aligned (địa chỉ thấp nhất 2 bit = 00)
  * ============================================================================ */
@@ -95,14 +108,16 @@
 #define DMA_OFS_IRQ_STATUS  0x088
 
 /* ── CHn_CTRL Bits ───────────────────────────────────────────────────────── */
-#define DMA_CTRL_EN         (1u << 0)   /* Enable channel */
-#define DMA_CTRL_START      (1u << 1)   /* Start (self-clearing 1-cycle pulse) */
-#define DMA_CTRL_MODE_MEM   (0u << 2)   /* MODE=00: mem-to-mem (duy nhất hỗ trợ) */
-/* (1u<<2) = periph-to-mem: chưa implement, sẽ báo error */
-/* (2u<<2) = mem-to-periph: chưa implement, sẽ báo error */
+#define DMA_CTRL_EN              (1u << 0)   /* Enable channel */
+#define DMA_CTRL_START           (1u << 1)   /* Start (self-clearing 1-cycle pulse) */
+#define DMA_CTRL_MODE_MEM        (0u << 2)   /* MODE=00: mem-to-mem */
+#define DMA_CTRL_MODE_PERIPH_RX  (1u << 2)   /* MODE=01: peripheral→mem (word-by-word) */
+#define DMA_CTRL_MODE_PERIPH_TX  (2u << 2)   /* MODE=10: mem→peripheral (word-by-word) */
 
-/* Combo thường dùng: enable + start + mem-to-mem */
-#define DMA_CTRL_START_MEM  (DMA_CTRL_EN | DMA_CTRL_START | DMA_CTRL_MODE_MEM)
+/* Combo thường dùng */
+#define DMA_CTRL_START_MEM       (DMA_CTRL_EN | DMA_CTRL_START | DMA_CTRL_MODE_MEM)
+#define DMA_CTRL_START_PERIPH_RX (DMA_CTRL_EN | DMA_CTRL_START | DMA_CTRL_MODE_PERIPH_RX)
+#define DMA_CTRL_START_PERIPH_TX (DMA_CTRL_EN | DMA_CTRL_START | DMA_CTRL_MODE_PERIPH_TX)
 
 /* ── STATUS Bits (offset 0x080) ──────────────────────────────────────────── */
 /* [3:0]  DONE : sticky, 1 bit per channel */
@@ -293,6 +308,25 @@ static inline void dma_ch_setup(uint8_t ch, uint32_t src, uint32_t dst, uint32_t
 
 static inline void dma_ch_start(uint8_t ch) {
     DMA_WRITE_DYN(0, DMA_CH_BASE(ch) + DMA_OFS_CH_CTRL, DMA_CTRL_START_MEM);
+}
+
+/*
+ * [A1] Setup periph DMA channel.
+ *   PERIPH_RX (mode=01): src = MMIO reg addr (fixed), dst = DMEM buf (increments)
+ *   PERIPH_TX (mode=10): src = DMEM buf (increments), dst = MMIO reg addr (fixed)
+ *   len: total bytes to transfer (must be multiple of 4)
+ *   mode: DMA_CTRL_MODE_PERIPH_RX or DMA_CTRL_MODE_PERIPH_TX
+ */
+static inline void dma_ch_setup_periph(uint8_t ch, uint32_t periph_addr,
+                                        uint32_t dmem_addr, uint32_t len,
+                                        uint32_t mode) {
+    uint32_t base = DMA_CH_BASE(ch);
+    uint32_t src = (mode == DMA_CTRL_MODE_PERIPH_RX) ? periph_addr : dmem_addr;
+    uint32_t dst = (mode == DMA_CTRL_MODE_PERIPH_RX) ? dmem_addr   : periph_addr;
+    DMA_WRITE_DYN(0, base + DMA_OFS_CH_SRC, src);
+    DMA_WRITE_DYN(0, base + DMA_OFS_CH_DST, dst);
+    DMA_WRITE_DYN(0, base + DMA_OFS_CH_LEN, len);
+    DMA_WRITE_DYN(0, base + DMA_OFS_CH_CTRL, DMA_CTRL_EN | DMA_CTRL_START | mode);
 }
 
 /* ── Disable channel (clear EN bit) ─────────────────────────────────────── */
