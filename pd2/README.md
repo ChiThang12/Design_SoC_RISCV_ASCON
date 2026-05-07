@@ -21,9 +21,9 @@ Top module dành cho quá trình chạy Physical Design có thể chọn một t
 Để tránh các lỗi rắc rối liên quan đến đường dẫn include (`` `include ``) khi đưa vào các tool PD như Design Compiler (Synopsys), Genus/Innovus (Cadence), hay Yosys, mã nguồn đã được gom lại theo 2 cách tùy chọn:
 
 ### Lựa chọn 1: Sử dụng Single Source (Khuyên dùng)
-- **File:** `soc_full.v`
+- **File:** `soc_hs.v`
 - **Mô tả:** Đây là file duy nhất dung lượng ~1.1MB, chứa toàn bộ tất cả các sub-modules bên trong hệ thống (Hơn 100 modules). Toàn bộ các câu lệnh `` `include `` đã được loại bỏ. `` `timescale `` được đưa lên đầu file.
-- **Cách dùng:** Chỉ cần load duy nhất file `soc_full.v` vào tool PD của bạn.
+- **Cách dùng:** Chỉ cần load duy nhất file `soc_hs.v` vào tool PD của bạn.
 
 ### Lựa chọn 2: Sử dụng Filelist
 - **Thư mục:** `rtl/` (Chứa các file `.v` lẻ rời rạc đã được comment out các dòng `` `include ``).
