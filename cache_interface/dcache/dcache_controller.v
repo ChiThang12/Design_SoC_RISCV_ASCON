@@ -133,11 +133,6 @@ module dcache_controller (
     reg main_evict_start;   // from main FSM sequential output
     assign evict_start = flush_evict_start | main_evict_start;
 
-    // [FIX-NC-DOUBLE] 1-cycle guard: NC_WRITE/NC_READ return to IDLE while
-    // cpu_req still holds old instruction (CPU pipeline stall release has
-    // 1-cycle latency). This flag blocks re-issue for exactly 1 cycle.
-    reg nc_just_completed;
-
     // =========================================================================
     // [FIX-2] Separate tag_dirty_clear / tag_dirty_set sources
     // =========================================================================
@@ -296,7 +291,7 @@ module dcache_controller (
         case (state)
 
             DCACHE_STATE_IDLE: begin
-                if (!flush_busy && cpu_req && !fence_any && !nc_just_completed) begin
+                if (!flush_busy && cpu_req && !fence_any) begin
                     if (addr_is_nc)
                         next_state = cpu_we ? DCACHE_STATE_NC_WRITE
                                             : DCACHE_STATE_NC_READ;
@@ -514,7 +509,6 @@ module dcache_controller (
             evict_data_2         <= 32'h0;
             evict_data_3         <= 32'h0;
             main_evict_start     <= 1'b0;  // [FIX-1]
-            nc_just_completed    <= 1'b0;  // [FIX-NC-DOUBLE]
             evict_index_r        <= 6'h0;
             evict_nc             <= 1'b0;
             evict_wstrb_nc       <= 4'h0;
@@ -547,7 +541,6 @@ module dcache_controller (
             refill_nc          <= 1'b0;
             main_evict_start   <= 1'b0;   // [FIX-1]
             evict_nc           <= 1'b0;
-            nc_just_completed  <= 1'b0;   // [FIX-NC-DOUBLE]
             tag_update_valid   <= 1'b0;
             tag_flush_all      <= 1'b0;
             tag_invalidate_all <= 1'b0;
@@ -598,7 +591,7 @@ module dcache_controller (
                             do_deferred_write <= 1'b0;
                         end
 
-                        if (cpu_req && !fence_any && !nc_just_completed) begin  // [FIX-NC-DOUBLE]
+                        if (cpu_req && !fence_any) begin
                             cur_addr  <= cpu_addr;
                             cur_wdata <= cpu_wdata;
                             cur_wstrb <= cpu_wstrb;
@@ -747,14 +740,8 @@ module dcache_controller (
                         end
                     end
 
-                    DCACHE_STATE_NC_READ: begin
-                        // [FIX-NC-DOUBLE] signal completion so IDLE skips 1 cycle
-                        if (refill_done) nc_just_completed <= 1'b1;
-                    end
-                    DCACHE_STATE_NC_WRITE: begin
-                        // [FIX-NC-DOUBLE] signal completion so IDLE skips 1 cycle
-                        if (evict_done) nc_just_completed <= 1'b1;
-                    end
+                    DCACHE_STATE_NC_READ:  ;
+                    DCACHE_STATE_NC_WRITE: ;
 
                     default: ;
                 endcase

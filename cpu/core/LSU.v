@@ -150,11 +150,7 @@ module LSU (
     reg [2:0]  cur_load_funct3;
 
     wire load_fsm_ready    = (load_state == LOAD_IDLE) && !result_valid;
-    // [FIX-LSU-CONFLICT] Forwarded loads dequeue freely; non-forwarded loads
-    // must wait for SB to drain so store-drain and dcache-load don't share
-    // dcache_ready in the same cycle (caused duplicate NC_WRITE on UART TX).
-    wire do_load_dequeue   = !lq_empty && load_fsm_ready && !fence
-                          && (lq_fwd[lq_rd_ptr] || sb_empty);
+    wire do_load_dequeue   = !lq_empty && load_fsm_ready && !fence;
 
     wire do_drain_pop = (drain_state == DRAIN_REQ)
                       && dcache_ready
