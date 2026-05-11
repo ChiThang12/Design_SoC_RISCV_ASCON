@@ -1057,6 +1057,9 @@ module axi4_crossbar_5m12s #(
     // Ready aggregation — OR across all 13 entries (slaves 0-11 + decerr 12)
     // ========================================================================
 
+    // OR-tree giữ nguyên — đã hoạt động cho M0. Bug M1-stuck-on-S0 do
+    // DECERR slave luôn assert arready ngay cả khi không được addressed.
+    // Fix tại decerr slave thay vì ở đây.
     assign M0_AXI_ARREADY = m0_arready_s[0] | m0_arready_s[1] | m0_arready_s[2] | m0_arready_s[3] | m0_arready_s[4] | m0_arready_s[5] | m0_arready_s[6] | m0_arready_s[7] | m0_arready_s[8] | m0_arready_s[9] | m0_arready_s[10] | m0_arready_s[11] | m0_arready_s[12];
     assign M0_AXI_AWREADY = m0_awready_s[0] | m0_awready_s[1] | m0_awready_s[2] | m0_awready_s[3] | m0_awready_s[4] | m0_awready_s[5] | m0_awready_s[6] | m0_awready_s[7] | m0_awready_s[8] | m0_awready_s[9] | m0_awready_s[10] | m0_awready_s[11] | m0_awready_s[12];
     assign M0_AXI_WREADY  = m0_wready_s[0] | m0_wready_s[1] | m0_wready_s[2] | m0_wready_s[3] | m0_wready_s[4] | m0_wready_s[5] | m0_wready_s[6] | m0_wready_s[7] | m0_wready_s[8] | m0_wready_s[9] | m0_wready_s[10] | m0_wready_s[11] | m0_wready_s[12];

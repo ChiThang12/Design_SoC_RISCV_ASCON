@@ -323,10 +323,17 @@ module icache_controller (
                             (pf_tag   == cpu_tag);
 
     assign refill_addr  = cpu_miss ? cpu_line_addr : pf_ptr;
+    // FIX-NOALIAS-GATE: prefetch không được bắn AR khi sẽ alias một valid line
+    // tag khác (phải đồng bộ với Phase 1 always block, nếu không AXI burst vẫn
+    // chạy và overwrite data_array[pf_index_cũ]).
+    wire pf_would_alias_w = ctrl_valid[pf_ptr_index] &&
+                            (ctrl_tag[pf_ptr_index] != pf_ptr_tag);
+    wire pf_would_thrash_w = cpu_req && (pf_ptr_index == cpu_index);
     // FIX: bypass pf_active stale khi refill_done=1
     assign refill_start = !refill_busy &&
                           (!pf_active || refill_done) &&
-                          (cpu_miss || !pf_ptr_cached);
+                          (cpu_miss ||
+                           (!pf_ptr_cached && !pf_would_alias_w && !pf_would_thrash_w));
 
     // =========================================================================
     // CPU stall capture
@@ -346,7 +353,16 @@ module icache_controller (
         if (cpu_req) begin
             if (ctrl_hit) begin
                 cpu_ready_int = 1'b1;
-                cpu_rdata_int = data_read_data;
+                // [FIX-ICACHE-REFILL-READ] On refill completion (line_just_done=1),
+                // data array write is non-blocking and hasn't committed yet this cycle.
+                // Prefer stall_data (captured directly from AXI) for offsets 0..6,
+                // or live refill_data for offset 7 (stall_data_rdy not yet set).
+                if (line_just_done && stall_data_rdy)
+                    cpu_rdata_int = stall_data;
+                else if (line_just_done && refill_data_valid && (refill_word == cpu_offset))
+                    cpu_rdata_int = refill_data;
+                else
+                    cpu_rdata_int = data_read_data;
             end else if (loading_cpu_line && stall_data_rdy && refill_done) begin
                 cpu_ready_int = 1'b1;
                 cpu_rdata_int = stall_data;
@@ -416,6 +432,12 @@ module icache_controller (
                         // FIX-THRASH: prefetch line này sẽ evict set đang dùng bởi CPU
                         // → chỉ advance pf_ptr, không fetch → tránh thrashing vô hạn
                         pf_ptr <= pf_ptr_next;
+                    end else if (ctrl_valid[pf_ptr_index] &&
+                                 (ctrl_tag[pf_ptr_index] != pf_ptr_tag)) begin
+                        // FIX-NOALIAS: line tại set này đã valid với tag khác — KHÔNG
+                        // evict bằng prefetch speculative (sẽ phá data_array của CPU
+                        // và buộc CPU re-refill loop vô hạn). Chỉ advance pf_ptr.
+                        pf_ptr <= pf_ptr_next;
                     end else begin
                         pf_index  <= pf_ptr_index;
                         pf_tag    <= pf_ptr_tag;
@@ -431,8 +453,12 @@ module icache_controller (
                     data_write_offset <= refill_word;
                     data_write_data   <= refill_data;
 
-                    if (loading_cpu_line && !stall_data_rdy &&
-                        refill_word == cpu_offset) begin
+                    // FIX-ICACHE-STALLCAP: capture cho CPU khi burst đang load
+                    // line CPU cần — kiểm tra index+tag trực tiếp, không phụ thuộc
+                    // pf_active (Phase 3 có thể clear pf_active cùng cycle do NBA).
+                    if ((pf_index == cpu_index) && (pf_tag == cpu_tag) &&
+                        cpu_req && !stall_data_rdy &&
+                        (refill_word == cpu_offset)) begin
                         stall_data     <= refill_data;
                         stall_data_rdy <= 1'b1;
                     end
@@ -445,8 +471,14 @@ module icache_controller (
                     tag_update_tag       <= pf_tag;
                     ctrl_valid[pf_index] <= 1'b1;
                     ctrl_tag[pf_index]   <= pf_tag;
-                    pf_active            <= 1'b0;
-                    stall_data_rdy       <= 1'b0;
+                    // FIX-ICACHE-PFACT: chỉ clear pf_active nếu Phase 1 KHÔNG vừa
+                    // launch refill mới cùng cycle (tránh overwrite pf_active<=1).
+                    if (!refill_start)
+                        pf_active <= 1'b0;
+                    // FIX-ICACHE-STALLCLR: chỉ clear stall_data_rdy khi line vừa
+                    // refill đúng là của CPU (CPU consume cùng cycle qua cpu_ready_int).
+                    if ((pf_index == cpu_index) && (pf_tag == cpu_tag))
+                        stall_data_rdy <= 1'b0;
                 end
 
                 if (cpu_req && ctrl_hit)

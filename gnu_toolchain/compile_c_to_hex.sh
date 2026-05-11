@@ -115,7 +115,7 @@ ASM_FILE="${BASE_NAME}.s"
 MAP_FILE="${BASE_NAME}.map"
 
 # FIX-D: trap EXIT để cleanup luôn chạy dù exit code là gì
-TEMP_FILES=(linker_minimal.ld startup_generated.s "$ELF_FILE" "$BIN_FILE" "${BASE_NAME}.o")
+TEMP_FILES=(linker_minimal.ld startup_generated.s "$ELF_FILE" "$BIN_FILE" "${BASE_NAME}.o" "$DUMP_FILE" "$MAP_FILE")
 [ "$EXT" = "c" ] && TEMP_FILES+=("$ASM_FILE")
 
 cleanup() {
@@ -601,4 +601,5 @@ echo -e "${GREEN}╚════════════════════
 echo -e "${BLUE}Ready:${NC}       $OUTPUT_HEX"
 echo -e "${BLUE}Disassembly:${NC} $DUMP_FILE"
 echo -e "${BLUE}Map file:${NC}    $MAP_FILE"
-[ -f "$ASM_FILE" ] && echo -e "${BLUE}Assembly:${NC}    $ASM_FILE"
+[ -f "$ASM_FILE" ] && echo -e "${BLUE}Assembly:${NC}    $ASM_FILE" || true
+exit 0

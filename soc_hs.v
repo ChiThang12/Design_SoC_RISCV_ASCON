@@ -11,7 +11,8 @@
 `include "soc_top.v"
 
 module soc_hs #(
-    parameter SIM_MODE = 0   // 0=UART boot (HW), 1=fast $readmemh (sim)
+    parameter SIM_MODE       = 0,                          // 0=UART boot (HW), 1=fast $readmemh (sim)
+    parameter IMEM_INIT_FILE = "memory/program.hex"        // Hex image to load in SIM_MODE=1
 )(
     // ── Clock & Reset ──────────────────────────────
     input  wire clk_in,      // Hoặc XTAL_IN (dao động thạch anh)
@@ -58,7 +59,7 @@ module soc_hs #(
     // ========================================================================
     // Khởi tạo soc_top
     // ========================================================================
-    soc_top #(.SIM_MODE(SIM_MODE)) u_soc_top (
+    soc_top #(.SIM_MODE(SIM_MODE), .IMEM_INIT_FILE(IMEM_INIT_FILE)) u_soc_top (
         .clk         (clk_in),
         .por_n       (por_n),
         .ext_rst_n   (ext_rst_n),

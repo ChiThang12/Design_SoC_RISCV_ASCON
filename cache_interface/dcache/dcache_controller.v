@@ -134,6 +134,21 @@ module dcache_controller (
     assign evict_start = flush_evict_start | main_evict_start;
 
     // =========================================================================
+    // [FIX-NC-GUARD] 1-cycle guard sau khi NC_WRITE/NC_READ hoàn thành.
+    // Chặn IDLE từ re-sample cpu_req ngay lập tức trong cycle transition về IDLE,
+    // vì LSU drain_state chưa kịp clear → cpu_req vẫn asserted → double-issue.
+    // Dùng sequential riêng (không trong flush_busy gate) để không bị stuck.
+    // =========================================================================
+    reg nc_just_completed;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n)
+            nc_just_completed <= 1'b0;
+        else
+            nc_just_completed <= (state == DCACHE_STATE_NC_WRITE && evict_done) ||
+                                 (state == DCACHE_STATE_NC_READ  && refill_done);
+    end
+
+    // =========================================================================
     // [FIX-2] Separate tag_dirty_clear / tag_dirty_set sources
     // =========================================================================
     reg flush_dirty_clear;
@@ -291,7 +306,7 @@ module dcache_controller (
         case (state)
 
             DCACHE_STATE_IDLE: begin
-                if (!flush_busy && cpu_req && !fence_any) begin
+                if (!flush_busy && cpu_req && !fence_any && !nc_just_completed) begin
                     if (addr_is_nc)
                         next_state = cpu_we ? DCACHE_STATE_NC_WRITE
                                             : DCACHE_STATE_NC_READ;
@@ -591,7 +606,7 @@ module dcache_controller (
                             do_deferred_write <= 1'b0;
                         end
 
-                        if (cpu_req && !fence_any) begin
+                        if (cpu_req && !fence_any && !nc_just_completed) begin
                             cur_addr  <= cpu_addr;
                             cur_wdata <= cpu_wdata;
                             cur_wstrb <= cpu_wstrb;

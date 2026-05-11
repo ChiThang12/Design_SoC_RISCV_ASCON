@@ -38,9 +38,16 @@
 //
 //  [FIX-5..9] Giữ nguyên từ v5.2.
 // ============================================================================
+// ── Hex image selector — override via: iverilog -DIMEM_INIT_FILE='"path/to/test.hex"' ──
+`ifndef IMEM_INIT_FILE
+  `define IMEM_INIT_FILE "memory/program.hex"
+`endif
+
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
-`define TIMEOUT         200000 // boot overhead ~3100cy (POR+fabric_rst+boot_ctrl 2048w) + CPU
+`ifndef TIMEOUT
+`define TIMEOUT         300000  // 200k default → 600k for UART tests (115200 @100MHz needs ~8680cy/char)
+`endif
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
 `define DMEM_DUMP_WORDS 32
@@ -98,7 +105,7 @@ wire wdt_rst_req_w;
 
 assign jtag_tdo_en_w = chip.core_tdo_en; // To preserve the tap
 
-soc_hs #(.SIM_MODE(1)) chip (
+soc_hs #(.SIM_MODE(1), .IMEM_INIT_FILE(`IMEM_INIT_FILE)) chip (
     .clk_in      (clk),
     .por_n       (por_n_r),
     .ext_rst_n   (ext_rst_n_r),
@@ -598,6 +605,31 @@ wire        boot_done_w   = chip.u_soc_top.boot_done;
 wire        boot_we_w     = chip.u_soc_top.imem_boot_we;
 wire [31:0] boot_addr_w   = chip.u_soc_top.imem_boot_addr;
 
+// ─────────────────────────────────────────────────────────────────────────────
+// [W] Crossbar internal taps — for M0↔S0 deep debug
+// ─────────────────────────────────────────────────────────────────────────────
+wire [3:0]  xbar_m0_ar_sel    = chip.u_soc_top.u_crossbar.m0_ar_sel;
+wire        xbar_m0_ar_to_s0  = chip.u_soc_top.u_crossbar.m0_ar_to_s0;
+wire        xbar_m0_ar_to_err = chip.u_soc_top.u_crossbar.m0_ar_to_err;
+wire        xbar_m0_arrdy_s0  = chip.u_soc_top.u_crossbar.m0_arready_s[0];
+wire        xbar_m0_arrdy_err = chip.u_soc_top.u_crossbar.m0_arready_s[12];
+wire        xbar_m0_rvalid_s0 = chip.u_soc_top.u_crossbar.m0_rvalid_s[0];
+wire        xbar_m0_rvalid_err= chip.u_soc_top.u_crossbar.m0_rvalid_s[12];
+wire [2:0]  xbar_muxs0_rd_arb = chip.u_soc_top.u_crossbar.mux_s0.rd_arb;
+wire        xbar_muxs0_grant_m0 = chip.u_soc_top.u_crossbar.mux_s0.rd_grant_m0;
+wire [1:0]  xbar_dec_m0_rs    = chip.u_soc_top.u_crossbar.decerr_M0.rs_state;
+wire        xbar_dec_m0_arrdy = chip.u_soc_top.u_crossbar.decerr_M0.s_arready;
+wire        xbar_dec_m0_rvld  = chip.u_soc_top.u_crossbar.decerr_M0.s_rvalid;
+
+// S0 (IMEM) slave-side port
+wire        s0_arvalid_w = chip.u_soc_top.s0_arvalid;
+wire        s0_arready_w = chip.u_soc_top.s0_arready;
+wire [31:0] s0_araddr_w  = chip.u_soc_top.s0_araddr;
+wire        s0_rvalid_w  = chip.u_soc_top.s0_rvalid;
+wire        s0_rready_w  = chip.u_soc_top.s0_rready;
+wire        s0_rlast_w   = chip.u_soc_top.s0_rlast;
+wire [31:0] s0_rdata_w   = chip.u_soc_top.s0_rdata;
+
 // ============================================================================
 // Counters & State
 // ============================================================================
@@ -853,6 +885,41 @@ always @(posedge clk) begin
             $display("[%6d] [WARN] M0(ICache) AW asserted! (ICache should NOT write)",
                      cycle_count);
     end
+end
+
+// ============================================================================
+// (4.5) Crossbar M0↔S0 DEEP DEBUG — every cycle dump while interesting
+//        Activated by `XBAR_DBG_M0` macro; window = first XBAR_DBG_LIMIT cycles
+//        after fabric_rst_n goes high. Prints one line per cycle if ANY of:
+//          M0_AXI_ARVALID, M0_AXI_RVALID, S0_AXI_ARVALID, S0_AXI_RVALID,
+//          mux_s0.rd_arb != IDLE
+// ============================================================================
+// `define XBAR_DBG_M0     // disable XBAR-M0 deep trace
+`define XBAR_DBG_LIMIT 800
+integer xbar_dbg_start;
+initial xbar_dbg_start = -1;
+always @(posedge clk) begin
+`ifdef XBAR_DBG_M0
+    if (ext_rst_n_r && fabric_rst_n_w) begin
+        if (xbar_dbg_start < 0) xbar_dbg_start = cycle_count;
+        if ((cycle_count - xbar_dbg_start) < `XBAR_DBG_LIMIT) begin
+            if (m0_arvalid || m0_rvalid || s0_arvalid_w || s0_rvalid_w ||
+                xbar_muxs0_rd_arb !== 3'd0 || xbar_dec_m0_rs !== 2'd0) begin
+                $display("[%6d] [XBAR-M0] AR{v=%b r=%b adr=0x%08h sel=%0d to_s0=%b to_err=%b} | muxS0{arb=%0d g_m0=%b ardy_s0=%b} | DEC{rs=%0d ardy=%b rvld=%b} | mN_ardy[0]=%b [12]=%b | S0{arv=%b ardy=%b adr=0x%08h rvld=%b rlst=%b rdy=%b} | R{v=%b lst=%b data=0x%08h fromS0=%b fromERR=%b}",
+                    cycle_count,
+                    m0_arvalid, m0_arready, m0_araddr,
+                    xbar_m0_ar_sel, xbar_m0_ar_to_s0, xbar_m0_ar_to_err,
+                    xbar_muxs0_rd_arb, xbar_muxs0_grant_m0, xbar_m0_arrdy_s0,
+                    xbar_dec_m0_rs, xbar_dec_m0_arrdy, xbar_dec_m0_rvld,
+                    xbar_m0_arrdy_s0, xbar_m0_arrdy_err,
+                    s0_arvalid_w, s0_arready_w, s0_araddr_w,
+                    s0_rvalid_w, s0_rlast_w, s0_rready_w,
+                    m0_rvalid, m0_rlast, m0_rdata,
+                    xbar_m0_rvalid_s0, xbar_m0_rvalid_err);
+            end
+        end
+    end
+`endif
 end
 
 // ============================================================================
@@ -1561,11 +1628,13 @@ initial begin
             // Log và lưu
             uart_tx_byte_cnt = uart_tx_byte_cnt + 1;
             if (rx_byte >= 8'h20 && rx_byte <= 8'h7E)
-                $display("[%6d] [UART-TX] char='%s'  (0x%02h)  #%0d",
-                         cycle_count, rx_byte, rx_byte, uart_tx_byte_cnt);
+                $display("[%6d] [UART-TX] char='%s'  (0x%02h)  #%0d  sp=0x%08h",
+                         cycle_count, rx_byte, rx_byte, uart_tx_byte_cnt,
+                         chip.u_soc_top.u_cpu.register_file.registers[2]);
             else
-                $display("[%6d] [UART-TX] byte=0x%02h  (non-printable)  #%0d",
-                         cycle_count, rx_byte, uart_tx_byte_cnt);
+                $display("[%6d] [UART-TX] byte=0x%02h  (non-printable)  #%0d  sp=0x%08h",
+                         cycle_count, rx_byte, uart_tx_byte_cnt,
+                         chip.u_soc_top.u_cpu.register_file.registers[2]);
             if (uart_rx_count < 256) begin
                 uart_rx_buf[uart_rx_count] = rx_byte;
                 uart_rx_count = uart_rx_count + 1;

@@ -57,7 +57,13 @@ if (SIM_MODE == 1) begin : g_sim
     reg [1:0]            state;
     reg [ADDR_W-1:0]     widx;
 
-    initial $readmemh(BOOT_FILE, mem);
+    initial begin : load_mem
+        reg [8*512-1:0] hex_path;
+        if (!$value$plusargs("IMEM_HEX=%s", hex_path))
+            hex_path = BOOT_FILE;
+        $readmemh(hex_path, mem);
+        $display("[SIM] Loaded: %0s  mem[0]=%08h mem[8]=%08h mem[16]=%08h", hex_path, mem[0], mem[8], mem[16]);
+    end
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin

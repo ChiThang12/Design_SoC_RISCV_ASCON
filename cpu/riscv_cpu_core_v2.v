@@ -390,7 +390,13 @@ assign perf_instr_ret_o = regwrite_wb && !stall_any;
     // (fence_stall must NOT freeze — pre-fence store must reach MEM)
     wire stall_ex_mem = lsu_dep_stall;
 
-    wire flush_if_id_final = flush_if_id | irq_flush | wfi_enter;
+    // [FIX-JALR-TARGET] JALR predicted taken đến pc+imm (sai). EX sẽ correct
+    // đến rs1+imm. Flush IF/ID tại cycle JALR-in-EX để xóa instruction fetched
+    // từ wrong predicted target.
+    wire is_jalr_ex = (opcode_ex == 7'b1100111);
+    wire jalr_wrong_target = is_jalr_ex && jump_ex && predict_taken_ex;
+
+    wire flush_if_id_final = flush_if_id | irq_flush | wfi_enter | jalr_wrong_target;
     wire flush_id_ex_final = flush_id_ex | irq_flush | wfi_enter;
 
     // =========================================================================
@@ -763,7 +769,7 @@ assign perf_instr_ret_o = regwrite_wb && !stall_any;
     // MEM/WB REGISTER (standalone module)
     // =========================================================================
     reg lsu_committed_r;
-    wire wb_passthrough_valid = !stall_ex_mem && !lsu_committed_r && !memread_mem && regwrite_mem;
+    wire wb_passthrough_valid = !stall_ex_mem && !lsu_committed_r && !memread_mem && regwrite_mem && (rd_mem != 5'b0); // [FIX-WB-NOP] NOP (rd=x0) must not block LSU commit
     wire lsu_result_commit = lsu_result_valid && !wb_passthrough_valid;
     always @(posedge clk or posedge rst) begin
         if (rst)

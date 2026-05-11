@@ -29,11 +29,13 @@ echo ""
 # Danh sách test files theo thứ tự ưu tiên (integration build last)
 STANDALONE_TESTS=(
     test_uart.c
+    test_uart_simple.c
     test_gpio.c
     test_timer.c
     test_clint.c
     test_plic.c
     test_ascon.c
+    test_dma_uart.c
 )
 
 # Build từng standalone test
@@ -56,7 +58,7 @@ for test_file in "${STANDALONE_TESTS[@]}"; do
         OPT="-O 1"
     fi
 
-    if "$COMPILE_SCRIPT" -i "$src" -o "$hex" $OPT -c > /tmp/build_${base}.log 2>&1; then
+    if "$COMPILE_SCRIPT" -i "$src" -o "$hex" $OPT -c < /dev/null > /tmp/build_${base}.log 2>&1; then
         echo -e "${GREEN}OK${NC}  → $hex"
         PASS=$((PASS + 1))
     else
@@ -74,7 +76,7 @@ INT_SRC="$TESTS_DIR/test_integration.c"
 INT_HEX="$TESTS_DIR/test_integration.hex"
 
 if [ -f "$INT_SRC" ]; then
-    if "$COMPILE_SCRIPT" -i "$INT_SRC" -o "$INT_HEX" -O 0 -c > /tmp/build_test_integration.log 2>&1; then
+    if "$COMPILE_SCRIPT" -i "$INT_SRC" -o "$INT_HEX" -O 0 -c < /dev/null > /tmp/build_test_integration.log 2>&1; then
         echo -e "${GREEN}OK${NC}  → $INT_HEX"
         PASS=$((PASS + 1))
     else

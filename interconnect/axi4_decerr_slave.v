@@ -21,7 +21,7 @@ module axi4_decerr_slave #(
     input  wire [ADDR_WIDTH-1:0] s_araddr,
     input  wire [7:0]            s_arlen,
     input  wire                  s_arvalid,
-    output reg                   s_arready,
+    output wire                  s_arready,
 
     // R channel
     output reg  [ID_WIDTH-1:0]   s_rid,
@@ -36,7 +36,7 @@ module axi4_decerr_slave #(
     input  wire [ADDR_WIDTH-1:0] s_awaddr,
     input  wire [7:0]            s_awlen,
     input  wire                  s_awvalid,
-    output reg                   s_awready,
+    output wire                  s_awready,
 
     // W channel
     input  wire                  s_wlast,
@@ -62,10 +62,16 @@ module axi4_decerr_slave #(
     reg [7:0]          r_beat_cnt;
     reg [7:0]          r_len_latch;
 
+    // [FIX-DECERR-ARREADY] Gate ARREADY bằng s_arvalid. Trước fix: s_arready
+    // là reg luôn=1 trong RS_IDLE → leak vào OR-tree top-level
+    // M{N}_AXI_ARREADY=1 dù master không target decerr → master tưởng AR đã
+    // accept dù target slave thật chưa accept → AR mất. Bug rõ ràng với
+    // M1→S0 khi M0 đang chiếm S0 (M1's AR không bao giờ tới S0).
+    assign s_arready = (rs_state == RS_IDLE) && s_arvalid;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             rs_state     <= RS_IDLE;
-            s_arready    <= 1'b1;
             s_rvalid     <= 1'b0;
             s_rdata      <= 32'hDEAD_BEEF;
             s_rresp      <= 2'b11;
@@ -77,13 +83,11 @@ module axi4_decerr_slave #(
         end else begin
             case (rs_state)
                 RS_IDLE: begin
-                    s_arready <= 1'b1;
                     s_rvalid  <= 1'b0;
                     if (s_arvalid && s_arready) begin
                         r_pending_id <= s_arid;
                         r_len_latch  <= s_arlen;
                         r_beat_cnt   <= 8'h0;
-                        s_arready    <= 1'b0;
                         rs_state     <= RS_RESP;
                     end
                 end
@@ -102,7 +106,6 @@ module axi4_decerr_slave #(
                         if (s_rlast) begin
                             s_rvalid  <= 1'b0;
                             s_rlast   <= 1'b0;
-                            s_arready <= 1'b1;
                             rs_state  <= RS_IDLE;
                         end else begin
                             r_beat_cnt <= r_beat_cnt + 1'b1;
@@ -127,10 +130,12 @@ module axi4_decerr_slave #(
     reg [1:0]          ws_state;
     reg [ID_WIDTH-1:0] w_pending_id;
 
+    // [FIX-DECERR-AWREADY] Same fix as ARREADY — gate by AWVALID.
+    assign s_awready = (ws_state == WS_IDLE) && s_awvalid;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             ws_state     <= WS_IDLE;
-            s_awready    <= 1'b1;
             s_wready     <= 1'b0;
             s_bvalid     <= 1'b0;
             s_bresp      <= 2'b11;
@@ -139,12 +144,10 @@ module axi4_decerr_slave #(
         end else begin
             case (ws_state)
                 WS_IDLE: begin
-                    s_awready <= 1'b1;
                     s_wready  <= 1'b0;
                     s_bvalid  <= 1'b0;
                     if (s_awvalid && s_awready) begin
                         w_pending_id <= s_awid;
-                        s_awready    <= 1'b0;
                         s_wready     <= 1'b1;
                         ws_state     <= WS_DRAIN;
                     end
@@ -164,7 +167,6 @@ module axi4_decerr_slave #(
                 WS_RESP: begin
                     if (s_bvalid && s_bready) begin
                         s_bvalid  <= 1'b0;
-                        s_awready <= 1'b1;
                         ws_state  <= WS_IDLE;
                     end
                 end

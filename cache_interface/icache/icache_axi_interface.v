@@ -47,7 +47,13 @@ module icache_axi_interface #(
     reg [2:0] word_counter;
 
     assign M_AXI_RREADY  = (state == R);
-    assign M_AXI_ARVALID = (state == IDLE) && refill_start;
+    // [FIX-ICACHE-RESET-ARVALID] Gate ARVALID bằng rst_n. Trước fix: ARVALID
+    // combinational từ (state==IDLE && refill_start) — trong boot phase
+    // ICache bị reset bởi cpu_rst_n nhưng inst_mem (fabric_rst_n) đã active.
+    // ARVALID=1 từ ICache + ARREADY=1 từ S0 → S0 bắt đầu burst nhưng ICache
+    // không consume R → burst stuck. Sau khi cpu_rst_n release, ICache cần
+    // OR-tree leak từ DECERR mới thoát stuck (hack). Fix: ARVALID=0 trong reset.
+    assign M_AXI_ARVALID = (state == IDLE) && refill_start && rst_n;
     assign M_AXI_ARADDR  = refill_addr;
 
     wire ar_handshake = M_AXI_ARVALID && M_AXI_ARREADY;

@@ -150,23 +150,57 @@ module LSU (
     reg [2:0]  cur_load_funct3;
 
     wire load_fsm_ready    = (load_state == LOAD_IDLE) && !result_valid;
-    wire do_load_dequeue   = !lq_empty && load_fsm_ready && !fence;
+
+    // [FIX-LSU-CONFLICT-v2] Chỉ block non-forwarded load nếu có SB entry trùng
+    // word address VÀ partial write (wstrb!=1111). Load đến địa chỉ khác hoàn
+    // toàn (ví dụ: UART MMIO vs DMEM stack) không bị block.
+    integer dci;
+    reg sb_addr_conflict;
+    always @(lq_addr[lq_rd_ptr],
+             sb_valid[0], sb_addr[0], sb_wstrb[0],
+             sb_valid[1], sb_addr[1], sb_wstrb[1],
+             sb_valid[2], sb_addr[2], sb_wstrb[2],
+             sb_valid[3], sb_addr[3], sb_wstrb[3]) begin
+        sb_addr_conflict = 1'b0;
+        for (dci = 0; dci < SB_DEPTH; dci = dci + 1) begin
+            if (sb_valid[dci]
+                && (sb_addr[dci][31:2] == lq_addr[lq_rd_ptr][31:2])
+                && (sb_wstrb[dci] != 4'b1111)) begin
+                sb_addr_conflict = 1'b1;
+            end
+        end
+    end
+    wire do_load_dequeue   = !lq_empty && load_fsm_ready && !fence
+                          && (lq_fwd[lq_rd_ptr] || !sb_addr_conflict);
 
     wire do_drain_pop = (drain_state == DRAIN_REQ)
                       && dcache_ready
                       && !load_using_dcache;
 
+    // [FIX-BYTESHIFT] DCache trả về whole word (raw). Sub-word load phải shift
+    // raw >> (byte_offset * 8) trước khi extract, vì core chỉ gửi byte addr
+    // xuống DCache mà không pre-shift rdata. lw không cần shift (word-aligned).
     function [31:0] apply_funct3;
         input [31:0] raw;
         input [2:0]  f3;
-        case (f3)
-            3'b000:  apply_funct3 = {{24{raw[7]}},  raw[7:0]};
-            3'b001:  apply_funct3 = {{16{raw[15]}}, raw[15:0]};
-            3'b010:  apply_funct3 = raw;
-            3'b100:  apply_funct3 = {24'h0, raw[7:0]};
-            3'b101:  apply_funct3 = {16'h0, raw[15:0]};
-            default: apply_funct3 = raw;
-        endcase
+        input [1:0]  byte_offset;
+        reg [31:0] shifted;
+        begin
+            case (byte_offset)
+                2'b00: shifted = raw;
+                2'b01: shifted = {8'h0,  raw[31:8]};
+                2'b10: shifted = {16'h0, raw[31:16]};
+                2'b11: shifted = {24'h0, raw[31:24]};
+            endcase
+            case (f3)
+                3'b000:  apply_funct3 = {{24{shifted[7]}},  shifted[7:0]};
+                3'b001:  apply_funct3 = {{16{shifted[15]}}, shifted[15:0]};
+                3'b010:  apply_funct3 = raw;
+                3'b100:  apply_funct3 = {24'h0, shifted[7:0]};
+                3'b101:  apply_funct3 = {16'h0, shifted[15:0]};
+                default: apply_funct3 = raw;
+            endcase
+        end
     endfunction
 
     integer si;
@@ -250,7 +284,8 @@ module LSU (
                             result_rd    <= lq_rd[lq_rd_ptr];
                             result_data  <= apply_funct3(
                                                lq_fwd_data[lq_rd_ptr],
-                                               lq_funct3  [lq_rd_ptr]);
+                                               lq_funct3  [lq_rd_ptr],
+                                               lq_addr    [lq_rd_ptr][1:0]);
                             load_state   <= LOAD_RESULT;
                         end else begin
                             load_state <= LOAD_DCACHE;
@@ -262,7 +297,8 @@ module LSU (
                     if (dcache_ready) begin
                         result_valid <= 1'b1;
                         result_rd    <= cur_load_rd;
-                        result_data  <= apply_funct3(dcache_rdata, cur_load_funct3);
+                        result_data  <= apply_funct3(dcache_rdata, cur_load_funct3,
+                                                     cur_load_addr[1:0]);
                         load_state   <= LOAD_RESULT;
                     end
                 end

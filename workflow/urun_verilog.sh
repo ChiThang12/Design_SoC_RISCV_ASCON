@@ -4,33 +4,42 @@
 # Usage:
 #   ./run_verilog.sh alu.v
 #   ./run_verilog.sh -g2012 alu.v
+#   ./run_verilog.sh -l mylog alu.v        # custom log name → log/mylog.log
+#   ./run_verilog.sh -g2005 -l test alu.v  # combine std + log name
 # ============================================
 
 STD=""
 SRC=""
+LOG_NAME=""
 
-if [[ "$1" == "-g2001" || "$1" == "-g2005" || "$1" == "-g2012" ]]; then
-    STD="$1"
-    SRC="$2"
-else
-    SRC="$1"
-fi
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -g2001|-g2005|-g2012)
+            STD="$1"; shift ;;
+        -l)
+            LOG_NAME="$2"; shift 2 ;;
+        *)
+            SRC="$1"; shift ;;
+    esac
+done
 
 if [[ -z "$SRC" ]]; then
     echo "[ERROR] Missing verilog file!"
     echo "Usage:"
     echo "  ./run_verilog.sh alu.v"
     echo "  ./run_verilog.sh -g2012 alu.v"
+    echo "  ./run_verilog.sh -l <logname> alu.v"
     exit 1
 fi
 
 NAME=$(basename "$SRC" .v)
+[[ -z "$LOG_NAME" ]] && LOG_NAME="$NAME"
 
 # 👉 Tạo thư mục log nếu chưa tồn tại
 LOG_DIR="log"
 mkdir -p "$LOG_DIR"
 
-LOG="${LOG_DIR}/${NAME}.log"
+LOG="${LOG_DIR}/${LOG_NAME}.log"
 
 echo "============================================"
 echo "Source   : $SRC"
