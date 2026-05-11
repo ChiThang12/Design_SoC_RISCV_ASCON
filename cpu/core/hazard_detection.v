@@ -82,6 +82,28 @@ module hazard_detection (
     assign stall    = load_use_hazard || lsu_dep_stall || fence_stall || mul_result_stall || mul_ex_stall;
     assign stall_if = imem_stall;
 
+`ifdef DEBUG_STALL
+    // [DEBUG_STALL] Trace which stall signal is high every cycle when stalling.
+    reg [31:0] dbg_stall_run;
+    always @(posedge clk or posedge rst) begin
+        if (rst) dbg_stall_run <= 32'h0;
+        else if (stall || stall_if) dbg_stall_run <= dbg_stall_run + 1'b1;
+        else dbg_stall_run <= 32'h0;
+    end
+    always @(posedge clk) begin
+        if (!rst && (stall || stall_if) && (dbg_stall_run > 32'd50)) begin
+            $display("[STALL t=%0t run=%0d] stall=%b stall_if=%b lu=%b lsu_dep(reg=%b mem=%b) fence=%b mul_r=%b mul_ex=%b imem_rdy=%b lsu_idle=%b rs1=%0d rs2=%0d rd_ex=%0d rd_mem=%0d memrd_ex=%b memrd_mem=%b fence_id=%b mem_pend=%b sb=%h",
+                     $time, dbg_stall_run, stall, stall_if,
+                     load_use_hazard, lsu_dependency_stall, mem_load_issue_hazard,
+                     fence_stall, mul_result_stall, mul_ex_stall,
+                     imem_ready, lsu_idle,
+                     rs1_id, rs2_id, rd_id_ex, rd_mem_stage,
+                     memread_id_ex, memread_mem_stage, fence_id, mem_stage_pending,
+                     lsu_scoreboard);
+        end
+    end
+`endif
+
     // Fix 9B: prediction-aware flush
     // Correctly-predicted taken branch: no IF/ID flush (prediction already redirected IFU)
     // Mispredicted (predicted taken but actually not): flush IF+ID, redirect to fall-through

@@ -170,7 +170,12 @@ module LSU (
             end
         end
     end
+    // [FIX-DRAIN-RACE] Don't start a load dequeue while a store drain is still
+    // in flight on the dcache_req channel — they share the same handshake, so
+    // overlapping them causes DCache's ready (for the store) to be misread as
+    // the load response, returning the store's rdata (0) for the load.
     wire do_load_dequeue   = !lq_empty && load_fsm_ready && !fence
+                          && (drain_state == DRAIN_IDLE)
                           && (lq_fwd[lq_rd_ptr] || !sb_addr_conflict);
 
     wire do_drain_pop = (drain_state == DRAIN_REQ)
@@ -337,6 +342,28 @@ module LSU (
             endcase
         end
     end
+
+`ifdef DEBUG_STALL
+    // [DEBUG_STALL] Trace LSU FSM + queue + DCache handshake when CPU stalls.
+    reg [31:0] lsu_dbg_cnt;
+    always @(posedge clk or posedge rst) begin
+        if (rst) lsu_dbg_cnt <= 32'h0;
+        else if (!lsu_idle) lsu_dbg_cnt <= lsu_dbg_cnt + 1'b1;
+        else lsu_dbg_cnt <= 32'h0;
+    end
+    always @(posedge clk) begin
+        if (!rst && !lsu_idle && (lsu_dbg_cnt > 32'd20)) begin
+            $display("[LSU t=%0t cnt=%0d] load_st=%0d drain_st=%0d lq=%0d sb=%0d rv=%b ra=%b dc_req=%b dc_we=%b dc_addr=%h dc_rdy=%b dc_rd=%h cur_addr=%h cur_rd=%0d sb_addr0=%h sb_v0=%b lq_addr0=%h lq_rd0=%0d lq_fwd0=%b sb_conf=%b fence=%b",
+                     $time, lsu_dbg_cnt, load_state, drain_state, lq_count, sb_count,
+                     result_valid, result_ack,
+                     dcache_req, dcache_we, dcache_addr, dcache_ready, dcache_rdata,
+                     cur_load_addr, cur_load_rd,
+                     sb_addr[sb_rd_ptr], sb_valid[sb_rd_ptr],
+                     lq_addr[lq_rd_ptr], lq_rd[lq_rd_ptr], lq_fwd[lq_rd_ptr],
+                     sb_addr_conflict, fence);
+        end
+    end
+`endif
 
     wire [31:0] drain_addr  = sb_addr [sb_rd_ptr];
     wire [31:0] drain_wdata = sb_wdata[sb_rd_ptr];

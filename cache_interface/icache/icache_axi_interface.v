@@ -47,16 +47,34 @@ module icache_axi_interface #(
     reg [2:0] word_counter;
 
     assign M_AXI_RREADY  = (state == R);
-    // [FIX-ICACHE-RESET-ARVALID] Gate ARVALID bằng rst_n. Trước fix: ARVALID
-    // combinational từ (state==IDLE && refill_start) — trong boot phase
-    // ICache bị reset bởi cpu_rst_n nhưng inst_mem (fabric_rst_n) đã active.
-    // ARVALID=1 từ ICache + ARREADY=1 từ S0 → S0 bắt đầu burst nhưng ICache
-    // không consume R → burst stuck. Sau khi cpu_rst_n release, ICache cần
-    // OR-tree leak từ DECERR mới thoát stuck (hack). Fix: ARVALID=0 trong reset.
-    assign M_AXI_ARVALID = (state == IDLE) && refill_start && rst_n;
-    assign M_AXI_ARADDR  = refill_addr;
+
+    // [FIX-ICACHE-AR-STICKY] AXI4 yêu cầu VALID giữ high tới khi READY=1. Trước
+    // fix: ARVALID combinational từ refill_start (1-cycle pulse). Khi crossbar
+    // bận serve DCache cùng cycle, ARREADY=0 → AR bị drop nhưng controller đã
+    // commit pf_active<=1 → deadlock: pf_active=1, refill_busy=0 mãi, Phase 1
+    // gate `(!pf_active || refill_done)` block refill_start kế tiếp.
+    //
+    // Fix: latch ARVALID + ARADDR khi refill_start raise và giữ tới ar_handshake.
+    // Vẫn gate bằng rst_n như fix cũ (FIX-ICACHE-RESET-ARVALID).
+    reg        arvalid_r;
+    reg [31:0] araddr_r;
+
+    assign M_AXI_ARVALID = arvalid_r && rst_n;
+    assign M_AXI_ARADDR  = araddr_r;
 
     wire ar_handshake = M_AXI_ARVALID && M_AXI_ARREADY;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            arvalid_r <= 1'b0;
+            araddr_r  <= 32'h0;
+        end else if (ar_handshake) begin
+            arvalid_r <= 1'b0;
+        end else if (!arvalid_r && (state == IDLE) && refill_start) begin
+            arvalid_r <= 1'b1;
+            araddr_r  <= refill_addr;
+        end
+    end
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin

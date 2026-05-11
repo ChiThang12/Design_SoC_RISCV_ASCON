@@ -373,6 +373,25 @@ module icache_controller (
     assign cpu_ready = cpu_ready_int;
     assign cpu_rdata = cpu_rdata_int;
 
+`ifdef DEBUG_STALL
+    reg [31:0] icache_dbg_stuck;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) icache_dbg_stuck <= 32'h0;
+        else if (cpu_req && !cpu_ready_int) icache_dbg_stuck <= icache_dbg_stuck + 1'b1;
+        else icache_dbg_stuck <= 32'h0;
+    end
+    always @(posedge clk) begin
+        if (rst_n && cpu_req && !cpu_ready_int && (icache_dbg_stuck > 32'd30)) begin
+            $display("[ICACHE t=%0t stuck=%0d] cpu_addr=%h cpu_idx=%h cpu_tag=%h ctrl_hit=%b ctrl_valid=%b ctrl_tag_match=%b pf_active=%b pf_ptr=%h pf_index=%h pf_tag=%h loading_cpu=%b refill_busy=%b refill_done=%b refill_start=%b line_just_done=%b stall_rdy=%b",
+                     $time, icache_dbg_stuck, cpu_addr, cpu_index, cpu_tag,
+                     ctrl_hit, ctrl_valid[cpu_index], (ctrl_tag[cpu_index]==cpu_tag),
+                     pf_active, pf_ptr, pf_index, pf_tag,
+                     loading_cpu_line, refill_busy, refill_done, refill_start,
+                     line_just_done, stall_data_rdy);
+        end
+    end
+`endif
+
     // =========================================================================
     // Sequential
     // =========================================================================
