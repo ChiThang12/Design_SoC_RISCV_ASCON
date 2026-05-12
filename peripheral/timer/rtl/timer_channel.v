@@ -41,16 +41,28 @@ module timer_channel (
     // IRQ is a 1-cycle pulse on timeout (not the sticky flag)
     assign irq = timeout && irq_en;
 
+    // [FIX-TIMER-LOAD] Detect rising edge of `en` to (re)load count from load_val.
+    // Without this, count stays at its reset value (0) and the down-count timeout
+    // (count==0) fires immediately on enable, never producing a useful delay.
+    reg en_r;
+    wire en_rise = en && !en_r;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             count        <= 32'h0;
             timeout_flag <= 1'b0;
+            en_r         <= 1'b0;
         end else begin
+            en_r <= en;
+
             // Clear sticky flag on W1C write
             if (timeout_clr)
                 timeout_flag <= 1'b0;
 
-            if (!en) begin
+            if (en_rise) begin
+                // Load initial count from load_val on enable
+                count <= load_val;
+            end else if (!en) begin
                 // Disabled: hold count (do not reset — allows inspection)
             end else if (timeout) begin
                 // Timeout this cycle

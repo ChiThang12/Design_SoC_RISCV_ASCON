@@ -68,7 +68,13 @@ module PIPELINE_REG_MEM_WB (
                 is_mul_out     <= 1'b0;
                 alu_result_out <= alu_result_in;
                 pc_plus_4_out  <= pc_plus_4_in;
-            end else if (!stall_ex_mem && !lsu_committed) begin
+            end else if (!stall_ex_mem && !lsu_result_valid) begin
+                // [FIX-MEM-WB-LOST] Use lsu_result_valid (current) instead of
+                // lsu_committed (registered = previous cycle). lsu_committed=1
+                // wrongly blocked pass-through one cycle AFTER an LSU commit,
+                // dropping a valid MEM-stage ALU result. The `if(lsu_result_valid)`
+                // block above gives LSU priority — these branches are mutually
+                // exclusive on lsu_result_valid.
                 // Normal pass-through from MEM stage
                 alu_result_out <= alu_result_in;
                 pc_plus_4_out  <= pc_plus_4_in;
