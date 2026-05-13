@@ -1,21 +1,21 @@
 `timescale 1ns/1ps
 
 module forwarding_unit (
-    // Source registers in EX stage
-    input [4:0] rs1_ex,
-    input [4:0] rs2_ex,
+    // --- Source registers in EX stage ---
+    input  wire [4:0] rs1_ex,
+    input  wire [4:0] rs2_ex,
     
-    // Destination registers in MEM and WB stages
-    input [4:0] rd_mem,
-    input [4:0] rd_wb,
+    // --- Destination registers in MEM and WB stages ---
+    input  wire [4:0] rd_mem,
+    input  wire [4:0] rd_wb,
     
-    // Write enable signals
-    input regwrite_mem,
-    input regwrite_wb,
+    // --- Write enable signals ---
+    input  wire       regwrite_mem,
+    input  wire       regwrite_wb,
     
-    // Forwarding control outputs
-    output reg [1:0] forward_a,  // For rs1
-    output reg [1:0] forward_b   // For rs2
+    // --- Forwarding control outputs ---
+    output reg  [1:0] forward_a,  // For rs1
+    output reg  [1:0] forward_b   // For rs2
 );
 
     // Forwarding encoding:

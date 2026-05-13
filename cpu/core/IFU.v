@@ -1,31 +1,24 @@
 `timescale 1ns/1ps
 
-// ============================================================================
-// IFU.v — Instruction Fetch Unit
-// ============================================================================
-// Manages program counter and instruction fetching.
-//
-// Key design decisions:
-//   - Instruction_Code is COMBINATIONAL from imem_rdata when ready & !stall
-//   - PC_out exports PC register directly (combinational)
-//   - instr_hold latches last valid instruction for ICache miss recovery
-//   - PC updates only when: !stall AND imem_ready
-// ============================================================================
-
 module IFU (
-    input wire        clock,
-    input wire        reset,
-    input wire        pc_src,           // 0: PC+4, 1: target_pc (branch/jump)
-    input wire        stall,            // 1: hold PC (pipeline stall)
-    input wire [31:0] target_pc,        // Branch/jump target address
+    // --- Clock & Reset ---
+    input  wire        clock,
+    input  wire        reset,
+    
+    // --- Control inputs ---
+    input  wire        pc_src,           // 0: PC+4, 1: target_pc (branch/jump)
+    input  wire        stall,            // 1: hold PC (pipeline stall)
+    
+    // --- Data inputs ---
+    input  wire [31:0] target_pc,        // Branch/jump target address
 
-    // Instruction Memory Interface
+    // --- Instruction Memory Interface ---
     output wire [31:0] imem_addr,       // Address to instruction memory
     output wire        imem_valid,      // Request valid (always 1)
     input  wire [31:0] imem_rdata,      // Instruction data from memory
     input  wire        imem_ready,      // Memory ready signal
 
-    // Outputs to pipeline
+    // --- Outputs to pipeline ---
     output wire [31:0] PC_out,          // Current PC
     output wire [31:0] Instruction_Code // Fetched instruction (combinational)
 );
@@ -52,6 +45,8 @@ module IFU (
             PC <= 32'h00000000;
         else if (!stall && imem_ready)
             PC <= next_pc;
+        else
+            PC <= PC; 
     end
 
     // ========================================================================
@@ -64,6 +59,8 @@ module IFU (
             instr_hold <= 32'h00000013; // NOP
         else if (imem_ready && !stall)
             instr_hold <= imem_rdata;
+        else 
+            instr_hold <= instr_hold;
     end
 
     // Combinational output: direct from memory when ready, else held value

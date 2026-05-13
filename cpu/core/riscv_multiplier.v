@@ -19,25 +19,28 @@
 // ============================================================================
 
 module riscv_multiplier (
-    input           clk_i,
-    input           rst_i,
+    // --- Clock & Reset ---
+    input  wire         clk_i,
+    input  wire         rst_i,
 
+    // --- Control inputs ---
     // Dispatch: high for exactly 1 cycle when MUL instruction enters EX
-    input           mul_valid_i,
-
+    input  wire         mul_valid_i,
     // Operation select: 00=MUL, 01=MULH, 10=MULHSU, 11=MULHU
-    input  [1:0]    mul_op_i,
+    input  wire [1:0]   mul_op_i,
 
-    input  [31:0]   operand_a_i,
-    input  [31:0]   operand_b_i,
+    // --- Data inputs ---
+    input  wire [31:0]  operand_a_i,
+    input  wire [31:0]  operand_b_i,
 
+    // --- Stall inputs ---
     // Freeze all stages (= stall_any && !mul_ex_stall)
-    input           hold_i,
-
+    input  wire         hold_i,
     // Freeze E1.5 stage only (same signal as hold_i from CPU top)
-    input           mul_hold_e15_i,
+    input  wire         mul_hold_e15_i,
 
-    output [31:0]   writeback_value_o
+    // --- Data output ---
+    output wire [31:0]  writeback_value_o
 );
 
     // ========================================================================
@@ -134,14 +137,17 @@ wire sign_b = operand_b_e1_q[32];
     // Sign-extend each 34-bit product to exactly 64 bits before summing.
     // pp_hh<<34 only contributes to bits [63:34], so only pp_hh[29:0] are kept.
     // ========================================================================
+    // [FIX-MUL-TIMING] Use combinational partial products (pp_*_w from E1 regs) directly
+    // so E2 latches the correct result at posedge N+1 (one cycle after E1).
+    // E1.5 latch stage is bypassed: result available at cycle N+2, matching ADD-in-EX timing.
     wire [63:0] mult_result_w =
-          {{30{pp_ll_e15_q[33]}}, pp_ll_e15_q}        // [LINT-FIX] 30+34 = 64b
-        + {{13{pp_lh_e15_q[33]}}, pp_lh_e15_q, 17'b0} // [LINT-FIX] 13+34+17 = 64b
-        + {{13{pp_hl_e15_q[33]}}, pp_hl_e15_q, 17'b0} // [LINT-FIX] 13+34+17 = 64b
-        + {pp_hh_e15_q, 34'b0};                       // 30+34 = 64b
+          {{30{pp_ll_w[33]}}, pp_ll_w}        // [LINT-FIX] 30+34 = 64b
+        + {{13{pp_lh_w[33]}}, pp_lh_w, 17'b0} // [LINT-FIX] 13+34+17 = 64b
+        + {{13{pp_hl_w[33]}}, pp_hl_w, 17'b0} // [LINT-FIX] 13+34+17 = 64b
+        + {pp_hh_w, 34'b0};                   // 30+34 = 64b
 
-    wire [31:0] result_r = mulhi_sel_e15_q ? mult_result_w[63:32]
-                                            : mult_result_w[31:0];
+    wire [31:0] result_r = mulhi_sel_e1_q ? mult_result_w[63:32]
+                                           : mult_result_w[31:0];
 
     // ========================================================================
     // E2: Output register

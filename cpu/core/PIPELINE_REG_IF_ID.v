@@ -1,14 +1,20 @@
 `timescale 1ns/1ps
-
 module PIPELINE_REG_IF_ID (
-    input clock,
-    input reset,
-    input flush,
-    input stall,
-    input [31:0] instr_in,
-    input [31:0] pc_in,
-    output reg [31:0] instr_out,
-    output reg [31:0] pc_out
+    // --- Clock & Reset ---
+    input  wire        clock,
+    input  wire        reset,
+    
+    // --- Control signals ---
+    input  wire        flush,
+    input  wire        stall,
+    
+    // --- Data inputs ---
+    input  wire [31:0] instr_in,
+    input  wire [31:0] pc_in,
+    
+    // --- Data outputs ---
+    output reg  [31:0] instr_out,
+    output reg  [31:0] pc_out
 );
 
     // NOP instruction (ADDI x0, x0, 0)
@@ -19,13 +25,11 @@ module PIPELINE_REG_IF_ID (
             // Reset: khởi tạo với NOP
             instr_out <= NOP;
             pc_out <= 32'h00000000;
-        end
-        else if (flush) begin
+        end else if (flush) begin
             // Flush: chèn NOP vào pipeline (xóa instruction hiện tại)
             instr_out <= NOP;
             pc_out <= 32'h00000000;
-        end
-        else if (!stall) begin
+        end else if (!stall) begin
             // Normal operation: cập nhật khi không bị stall
             instr_out <= instr_in;
             pc_out <= pc_in;

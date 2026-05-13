@@ -1,30 +1,31 @@
 `timescale 1ns/1ps
 
 module PIPELINE_REG_EX_WB (
-    input clock,
-    input reset,
+    // --- Clock & Reset ---
+    input  wire        clock,
+    input  wire        reset,
     
-    // Control signals input
-    input regwrite_in,
-    input memtoreg_in,
+    // --- Control signals input ---
+    input  wire        regwrite_in,
+    input  wire        memtoreg_in,
     
-    // Data inputs
-    input [31:0] alu_result_in,
-    input [31:0] mem_data_in,
+    // --- Data inputs ---
+    input  wire [31:0] alu_result_in,
+    input  wire [31:0] mem_data_in,
     
-    // Register address
-    input [4:0] rd_in,
+    // --- Register address input ---
+    input  wire [4:0]  rd_in,
     
-    // Control signals output
-    output reg regwrite_out,
-    output reg memtoreg_out,
+    // --- Control signals output ---
+    output reg         regwrite_out,
+    output reg         memtoreg_out,
     
-    // Data outputs
-    output reg [31:0] alu_result_out,
-    output reg [31:0] mem_data_out,
+    // --- Data outputs ---
+    output reg  [31:0] alu_result_out,
+    output reg  [31:0] mem_data_out,
     
-    // Register address output
-    output reg [4:0] rd_out
+    // --- Register address output ---
+    output reg  [4:0]  rd_out
 );
 
     always @(posedge clock or posedge reset) begin

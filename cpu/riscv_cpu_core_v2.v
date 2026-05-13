@@ -37,28 +37,7 @@ module riscv_cpu_core (
     input  wire timer_irq,
     input  wire sw_irq,
 
-    // =========================================================================
-    // JTAG Debug Interface  (kết nối với jtag_debug_top → riscv_dm)
-    //
-    // WHY cần 4 tín hiệu này:
-    //   haltreq   : JTAG DM yêu cầu CPU dừng để debugger đọc/ghi registers.
-    //               CPU phải drain pipeline và LSU store buffer trước khi báo halted.
-    //   resumereq : DM yêu cầu CPU tiếp tục chạy bình thường.
-    //   halted    : CPU báo cho DM biết đã vào D-mode (pipeline đóng băng hoàn toàn).
-    //               DM chỉ được phép truy cập register file khi halted=1.
-    //   running   : CPU báo đang chạy bình thường (halted=0 chưa đủ vì còn HALTING).
-    //
-    // WHY KHÔNG dùng rst để halt:
-    //   rst xóa toàn bộ trạng thái CPU (PC, registers) → không thể resume.
-    //   Debug mode chỉ đóng băng, không xóa — debugger có thể đọc PC, regs,
-    //   rồi set breakpoint và resume từ đúng chỗ đã dừng.
-    //
-    // Kết nối trong soc_top.v:
-    //   .debug_haltreq   (jtag_haltreq),    // từ u_jtag.haltreq
-    //   .debug_resumereq (jtag_resumereq),   // từ u_jtag.resumereq
-    //   .debug_halted    (jtag_halted),      // → u_jtag.halted
-    //   .debug_running   (jtag_running)      // → u_jtag.running
-    // =========================================================================
+
     input  wire debug_haltreq,    // DM → CPU: yêu cầu vào D-mode
     input  wire debug_resumereq,  // DM → CPU: yêu cầu thoát D-mode
     output wire debug_halted,     // CPU → DM: đang trong D-mode, pipeline frozen
@@ -76,11 +55,7 @@ module riscv_cpu_core (
         OP_BRANCH = 7'b1100011,
         OP_JALR   = 7'b1100111;
 
-    // =========================================================================
-    // IRQ aggregation — 2-FF CDC synchronizer chain
-    // Prevents metastability when IRQ lines come from a different clock domain.
-    // Adds 2-cycle latency to IRQ recognition (acceptable for interrupt handling).
-    // =========================================================================
+
     reg ext_irq_s1, ext_irq_s2;
     reg tmr_irq_s1, tmr_irq_s2;
     reg sw_irq_s1,  sw_irq_s2;
@@ -338,8 +313,8 @@ module riscv_cpu_core (
     end
 
     assign cpu_wfi_o        = cpu_wfi_r;
-assign perf_stall_o     = stall_any;
-assign perf_instr_ret_o = regwrite_wb && !stall_any;
+    assign perf_stall_o     = stall_any;
+    assign perf_instr_ret_o = regwrite_wb && !stall_any;
 
     // 2-bit BHT predictor: 256 entries, indexed by PC[9:2].
     wire predict_taken_ex;
@@ -628,7 +603,10 @@ assign perf_instr_ret_o = regwrite_wb && !stall_any;
     wire [1:0]  mul_op_ex  = (alu_control_ex == ALU_MULH_CODE) ? 2'b01 : 2'b00;
     // mul_valid_ex uses mul_hold (not stall_any) so E1 fires on cycle N even
     // though mul_ex_stall=1 makes stall_any=1 on that cycle.
-    wire        mul_valid_ex = is_mul_ex & !mul_hold & !flush_id_ex_final;
+    // [FIX-MUL-VALID] Allow E1 to fire during mul_ex_stall_wire cycle even if
+    // flush_id_ex_final=1: mul_result_stall inserts NOP for the NEXT instruction
+    // but must not prevent MUL itself from dispatching to the multiplier E1 stage.
+    wire        mul_valid_ex = is_mul_ex & !mul_hold & !(flush_id_ex_final & !mul_ex_stall_wire);
 
     riscv_multiplier multiplier_unit (
         .clk_i            (clk),

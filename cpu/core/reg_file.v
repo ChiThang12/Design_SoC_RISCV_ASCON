@@ -1,34 +1,20 @@
 `timescale 1ns/1ps
 
-// ============================================================================
-// reg_file.v — RISC-V Register File (32 x 32-bit)
-// ============================================================================
-// Design for high-frequency synthesis:
-//   - WRITE at NEGEDGE clock → data available at next POSEDGE read
-//   - No internal forwarding MUX needed (was 3-level MUX chain on read path)
-//   - x0 is hardwired to zero
-//
-// Timing improvement:
-//   Before: read_data = MUX(x0_check, MUX(fwd_check, registers[addr]))
-//           → 3-level MUX on 32-bit data, ~2-3ns added to ID stage path
-//   After:  read_data = MUX(x0_check, registers[addr])
-//           → 1-level MUX, write data settled at negedge (half cycle earlier)
-// ============================================================================
-
 module reg_file (
-    input wire        clock,
-    input wire        reset,
+    // --- Clock & Reset ---
+    input  wire        clock,
+    input  wire        reset,
 
-    // Read ports (asynchronous, combinational)
-    input wire [4:0]  read_reg_num1,      // rs1
-    input wire [4:0]  read_reg_num2,      // rs2
-    output wire [31:0] read_data1,        // data from rs1
-    output wire [31:0] read_data2,        // data from rs2
+    // --- Read ports (asynchronous, combinational) ---
+    input  wire [4:0]  read_reg_num1,      // rs1
+    input  wire [4:0]  read_reg_num2,      // rs2
+    output wire [31:0] read_data1,         // data from rs1
+    output wire [31:0] read_data2,         // data from rs2
 
-    // Write port (synchronous — negedge clock)
-    input wire        regwrite,           // write enable
-    input wire [4:0]  write_reg,          // rd
-    input wire [31:0] write_data          // data to write to rd
+    // --- Write port (synchronous — negedge clock) ---
+    input  wire        regwrite,           // write enable
+    input  wire [4:0]  write_reg,          // rd
+    input  wire [31:0] write_data          // data to write to rd
 );
 
     // 32 registers, each 32-bit

@@ -30,10 +30,10 @@
 //   TC15  Đọc đúng địa chỉ offset (word 0, word 1, word 15) riêng lẻ
 // ============================================================================
 
-`timescale 1ns/1ps
 `define SIMULATION
 `define TESTBENCH_MODE
 `include "memory/inst_mem_axi_slave.v"
+`timescale 1ns/1ps
 module tb_inst_mem_axi_slave;
 
     // -------------------------------------------------------------------------
@@ -90,6 +90,11 @@ module tb_inst_mem_axi_slave;
     wire                    S_AXI_RVALID;
     reg                     S_AXI_RREADY;
 
+    // Boot sideband port — tied off (boot_ctrl path not exercised in unit TB)
+    reg                     boot_we;
+    reg  [ADDR_WIDTH-1:0]   boot_addr;
+    reg  [DATA_WIDTH-1:0]   boot_wdata;
+
     // -------------------------------------------------------------------------
     // DUT Instantiation
     // -------------------------------------------------------------------------
@@ -102,6 +107,9 @@ module tb_inst_mem_axi_slave;
     ) dut (
         .clk            (clk),
         .rst_n          (rst_n),
+        .boot_we        (boot_we),
+        .boot_addr      (boot_addr),
+        .boot_wdata     (boot_wdata),
         .S_AXI_AWID     (S_AXI_AWID),
         .S_AXI_AWADDR   (S_AXI_AWADDR),
         .S_AXI_AWLEN    (S_AXI_AWLEN),
@@ -166,6 +174,7 @@ module tb_inst_mem_axi_slave;
     task do_reset;
     begin
         rst_n          <= 0;
+        boot_we        <= 0; boot_addr <= 0; boot_wdata <= 0;
         S_AXI_AWID     <= 0; S_AXI_AWADDR  <= 0; S_AXI_AWLEN  <= 0;
         S_AXI_AWSIZE   <= 3'b010; S_AXI_AWBURST <= 2'b01;
         S_AXI_AWPROT   <= 0; S_AXI_AWVALID <= 0;

@@ -1,19 +1,25 @@
 `timescale 1ns/1ps
 
 module control (
-    input wire [6:0] opcode,
-    input wire [2:0] funct3,
-    input wire [6:0] funct7,
+    // --- Instruction fields ---
+    input  wire [6:0] opcode,
+    input  wire [2:0] funct3,
+    input  wire [6:0] funct7,
 
-    output reg [3:0] alu_control,
-    output reg regwrite,
-    output reg alusrc,
-    output reg memread,
-    output reg memwrite,
-    output reg branch,
-    output reg jump,
-    output reg [1:0] byte_size,
-    output reg fence
+    // --- ALU & Execution control ---
+    output reg  [3:0] alu_control,
+    output reg        alusrc,
+    output reg        branch,
+    output reg        jump,
+
+    // --- Memory & Writeback control ---
+    output reg        memread,
+    output reg        memwrite,
+    output reg  [1:0] byte_size,
+    output reg        regwrite,
+    
+    // --- System control ---
+    output reg        fence
 );
 
     localparam [6:0]

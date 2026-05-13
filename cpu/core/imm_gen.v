@@ -1,8 +1,11 @@
 `timescale 1ns/1ps
 
 module imm_gen (
-    input wire [31:0] instr,        // Instruction 32-bit
-    output reg [31:0] imm           // Immediate value (sign-extended)
+    // --- Instruction input ---
+    input  wire [31:0] instr,        // Instruction 32-bit
+    
+    // --- Immediate output ---
+    output reg  [31:0] imm           // Immediate value (sign-extended)
 );
 
     // ========================================================================

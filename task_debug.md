@@ -1,4 +1,7 @@
 # Task Debug — Lịch sử Fix & Kết quả
+> **SUPERSEDED**: File này đã được thay thế bởi `test_task.md` (20 test IDs, bug tracker đầy đủ).
+> Giữ lại để tham khảo lịch sử fix cũ.
+
 
 ## Cách dùng
 - Mỗi khi fix bug và verify pass → agent ghi vào đây

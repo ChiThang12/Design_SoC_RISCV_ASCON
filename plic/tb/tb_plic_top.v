@@ -632,12 +632,14 @@ initial begin
     $display("\n[TEST] PLIC_04: Complete flow");
     // meip đã=0 (được đảm bảo bởi wait_meip_clear ở PLIC_03)
     check_bit(meip, 1'b0, "PLIC_04: meip=0 sau claim (pending cleared)");
+    // De-assert irq TRƯỚC complete: gateway level-triggered sẽ re-set pending
+    // nếu irq_src vẫn HIGH khi in_service về 0 sau complete
+    release_irq(5'd1);
     // Ghi complete: giải phóng in_service
     write_reg(OFF_CLAIM, 32'h1, 4'hF);
     repeat(3) @(posedge clk);
     // Không có IRQ mới → meip vẫn 0
     check_bit(meip, 1'b0, "PLIC_04: meip=0 sau complete (khong co IRQ moi)");
-    release_irq(5'd1);
 
     // *** PLIC_05: 2 source cùng pending, priority khác → claim trả source cao hơn ***
     // WHY: encoder phải chọn đúng source có priority lớn nhất
@@ -660,10 +662,13 @@ initial begin
     // Cycle+2: gateway pending_r[2] <= 0
     // Cycle+3: pending_r stable
     repeat(5) @(posedge clk);
+    // De-assert src2 TRƯỚC complete: gateway level-triggered sẽ re-set pending[2]
+    // nếu irq_src[2] vẫn HIGH → encoder sẽ chọn src2 lần nữa (prio=6>prio=3)
+    release_irq(5'd2);
     // Complete source 2 — in_service[2] clear
     write_reg(OFF_CLAIM, 32'h2, 4'hF);
     // Chờ complete_pulse propagate → gateway in_service[2] clear
-    // Đồng thời encoder thấy src1 vẫn pending → meip vẫn assert
+    // irq_src[2]=0 → pending[2] không re-assert, encoder chỉ thấy src1
     repeat(5) @(posedge clk);
     // Source 1 vẫn pending → meip vẫn assert
     check_bit(meip, 1'b1, "PLIC_05: meip=1 sau complete src2 (src1 van pending)");
@@ -672,12 +677,12 @@ initial begin
     check_eq(rd_data, 32'h1, "PLIC_05: claim lan 2 tra source 1");
     // Chờ chain claim_pulse cho src1
     repeat(5) @(posedge clk);
+    // De-assert src1 TRƯỚC complete
+    release_irq(5'd1);
     // Complete source 1
     write_reg(OFF_CLAIM, 32'h1, 4'hF);
     repeat(6) @(posedge clk);
     check_bit(meip, 1'b0, "PLIC_05: meip=0 sau complete src1 (het pending)");
-    release_irq(5'd1);
-    release_irq(5'd2);
 
     // *** PLIC_06: threshold mask ***
     // WHY: nếu threshold >= priority của source, meip không được assert
@@ -741,13 +746,13 @@ initial begin
     // do_claim_complete gọi wait_meip_clear — chỉ dùng khi chắc chắn
     // chỉ còn 1 source. Ở đây có 2 source nên claim thủ công.
     // Claim src1 (priority cao hơn → encoder trả về 1)
-    read_reg(OFF_CLAIM, rd_data);   // claim src1
+    read_reg(OFF_CLAIM, rd_data);   // claim src1 (prio=4 > src3 prio=2)
     repeat(3) @(posedge clk);       // chờ pending[1] clear
+    release_irq(5'd1);              // de-assert TRƯỚC complete, tránh pending[1] re-assert
     write_reg(OFF_CLAIM, rd_data, 4'hF);  // complete src1
     repeat(3) @(posedge clk);
     // Bây giờ chỉ còn src3 → meip vẫn = 1, dùng do_claim_complete được
     do_claim_complete(claimed);   // claim + complete src3 → meip = 0
-    release_irq(5'd1);
     release_irq(5'd3);
 
     // *** PLIC_10: Tie-break — 2 source cùng priority → source ID nhỏ thắng ***
@@ -766,10 +771,10 @@ initial begin
     check_bit(meip, 1'b1, "PLIC_10: meip=1 khi 2 source pending");
     read_reg(OFF_CLAIM, rd_data);
     check_eq(rd_data, 32'h2, "PLIC_10: tie-break -> source 2 (ID nho hon) thang");
+    release_irq(5'd2);            // de-assert TRƯỚC complete, tránh pending[2] re-assert
     write_reg(OFF_CLAIM, 32'h2, 4'hF);
     repeat(4) @(posedge clk);
-    do_claim_complete(claimed);   // claim source 3
-    release_irq(5'd2);
+    do_claim_complete(claimed);   // claim + complete source 3
     release_irq(5'd3);
 
     // *** PLIC_11: Gateway in_service — IRQ mới trong khi claim chưa complete ***
@@ -798,14 +803,16 @@ initial begin
     read_reg(OFF_PENDING, rd_data);
     check_eq(rd_data & 32'h2, 32'h0, "PLIC_11: pending=0 trong khi in_service");
     check_bit(meip, 1'b0, "PLIC_11: meip=0 trong khi in_service");
-    // Ghi complete → in_service clear
+    // Gateway là LEVEL-TRIGGERED: nếu irq_src[1] vẫn HIGH khi complete,
+    // pending sẽ re-assert ngay sau in_service về 0.
+    // De-assert trước complete để đảm bảo "không có IRQ mới" sau complete.
+    irq_src[1] = 1'b0;
+    @(posedge clk); #1;
+    // Ghi complete → in_service clear; irq_src[1]=0 → pending không re-assert
     write_reg(OFF_CLAIM, 32'h1, 4'hF);
-    // irq_src[1] vẫn HIGH nhưng không có edge MỚI sau complete
-    // (irq_prev đã=1 từ trước) → irq_edge=0 → pending không set
     repeat(4) @(posedge clk);
     read_reg(OFF_PENDING, rd_data);
     check_eq(rd_data & 32'h2, 32'h0, "PLIC_11: pending=0 sau complete (khong co edge moi)");
-    irq_src[1] = 1'b0;
 
     // *** PLIC_12: Gateway sau complete — nhận IRQ mới ***
     // WHY: sau complete, in_service=0. Peripheral gửi IRQ mới (edge)

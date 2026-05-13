@@ -1,5 +1,6 @@
-`timescale 1ns/1ps
 
+
+`timescale 1ns/1ps
 module inst_mem #(
     parameter MEM_SIZE      = 8192,
     parameter ADDR_WIDTH    = 32,

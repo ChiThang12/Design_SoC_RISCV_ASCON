@@ -1,41 +1,49 @@
 `timescale 1ns/1ps
 
 module hazard_detection (
-    input wire        clk,
-    input wire        rst,
+    // --- Clock & Reset ---
+    input  wire        clk,
+    input  wire        rst,
 
-    input wire        memread_id_ex,
-    input wire [4:0]  rd_id_ex,
-    input wire [4:0]  rs1_id,
-    input wire [4:0]  rs2_id,
-    input wire        rs1_used_id,
-    input wire        rs2_used_id,
+    // --- ID/EX Stage Info ---
+    input  wire        memread_id_ex,
+    input  wire [4:0]  rd_id_ex,
+    input  wire [4:0]  rs1_id,
+    input  wire [4:0]  rs2_id,
+    input  wire        rs1_used_id,
+    input  wire        rs2_used_id,
 
-    input wire        branch_taken,
-    input wire        imem_ready,
-    input wire [31:0] lsu_scoreboard,
-    input wire        mem_stage_pending,
-    input wire        memread_mem_stage,
-    input wire [4:0]  rd_mem_stage,
+    // --- Control & Execution Info ---
+    input  wire        branch_taken,
+    input  wire        imem_ready,
+    input  wire [31:0] lsu_scoreboard,
+    input  wire        mem_stage_pending,
+    input  wire        memread_mem_stage,
+    input  wire [4:0]  rd_mem_stage,
 
-    input wire        fence_id,
-    input wire        lsu_idle,
+    // --- Fence & LSU Status ---
+    input  wire        fence_id,
+    input  wire        lsu_idle,
 
+    // --- Multiplier Status ---
     // MUL in EX: result ready 2 cycles later (same as load-use pattern)
-    input wire        mul_in_ex,
+    input  wire        mul_in_ex,
 
-    // Static backward branch prediction signals (Fix 9)
-    input wire        predict_taken_ex,
-    input wire        predict_taken_id,
-    input wire        mispredict_ex,
+    // --- Branch Prediction (Fix 9) ---
+    input  wire        predict_taken_ex,
+    input  wire        predict_taken_id,
+    input  wire        mispredict_ex,
 
-    output wire       stall,
-    output wire       stall_if,
-    output wire       flush_if_id,
-    output wire       flush_id_ex,
-    output wire       fence_stall,
-    output wire       lsu_dep_stall,
-    output wire       mul_ex_stall
+    // --- Stall Outputs ---
+    output wire        stall,
+    output wire        stall_if,
+    output wire        fence_stall,
+    output wire        lsu_dep_stall,
+    output wire        mul_ex_stall,
+
+    // --- Flush Outputs ---
+    output wire        flush_if_id,
+    output wire        flush_id_ex
 );
 
     wire load_use_hazard;

@@ -1,9 +1,11 @@
 `timescale 1ns/1ps
 
 module LSU (
-    input wire clk,
-    input wire rst,
+    // --- Clock & Reset ---
+    input  wire        clk,
+    input  wire        rst,
 
+    // --- Core Request Interface ---
     input  wire        req_valid,
     output wire        req_ready,
     input  wire [31:0] req_addr,
@@ -13,16 +15,20 @@ module LSU (
     input  wire [4:0]  req_rd,
     input  wire [2:0]  req_funct3,
 
+    // --- Fence Control ---
     input  wire        fence,
 
+    // --- Core Result Interface ---
     output reg         result_valid,
     output reg  [31:0] result_data,
     output reg  [4:0]  result_rd,
     input  wire        result_ack,
 
+    // --- LSU Status ---
     output wire [31:0] scoreboard,
     output wire        lsu_idle,
 
+    // --- Data Cache Interface ---
     output reg         dcache_req,
     output reg         dcache_we,
     output reg  [31:0] dcache_addr,

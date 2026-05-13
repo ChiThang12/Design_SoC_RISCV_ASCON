@@ -1,5 +1,3 @@
-`timescale 1ns/1ps
-
 // ============================================================================
 // inst_mem_axi_slave.v - AXI4 Full Slave (v5 - fixes)
 // ============================================================================
@@ -20,6 +18,8 @@
 // ============================================================================
 
 `include "memory/inst_mem.v"
+// `timescale phải đặt SAU `include vì `include override timescale directive trước nó
+`timescale 1ns/1ps
 
 module inst_mem_axi_slave #(
     parameter ADDR_WIDTH    = 32,

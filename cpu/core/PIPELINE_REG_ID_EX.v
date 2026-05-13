@@ -1,17 +1,5 @@
 `timescale 1ns/1ps
 
-// ============================================================================
-// PIPELINE_REG_ID_EX.v — ID/EX Pipeline Register (Refactored)
-// ============================================================================
-// Supports:
-//   - flush: insert NOP bubble (clear all control + data)
-//   - stall: hold current values
-//   - fwd_capture: when stalled, capture forwarded operand values to prevent
-//     stale data after forwarding window closes (FIX-FWD-STALL)
-//
-// Port naming: _in suffix = from ID stage, _out suffix = to EX stage
-// ============================================================================
-
 module PIPELINE_REG_ID_EX (
     input wire        clock,
     input wire        reset,

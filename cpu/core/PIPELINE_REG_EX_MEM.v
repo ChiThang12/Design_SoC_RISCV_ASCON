@@ -14,51 +14,52 @@
 // ============================================================================
 
 module PIPELINE_REG_EX_MEM (
-    input wire        clock,
-    input wire        reset,
+    // --- Clock & Reset ---
+    input  wire        clock,
+    input  wire        reset,
 
-    // Stall controls
-    input wire        stall_ex_mem,     // freeze entire register (LSU dependency)
-    input wire        stall_any,        // upstream stall (imem miss, load-use, debug)
-    input wire        fence_stall,      // kept for interface compatibility
+    // --- Stall controls ---
+    input  wire        stall_ex_mem,     // freeze entire register (LSU dependency)
+    input  wire        stall_any,        // upstream stall (imem miss, load-use, debug)
+    input  wire        fence_stall,      // kept for interface compatibility
 
-    // --- Control signals ---
-    input wire        regwrite_in,
-    input wire        memread_in,
-    input wire        memwrite_in,
-    input wire        jump_in,
+    // --- Control signals input ---
+    input  wire        regwrite_in,
+    input  wire        memread_in,
+    input  wire        memwrite_in,
+    input  wire        jump_in,
 
-    // --- Data ---
-    input wire [31:0] alu_result_in,
-    input wire [31:0] write_data_in,    // rs2 forwarded value for store
-    input wire [31:0] pc_plus_4_in,
+    // --- Data inputs ---
+    input  wire [31:0] alu_result_in,
+    input  wire [31:0] write_data_in,    // rs2 forwarded value for store
+    input  wire [31:0] pc_plus_4_in,
 
-    // --- Register address ---
-    input wire [4:0]  rd_in,
-    input wire [1:0]  byte_size_in,
-    input wire [2:0]  funct3_in,
+    // --- Register address input ---
+    input  wire [4:0]  rd_in,
+    input  wire [1:0]  byte_size_in,
+    input  wire [2:0]  funct3_in,
 
-    // --- MUL flag ---
-    input wire        is_mul_in,
+    // --- MUL flag input ---
+    input  wire        is_mul_in,
 
     // --- Control outputs ---
-    output reg        regwrite_out,
-    output reg        memread_out,
-    output reg        memwrite_out,
-    output reg        jump_out,
+    output reg         regwrite_out,
+    output reg         memread_out,
+    output reg         memwrite_out,
+    output reg         jump_out,
 
     // --- Data outputs ---
-    output reg [31:0] alu_result_out,
-    output reg [31:0] write_data_out,
-    output reg [31:0] pc_plus_4_out,
+    output reg  [31:0] alu_result_out,
+    output reg  [31:0] write_data_out,
+    output reg  [31:0] pc_plus_4_out,
 
     // --- Register address output ---
-    output reg [4:0]  rd_out,
-    output reg [1:0]  byte_size_out,
-    output reg [2:0]  funct3_out,
+    output reg  [4:0]  rd_out,
+    output reg  [1:0]  byte_size_out,
+    output reg  [2:0]  funct3_out,
 
     // --- MUL flag output ---
-    output reg        is_mul_out
+    output reg         is_mul_out
 );
 
     reg [78:0] stalled_sig_r;

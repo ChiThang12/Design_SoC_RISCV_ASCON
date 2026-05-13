@@ -16,12 +16,17 @@
 // ============================================================================
 
 module branch_logic (
-    input wire        branch,        // Branch instruction (from control)
-    input wire [2:0]  funct3,        // Function field (branch type)
-    input wire        zero_flag,     // Zero flag from ALU
-    input wire        less_than,     // Signed less than from ALU
-    input wire        less_than_u,   // Unsigned less than from ALU
-    output reg        taken          // Branch taken signal
+    // --- Control inputs ---
+    input  wire        branch,        // Branch instruction (from control)
+    input  wire [2:0]  funct3,        // Function field (branch type)
+    
+    // --- Comparison flags ---
+    input  wire        zero_flag,     // Zero flag from ALU
+    input  wire        less_than,     // Signed less than from ALU
+    input  wire        less_than_u,   // Unsigned less than from ALU
+    
+    // --- Control output ---
+    output reg         taken          // Branch taken signal
 );
 
     always @(*) begin

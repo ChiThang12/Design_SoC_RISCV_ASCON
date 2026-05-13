@@ -1,4 +1,7 @@
 # SoC Debug Plan — Layer-by-Layer
+> **SUPERSEDED**: File này đã được thay thế bởi `test_plan.md` (coverage đầy đủ hơn).
+> Giữ lại để tham khảo lịch sử. Dùng `test_plan.md` + `test_task.md` cho công việc hiện tại.
+
 
 ## Mục đích
 File này dùng cho AI agent đọc để biết:

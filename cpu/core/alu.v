@@ -12,11 +12,17 @@
 // ============================================================================
 
 module alu (
+    // --- Data inputs ---
     input  wire [31:0] in1,
     input  wire [31:0] in2,
+    
+    // --- Control input ---
     input  wire [3:0]  alu_control,
 
+    // --- Data output ---
     output reg  [31:0] alu_result,
+    
+    // --- Comparison flags ---
     output wire        zero_flag,
     output wire        less_than,
     output wire        less_than_u
