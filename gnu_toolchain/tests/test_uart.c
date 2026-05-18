@@ -1,5 +1,5 @@
 /* test_uart.c — UART Driver Test
- * Standalone: ./compile_c_to_hex.sh -i tests/test_uart.c -o tests/test_uart.hex -O 0 -c
+ * Standalone: ./compile_c_to_hex.sh -i tests/test_uart.c -o tests/test_uart.hex -O 0
  * Protocol  : [PASS] uart / [FAIL] uart err=<code>
  */
 #include <stdint.h>

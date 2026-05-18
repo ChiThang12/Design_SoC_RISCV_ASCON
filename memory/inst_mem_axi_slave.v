@@ -217,20 +217,12 @@ module inst_mem_axi_slave #(
                 end
                 WR_DATA: begin
                     if (S_AXI_WVALID) begin
-                        // Capture data and latch write address BEFORE advancing it
-                        axi_wr_data_r      <= S_AXI_WDATA;
-                        axi_wr_strb_r      <= S_AXI_WSTRB;
-                        axi_wr_data_addr_r <= axi_wr_addr_r;  // [FIX-WR-ADDR] pre-increment capture
-                        axi_wr_pulse_r     <= 1'b1;
-
+                        // Drain W-channel data without writing (AXI write to ROM → SLVERR)
                         if (S_AXI_WLAST) begin
                             S_AXI_BID    <= bid_r;
-                            S_AXI_BRESP  <= RESP_OKAY;
+                            S_AXI_BRESP  <= RESP_SLVERR;
                             S_AXI_BVALID <= 1'b1;
                             wr_state     <= WR_RESP;
-                        end else begin
-                            // Advance address for burst writes
-                            axi_wr_addr_r <= axi_wr_addr_r + (DATA_WIDTH/8);
                         end
                     end
                 end

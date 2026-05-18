@@ -55,7 +55,11 @@ module riscv_cpu_core (
         OP_BRANCH = 7'b1100011,
         OP_JALR   = 7'b1100111;
 
-
+    // =========================================================================
+    // INTERRUPT SYNCHRONIZATION & PENDING LOGIC
+    // Synchronizes external/timer/software interrupts into the CPU clock domain.
+    // Handles flush counter to clear the pipeline upon interrupt detection.
+    // =========================================================================
     reg ext_irq_s1, ext_irq_s2;
     reg tmr_irq_s1, tmr_irq_s2;
     reg sw_irq_s1,  sw_irq_s2;
@@ -227,6 +231,11 @@ module riscv_cpu_core (
 
     wire [31:0] read_data1_id, read_data2_id, imm_id;
 
+    // =========================================================================
+    // REGISTER SOURCE DEPENDENCY DECODE (ID STAGE)
+    // Decodes which source registers (rs1, rs2) are actually used by the instruction.
+    // Used by hazard detection logic to avoid false data dependencies.
+    // =========================================================================
     // Decode true source usage early so hazard detection does not treat
     // immediate bits as rs2 dependencies on I-type instructions.
     assign rs1_used_id = (opcode_id == OP_R_TYPE) ||
@@ -290,6 +299,11 @@ module riscv_cpu_core (
     wire mul_ex_stall_wire;
     wire flush_if_id, flush_id_ex;
 
+    // =========================================================================
+    // WAIT FOR INTERRUPT (WFI) & PIPELINE STALL CONTROL
+    // Determines when the CPU should enter sleep state (WFI) and wake up.
+    // Aggregates all stall conditions to freeze the entire pipeline (stall_any).
+    // =========================================================================
     // stall_any includes debug_mode and WFI idle state to freeze the pipeline.
     assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r;
 
@@ -316,6 +330,11 @@ module riscv_cpu_core (
     assign perf_stall_o     = stall_any;
     assign perf_instr_ret_o = regwrite_wb && !stall_any;
 
+    // =========================================================================
+    // BRANCH HISTORY TABLE (BHT) PREDICTOR
+    // 2-bit saturating counter branch predictor with 256 entries.
+    // Predicts branch outcome in ID stage; resolves and updates in EX stage.
+    // =========================================================================
     // 2-bit BHT predictor: 256 entries, indexed by PC[9:2].
     wire predict_taken_ex;
     wire predict_taken_id;
@@ -350,13 +369,19 @@ module riscv_cpu_core (
     assign predict_taken_id = branch_id && bht_taken_id && !stall_any;
     assign mispredict_ex    = predict_taken_ex && !branch_taken_ex && branch_ex;
 
+    // =========================================================================
+    // IFU REDIRECT & PIPELINE FLUSH CONTROL
+    // Determines the next PC source based on priority (recovery > branch > wfi > predict).
+    // Generates flush signals to invalidate pipeline stages when control flow changes.
+    // =========================================================================
     // IFU redirect priority: mispredict recovery > actual branch/jump > WFI consume > prediction
     wire [31:0] wfi_resume_pc = pc_id + 32'd4;
+
     wire        ifu_pc_src    = mispredict_ex || pc_src_ex || wfi_enter || predict_taken_id;
-    wire [31:0] ifu_target_pc = mispredict_ex  ? pc_plus_4_ex  :
-                                pc_src_ex      ? target_pc_ex  :
-                                wfi_enter      ? wfi_resume_pc :
-                                                 branch_target_id;
+    wire [31:0] ifu_target_pc = mispredict_ex ? pc_plus_4_ex  :
+                                pc_src_ex     ? target_pc_ex  :
+                                wfi_enter     ? wfi_resume_pc :
+                                                branch_target_id;
 
     // Fix 10C: Multiplier stall — don't freeze multiplier during its own extra cycle
     wire mul_hold = stall_any && !mul_ex_stall_wire;
@@ -512,6 +537,11 @@ module riscv_cpu_core (
         .forward_a   (forward_a),    .forward_b   (forward_b)
     );
 
+    // =========================================================================
+    // ALU OPERAND MULTIPLEXING & FORWARDING LOGIC
+    // Resolves data hazards by bypassing data from MEM or WB stages back to EX.
+    // Uses a flat AND-OR mux design to reduce critical path delay.
+    // =========================================================================
     // Flat AND-OR mux: expand WB source inline to eliminate cascaded mux levels.
     // OLD: alu_in1_forwarded (3-way) → alu_in1 (3-way) = 4 extra gate levels on critical path.
     // NEW: single 8-way OR of AND terms, all selectors mutually exclusive.
@@ -622,6 +652,11 @@ module riscv_cpu_core (
 
     assign pc_plus_4_ex = pc_ex + 32'd4;
 
+    // =========================================================================
+    // BRANCH TARGET & PC SOURCE SELECTION (EX STAGE)
+    // Calculates exact branch and JALR targets.
+    // Determines if the branch is actually taken to control the PC source.
+    // =========================================================================
     wire [31:0] jalr_target;
     assign jalr_target  = (alu_in1 + imm_ex) & 32'hFFFFFFFE;
     // branch_target_ex = pc_id + imm_id, pre-computed in ID stage to remove
@@ -668,6 +703,12 @@ module riscv_cpu_core (
 
     // =========================================================================
     // STAGE 4: MEM — via LSU
+    // =========================================================================
+
+    // =========================================================================
+    // LSU REQUEST GENERATION & BYTE LANE CONTROL
+    // Formats byte strobes and shifts store data according to the memory address.
+    // Handles LSU request firing and deduplication to avoid double issues.
     // =========================================================================
     // [FIX-BYTELANE] Store byte strobe
     reg [3:0] wstrb_comb;
@@ -746,6 +787,12 @@ module riscv_cpu_core (
     // =========================================================================
     // MEM/WB REGISTER (standalone module)
     // =========================================================================
+
+    // =========================================================================
+    // MEM/WB WRITE-BACK CONTROL & LSU COMMIT LOGIC
+    // Tracks when an LSU memory transaction completes and is ready to be written back.
+    // Synchronizes data propagation from the MEM stage down to the WB stage.
+    // =========================================================================
     reg lsu_committed_r;
     wire wb_passthrough_valid = !stall_ex_mem && !lsu_committed_r && !memread_mem && regwrite_mem && (rd_mem != 5'b0); // [FIX-WB-NOP] NOP (rd=x0) must not block LSU commit
     wire lsu_result_commit = lsu_result_valid && !wb_passthrough_valid;
@@ -789,6 +836,12 @@ module riscv_cpu_core (
 
     // =========================================================================
     // STAGE 5: WB
+    // =========================================================================
+
+    // =========================================================================
+    // WRITE-BACK DATA MULTIPLEXING (WB STAGE)
+    // Selects the final data to be written into the destination register (RD).
+    // Mutually exclusive sources: ALU result, Load Data, PC+4 (Jump), or MUL result.
     // =========================================================================
     // AND-OR MUX: 4 cases mutually exclusive (jump/mul/load/alu can't overlap).
     // is_alu_wb is the complement so selectors are exhaustive (Fix 11).

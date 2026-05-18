@@ -131,7 +131,8 @@ module LSU (
     end
     // [FIX-FWD] Chỉ forward khi toàn bộ 4 byte lanes đều có trong store buffer.
     // Partial match → fwd_hit=0 → load đợi store drain, rồi đọc cache (đúng data).
-    assign fwd_hit  = fwd_hit_r && (fwd_strb_r == 4'b1111);
+    // [FIX-NC] Không forward cho NC (MMIO) address — addr[31:29]!=000 phải luôn đọc từ hardware.
+    assign fwd_hit  = fwd_hit_r && (fwd_strb_r == 4'b1111) && (req_addr[31:29] == 3'b000);
     assign fwd_data = fwd_data_r;
 
     wire do_store = req_valid && req_ready && !req_is_load;

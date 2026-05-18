@@ -48,7 +48,7 @@ module forwarding_unit (
         // ============================================
         // Forwarding for rs2 (operand B)
         // ============================================
-        
+       
         // Priority 1: Forward from MEM stage (most recent)
         if (regwrite_mem && (rd_mem != 5'b00000) && (rd_mem == rs2_ex)) begin
             forward_b = 2'b10;

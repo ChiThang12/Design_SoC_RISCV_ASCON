@@ -28,8 +28,27 @@ module IFU (
     // ========================================================================
     reg [31:0] PC;
 
-    wire [31:0] next_pc;
-    assign next_pc = pc_src ? target_pc : (PC + 32'd4);
+    // ========================================================================
+    // [FIX-REDIRECT-STALL] Redirect Latch
+    //
+    // BUG (pre-fix): pc_src is a combinational pulse from EX stage, active for
+    // exactly 1 cycle when a branch/jump resolves.  If the IFU is stalled
+    // during that cycle (ICache miss or pipeline stall), the PC update is
+    // blocked and the redirect target is lost.  The IFU then continues
+    // sequential execution from the wrong PC.
+    //
+    // FIX: Latch the redirect target when pc_src fires but the IFU cannot
+    // accept it.  When the stall clears, apply the latched target instead of
+    // PC+4.  A new pc_src always overwrites any pending latch (latest wins).
+    // ========================================================================
+    reg        redirect_pending;
+    reg [31:0] redirect_target;
+
+    wire       ifu_can_advance = !stall && imem_ready;
+    wire       redirect_now    = pc_src || redirect_pending;
+    wire [31:0] next_pc        = redirect_now
+                                 ? (pc_src ? target_pc : redirect_target)
+                                 : (PC + 32'd4);
 
     // ========================================================================
     // Instruction Memory Interface
@@ -38,15 +57,23 @@ module IFU (
     assign imem_valid = 1'b1;
 
     // ========================================================================
-    // PC Update
+    // PC Update + Redirect Latch
     // ========================================================================
     always @(posedge clock or posedge reset) begin
-        if (reset)
-            PC <= 32'h00000000;
-        else if (!stall && imem_ready)
-            PC <= next_pc;
-        else
-            PC <= PC; 
+        if (reset) begin
+            PC               <= 32'h00000000;
+            redirect_pending <= 1'b0;
+            redirect_target  <= 32'h0;
+        end else if (ifu_can_advance) begin
+            // IFU is advancing: apply next_pc (which includes any redirect)
+            PC               <= next_pc;
+            redirect_pending <= 1'b0;
+        end else if (pc_src) begin
+            // IFU is stalled but a redirect arrived: latch it
+            redirect_pending <= 1'b1;
+            redirect_target  <= target_pc;
+        end
+        // else: stalled, no new redirect — hold PC and pending state
     end
 
     // ========================================================================

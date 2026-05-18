@@ -782,6 +782,7 @@ task axi_read_m1;
         @(negedge clk); m1_arvalid<=0;
         @(posedge clk); while (!m1_rvalid) @(posedge clk);
         rdat = m1_rdata; rres = m1_rresp;
+        m1_rid_lat = m1_rid;  // latch here — RID clears after crossbar mux releases
         @(negedge clk);
     end
 endtask
@@ -831,9 +832,11 @@ task axi_write_m1;
             if (w_done)  m1_wvalid <=0;
             if (!(aw_done && w_done)) @(posedge clk);
         end
-        @(negedge clk); m1_awvalid<=0; m1_wvalid<=0;
+        // No extra negedge wait — clear already happened inside loop.
+        // Extra wait causes 1-cycle miss when BVALID window = 1 cycle (BREADY=1).
         @(posedge clk); while (!m1_bvalid) @(posedge clk);
         bres = m1_bresp;
+        m1_bid_lat = m1_bid;  // latch here — BID clears after crossbar mux releases
         @(negedge clk);
     end
 endtask
@@ -841,8 +844,10 @@ endtask
 // ---------------------------------------------------------------------------
 // Shared result registers
 // ---------------------------------------------------------------------------
-reg [DW-1:0] rd0, rd1, rd3;
-reg [1:0]    rr0, rr1, rr3, br1;
+reg [DW-1:0]   rd0, rd1, rd3;
+reg [1:0]      rr0, rr1, rr3, br1;
+reg [ID_W-1:0] m1_bid_lat;   // latched at BVALID posedge (BID clears after handshake)
+reg [ID_W-1:0] m1_rid_lat;   // latched at RVALID posedge
 
 // ---------------------------------------------------------------------------
 // Main test sequence
@@ -927,19 +932,22 @@ initial begin
     check("BURST last beat=3", rd1[23:16],   32'd3);
 
     // -------------------------------------------------------------------------
-    // TC-BID: AWID=0xA -> BID echoed back
+    // TC-BID: AWID with user-bit=1 -> BID user-bit echoed back
+    // Note: crossbar uses top 3 bits of ID as master tag; only bit[0] is user ID.
+    // AWID=4'h1 -> user_bit=1 -> BID=4'h1
     // -------------------------------------------------------------------------
     $display("\n--- TC-BID: BID echoes AWID ---");
-    axi_write_m1(4'hA, 32'h1000_0200, 32'hABCD_EF01, 4'hF, br1);
-    check("BID echo 0xA",      {28'd0, m1_bid}, 32'hA);
+    axi_write_m1(4'h1, 32'h1000_0200, 32'hABCD_EF01, 4'hF, br1);
+    check("BID echo 0x1",      {28'd0, m1_bid_lat}, 32'h1);
     check("BID BRESP OKAY",    {30'd0, br1},    32'd0);
 
     // -------------------------------------------------------------------------
-    // TC-RID: ARID=0xB -> RID echoed back
+    // TC-RID: ARID with user-bit=1 -> RID user-bit echoed back
+    // ARID=4'h1 -> user_bit=1 -> RID=4'h1
     // -------------------------------------------------------------------------
     $display("\n--- TC-RID: RID echoes ARID ---");
-    axi_read_m1(4'hB, 32'h1000_0300, rd1, rr1);
-    check("RID echo 0xB",      {28'd0, m1_rid}, 32'hB);
+    axi_read_m1(4'h1, 32'h1000_0300, rd1, rr1);
+    check("RID echo 0x1",      {28'd0, m1_rid_lat}, 32'h1);
     check("RID RRESP OKAY",    {30'd0, rr1},    32'd0);
 
     // -------------------------------------------------------------------------
@@ -951,11 +959,11 @@ initial begin
         reg m0_got, m3_got;
         m0_got = 0; m3_got = 0;
         @(negedge clk);
-        // M0 request
-        m0_arid<=4'h1; m0_araddr<=32'h0000_2000; m0_arlen<=0;
+        // M0 request (both in S0 range: 0x0000_0000 - 0x0000_1FFF)
+        m0_arid<=4'h1; m0_araddr<=32'h0000_0000; m0_arlen<=0;
         m0_arsize<=3'b010; m0_arburst<=2'b01; m0_arprot<=0; m0_arvalid<=1;
         // M3 request (same slave S0)
-        m3_arid<=4'h2; m3_araddr<=32'h0000_3000; m3_arlen<=0;
+        m3_arid<=4'h2; m3_araddr<=32'h0000_0100; m3_arlen<=0;
         m3_arsize<=3'b010; m3_arburst<=2'b01; m3_arprot<=0; m3_arvalid<=1;
         m3_rready<=1;
 

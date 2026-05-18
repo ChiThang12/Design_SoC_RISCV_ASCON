@@ -27,9 +27,10 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# ── Danh sách 9 tests (test_uart_simple chạy đầu = sanity check) ──
+# ── Danh sách 10 tests (test_uart_simple chạy đầu = sanity check) ──
 ALL_TESTS=(
     test_uart_simple
+    test_crt0_verify
     test_uart
     test_gpio
     test_timer
@@ -42,6 +43,7 @@ ALL_TESTS=(
 
 declare -A IP_NAME=(
     ["test_uart_simple"]="UART (simple putc)"
+    ["test_crt0_verify"]="Boot + CRT0 .data init"
     ["test_uart"]="UART (full driver + IRQ)"
     ["test_gpio"]="GPIO (edge IRQ via PLIC)"
     ["test_timer"]="Timer0/1 + WDT"

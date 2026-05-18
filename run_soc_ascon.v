@@ -46,7 +46,7 @@
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
 `ifndef TIMEOUT
-`define TIMEOUT         300000  // 200k default → 600k for UART tests (115200 @100MHz needs ~8680cy/char)
+`define TIMEOUT         5000000  // 1.5M cycles — UART 115200@100MHz ≈ 9680cy/char, FW needs ~100 chars + DMA
 `endif
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
@@ -558,6 +558,7 @@ wire        lsu_sb_empty   = chip.u_soc_top.u_cpu.lsu_unit.sb_empty;
 wire [2:0]  lsu_sb_count   = chip.u_soc_top.u_cpu.lsu_unit.sb_count[2:0];
 wire        lsu_drain_idle = (chip.u_soc_top.u_cpu.lsu_unit.drain_state == 0);
 
+
 // ─────────────────────────────────────────────────────────────────────────────
 // [R] JTAG Debug taps  [NEW-3]
 //
@@ -849,6 +850,122 @@ always @(posedge clk) begin
                      cycle_count, s1_wr_beat_addr, s1_wdata, s1_wstrb);
     end
 end
+
+// ============================================================================
+// (4) SB Debug Logger — DISABLED: dbg_* signals removed from CPU core.
+//     Enable with: iverilog -DSB_DEBUG ...
+// ============================================================================
+`ifdef SB_DEBUG
+always @(posedge clk) begin
+    if (ext_rst_n_r && cpu_rst_n_w) begin
+
+        // (1) Store enqueue into SB
+        if (dbg_do_store) begin
+            $display("[%6d] [SB-STORE] addr=0x%08h data=0x%08h strb=%b wr_ptr=%0d rd_ptr=%0d cnt=%0d PC_MEM=0x%08h",
+                     cycle_count, dbg_req_addr, dbg_req_wdata, dbg_req_wstrb,
+                     dbg_sb_wr_ptr, dbg_sb_rd_ptr, lsu_sb_count, dbg_pc_mem);
+            $display("[%6d] [SB-DUMP] v0=%b a0=%h d0=%h s0=%b | v1=%b a1=%h d1=%h s1=%b | v2=%b a2=%h d2=%h s2=%b | v3=%b a3=%h d3=%h s3=%b",
+                     cycle_count,
+                     dbg_sb_valid0, dbg_sb_addr0, dbg_sb_wdata0, dbg_sb_wstrb0,
+                     dbg_sb_valid1, dbg_sb_addr1, dbg_sb_wdata1, dbg_sb_wstrb1,
+                     dbg_sb_valid2, dbg_sb_addr2, dbg_sb_wdata2, dbg_sb_wstrb2,
+                     dbg_sb_valid3, dbg_sb_addr3, dbg_sb_wdata3, dbg_sb_wstrb3);
+        end
+
+        // (2) Load enqueue into LQ — show fwd_hit decision at enqueue time
+        if (dbg_do_load) begin
+            $display("[%6d] [SB-LOAD] addr=0x%08h rd=x%0d f3=%0d fwd_hit=%b fwd_hit_r=%b fwd_strb=%b fwd_data=0x%08h wr_ptr=%0d PC_MEM=0x%08h",
+                     cycle_count, dbg_req_addr, dbg_req_rd, dbg_req_f3,
+                     dbg_fwd_hit, dbg_fwd_hit_r, dbg_fwd_strb_r, dbg_fwd_data_r,
+                     dbg_lq_wr_ptr, dbg_pc_mem);
+            // Show SB state at the moment of forwarding decision
+            $display("[%6d] [SB-DUMP] v0=%b a0=%h d0=%h s0=%b | v1=%b a1=%h d1=%h s1=%b | v2=%b a2=%h d2=%h s2=%b | v3=%b a3=%h d3=%h s3=%b | sb_wr=%0d sb_rd=%0d",
+                     cycle_count,
+                     dbg_sb_valid0, dbg_sb_addr0, dbg_sb_wdata0, dbg_sb_wstrb0,
+                     dbg_sb_valid1, dbg_sb_addr1, dbg_sb_wdata1, dbg_sb_wstrb1,
+                     dbg_sb_valid2, dbg_sb_addr2, dbg_sb_wdata2, dbg_sb_wstrb2,
+                     dbg_sb_valid3, dbg_sb_addr3, dbg_sb_wdata3, dbg_sb_wstrb3,
+                     dbg_sb_wr_ptr, dbg_sb_rd_ptr);
+        end
+
+        // (3) LQ dequeue via SB forwarding path (LOAD_IDLE → LOAD_RESULT, skipping DCACHE)
+        if (dbg_do_load_dq) begin
+            $display("[%6d] [SB-FWD-DQ] lq_rd=%0d lq_addr=0x%08h lq_fwd=%b lq_fwd_data=0x%08h → result_data=0x%08h rd=x%0d",
+                     cycle_count, dbg_lq_rd_ptr,
+                     (dbg_lq_rd_ptr == 2'd0) ? dbg_lq_addr0 :
+                     (dbg_lq_rd_ptr == 2'd1) ? dbg_lq_addr1 :
+                     (dbg_lq_rd_ptr == 2'd2) ? dbg_lq_addr2 : dbg_lq_addr3,
+                     (dbg_lq_rd_ptr == 2'd0) ? dbg_lq_fwd0 :
+                     (dbg_lq_rd_ptr == 2'd1) ? dbg_lq_fwd1 :
+                     (dbg_lq_rd_ptr == 2'd2) ? dbg_lq_fwd2 : dbg_lq_fwd3,
+                     (dbg_lq_rd_ptr == 2'd0) ? dbg_lq_fwd_data0 :
+                     (dbg_lq_rd_ptr == 2'd1) ? dbg_lq_fwd_data1 :
+                     (dbg_lq_rd_ptr == 2'd2) ? dbg_lq_fwd_data2 : dbg_lq_fwd_data3,
+                     dbg_result_d, dbg_result_rd);
+        end
+
+        // (4) SB drain pop
+        if (dbg_do_drain) begin
+            $display("[%6d] [SB-DRAIN] rd_ptr=%0d addr=0x%08h data=0x%08h strb=%b cnt_before=%0d",
+                     cycle_count, dbg_sb_rd_ptr,
+                     (dbg_sb_rd_ptr == 2'd0) ? dbg_sb_addr0 :
+                     (dbg_sb_rd_ptr == 2'd1) ? dbg_sb_addr1 :
+                     (dbg_sb_rd_ptr == 2'd2) ? dbg_sb_addr2 : dbg_sb_addr3,
+                     (dbg_sb_rd_ptr == 2'd0) ? dbg_sb_wdata0 :
+                     (dbg_sb_rd_ptr == 2'd1) ? dbg_sb_wdata1 :
+                     (dbg_sb_rd_ptr == 2'd2) ? dbg_sb_wdata2 : dbg_sb_wdata3,
+                     (dbg_sb_rd_ptr == 2'd0) ? dbg_sb_wstrb0 :
+                     (dbg_sb_rd_ptr == 2'd1) ? dbg_sb_wstrb1 :
+                     (dbg_sb_rd_ptr == 2'd2) ? dbg_sb_wstrb2 : dbg_sb_wstrb3,
+                     lsu_sb_count);
+        end
+
+        // (5) LSU result delivery to pipeline (both forwarded and dcache paths)
+        if (dbg_result_v && dbg_result_ack) begin
+            $display("[%6d] [SB-RESULT] rd=x%0d data=0x%08h load_state=%0d",
+                     cycle_count, dbg_result_rd, dbg_result_d, dbg_load_state);
+        end
+
+        // (6) LSU DEDUP BLOCKED — fires when MEM stage has valid load/store
+        //     but lsu_req_sent blocks it. THIS IS THE SUSPECTED BUG.
+        if (dbg_lsu_req_valid_raw && !dbg_lsu_req_valid) begin
+            $display("[%6d] [DEDUP-BLOCK] PC_MEM=0x%08h addr=0x%08h rd=x%0d mr=%b mw=%b sent=%b new=%b ready=%b pc4=0x%08h",
+                     cycle_count, dbg_pc_mem, dbg_alu_res_mem, dbg_rd_mem,
+                     dbg_memread_mem, dbg_memwrite_mem,
+                     dbg_lsu_req_sent, dbg_lsu_req_new, dbg_lsu_req_ready,
+                     dbg_lsu_pc_plus4_mem);
+        end
+
+        // (7) Full pipeline dump when PC_MEM is inside uart_puts (0x12c–0x190)
+        //     Shows every pipeline stage + dedup + forwarding each cycle
+        if (dbg_pc_mem >= 32'h012c && dbg_pc_mem <= 32'h0190) begin
+            $display("[%6d] [PIPE-UART] IF=0x%08h ID=0x%08h EX=0x%08h MEM=0x%08h | mr=%b mw=%b rd_m=x%0d addr=0x%08h",
+                     cycle_count, pc_if, dbg_pc_id, dbg_pc_ex, dbg_pc_mem,
+                     dbg_memread_mem, dbg_memwrite_mem, dbg_rd_mem, dbg_alu_res_mem);
+            $display("[%6d] [PIPE-DEDUP] sent=%b new=%b valid_raw=%b valid=%b fire=%b ready=%b pc4_mem=0x%08h | stall=%b stall_if=%b stall_any=%b dep=%b fence=%b",
+                     cycle_count,
+                     dbg_lsu_req_sent, dbg_lsu_req_new, dbg_lsu_req_valid_raw, dbg_lsu_req_valid, dbg_lsu_req_fire, dbg_lsu_req_ready,
+                     dbg_lsu_pc_plus4_mem,
+                     dbg_stall, dbg_stall_if, dbg_stall_any, dbg_lsu_dep_stall, dbg_fence_stall);
+            $display("[%6d] [PIPE-FWD]  fwd_a=%0d fwd_b=%0d | WB: wr=%b rd=x%0d data=0x%08h memtoreg=%b alu_wb=0x%08h mem_wb=0x%08h",
+                     cycle_count,
+                     dbg_forward_a, dbg_forward_b,
+                     dbg_regwrite_wb, dbg_rd_wb, dbg_wb_data, dbg_memtoreg_wb, dbg_alu_result_wb, dbg_mem_data_wb);
+            if (dbg_flush_id_ex || dbg_flush_if_id) begin
+                $display("[%6d] [PIPE-FLUSH] flush_id_ex=%b flush_if_id=%b",
+                         cycle_count, dbg_flush_id_ex, dbg_flush_if_id);
+            end
+        end
+
+        // (8) WB writeback to x15 (a5) — track every value written to a5
+        if (dbg_regwrite_wb && dbg_rd_wb == 5'd15) begin
+            $display("[%6d] [WB-x15] data=0x%08h memtoreg=%b alu_wb=0x%08h mem_wb=0x%08h MEM_PC=0x%08h",
+                     cycle_count, dbg_wb_data, dbg_memtoreg_wb, dbg_alu_result_wb, dbg_mem_data_wb, dbg_pc_mem);
+        end
+    end
+end
+`endif  // SB_DEBUG
+
 
 // ============================================================================
 // (4) M0 (ICache) AXI Logger

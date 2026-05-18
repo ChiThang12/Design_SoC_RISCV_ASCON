@@ -58,7 +58,7 @@ for test_file in "${STANDALONE_TESTS[@]}"; do
         OPT="-O 1"
     fi
 
-    if "$COMPILE_SCRIPT" -i "$src" -o "$hex" $OPT -c < /dev/null > /tmp/build_${base}.log 2>&1; then
+    if "$COMPILE_SCRIPT" -i "$src" -o "$hex" $OPT < /dev/null > /tmp/build_${base}.log 2>&1; then
         echo -e "${GREEN}OK${NC}  → $hex"
         PASS=$((PASS + 1))
     else
