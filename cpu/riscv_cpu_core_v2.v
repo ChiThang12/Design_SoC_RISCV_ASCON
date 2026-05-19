@@ -304,8 +304,13 @@ module riscv_cpu_core (
     // Determines when the CPU should enter sleep state (WFI) and wake up.
     // Aggregates all stall conditions to freeze the entire pipeline (stall_any).
     // =========================================================================
-    // stall_any includes debug_mode and WFI idle state to freeze the pipeline.
-    assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r;
+    // [FIX-LSU-BACKPRESSURE] Nếu MEM stage đã phát sinh LSU request nhưng LSU
+    // chưa ready (ví dụ SB full), phải giữ nguyên toàn pipeline cho đến khi
+    // handshake xong. Nếu không, MEM instruction hiện tại bị overwrite bởi
+    // younger instruction và store/load request bị rơi.
+    wire mem_stage_wait;
+    // stall_any includes debug_mode, WFI idle state, and LSU backpressure.
+    assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r | mem_stage_wait;
 
     localparam [6:0] OP_SYSTEM = 7'b1110011;
     wire is_wfi_id = (opcode_id == OP_SYSTEM) &&
@@ -386,9 +391,10 @@ module riscv_cpu_core (
     // Fix 10C: Multiplier stall — don't freeze multiplier during its own extra cycle
     wire mul_hold = stall_any && !mul_ex_stall_wire;
 
-    // stall_ex_mem: only LSU dependency stall freezes EX/MEM
-    // (fence_stall must NOT freeze — pre-fence store must reach MEM)
-    wire stall_ex_mem = lsu_dep_stall;
+    // stall_ex_mem: freeze EX/MEM on LSU dependency OR when a MEM-stage LSU
+    // request is still waiting for handshake. fence_stall alone must still not
+    // block an older store already sitting in MEM.
+    wire stall_ex_mem = lsu_dep_stall | mem_stage_wait;
 
     // [FIX-JALR-TARGET] JALR predicted taken đến pc+imm (sai). EX sẽ correct
     // đến rs1+imm. Flush IF/ID tại cycle JALR-in-EX để xóa instruction fetched
@@ -761,6 +767,7 @@ module riscv_cpu_core (
     end
     assign lsu_req_valid = lsu_req_valid_raw & (!lsu_req_sent || lsu_req_new);
     assign lsu_req_fire  = lsu_req_valid && lsu_req_ready;
+    assign mem_stage_wait = lsu_req_valid && !lsu_req_ready;
 
     wire soc_lsu_sb_empty;
 

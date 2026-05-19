@@ -306,7 +306,8 @@ module dcache_controller (
         case (state)
 
             DCACHE_STATE_IDLE: begin
-                if (!flush_busy && cpu_req && !fence_any && !nc_just_completed) begin
+                // [FIX-DEFERRED-GUARD] stall new req khi deferred write đang pending
+                if (!flush_busy && cpu_req && !fence_any && !nc_just_completed && !do_deferred_write) begin
                     if (addr_is_nc)
                         next_state = cpu_we ? DCACHE_STATE_NC_WRITE
                                             : DCACHE_STATE_NC_READ;
@@ -376,7 +377,8 @@ module dcache_controller (
         if (!flush_busy) begin
             case (state)
                 DCACHE_STATE_IDLE: begin
-                    if (cpu_req && idle_hit && !fence_any) begin
+                    // [FIX-DEFERRED-GUARD] không ready khi deferred write chưa commit
+                    if (cpu_req && idle_hit && !fence_any && !do_deferred_write) begin
                         cpu_ready_int = 1'b1;
                         cpu_rdata_int = cpu_we ? 32'h0 : data_read_data;
                     end
@@ -606,7 +608,8 @@ module dcache_controller (
                             do_deferred_write <= 1'b0;
                         end
 
-                        if (cpu_req && !fence_any && !nc_just_completed) begin
+                        // [FIX-DEFERRED-GUARD] không latch req mới khi deferred write pending
+                        if (cpu_req && !fence_any && !nc_just_completed && !do_deferred_write) begin
                             cur_addr  <= cpu_addr;
                             cur_wdata <= cpu_wdata;
                             cur_wstrb <= cpu_wstrb;

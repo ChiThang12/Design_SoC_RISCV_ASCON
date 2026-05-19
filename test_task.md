@@ -111,6 +111,45 @@
 
 ---
 
+### BUG-C9 — DCache Drops 4 of 16 CPU Byte-Stores
+- **Severity**: HIGH
+- **Layer**: C9 (`test_dma_uart`)
+- **Files nghi ngờ**:
+  - `cache_interface/dcache/dcache_controller.v` — IDLE state write logic (~line 595–646)
+  - `cpu/core/hazard_detection.v` — `fence_stall` condition (line 71)
+  - `cpu/riscv_cpu_core_v2.v` — `fence_active` / `dcache_fence_type` assignment
+- **Triệu chứng**: C9 in ra "HELL" thay vì "HELLO DMA-SOC!\r\n". DMA copy đúng (checked), nhưng src_buf trong DMEM đã thiếu 4 bytes trước khi DMA đọc.
+- **Bằng chứng** — flush eviction DMEM writeback tại cycle 4270–4273:
+
+  | Address    | Got        | Expected   | Byte bị mất          |
+  |------------|------------|------------|----------------------|
+  | 0x10000334 | 0x4d442000 | 0x4d44204f | `src[4]='O'` (0x4f)  |
+  | 0x10000338 | 0x00532d00 | 0x4f532d41 | `src[8]='A'`, `src[11]='O'` |
+  | 0x1000033C | 0x000d2143 | 0x0a0d2143 | `src[15]='\n'` (0x0a)|
+
+- **Root cause hypothesis** (3 candidates — chưa xác định):
+  1. **A. `do_deferred_write` bị override bởi `idle_hit`** trong cùng IDLE cycle → deferred write apply đè lên bởi new cpu_req write trong cùng tick, làm mất 1 byte.
+  2. **B. Unexpected REFILL** khi store → LOOKUP→MISS→REFILL fetch từ DMEM (zeros) → overwrite data đã ghi đúng trước đó.
+  3. **C. Fence fire sớm** — `fence_stall` de-assert khi `lsu_idle=1` nhưng store cuối cùng chưa thực sự commit vào data_array.
+- **Debug approach**: Thêm block `DEBUG_C9` vào `run_soc_ascon.v`:
+  ```verilog
+  `ifdef DEBUG_C9
+  wire dbg_dwe  = chip.u_soc_top.u_dcache.controller_inst.data_write_enable;
+  wire [5:0] dbg_widx = chip.u_soc_top.u_dcache.controller_inst.data_write_index;
+  // ...monitor set 0x33, log [C9-WR], [C9-FSM], [C9-FNCE]
+  `endif
+  ```
+  Chạy: `~/workflow/urun_verilog.sh -DDEBUG_C9 -DIMEM_INIT_FILE='"gnu_toolchain/tests/test_dma_uart.hex"' run_soc_ascon.v`
+  → Grep `[C9-WR]`: expect 16 lines. Nếu thiếu → xác định offset/strobe bị drop.
+- **Fix dự kiến theo từng hypothesis**:
+  - **A**: Priority guard trong IDLE — khi `do_deferred_write=1`, không process `idle_hit` write cùng cycle, next_state giữ IDLE.
+  - **B**: Trace điều kiện EVICT vs REFILL trong LOOKUP, fix tag comparison.
+  - **C**: Thêm 1-cycle delay giữa `lsu_idle` assertion và `fence_type` đến DCache.
+- **Test để verify**: `~/workflow/urun_verilog.sh -DIMEM_INIT_FILE='"gnu_toolchain/tests/test_dma_uart.hex"' run_soc_ascon.v` → UART output phải có `[MSG] HELLO DMA-SOC!\r\n[PASS] dma_uart`
+- **Status**: ❌ OPEN — chưa fix, cần chạy DEBUG_C9 trước
+
+---
+
 ### BUG-TIMER — Timer Channel Enable
 - **Severity**: MEDIUM
 - **Layer**: C5

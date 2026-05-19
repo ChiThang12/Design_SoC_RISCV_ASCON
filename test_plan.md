@@ -39,7 +39,7 @@ A fail → RTL bug trong submodule đó
 | B3 | CPU Integ | DCache miss/hit + forwarding correctness | `run_soc_ascon.v` + test hex | ❓ |
 | C1 | SoC FW | Boot + CRT0 .data init | `test_crt0_verify.c` (tạo mới) | 🚫 |
 | C2 | SoC FW | UART TX basic | `test_uart_simple.c` | ✅ |
-| C3 | SoC FW | UART TX IRQ + W1C clear | `test_uart.c` | ❌ FAIL -2 |
+| C3 | SoC FW | UART TX IRQ + W1C clear | `test_uart.c` | ✅ PASS |
 | C4 | SoC FW | GPIO r/w + edge IRQ | `test_gpio.c` | ⚠️ TIMEOUT |
 | C5 | SoC FW | Timer0/1 countdown + IRQ | `test_timer.c` | ⚠️ TIMEOUT |
 | C6 | SoC FW | CLINT mtime/mtimecmp | `test_clint.c` | ⚠️ TIMEOUT |
@@ -304,11 +304,16 @@ int main(void) {
 **Firmware**: `test_uart.c`
 **Run**: `bash regression_full.sh test_uart`
 **Kiểm tra**: TX IRQ fire → CPU nhận → W1C clear → flag cleared.
-**Pass**: `*** PASS` (hiện tại FAIL -2 — W1C chưa clear).
-**Debug path khi fail**:
-1. Kiểm tra UART RTL: `peripheral/uart/rtl/` — W1C register logic
-2. Kiểm tra DCache: NC bypass có được route đúng không (0x50000000 range)
-3. Kiểm tra PLIC gateway edge-detect (A9)
+**Pass**: `*** PASS`.
+**Trạng thái**: ✅ Đã PASS (2026-05-19).
+**Lưu ý verify thực tế**:
+1. BUG-002 (LSU store-buffer forward vào MMIO/NC address) đã được fix trước đó nên W1C clear đã đúng ở hardware path.
+2. Lần TIMEOUT gần nhất không còn là lỗi W1C clear; nguyên nhân là testbench UART line parser không flush khi test gửi 1 byte `'A'` không kèm `\n`.
+3. Fix firmware: thêm `uart_puts("\r\n")` sau byte `'A'` để tách dòng trước marker `[PASS] uart`.
+**Debug path nếu regress**:
+1. Kiểm tra `cpu/core/LSU.v` cho NC/MMIO forwarding guard (0x5000_0000 range không được SB-forward như DMEM cacheable)
+2. Kiểm tra `gnu_toolchain/tests/test_uart.c` có còn flush line buffer trước `[PASS] uart` không
+3. Nếu vẫn fail thật sự ở IRQ/W1C thì mới quay lại UART RTL `peripheral/uart/rtl/` và PLIC path (A9)
 
 ---
 
@@ -383,7 +388,7 @@ int main(void) {
 | Bug ID | Phát hiện tại | Isolated tại | Root cause |
 |--------|-------------|-------------|-----------|
 | BUG-001 load-use hazard | A1 TC-LU, A2 | **A1** | `hazard_detection.v` + `PIPELINE_REG_MEM_WB.v` |
-| BUG-002 UART W1C | C3 | **C3** + UART RTL trace | `uart_*.v` W1C register hoặc DCache NC path |
+| BUG-002 UART W1C | C3 | **C3** | `cpu/core/LSU.v` store-buffer forward sai vào MMIO/NC path |
 | BUG-003 ASCON timeout | A7, C8 | **A6** (core) / **A7** (DMA) | ASCON CTRL=0x5 hoặc DMA FSM |
 | BUG-TIMER timer enable | C5 | **C5** (không có unit TB) | `timer_channel.v` en rising edge |
 | ICache AXI deadlock | B2 | **B2** | `icache_axi_interface.v` ARVALID latch |
@@ -408,6 +413,10 @@ int main(void) {
 ~/workflow/urun_verilog.sh dma/tb/tb_dma_top.v                 # A8
 ~/workflow/urun_verilog.sh plic/tb/tb_plic_top.v               # A9
 ~/workflow/urun_verilog.sh controller/tb/tb_soc_ctrl_slave.v   # A10
+~/workflow/urun_verilog.sh peripheral/gpio/tb/tb_gpio_top.v    # A11
+~/workflow/urun_verilog.sh peripheral/timer/tb/tb_timer_top.v  # A12
+~/workflow/urun_verilog.sh peripheral/spi/tb/tb_spi_top.v      # A13
+~/workflow/urun_verilog.sh peripheral/otp/tb/tb_otp_stub_slave.v # A14
 
 # Group B (via run_layer_test.sh)
 ./workflow/run_layer_test.sh 2    # B1 — CRT0 hazard

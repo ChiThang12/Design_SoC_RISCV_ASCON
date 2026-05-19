@@ -68,7 +68,10 @@ static inline uint32_t gpio_read(void)
  *   edge      — 0=level trigger, 1=edge trigger (IRQ_MODE)
  *   polarity  — 0=falling/low, 1=rising/high (IRQ_POL)
  */
-static inline void gpio_irq_enable(uint32_t pin_mask, uint8_t edge, uint8_t polarity)
+/* NOTE: edge/polarity dùng uint32_t thay vì uint8_t để tránh GCC sinh sb/lbu.
+ * DCache store buffer có bug forwarding sub-word (BUG-C9): sb → lbu trả sai data.
+ * uint32_t → sw/lw → bypass bug. Xóa workaround này sau khi fix BUG-C9 trong RTL. */
+static inline void gpio_irq_enable(uint32_t pin_mask, uint32_t edge, uint32_t polarity)
 {
     if (edge)
         GPIO_IRQ_MODE |= pin_mask;

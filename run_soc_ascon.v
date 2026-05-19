@@ -46,7 +46,7 @@
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
 `ifndef TIMEOUT
-`define TIMEOUT         2000000  // 1.5M cycles — UART 115200@100MHz ≈ 9680cy/char, FW needs ~100 chars + DMA
+`define TIMEOUT         800000  // 1.5M cycles — UART 115200@100MHz ≈ 9680cy/char, FW needs ~100 chars + DMA
 `endif
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
@@ -157,6 +157,7 @@ wire        dc_req   = chip.u_soc_top.cpu_dcache_req;
 wire        dc_we    = chip.u_soc_top.cpu_dcache_we;
 wire [31:0] dc_rdata = chip.u_soc_top.dcache_cpu_rdata;
 wire        dc_ready = chip.u_soc_top.dcache_cpu_ready;
+wire        uart_active_w = chip.u_soc_top.uart_active;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [D] M0 (ICache) → Crossbar
@@ -819,10 +820,10 @@ integer    uart_line_len;
 // ============================================================================
 // Waveform dump
 // ============================================================================
-initial begin
-    $dumpfile("waveform_soc.vcd");
-    $dumpvars(0, run_soc);
-end
+// initial begin
+//     $dumpfile("waveform_soc.vcd");
+//     $dumpvars(0, run_soc);
+// end
 
 // ============================================================================
 // (1) Cycle Counter
@@ -1856,7 +1857,7 @@ always @(posedge clk) begin
         match2   <= 0; match4   <= 0;
     end else if (cycle_count > 30 && cpu_rst_n_w) begin
 
-        if (pc_if === prev_pc && !dc_req && lsu_sb_empty) begin
+        if (pc_if === prev_pc && !dc_req && lsu_sb_empty && !uart_active_w) begin
             halt_cnt <= halt_cnt + 1;
             if (halt_cnt >= `HALT_STABLE && !program_done) begin
                 program_done = 1;
@@ -1868,7 +1869,7 @@ always @(posedge clk) begin
             halt_cnt <= 0;
         end
 
-        if (pc_if === pc_ring[(ring_ptr + 6) % 8] && lsu_sb_empty && !dc_req) begin
+        if (pc_if === pc_ring[(ring_ptr + 6) % 8] && lsu_sb_empty && !dc_req && !uart_active_w) begin
             match2 = match2 + 1;
             if (match2 >= `MATCH2_THRESH && !program_done) begin
                 program_done = 1;
@@ -1877,7 +1878,7 @@ always @(posedge clk) begin
             end
         end else match2 = 0;
 
-        if (pc_if === pc_ring[(ring_ptr + 4) % 8] && lsu_sb_empty && !dc_req) begin
+        if (pc_if === pc_ring[(ring_ptr + 4) % 8] && lsu_sb_empty && !dc_req && !uart_active_w) begin
             match4 = match4 + 1;
             if (match4 >= `MATCH4_THRESH && !program_done) begin
                 program_done = 1;
