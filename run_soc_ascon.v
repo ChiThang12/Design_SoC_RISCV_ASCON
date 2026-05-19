@@ -46,7 +46,7 @@
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
 `ifndef TIMEOUT
-`define TIMEOUT         5000000  // 1.5M cycles — UART 115200@100MHz ≈ 9680cy/char, FW needs ~100 chars + DMA
+`define TIMEOUT         2000000  // 1.5M cycles — UART 115200@100MHz ≈ 9680cy/char, FW needs ~100 chars + DMA
 `endif
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
@@ -558,6 +558,65 @@ wire        lsu_sb_empty   = chip.u_soc_top.u_cpu.lsu_unit.sb_empty;
 wire [2:0]  lsu_sb_count   = chip.u_soc_top.u_cpu.lsu_unit.sb_count[2:0];
 wire        lsu_drain_idle = (chip.u_soc_top.u_cpu.lsu_unit.drain_state == 0);
 
+// ─────────────────────────────────────────────────────────────────────────────
+// [Q] C9 Debug monitor — DCache write path for set 0x33 (DMEM 0x10000330-0x1000033F)
+// Enabled via: iverilog -DDEBUG_C9 ...
+// ─────────────────────────────────────────────────────────────────────────────
+`ifdef DEBUG_C9
+wire [2:0]  dbg_dc_state   = chip.u_soc_top.u_dcache.controller_inst.state;
+wire        dbg_dwe        = chip.u_soc_top.u_dcache.controller_inst.data_write_enable;
+wire [5:0]  dbg_widx       = chip.u_soc_top.u_dcache.controller_inst.data_write_index;
+wire [1:0]  dbg_woff       = chip.u_soc_top.u_dcache.controller_inst.data_write_offset;
+wire [31:0] dbg_wdat       = chip.u_soc_top.u_dcache.controller_inst.data_write_data;
+wire [3:0]  dbg_wstr       = chip.u_soc_top.u_dcache.controller_inst.data_write_strb;
+wire        dbg_do_def     = chip.u_soc_top.u_dcache.controller_inst.do_deferred_write;
+wire        dbg_fbsy       = chip.u_soc_top.u_dcache.controller_inst.flush_busy;
+wire [2:0]  dbg_fstate     = chip.u_soc_top.u_dcache.controller_inst.flush_state;
+wire [31:0] dbg_cur_addr   = chip.u_soc_top.u_dcache.controller_inst.cur_addr;
+wire        dbg_cur_we     = chip.u_soc_top.u_dcache.controller_inst.cur_we;
+wire [1:0]  dbg_fence_type = chip.u_soc_top.cpu_dcache_fence_type;
+wire        dbg_lsu_idle   = chip.u_soc_top.u_cpu.lsu_idle;
+
+// Extra taps for deeper monitoring
+wire        dbg_idle_hit      = chip.u_soc_top.u_dcache.controller_inst.idle_hit;
+wire        dbg_idle_hit_chk  = chip.u_soc_top.u_dcache.controller_inst.idle_hit_check;
+wire        dbg_prev_ihc      = chip.u_soc_top.u_dcache.controller_inst.prev_was_idle_hit_check;
+wire        dbg_cpu_rdy       = chip.u_soc_top.dcache_cpu_ready;
+wire        dbg_cpu_req       = chip.u_soc_top.cpu_dcache_req;
+wire [31:0] dbg_cpu_addr      = chip.u_soc_top.cpu_dcache_addr;
+wire [31:0] dbg_cpu_wdata     = chip.u_soc_top.cpu_dcache_wdata;
+wire [3:0]  dbg_cpu_wstrb     = chip.u_soc_top.cpu_dcache_wstrb;
+wire        dbg_cpu_we        = chip.u_soc_top.cpu_dcache_we;
+wire [1:0]  dbg_drain_state   = chip.u_soc_top.u_cpu.lsu_unit.drain_state;
+
+always @(posedge clk) begin
+    // Every cache data-array write to set 0x33
+    if (dbg_dwe && dbg_widx == 6'h33)
+        $display("[C9-WR  ] t=%0t off=%0d data=0x%08x strb=%04b flush=%b def=%b",
+                 $time, dbg_woff, dbg_wdat, dbg_wstr, dbg_fbsy, dbg_do_def);
+    // DCache FSM non-IDLE for addresses hitting cache set 0x33
+    if (dbg_dc_state != 3'b000 && dbg_cur_addr[31:4] == 28'h1000033)
+        $display("[C9-FSM ] t=%0t state=%0d addr=0x%08x we=%b fbsy=%b",
+                 $time, dbg_dc_state, dbg_cur_addr, dbg_cur_we, dbg_fbsy);
+    // Every cpu_req to DCache for set 0x33 range — track every drain attempt
+    if (dbg_cpu_req && dbg_cpu_addr[31:4] == 28'h1000033)
+        $display("[C9-REQ ] t=%0t addr=0x%08x we=%b wdata=0x%08x wstrb=%04b rdy=%b iht=%b prev=%b ihc=%b st=%0d",
+                 $time, dbg_cpu_addr, dbg_cpu_we, dbg_cpu_wdata, dbg_cpu_wstrb,
+                 dbg_cpu_rdy, dbg_idle_hit, dbg_prev_ihc, dbg_idle_hit_chk, dbg_dc_state);
+    // DCache ready pulse
+    if (dbg_cpu_rdy && dbg_cpu_addr[31:4] == 28'h1000033)
+        $display("[C9-ACK ] t=%0t addr=0x%08x sb=%0d drain=%0d",
+                 $time, dbg_cpu_addr, lsu_sb_count, dbg_drain_state);
+    // Fence type assertion
+    if (|dbg_fence_type)
+        $display("[C9-FNCE] t=%0t type=%02b lsu_idle=%b sb=%0d fstate=%0d",
+                 $time, dbg_fence_type, dbg_lsu_idle, lsu_sb_count, dbg_fstate);
+    // Flush FSM active
+    if (dbg_fbsy)
+        $display("[C9-FLSH] t=%0t fstate=%0d",
+                 $time, dbg_fstate);
+end
+`endif
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [R] JTAG Debug taps  [NEW-3]

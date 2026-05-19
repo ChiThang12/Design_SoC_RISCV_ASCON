@@ -37,6 +37,10 @@ static int run_uart_test(void)
     /* Verify flag cleared */
     if (uart_irq_status() & UART_IRQ_TX) return -2;
 
+    /* Flush TB line buffer: byte 'A' ở trên không có '\n' nên TB parser
+     * sẽ ghép 'A' với line kế tiếp ("[PASS] uart") → fail match. */
+    uart_puts("\r\n");
+
     return 0;
 }
 

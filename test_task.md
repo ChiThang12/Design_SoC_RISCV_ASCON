@@ -8,10 +8,10 @@
 
 ---
 
-## Current Sprint (2026-05-18)
+## Current Sprint (2026-05-19)
 
-**Focus**: C layer — C1 ✅ C2 ✅ C8 ✅ PASS, tiếp tục C3–C7, C9–C10
-**Layer hiện tại**: C1, C2, C8 PASS — C3, C4, C5, C6, C7, C9, C10 TIMEOUT
+**Focus**: C layer — C1 ✅ C2 ✅ C3 ✅ C8 ✅ PASS, tiếp tục C4–C7, C9–C10
+**Layer hiện tại**: C1, C2, C3, C8 PASS — C4, C5, C6, C7, C9, C10 TIMEOUT
 **Bước tiếp theo**:
 ```
 1. ✅ A1–A10 tất cả PASS
@@ -19,9 +19,9 @@
 3. ✅ B2 PASS — ICache boot OK, DEADBEEF write confirmed
 4. ✅ B3 PASS — DCache store/load correct: s0=1 s1=2 s2=3 s3=4
 5. ✅ C1 PASS (2026-05-18) — .data copy verified, [PASS] crt0 uart=13
-6. ⚠️ C3 TIMEOUT (2026-05-18) — output có "[PASS] uart.." nhưng bị TIMEOUT (chưa finish)
+6. ✅ C3 PASS (2026-05-19) — BUG-UART-LINEBUF fixed: thêm uart_puts("\r\n") sau byte 'A' để flush TB line buffer
 7. ✅ C8 PASS (2026-05-18) — ASCON DMA test "[PASS] ascon.."
-8. → Tiếp theo: debug C3 TIMEOUT, và C4–C10 TIMEOUT
+8. → Tiếp theo: debug C4 (GPIO TIMEOUT, uart=0), C5–C7, C9–C10
 ```
 
 ---
@@ -45,7 +45,7 @@
 | B3 | layer3 DCache | DCache+DMEM | 2026-05-16 | ✅ PASS | s0=1 s1=2 s2=3 s3=4 đúng |
 | C1 | test_crt0_verify | Boot+CRT0 | 2026-05-18 | ✅ PASS | uart=13 "[PASS] crt0.." |
 | C2 | test_uart_simple | UART TX basic | 2026-05-18 | ✅ PASS | uart=29 "UART OK..[PASS] uart_simple.." |
-| C3 | test_uart | UART IRQ W1C | 2026-05-18 | ⚠️ TIMEOUT | uart=26 "Hello UART..A[PASS] uart.." (chưa finish) |
+| C3 | test_uart | UART IRQ W1C | 2026-05-19 | ✅ PASS | uart=28 "Hello UART..A..[PASS] uart.." (BUG-UART-LINEBUF fixed) |
 | C4 | test_gpio | GPIO+IRQ | 2026-05-18 | ⚠️ TIMEOUT | WATCHDOG TIMEOUT, uart=0 |
 | C5 | test_timer | Timer IRQ | 2026-05-18 | ⚠️ TIMEOUT | WATCHDOG TIMEOUT, uart=0 |
 | C6 | test_clint | CLINT | 2026-05-18 | ⚠️ TIMEOUT | WATCHDOG TIMEOUT, uart=0 |
@@ -207,6 +207,30 @@
 - **Note ID tagging**: Crossbar dùng top 3 bits của ID làm master tag (ID_WIDTH=4 → 1 user bit), test expect BID=0x1 không phải 0xA
 - **Verify**: `./workflow/urun_verilog.sh interconnect/tb/tb_axi4_crossbar.v` → **PASS 21/21**
 - **Kết quả**: ✅ PASS (2026-05-16)
+
+---
+
+### [2026-05-19] FIXED + VERIFIED: BUG-UART-LINEBUF — Single byte 'A' phá TB line parser
+
+- **Bug ID**: BUG-UART-LINEBUF
+- **File thay đổi**: `gnu_toolchain/tests/test_uart.c` (sau line 38, trong `run_uart_test()`)
+- **Layer**: C3
+- **Triệu chứng**: C3 TIMEOUT. UART output 26 bytes đúng "Hello UART\r\nA[PASS] uart\r\n" nhưng testbench không emit `*** PASS` marker → script grep ra 0 → TIMEOUT.
+- **Root cause**: TX IRQ test gửi 1 byte 'A' không kèm `\n`. TB line parser tích lũy 'A' vào line buffer, line tiếp theo "[PASS] uart" được append thành "A[PASS] uart". `parse_uart_line` check `buf[0]=='['` → fail → không match `*** PASS`. CPU rơi vào `while(1) nop` → 4-CYCLE LOOP fire `$finish` (run_soc_ascon.v:1826).
+- **Fix**:
+  ```c
+  /* Verify flag cleared */
+  if (uart_irq_status() & UART_IRQ_TX) return -2;
+
+  /* Flush TB line buffer: byte 'A' ở trên không có '\n' */
+  uart_puts("\r\n");
+
+  return 0;
+  ```
+- **Verify**: `bash regression_full.sh test_uart` → uart=28 "Hello UART..A..[PASS] uart.." → PASS
+- **Regression**: C2 PASS ✅, C8 PASS ✅ (không regression)
+- **Kết quả**: ✅ PASS (2026-05-19)
+- **Lưu ý build**: Build với `-O 0` (default). `-O 1` gây UART RX drop bytes (chưa rõ nguyên nhân, cần investigate sau nếu cần benchmark mode).
 
 ---
 
