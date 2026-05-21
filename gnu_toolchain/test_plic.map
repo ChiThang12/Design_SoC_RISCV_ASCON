@@ -1,11 +1,11 @@
 
 Discarded input sections
 
- .comment       0x00000000       0x23 /tmp/ccYgHod0.o
+ .comment       0x00000000       0x23 /tmp/cc11Zl20.o
  .riscv.attributes
-                0x00000000       0x37 /tmp/ccYgHod0.o
+                0x00000000       0x37 /tmp/cc11Zl20.o
  .riscv.attributes
-                0x00000000       0x35 /tmp/ccEBQxwb.o
+                0x00000000       0x35 /tmp/cc5yJ84z.o
 
 Memory Configuration
 
@@ -17,49 +17,49 @@ DMEM_STACK       0x10001000         0x00000ff0         xrw
 
 Linker script and memory map
 
-LOAD /tmp/ccYgHod0.o
-LOAD /tmp/ccEBQxwb.o
+LOAD /tmp/cc11Zl20.o
+LOAD /tmp/cc5yJ84z.o
                 0x00000000                        . = 0x0
 
-.text           0x00000000      0x7ac
+.text           0x00000000      0x6e8
  *(.text.start)
- .text.start    0x00000000       0x80 /tmp/ccEBQxwb.o
+ .text.start    0x00000000       0x80 /tmp/cc5yJ84z.o
                 0x00000000                _start
                 0x0000007c                trap_handler
  *(.text*)
- .text          0x00000080      0x72c /tmp/ccYgHod0.o
-                0x00000744                main
- .text          0x000007ac        0x0 /tmp/ccEBQxwb.o
-                0x000007ac                        . = ALIGN (0x4)
-                0x000007ac                        __data_load = LOADADDR (.data)
+ .text          0x00000080      0x668 /tmp/cc11Zl20.o
+                0x00000680                main
+ .text          0x000006e8        0x0 /tmp/cc5yJ84z.o
+                0x000006e8                        . = ALIGN (0x4)
+                0x000006e8                        __data_load = LOADADDR (.data)
 
-.rela.dyn       0x000007ac        0x0
+.rela.dyn       0x000006e8        0x0
  .rela.text.start
-                0x000007ac        0x0 /tmp/ccYgHod0.o
+                0x000006e8        0x0 /tmp/cc11Zl20.o
 
-.data           0x10000000       0x3c load address 0x000007ac
+.data           0x10000000       0x3c load address 0x000006e8
                 0x10000000                        __data_start = .
  *(.rodata*)
- .rodata        0x10000000       0x3b /tmp/ccYgHod0.o
+ .rodata        0x10000000       0x3b /tmp/cc11Zl20.o
  *(.srodata*)
  *(.sdata2*)
  *(.data*)
- .data          0x1000003b        0x0 /tmp/ccYgHod0.o
- .data          0x1000003b        0x0 /tmp/ccEBQxwb.o
+ .data          0x1000003b        0x0 /tmp/cc11Zl20.o
+ .data          0x1000003b        0x0 /tmp/cc5yJ84z.o
  *(.sdata*)
                 0x1000003c                        . = ALIGN (0x4)
  *fill*         0x1000003b        0x1 
                 0x1000003c                        __data_end = .
 
-.bss            0x1000003c        0x4 load address 0x000007e8
+.bss            0x1000003c        0x8 load address 0x00000724
                 0x1000003c                        __bss_start = .
  *(.bss*)
- .bss           0x1000003c        0x4 /tmp/ccYgHod0.o
- .bss           0x10000040        0x0 /tmp/ccEBQxwb.o
+ .bss           0x1000003c        0x8 /tmp/cc11Zl20.o
+ .bss           0x10000044        0x0 /tmp/cc5yJ84z.o
  *(.sbss*)
  *(COMMON)
-                0x10000040                        . = ALIGN (0x4)
-                0x10000040                        __bss_end = .
+                0x10000044                        . = ALIGN (0x4)
+                0x10000044                        __bss_end = .
 
 .stack          0x10001000      0xff0
                 0x10001000                        __stack_bottom = .
@@ -76,4 +76,4 @@ LOAD /tmp/ccEBQxwb.o
                 0x00000001                        ASSERT ((__stack_bottom >= 0x10001000), ERROR: __stack_bottom sai — DMEM_STACK phai bat dau tu 0x10001000.)
                 0x00000001                        ASSERT ((__stack_top == 0x10001ff0), ERROR: __stack_top != 0x10001FF0 — kiem tra DMEM_STACK LENGTH.)
                 0x00000001                        ASSERT ((__bss_end <= __stack_bottom), ERROR: BSS/data tran vao vung stack!)
-OUTPUT(test_gpio.elf elf32-littleriscv)
+OUTPUT(test_plic.elf elf32-littleriscv)

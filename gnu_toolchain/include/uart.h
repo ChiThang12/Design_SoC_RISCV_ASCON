@@ -39,7 +39,7 @@
 #define UART_IRQ_STATUS MMIO_REG(UART_BASE, 0x14)
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
-static inline void uart_init(uint16_t baud_div, uint8_t en_tx_irq, uint8_t en_rx_irq)
+static inline void uart_init(uint32_t baud_div, uint8_t en_tx_irq, uint8_t en_rx_irq)
 {
     UART_BAUD_DIV_R = (uint32_t)baud_div;
     __asm__ volatile ("fence w,w" ::: "memory");

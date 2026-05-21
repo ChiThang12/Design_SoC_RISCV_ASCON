@@ -520,6 +520,24 @@ task wait_lsu_idle;
     end
 endtask
 
+task do_fence_rr;
+    integer tout;
+    begin
+        wait_lsu_idle();
+        @(negedge clk);
+        fence_type = 2'b10;
+        repeat (4) @(posedge clk);
+        tout = 0;
+        while (probe_flush_busy && tout < 5000) begin
+            @(posedge clk);
+            tout = tout + 1;
+        end
+        @(negedge clk);
+        fence_type = 2'b00;
+        repeat (4) @(posedge clk);
+    end
+endtask
+
 task do_fence_flush_after_idle;
     integer tout;
     begin
@@ -639,6 +657,59 @@ initial begin
     check_mem_word(32'h10000334, exp1, "LG04 mem word1");
     check_mem_word(32'h10000338, exp2, "LG04 mem word2");
     check_mem_word(32'h1000033C, exp3, "LG04 mem word3");
+
+    // LG05: uart_init pattern — sh (upper halfword) then sb×2 then lhu same addr
+    // Replicates: sh baud_div,14(sp) + sb en_tx,13(sp) + sb en_rx,12(sp) + lhu 14(sp)
+    tc_header("LG05: sh upper-halfword then lhu same addr (uart_init pattern)");
+    do_reset();
+    mem_set_line(32'h10000700, 32'h00000000, 32'h0, 32'h0, 32'h0);
+    // sh 0x0364 to addr 0x10000702 (upper halfword: addr[1]=1, strb=1100)
+    lsu_issue_store(32'h10000702, 32'h03640000, 4'b1100);
+    // sb 0x00 to addr 0x10000701 (byte offset 1, strb=0010)
+    lsu_issue_store(32'h10000701, 32'h00000000, 4'b0010);
+    // sb 0x00 to addr 0x10000700 (byte offset 0, strb=0001)
+    lsu_issue_store(32'h10000700, 32'h00000000, 4'b0001);
+    // lhu from 0x10000702 — expect 0x0364 (zero-extended upper halfword)
+    lsu_issue_load_and_expect(32'h10000702, 5'd14, 3'b101, 32'h00000364, "LG05 lhu upper-hw");
+    // also verify full word is correct
+    lsu_issue_load_and_expect(32'h10000700, 5'd15, 3'b010, 32'h03640000, "LG05 lw full word");
+
+    // LG06: sh lower-halfword then lhu
+    tc_header("LG06: sh lower-halfword then lhu same addr");
+    do_reset();
+    mem_set_line(32'h10000710, 32'h00000000, 32'h0, 32'h0, 32'h0);
+    lsu_issue_store(32'h10000710, 32'h00000364, 4'b0011);
+    lsu_issue_load_and_expect(32'h10000710, 5'd14, 3'b101, 32'h00000364, "LG06 lhu lower-hw");
+
+    // -----------------------------------------------------------------------
+    // LG07: fence r,r invalidation — confirm BUG-C9-DCACHE hypothesis
+    //
+    // Scenario:
+    //   1. CPU load addr A (cold miss) → cache fills with zeros
+    //   2. External write to axi_mem[A] (simulate DMA bypass)
+    //   3. fence r,r (fence_type=2'b10)
+    //   4. CPU load addr A again → expect new value if invalidation works,
+    //      0x00000000 if stale (confirms bug)
+    // -----------------------------------------------------------------------
+    tc_header("LG07: fence r,r invalidation after external (DMA-like) write");
+    do_reset();
+    // Step 1: axi_mem zerod, CPU load → cold miss, fills cache with 0
+    mem_set_line(32'h10000340, 32'h00000000, 32'h00000000, 32'h00000000, 32'h00000000);
+    lsu_issue_load_and_expect(32'h10000340, 5'd1, 3'b010, 32'h00000000, "LG07 cold read=0");
+
+    // Step 2: external (DMA) write directly into backing memory, bypass cache
+    axi_mem[midx(32'h10000340)]   = 32'h4C4C4548; // "HELL"
+    axi_mem[midx(32'h10000340)+1] = 32'h4D44204F; // "O DM"
+    axi_mem[midx(32'h10000340)+2] = 32'h4F532D41; // "A-SO"
+    axi_mem[midx(32'h10000340)+3] = 32'h0A0D2143; // "C!\r\n"
+
+    // Step 3: fence r,r
+    do_fence_rr();
+
+    // Step 4: CPU reload — should see DMA-written data if invalidation works
+    $display("--- LG07: if FAIL below => fence r,r does NOT invalidate (BUG-C9-DCACHE confirmed) ---");
+    lsu_issue_load_and_expect(32'h10000340, 5'd2, 3'b010, 32'h4C4C4548, "LG07 post-fence word0");
+    lsu_issue_load_and_expect(32'h10000344, 5'd3, 3'b010, 32'h4D44204F, "LG07 post-fence word1");
 
     $display("");
     $display("============================================================");

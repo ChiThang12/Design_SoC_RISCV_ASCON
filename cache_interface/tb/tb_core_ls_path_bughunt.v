@@ -320,6 +320,46 @@ wire [31:0] rf_s3 = u_cpu.register_file.registers[19];
 wire [31:0] rf_a0 = u_cpu.register_file.registers[10];
 
 // ============================================================================
+// Fence-type capture
+// ============================================================================
+reg [1:0] cg_fence_captured;
+reg       cg_fence_fired;
+reg       cg_fence_cap_en;
+
+always @(posedge clk) begin
+    if (!rst && cg_fence_cap_en && |cpu_dcache_fence_type && !cg_fence_fired) begin
+        cg_fence_captured <= cpu_dcache_fence_type;
+        cg_fence_fired    <= 1'b1;
+    end
+end
+
+// DMA inject: after first AR for cg_inject_addr, update axi_mem one cycle after RLAST
+reg        cg_inject_en;
+reg        cg_inject_ar_seen;
+reg        cg_inject_done;
+reg [31:0] cg_inject_addr;
+reg [31:0] cg_inject_d0, cg_inject_d1, cg_inject_d2, cg_inject_d3;
+
+always @(posedge clk) begin
+    if (rst) begin
+        cg_inject_ar_seen <= 1'b0;
+        cg_inject_done    <= 1'b0;
+    end else if (cg_inject_en && !cg_inject_done) begin
+        if (!cg_inject_ar_seen && mem_arvalid &&
+            (mem_araddr[31:4] == cg_inject_addr[31:4]))
+            cg_inject_ar_seen <= 1'b1;
+        if (cg_inject_ar_seen && mem_rvalid && mem_rlast && !cg_inject_done) begin
+            // Fill complete — inject new data (simulates DMA write)
+            axi_mem[midx(cg_inject_addr)  ] <= cg_inject_d0;
+            axi_mem[midx(cg_inject_addr)+1] <= cg_inject_d1;
+            axi_mem[midx(cg_inject_addr)+2] <= cg_inject_d2;
+            axi_mem[midx(cg_inject_addr)+3] <= cg_inject_d3;
+            cg_inject_done <= 1'b1;
+        end
+    end
+end
+
+// ============================================================================
 // Helpers / encoders
 // ============================================================================
 integer cyc, pass_cnt, fail_cnt, i, wp;
@@ -475,6 +515,90 @@ task wait_flush_done;
     end
 endtask
 
+// Fence-only program: execute one fence instruction then halt
+task load_prog_fence_only;
+    input [31:0] fence_instr;
+    begin
+        clr_imem();
+        wp = 0;
+        wi(fence_instr);              // fence xx,xx
+        wi(enc_j(21'd0, 5'd0));      // halt
+    end
+endtask
+
+// CG04 program: load from DST (cold miss), 8 NOPs, fence r,r, load again, halt
+// a0 = 0x10000340 (dst_buf)
+// s0 = first load, s1 = second load (post-fence)
+task load_prog_dma_stale;
+    begin
+        clr_imem();
+        wp = 0;
+        wi(enc_u(20'h10000, 5'd10, 7'b0110111));             // lui   a0,0x10000
+        wi(enc_i(12'h340, 5'd10, 3'b000, 5'd10, 7'b0010011)); // addi  a0,a0,0x340
+        wi(enc_i(12'd0,  5'd10, 3'b010, 5'd8,  7'b0000011)); // lw    s0,0(a0)  <- LOAD-1
+        wi(32'h00000013); wi(32'h00000013); wi(32'h00000013); wi(32'h00000013);
+        wi(32'h00000013); wi(32'h00000013); wi(32'h00000013); wi(32'h00000013);
+        wi(32'h0220000F);                                     // fence r,r
+        wi(enc_i(12'd0,  5'd10, 3'b010, 5'd9,  7'b0000011)); // lw    s1,0(a0)  <- LOAD-2
+        wi(enc_j(21'd0, 5'd0));                               // halt
+    end
+endtask
+
+task reset_fence_cap;
+    begin
+        cg_fence_captured = 2'b00;
+        cg_fence_fired    = 1'b0;
+        cg_fence_cap_en   = 1'b1;
+    end
+endtask
+
+// Wait until fence fires and capture, or timeout
+task wait_fence_fired;
+    integer tout;
+    begin
+        tout = 0;
+        while (!cg_fence_fired && tout < 5000) begin
+            @(posedge clk);
+            tout = tout + 1;
+        end
+        if (tout >= 5000)
+            $display("[WARN] wait_fence_fired timeout cyc=%0d", cyc);
+        cg_fence_cap_en = 1'b0;
+        $display("    [FENCE-CAP] type=%02b fired=%b at cyc=%0d", cg_fence_captured, cg_fence_fired, cyc);
+    end
+endtask
+
+task reset_inject;
+    input [31:0] addr;
+    input [31:0] d0, d1, d2, d3;
+    begin
+        cg_inject_addr    = addr;
+        cg_inject_d0      = d0;
+        cg_inject_d1      = d1;
+        cg_inject_d2      = d2;
+        cg_inject_d3      = d3;
+        cg_inject_ar_seen = 1'b0;
+        cg_inject_done    = 1'b0;
+        cg_inject_en      = 1'b1;
+    end
+endtask
+
+task wait_inject_done;
+    integer tout;
+    begin
+        tout = 0;
+        while (!cg_inject_done && tout < 5000) begin
+            @(posedge clk);
+            tout = tout + 1;
+        end
+        cg_inject_en = 1'b0;
+        if (tout >= 5000)
+            $display("[WARN] wait_inject_done timeout cyc=%0d", cyc);
+        else
+            $display("[CYC%0d][DMA-SIM] inject done at 0x%08h -> d0=%08h", cyc, cg_inject_addr, cg_inject_d0);
+    end
+endtask
+
 task load_prog_c4_like;
     begin
         clr_imem();
@@ -566,6 +690,12 @@ initial begin
     cyc = 0;
     pass_cnt = 0;
     fail_cnt = 0;
+    cg_fence_cap_en   = 1'b0;
+    cg_fence_captured = 2'b00;
+    cg_fence_fired    = 1'b0;
+    cg_inject_en      = 1'b0;
+    cg_inject_ar_seen = 1'b0;
+    cg_inject_done    = 1'b0;
     clr_imem();
     clr_mem();
 
@@ -593,6 +723,77 @@ initial begin
     chk(axi_mem[midx(32'h10000334)],   32'h4D44204F, "CG02 mem word1");
     chk(axi_mem[midx(32'h10000338)],   32'h4F532D41, "CG02 mem word2");
     chk(axi_mem[midx(32'h1000033C)],   32'h0A0D2143, "CG02 mem word3");
+
+    // -----------------------------------------------------------------------
+    // CG03: fence decode sweep — verify CPU generates correct dcache_fence_type
+    // for each fence variant.
+    // -----------------------------------------------------------------------
+
+    // CG03a: fence r,r → expect 2'b10 (invalidate only)
+    tc_header("CG03a: fence r,r decode → expect dcache_fence_type=2'b10");
+    clr_mem();
+    load_prog_fence_only(32'h0220000F);   // fence r,r
+    reset_fence_cap();
+    do_reset();
+    wait_fence_fired();
+    wait_for_pc(32'h00000004);
+    repeat (10) @(posedge clk);
+    chk({30'd0, cg_fence_captured}, {30'd0, 2'b10}, "CG03a fence_r_r type");
+
+    // CG03b: fence w,w → expect 2'b01 (flush only)
+    tc_header("CG03b: fence w,w decode → expect dcache_fence_type=2'b01");
+    clr_mem();
+    load_prog_fence_only(32'h0110000F);   // fence w,w
+    reset_fence_cap();
+    do_reset();
+    wait_fence_fired();
+    wait_for_pc(32'h00000004);
+    repeat (10) @(posedge clk);
+    chk({30'd0, cg_fence_captured}, {30'd0, 2'b01}, "CG03b fence_w_w type");
+
+    // CG03c: fence rw,rw → expect 2'b11 (flush + invalidate)
+    tc_header("CG03c: fence rw,rw decode → expect dcache_fence_type=2'b11");
+    clr_mem();
+    load_prog_fence_only(32'h0330000F);   // fence rw,rw
+    reset_fence_cap();
+    do_reset();
+    wait_fence_fired();
+    wait_for_pc(32'h00000004);
+    repeat (10) @(posedge clk);
+    chk({30'd0, cg_fence_captured}, {30'd0, 2'b11}, "CG03c fence_rw_rw type");
+
+    // -----------------------------------------------------------------------
+    // CG04: DMA-stale full path
+    //   CPU loads from 0x10000340 (cold miss → cache fills with 0)
+    //   TB injects 0xDEADBEEF into backing memory after fill (simulates DMA)
+    //   CPU executes fence r,r (should generate type=2'b10 → DCache invalidates)
+    //   CPU loads again → PASS if result=0xDEADBEEF, FAIL=stale (BUG confirmed)
+    //
+    //   If CG03a PASS but CG04 FAIL → DCache invalidation logic timing bug
+    //   If CG03a FAIL → CPU decode wrong (root cause found here)
+    // -----------------------------------------------------------------------
+    tc_header("CG04: DMA-stale — CPU executes fence r,r after external write");
+    clr_mem();
+    clear_caps();
+    load_prog_dma_stale();
+    // Arm inject: after cold fill of 0x10000340, inject 0xDEADBEEF (simulate DMA)
+    reset_inject(32'h10000340,
+                 32'hDEADBEEF, 32'hCAFEBABE, 32'h12345678, 32'h87654321);
+    reset_fence_cap();
+    do_reset();
+    // Wait for inject to complete (fill done, new data injected)
+    wait_inject_done();
+    $display("  [CG04] inject done, fence_type will be captured next");
+    // Wait for fence r,r to fire
+    wait_fence_fired();
+    $display("  [CG04] fence type observed = %02b (expected 2'b10)", cg_fence_captured);
+    // Wait for halt
+    wait_for_pc(32'h0000002C);
+    wait_flush_done();
+    $display("--- CG04 key check: FAIL => fence r,r does NOT invalidate DCache (BUG-C9-DCACHE) ---");
+    chk({30'd0, cg_fence_captured}, {30'd0, 2'b10}, "CG04 fence_type=2'b10 generated");
+    chk(rf_s0, 32'h00000000, "CG04 s0 cold-load (expect 0)");
+    chk(rf_s1, 32'hDEADBEEF, "CG04 s1 post-fence (expect injected value)");
 
     $display("");
     $display("============================================================");

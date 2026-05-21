@@ -87,6 +87,7 @@ static int run_dma_uart_test(void)
         uart_putc((char)c);
     }
 
+    uart_puts("\r\n");   /* flush TB line buffer trước [PASS] */
     uart_puts("[PASS] dma_uart\r\n");
     DMEM->RETCODE = 0u;
     return 0;
