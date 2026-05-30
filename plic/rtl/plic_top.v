@@ -199,4 +199,29 @@ module plic_top #(
         .irq_pending    (meip)
     );
 
+`ifdef DEBUG_WDATA
+    reg prev_pending8;
+    reg prev_meip;
+    reg prev_irq8;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            prev_pending8 <= 1'b0;
+            prev_meip     <= 1'b0;
+            prev_irq8     <= 1'b0;
+        end else begin
+            if (pending[8] !== prev_pending8 || meip !== prev_meip)
+                $display("[%6d] [PLIC-MON] irq_src8=%b pending8=%b enable8=%b prio8=%0d thr=%0d meip=%b claim_id=%0d",
+                         $time, irq_src[8], pending[8], enable[8],
+                         priority_flat[PRIO_W*8 +: PRIO_W], threshold, meip, claim_id);
+            // Track irq_src[8] at clock edge
+            if (irq_src[8] !== prev_irq8)
+                $display("[%6d] [PLIC-IRQ8] irq_src8 changed: %b→%b  pending8=%b in_service(gw8)=? enable8=%b",
+                         $time, prev_irq8, irq_src[8], pending[8], enable[8]);
+            prev_pending8 <= pending[8];
+            prev_meip     <= meip;
+            prev_irq8     <= irq_src[8];
+        end
+    end
+`endif
+
 endmodule

@@ -37,15 +37,20 @@ A fail → RTL bug trong submodule đó
 | B1 | CPU Integ | CRT0 lw/sw hazard qua DCache→DMEM | `cpu/tb/tb_riscv_cpu_core_v2.v` | ❓ |
 | B2 | CPU Integ | ICache fetch + boot sequence | `run_soc_ascon.v` + minimal hex | ❓ |
 | B3 | CPU Integ | DCache miss/hit + forwarding correctness | `run_soc_ascon.v` + test hex | ❓ |
-| C1 | SoC FW | Boot + CRT0 .data init | `test_crt0_verify.c` (tạo mới) | 🚫 |
-| C2 | SoC FW | UART TX basic | `test_uart_simple.c` | ✅ |
+| C1 | SoC FW | Boot + CRT0 .data init | `test_crt0_verify.c` | ✅ PASS |
+| C2 | SoC FW | UART TX basic | `test_uart_simple.c` | ✅ PASS |
 | C3 | SoC FW | UART TX IRQ + W1C clear | `test_uart.c` | ✅ PASS |
-| C4 | SoC FW | GPIO r/w + edge IRQ | `test_gpio.c` | ⚠️ TIMEOUT |
-| C5 | SoC FW | Timer0/1 countdown + IRQ | `test_timer.c` | ⚠️ TIMEOUT |
-| C6 | SoC FW | CLINT mtime/mtimecmp | `test_clint.c` | ⚠️ TIMEOUT |
-| C7 | SoC FW | PLIC 2-source routing | `test_plic.c` | ⚠️ TIMEOUT |
-| C8 | SoC FW | ASCON DMA 16-block AEAD | `test_ascon.c` | ⚠️ TIMEOUT |
-| C9 | SoC FW | GP-DMA memcpy via firmware | `test_dma_uart.c` | ⚠️ TIMEOUT |
+| C4 | SoC FW | GPIO r/w + edge IRQ | `test_gpio.c` | ⚠️ TIMEOUT (BUG-PLIC-DECERR) |
+| C4.1 | SoC FW | GPIO RTL unit | `tb_gpio_top.v` | ✅ PASS 18/18 |
+| C4.2 | SoC FW | JALR+ICache flush TB | `tb_icache_jalr.v` | ✅ PASS (hypothesis sai) |
+| C4.3 | SoC FW | IFU redirect slip fix | `cpu/core/IFU.v` | ✅ APPLIED |
+| C4.4 | SoC FW | ICache last-word race fix | `icache_controller.v` | ✅ APPLIED |
+| C4.5 | SoC FW | test_gpio post-ICache-fix | `test_gpio.c` | ⚠️ TIMEOUT (PLIC) |
+| C5 | SoC FW | Timer0/1 countdown + IRQ | `test_timer.c` | ✅ PASS |
+| C6 | SoC FW | CLINT mtime/mtimecmp | `test_clint.c` | ⚠️ TIMEOUT (chờ PLIC fix) |
+| C7 | SoC FW | PLIC 2-source routing | `test_plic.c` | ⚠️ TIMEOUT (BUG-PLIC-DECERR) |
+| C8 | SoC FW | ASCON DMA 16-block AEAD | `test_ascon.c` | ⚠️ FAIL (BUG-C8-DOT) |
+| C9 | SoC FW | GP-DMA memcpy via firmware | `test_dma_uart.c` | ✅ PASS |
 | C10 | SoC FW | All IPs (Unity build) | `test_integration.c` | ⚠️ TIMEOUT |
 
 ---
@@ -322,7 +327,19 @@ int main(void) {
 **Run**: `bash regression_full.sh test_gpio`
 **Kiểm tra**: GPIO write → read-back, edge IRQ → PLIC → CPU ISR.
 **Pass**: `*** PASS`.
-**Debug path khi fail**: Cần A9 (PLIC unit) pass trước khi debug GPIO IRQ path.
+**Trạng thái hiện tại (2026-05-25)**: ICache/IFU bugs đã fix (C4.3+C4.4). Firmware chạy đúng (gpio_out=0xAA ✓). TIMEOUT vì BUG-PLIC-DECERR.
+
+**BUG-PLIC-DECERR** (blocking):
+- `plic_enable()` RMW đọc `0x5004_0100` → DECERR → enable bit không set → IRQ không về CPU
+- Fix cần: kiểm tra S9 address decode trong crossbar + PLIC RTL register tại offset 0x100
+- `gnu_toolchain/include/plic.h` PLIC_ENABLE_BASE = cần verify
+
+**Debug path C4.x**:
+- C4.1 ✅ GPIO RTL OK (tb_gpio_top.v PASS 18/18)
+- C4.2 ✅ flush>stall_any confirmed (tb_icache_jalr.v)
+- C4.3 ✅ FIX-IFU-REDIRECT-SLIP (cpu/core/IFU.v)
+- C4.4 ✅ FIX-ICACHE-LASTWORD-RACE (icache_controller.v)
+- C4.5 ⚠️ PLIC DECERR → next: fix S9 crossbar decode
 
 ---
 
@@ -331,7 +348,7 @@ int main(void) {
 **Run**: `bash regression_full.sh test_timer`
 **Kiểm tra**: Timer0 countdown → IRQ fire → ISR handler.
 **Pass**: `*** PASS`.
-**Known bug**: BUG-TIMER (timer_channel.v `en` rising edge detect) — fix applied, chưa verify.
+**Trạng thái**: ✅ PASS (2026-05-25) — BUG-TIMER fix verified, PASS=1 uart=26.
 
 ---
 
@@ -357,7 +374,9 @@ int main(void) {
 **Run**: `bash regression_full.sh test_ascon`
 **Kiểm tra**: Plaintext 16×8B → ASCON-128 DMA encrypt → ciphertext+tag đúng.
 **Pass**: `*** PASS`.
-**Debug path khi fail**:
+**Trạng thái (2026-05-25)**: ⚠️ FAIL — BUG-C8-DOT: firmware in `"[PASS] ascon."` (1 chấm), TB match `"[PASS] ascon.."` (2 chấm) → PASS=0. ASCON hardware thực sự đúng.
+**Fix**: Sửa `gnu_toolchain/tests/test_ascon.c`: `uart_puts("[PASS] ascon..\r\n")`.
+**Debug path khi fail sau fix**:
 1. A6 pass? → ASCON core đúng
 2. A7 pass? → DMA pipeline đúng
 3. C1 pass? → CRT0 không corrupt buffer
@@ -385,24 +404,71 @@ int main(void) {
 
 ## Coverage Matrix
 
-| Bug ID | Phát hiện tại | Isolated tại | Root cause |
-|--------|-------------|-------------|-----------|
-| BUG-001 load-use hazard | A1 TC-LU, A2 | **A1** | `hazard_detection.v` + `PIPELINE_REG_MEM_WB.v` |
-| BUG-002 UART W1C | C3 | **C3** | `cpu/core/LSU.v` store-buffer forward sai vào MMIO/NC path |
-| BUG-003 ASCON timeout | A7, C8 | **A6** (core) / **A7** (DMA) | ASCON CTRL=0x5 hoặc DMA FSM |
-| BUG-TIMER timer enable | C5 | **C5** (không có unit TB) | `timer_channel.v` en rising edge |
-| ICache AXI deadlock | B2 | **B2** | `icache_axi_interface.v` ARVALID latch |
-| DCache stale | B1, B3 | **B1** | DCache miss path / forwarding |
-| PLIC arbitration | A9, C7 | **A9** | `plic_top.v` priority logic |
-| CRT0 _copy_data | A1 TC-CRT0, B1, C1 | **A1** | load-use hazard trong lw→sw loop |
-| AXI crossbar routing | A5 | **A5** | `axi4_crossbar.v` address decode |
+| Bug ID | Phát hiện tại | Isolated tại | Root cause | Status |
+|--------|-------------|-------------|-----------|--------|
+| BUG-001 load-use hazard | A1 TC-LU, A2 | **A1** | `hazard_detection.v` + `PIPELINE_REG_MEM_WB.v` | ✅ FIXED |
+| BUG-002 UART W1C | C3 | **C3** | `cpu/core/LSU.v` store-buffer forward sai vào MMIO/NC path | ✅ FIXED |
+| BUG-003 ASCON timeout | A7, C8 | **A6** (core) / **A7** (DMA) | ASCON CTRL=0x5 hoặc DMA FSM | ✅ FIXED |
+| BUG-TIMER timer enable | C5 | **C5** | `timer_channel.v` en rising edge | ✅ FIXED |
+| BUG-ICACHE AXI deadlock | B2 | **B2** | `icache_axi_interface.v` ARVALID latch | ✅ FIXED |
+| BUG-C4 IFU redirect slip | C4 (IFU+ICache) | **C4.3** | `cpu/core/IFU.v` — redirect_pending không gate NOP | ✅ FIXED |
+| BUG-C4 ICache last-word race | C4 (IFU+ICache) | **C4.4** | `icache_controller.v` — NBA timing data_array | ✅ FIXED |
+| BUG-PLIC-DECERR | C4.5 | **C4.5** | Crossbar S9 decode: 0x50040100 → DECERR | ❌ OPEN |
+| BUG-C8-DOT | C8 | **C8** | Firmware 1 chấm vs TB 2 chấm | ❌ OPEN |
+| CRT0 _copy_data | A1 TC-CRT0, B1, C1 | **A1** | load-use hazard trong lw→sw loop | ✅ FIXED |
+| AXI crossbar routing | A5 | **A5** | `axi4_crossbar.v` address decode | ✅ FIXED |
 
 ---
 
 ## Quick Reference — Run Commands
 
+### Group C — regression_full.sh (SoC firmware)
+
+> **Benchmark (2026-05-25)**: 1 simulation = ~74s real time. Serial 10 tests ≈ 10 phút.
+
+#### Dev loop — fix bug rồi verify nhanh
 ```bash
-# Group A
+# Chạy đúng 1 test sau khi fix (74s)
+bash regression_full.sh test_timer
+bash regression_full.sh test_gpio
+
+# Đọc kết quả
+rtk read log/test_timer.log
+```
+
+#### Full regression — chạy tất cả song song (~80–90s thay vì 10 phút)
+```bash
+# Parallel: compile mỗi test với hex riêng, chạy tất cả vvp đồng thời
+bash regression_full.sh -j
+
+# Rebuild firmware + parallel
+bash regression_full.sh -b -j
+
+# Parallel chỉ nhóm test quan tâm (ví dụ sau khi fix PLIC)
+bash regression_full.sh -j test_gpio test_clint test_plic
+```
+
+#### Cơ chế `-j` (parallel):
+- `iverilog` compile mỗi test với `-DIMEM_INIT_FILE="<hex_path>"` baked in → không dùng `memory/program.hex` chung
+- Tất cả `vvp` chạy background (`&`) trên 16 cores
+- Tổng thời gian = test chậm nhất (~74s), thay vì tổng cộng (10 × 74s)
+
+#### Serial (legacy / debug từng bước)
+```bash
+bash regression_full.sh                     # tất cả, tuần tự
+bash regression_full.sh test_uart_simple    # C2
+bash regression_full.sh test_uart           # C3
+bash regression_full.sh test_gpio           # C4
+bash regression_full.sh test_timer          # C5
+bash regression_full.sh test_clint          # C6
+bash regression_full.sh test_plic           # C7
+bash regression_full.sh test_ascon          # C8
+bash regression_full.sh test_dma_uart       # C9
+bash regression_full.sh test_integration    # C10
+```
+
+### Group A — RTL Unit Tests
+```bash
 ~/workflow/urun_verilog.sh cpu/tb/tb_layer1_pipeline.v         # A1
 ~/workflow/urun_verilog.sh cpu/tb/tb_riscv_cpu_core_v2.v       # A2
 ~/workflow/urun_verilog.sh memory/tb/tb_instmem.v              # A3
@@ -415,27 +481,13 @@ int main(void) {
 ~/workflow/urun_verilog.sh controller/tb/tb_soc_ctrl_slave.v   # A10
 ~/workflow/urun_verilog.sh peripheral/gpio/tb/tb_gpio_top.v    # A11
 ~/workflow/urun_verilog.sh peripheral/timer/tb/tb_timer_top.v  # A12
-~/workflow/urun_verilog.sh peripheral/spi/tb/tb_spi_top.v      # A13
-~/workflow/urun_verilog.sh peripheral/otp/tb/tb_otp_stub_slave.v # A14
+```
 
-# Group B (via run_layer_test.sh)
+### Group B — CPU Integration
+```bash
 ./workflow/run_layer_test.sh 2    # B1 — CRT0 hazard
 ./workflow/run_layer_test.sh 4    # B2 — ICache boot
 ./workflow/run_layer_test.sh 3    # B3 — DCache
-
-# Group C (via regression_full.sh)
-bash regression_full.sh test_uart_simple    # C2
-bash regression_full.sh test_uart           # C3
-bash regression_full.sh test_gpio           # C4
-bash regression_full.sh test_timer          # C5
-bash regression_full.sh test_clint          # C6
-bash regression_full.sh test_plic           # C7
-bash regression_full.sh test_ascon          # C8
-bash regression_full.sh test_dma_uart       # C9
-bash regression_full.sh test_integration    # C10
-
-# Chạy tất cả Group C
-bash regression_full.sh
 ```
 
 ---
@@ -447,3 +499,4 @@ bash regression_full.sh
 3. Khi phát hiện fail: báo ngắn "Test X FAIL tại TC-Y: [mô tả 1 dòng]" → chờ user confirm trước khi phân tích sâu.
 4. Sau mỗi fix → update `test_task.md` với kết quả verify thực tế.
 5. Dùng escalation policy để tìm root cause, không trial-and-error.
+6. **Verify nhanh**: dùng `bash regression_full.sh -j` (parallel, ~90s) thay vì serial (10 phút). Single test dùng `bash regression_full.sh <test_name>` (74s).

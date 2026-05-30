@@ -8,23 +8,27 @@
 
 ---
 
-## Current Sprint (2026-05-20)
+## Current Sprint (2026-05-26)
 
-**Focus**: C layer — C1 ✅ C2 ✅ C3 ✅ C5 ✅ C8 ✅ C9 ✅ PASS, tiếp tục C4, C6, C7, C10
-**Layer hiện tại**: C1–C3, C5, C8, C9 PASS — C4, C6, C7, C10 TIMEOUT
+**Focus**: C layer — C1 ✅ C2 ✅ C3 ✅ C8 ✅ C9 ✅ C10 ✅ PASS | C5 ⚠️ B-hang | C4 ⚠️ crash | C6 C7 ❓
+**Layer hiện tại**: regression_full.sh 2026-05-26: 6/10 PASS. BUG-PLIC-DECERR đã phân tích sâu → PLIC HW đúng, vấn đề nằm ở CPU (RAW hazard / PC corruption). plic.h đã revert về |= (ổn định).
 **Bước tiếp theo**:
 ```
 1. ✅ A1–A10 tất cả PASS
-2. ✅ B1 PASS — CRT0 copy đúng 14/14 words
-3. ✅ B2 PASS — ICache boot OK, DEADBEEF write confirmed
-4. ✅ B3 PASS — DCache store/load correct: s0=1 s1=2 s2=3 s3=4
-5. ✅ C1 PASS (2026-05-18) — .data copy verified, [PASS] crt0 uart=13
-6. ✅ C3 PASS (2026-05-19) — BUG-UART-LINEBUF fixed: thêm uart_puts("\r\n") sau byte 'A' để flush TB line buffer
-7. ✅ C8 PASS (2026-05-18) — ASCON DMA test "[PASS] ascon.."
-8. ✅ C5 PASS (2026-05-20) — BUG-HEX-FLAG fixed: rebuild không có -c flag
-9. ✅ C9 PASS (2026-05-20) — BUG-C9b fixed (thêm \r\n), BUG-C9-DCACHE đóng (false alarm: -O 1 artifact)
-10. ✅ C6 investigated (2026-05-20) — root cause xác định: BUG-C4-JALR-ICACHE, ISR không reach 0x500 do ICache miss + flush window expire
-11. → Tiếp theo: fix BUG-C4-JALR-ICACHE (soc_top.v + cpu_core_v2.v) → verify C4, C6, C7, C10
+2. ✅ B1–B3 PASS
+3. ✅ C1 C2 C3 C8 C9 C10 PASS
+4. ✅ C4.1–C4.4 PASS (IFU + ICache fix applied)
+5. ⚠️ C5 (2026-05-26) — uart=38 "[DBG] init → A ok → B wait" rồi hang
+      Root cause: ISR chạy đúng 3× (3 plic_complete(5) confirmed), nhưng
+      main loop đọc timer_irq_count stale do RAW hazard sau mret.
+      → Fix: BUG-C5-RAW (xem bug tracker)
+6. ⚠️ C4/test_gpio (2026-05-26) — uart=0, crash trước uart_init
+      Root cause: PC nhảy đến 0x01000000 (unmapped) trong PLIC setup (giữa
+      threshold và priority write). Nghi ngờ mtvec bị ghi đè hoặc CPU pipeline
+      bug trong interrupt pending path.
+      → Fix: BUG-C4-GPIO-CRASH (xem bug tracker)
+7. ❓ C6 C7 — chưa debug lại sau plic.h revert
+      → Re-run và đọc log để xác định root cause riêng biệt
 ```
 
 ---
@@ -49,13 +53,18 @@
 | C1 | test_crt0_verify | Boot+CRT0 | 2026-05-18 | ✅ PASS | uart=13 "[PASS] crt0.." |
 | C2 | test_uart_simple | UART TX basic | 2026-05-18 | ✅ PASS | uart=29 "UART OK..[PASS] uart_simple.." |
 | C3 | test_uart | UART IRQ W1C | 2026-05-19 | ✅ PASS | uart=28 "Hello UART..A..[PASS] uart.." (BUG-UART-LINEBUF fixed) |
-| C4 | test_gpio | GPIO+IRQ | 2026-05-20 | ⚠️ TIMEOUT | BUG-C4-JALR-ICACHE (đang điều tra) — GPIO DIR=0xAA thay vì 0xFF |
-| C5 | test_timer | Timer IRQ | 2026-05-20 | ✅ PASS | uart=26 "[PASS] timer.." (BUG-HEX-FLAG fixed) |
-| C6 | test_clint | CLINT | 2026-05-20 | ⚠️ TIMEOUT | BUG-C4-JALR-ICACHE: ISR fetch 0x4e0 xong thì nhảy về 0x660, không reach 0x500 (set flag) |
-| C7 | test_plic | PLIC routing | 2026-05-18 | ⚠️ TIMEOUT | WATCHDOG TIMEOUT, uart=0 |
-| C8 | test_ascon | ASCON DMA | 2026-05-18 | ✅ PASS | uart=14 "[PASS] ascon.." (Fix loop confirmed) |
-| C9 | test_dma_uart | GP-DMA | 2026-05-20 | ✅ PASS | uart=74 "[INFO] CPU compute..HELLO DMA-SOC!..[PASS] dma_uart" (BUG-C9b fixed, -O 0) |
-| C10 | test_integration | All IPs | 2026-05-18 | ⚠️ TIMEOUT | uart=1 "." |
+| C4 | test_gpio | GPIO+IRQ | 2026-05-26 | ⚠️ TIMEOUT | uart=0. PC→0x01000000 (unmapped) giữa plic_set_threshold và plic_set_priority. BUG-C4-GPIO-CRASH |
+| C4.1 | tb_gpio_top | GPIO RTL unit | 2026-05-22 | ✅ PASS 18/18 | TC01–TC06: reset/DIR/DOUT/DIN/edgeIRQ/W1C/wake |
+| C4.2 | tb_icache_jalr | JALR+ICache flush | 2026-05-22 | ✅ PASS (hypothesis sai) | flush>stall_any confirmed, root cause thực = 2 bugs dưới |
+| C4.3 | IFU redirect slip fix | cpu/core/IFU.v | 2026-05-25 | ✅ APPLIED | redirect_pending=1 → drive NOP, ngăn stale instruction slip |
+| C4.4 | ICache last-word race fix | icache_controller.v | 2026-05-25 | ✅ APPLIED | last_word buffer bypass stale data_array beat cuối refill |
+| C4.5 | test_gpio post-fix | GPIO+PLIC+IRQ | 2026-05-26 | ⚠️ TIMEOUT | gpio_out=0xAA ✓ (trước đây). Hiện uart=0: PC crash 0x01000000 trước khi in bất kỳ UART |
+| C5 | test_timer | Timer IRQ | 2026-05-26 | ⚠️ TIMEOUT | uart=38 "[DBG] init→A ok→B wait" hang. ISR chạy 3× đúng. timer_irq_count stale vì RAW hazard sau mret. BUG-C5-RAW |
+| C6 | test_clint | CLINT | 2026-05-25 | ⚠️ TIMEOUT | uart=0 — chưa debug lại sau plic.h revert |
+| C7 | test_plic | PLIC routing | 2026-05-25 | ⚠️ TIMEOUT | uart=0 — chưa debug lại sau plic.h revert |
+| C8 | test_ascon | ASCON DMA | 2026-05-25 | ✅ PASS | uart=14 "[PASS] ascon.." — BUG-C8-DOT resolved |
+| C9 | test_dma_uart | GP-DMA | 2026-05-25 | ✅ PASS | uart=74 "[INFO] CPU compute..HELLO DMA-SOC!..[PASS] dma_uart" |
+| C10 | test_integration | All IPs | 2026-05-25 | ✅ PASS | uart=60 "=== Integration Test Start ===..Hello U.." |
 
 **Legend**: ✅ PASS | ❌ FAIL | ⚠️ TIMEOUT | ❓ Not run | 🚫 TB/FW missing
 
@@ -192,23 +201,138 @@
 
 ---
 
-### BUG-C4-JALR-ICACHE — ICache miss stall làm flush window expire sau JALR
+### BUG-C4-JALR-ICACHE — Root cause C4 TIMEOUT → FIXED (2 sub-bugs)
 
-- **Severity**: CRITICAL (blocks C4, có thể liên quan C6/C7/C10)
+- **Severity**: CRITICAL (blocks C4, C6, C7, C10)
+- **Files fixed**: `cpu/core/IFU.v`, `cache_interface/icache/icache_controller.v`
+
+- **Root cause xác nhận (2026-05-25) — 2 sub-bugs độc lập**:
+
+  **Sub-bug 1 — IFU redirect slip** (`cpu/core/IFU.v`):
+  Khi JALR retire từ EX, `redirect_pending` latch target. Nếu ICache miss đang in-flight,
+  `flush_if_id_final` deassert trước khi ICache trả data. Khi `imem_ready=1` trở lại,
+  `redirect_pending=1` nhưng `Instruction_Code = imem_rdata` (stale speculative) → slip.
+
+  **Sub-bug 2 — ICache last-word race** (`icache_controller.v`):
+  Tại cycle Y (`refill_done=1`): `ctrl_valid/ctrl_tag <= 1` (NBA) commit end-of-Y.
+  Tại Y+1: `ctrl_hit=1`, nhưng `data_array` write của last_word commit end-of-Y+1.
+  Combinational read tại Y+1 → stale data cho `offset == last_word`.
+
+- **Evidence (C4.5 log sau fix)**:
+  ```
+  cy4660: gpio_out=0x00/OE=0xFF  → gpio_set_dir(0xFF) ✓
+  cy4776: gpio_out=0xAA/OE=0xFF  → gpio_write(0xAA) ✓
+  cy5042: DECERR M1 READ 0x50040100  → plic_enable fail
+  cy9076: GPIO IRQ src[4]=1  → hardware OK ✓
+  PLIC → CPU.external_irq=0  → IRQ không về CPU
+  ```
+
+- **Fix 1 — IFU.v** (2026-05-25, line 100):
+  ```verilog
+  localparam IFU_NOP = 32'h00000013;
+  assign Instruction_Code = redirect_pending          ? IFU_NOP
+                          : (imem_ready && !stall)    ? imem_rdata
+                                                      : instr_hold;
+  ```
+
+- **Fix 2 — icache_controller.v** (2026-05-25, line 344+):
+  Thêm `last_word_{valid,data,idx,tag,off}` registers. Capture tại `refill_done && refill_data_valid`.
+  Thêm `last_word_hit` wire. Bypass `data_array` trong output logic khi `last_word_hit`.
+
+- **Verify theo C4.x**:
+  - C4.1 ✅ PASS 18/18 (2026-05-22) — GPIO RTL OK
+  - C4.2 ✅ (2026-05-22) — flush>stall_any confirmed, hypothesis cũ sai
+  - C4.3 ✅ FIX-IFU-REDIRECT-SLIP applied (2026-05-25)
+  - C4.4 ✅ FIX-ICACHE-LASTWORD-RACE applied (2026-05-25)
+  - C4.5 ⚠️ TIMEOUT — firmware correct, blocked by BUG-PLIC-DECERR
+
+- **Status**: ✅ IFU + ICache bugs FIXED — blocked bởi BUG-PLIC-DECERR (bug riêng)
+
+---
+
+### BUG-PLIC-DECERR — CLOSED / RE-CLASSIFIED (2026-05-26)
+
+- **Severity**: CLOSED — PLIC hardware đúng, không có DECERR thực sự
+- **Kết luận sau debug sâu (2026-05-26)**:
+  - `[PLIC-WREXEC]` confirms PLIC regfile commit đúng: threshold=0, priority[5]=1, enable=0x20, priority[8]=1, enable[8]=1
+  - S9-PLIC WRITE display trong testbench là **AXI AW-time bug**: monitor đọc `s9_wdata` tại AW handshake (stale), không phải W data. Hiển thị data=8 là artifact, không phải bug HW.
+  - `plic_enable()` với `|=` (volatile) generate đúng lw → or → sw. PLIC enable register được set đúng.
+  - PLIC hardware (`plic_top`, `plic_gateway`, `plic_priority_encoder`) đều đúng.
+- **Bug thực sự**: Xem BUG-C4-GPIO-CRASH và BUG-C5-RAW (CPU pipeline issues)
+- **Status**: ✅ CLOSED — không cần fix PLIC RTL hay crossbar
+
+---
+
+### BUG-C4-GPIO-CRASH — test_gpio PC crash trước uart_init (NEW — 2026-05-26)
+
+- **Severity**: HIGH (blocks C4)
 - **Layer**: C4 (`test_gpio`)
-- **File**: `soc_top.v` line 918
-- **Triệu chứng**: GPIO DIR = 0xAA (0b10101010) thay vì 0xFF (0b11111111). UART=0 → WATCHDOG TIMEOUT.
-- **Root cause (hypothesis)**:
-  1. `soc_top.v` kết nối cứng `icache_top.flush = 1'b0` thay vì `flush_if_id_final` từ CPU.
-  2. Khi JALR tại 0x678 ở EX stage, IF fetch instruction tiếp theo tại 0x680 (`addi x10,x0,0xAA`) → **ICache miss** → pipeline stall ~8 cycles (8 AXI beats).
-  3. Trong stall, JALR rời EX stage → `flush_if_id_final` về 0 trước khi ICache deliver.
-  4. ICache deliver 0x680 (`addi x10,x0,0xAA`) sau khi flush window đóng → slips vào pipeline → x10=0xAA → GPIO DIR=0xAA.
-- **Tại sao tb_cpu_jalr_flush.v không phát hiện**: imem_ready=1 constant → không có stall → flush luôn active khi delivery → TC-JALR PASS.
-- **Fix dự kiến**:
-  1. Export `flush_if_id_final` từ `cpu/riscv_cpu_core_v2.v` thành output port `imem_flush_o`
-  2. Sửa `soc_top.v`: `.flush(cpu_imem_flush)` thay vì `.flush(1'b0)`
-- **Verify**: Tạo `cpu/tb/tb_icache_jalr.v` (ICache thật + AXI burst IMEM). Nếu `dmem[0x100]=0xAA` → confirmed.
-- **Status**: 🔍 INVESTIGATING — TB chưa tạo
+- **File**: Chưa xác định — nghi ngờ CPU pipeline hoặc mtvec corruption
+- **Triệu chứng**: uart=0. Firmware crash (PC→0x01000000, unmapped) xảy ra trong PLIC setup, giữa `plic_set_threshold(0)` và `plic_set_priority(PLIC_SRC_GPIO, 1)`. Không in bất kỳ UART nào.
+- **Evidence từ log trước (cy5026 trong session cũ)**:
+  ```
+  cy4948: plic_set_threshold(0) → PLIC-WREXEC aw_off=200 ok
+  cy5026: ICache/DCache burst tại 0x01000000 (unmapped)
+         [!!!] DECERR M0 READ (ICache fetching từ sai địa chỉ)
+  — plic_set_priority chưa chạy
+  ```
+- **Hypothesis**:
+  1. `irq_set_mtvec(gpio_isr)` được gọi trước PLIC setup → csr mtvec write. Sau đó một interrupt pending (edge IRQ?) trigger CPU nhảy vào ISR tại địa chỉ sai.
+  2. Hoặc: CPU pipeline bug làm PC nhảy sang `(plic_set_threshold_arg << 12)` = `0x01000000` (vì threshold=0x01000000 nếu arg bị corrupt).
+  3. Hoặc: stack frame của `run_gpio_test` bị ghi đè bởi RAW hazard → ra bị corrupt → return đến sai địa chỉ.
+- **Debug path**:
+  1. Đọc `log/test_gpio.log` cycle ~4900–5100 → xem PC trace và UART writes trước crash
+  2. Xem `test_gpio.dump` tại địa chỉ crash để hiểu instruction đang chạy
+  3. So sánh với `test_gpio.c` flow: `irq_set_mtvec` → `plic_set_threshold` → crash
+- **Status**: 🔍 NOT FIXED
+
+---
+
+### BUG-C5-RAW — timer_irq_count stale sau mret (NEW — 2026-05-26)
+
+- **Severity**: HIGH (blocks C5)
+- **Layer**: C5 (`test_timer`)
+- **File**: `cpu/core/LSU.v` — store-to-load forwarding sau interrupt return
+- **Triệu chứng**: uart=38 "[DBG] init→A ok→B wait" rồi timeout. ISR timer_isr chạy đúng 3 lần (xác nhận qua 3 `plic_complete(5)` writes), nhưng main loop `while (timer_irq_count < 3u)` không thoát.
+- **Evidence**:
+  ```
+  [PLIC-WREXEC] aw_off=204 w_data=00000005 → 3 lần (ISR complete ×3)
+  ISR disasm tại 0x5BC: lw+addi+sw timer_irq_count (0x1000009C) đúng
+  Nhưng main loop (run_timer_test 0x6A8) đọc timer_irq_count = stale 0
+  ```
+- **Root cause hypothesis**: Sau `mret`, ISR store `timer_irq_count++` vào DCache. Main loop load lại từ 0x1000009C nhưng DCache line vẫn cached với giá trị cũ (0) → RAW hazard không được resolve đúng qua interrupt boundary. Hoặc: ISR store chưa commit trước khi `mret` hoàn thành → main loop thấy stale.
+- **Debug path**:
+  1. Thêm `$display` vào LSU khi load từ 0x1000009C → xem giá trị thực CPU nhận
+  2. Kiểm tra DCache invalidation sau `mret` — có flush cache line không?
+  3. Thử thêm `fence r,r` sau `irq_enable_global()` trong test_timer.c để force reload
+  4. Kiểm tra `cpu/core/LSU.v` — sau interrupt return, có gì đặc biệt không?
+- **Quick test**: Thêm `__asm__ volatile ("fence r,r" ::: "memory")` vào vòng while:
+  ```c
+  while (timer_irq_count < 3u) {
+      __asm__ volatile ("fence r,r" ::: "memory");
+      if (--timeout == 0u) { ... }
+  }
+  ```
+  Nếu fix → confirm DCache line stale issue.
+- **Status**: 🔍 NOT FIXED
+
+---
+
+### BUG-C8-DOT — test_ascon UART string mismatch
+
+- **Severity**: MEDIUM (blocks C8 automated detection)
+- **File**: `gnu_toolchain/tests/test_ascon.c`
+- **Triệu chứng**: `PASS=0` — firmware in `"[PASS] ascon.\r\n"` (1 chấm), TB match `"[PASS] ascon.."` (2 chấm)
+- **Evidence**: `log/test_ascon.log` line `"[PASS] ascon."`, `PASS=0 FAIL=0`
+- **Fix**: Firmware đã có đủ 2 chấm (regression_full.sh -b rebuild xác nhận)
+- **Status**: ✅ RESOLVED 2026-05-25 — C8 PASS uart=14 "[PASS] ascon.."
+
+---
+
+### BUG-C5-TIMER-B — SUPERSEDED bởi BUG-C5-RAW (2026-05-26)
+
+- **Ghi chú**: Bug này ban đầu nghi ngờ timer channel B RTL, nhưng debug sâu (2026-05-26) xác nhận timer hoạt động đúng — PLIC forward IRQ, ISR claim/complete đúng. Root cause thực là `timer_irq_count` stale do RAW hazard. Xem BUG-C5-RAW.
+- **Status**: ✅ SUPERSEDED
 
 ---
 
@@ -378,12 +502,39 @@
 
 ---
 
-### [2026-05-12] APPLIED (chưa verify): BUG-TIMER Timer channel enable
+### [2026-05-25] FIXED: BUG-C4-IFU-REDIRECT-SLIP — IFU drive stale instruction khi redirect_pending
+
+- **Bug ID**: BUG-C4 sub-bug 1
+- **File thay đổi**: `cpu/core/IFU.v` line 100
+- **Fix**:
+  ```verilog
+  localparam IFU_NOP = 32'h00000013;
+  assign Instruction_Code = redirect_pending          ? IFU_NOP
+                          : (imem_ready && !stall)    ? imem_rdata
+                                                      : instr_hold;
+  ```
+- **Verify**: C4.5 — gpio_out=0xAA ✓ (firmware chạy đúng)
+- **Kết quả**: ✅ APPLIED — firmware correct, C4 blocked by BUG-PLIC-DECERR
+
+---
+
+### [2026-05-25] FIXED: BUG-C4-ICACHE-LASTWORD-RACE — ICache deliver stale beat cuối refill
+
+- **Bug ID**: BUG-C4 sub-bug 2
+- **File thay đổi**: `cache_interface/icache/icache_controller.v` line 344+
+- **Fix**: Thêm `last_word_*` buffer (5 regs). Capture khi `refill_done && refill_data_valid`.
+  Thêm `last_word_hit` wire bypass `data_array` trong output logic.
+- **Verify**: C4.5 — kết hợp với IFU fix, firmware correct
+- **Kết quả**: ✅ APPLIED — cần PLIC fix để confirm full C4 PASS
+
+---
+
+### [2026-05-20] FIXED + VERIFIED: BUG-TIMER Timer channel enable (C5 PASS confirmed)
 - **Bug ID**: BUG-TIMER
 - **File thay đổi**: `peripheral/timer/rtl/timer_channel.v`
 - **Fix**: Thêm `en_r` FF, rising edge detect `en_rise = en && !en_r`
-- **Verify**: CHƯA CHẠY — cần C5 pass
-- **Kết quả**: ❓ Pending
+- **Verify**: `bash regression_full.sh test_timer` → PASS=1, uart=26 "[PASS] timer\r\n"
+- **Kết quả**: ✅ VERIFIED (2026-05-25)
 
 ---
 
@@ -453,9 +604,11 @@ rtk git status
 # cpu/core/PIPELINE_REG_MEM_WB.v        (BUG-001) ✅ verified
 # cpu/core/hazard_detection.v           (BUG-001) ✅ verified
 # cpu/core/LSU.v                        (BUG-002 NC fwd) ✅ verified C3
+# cpu/core/IFU.v                        (BUG-C4 sub1: FIX-IFU-REDIRECT-SLIP) ✅ applied
 # cpu/riscv_cpu_core_v2.v               (BUG-MUL + BUG-JAL-STALL) ✅ verified
-# peripheral/timer/rtl/timer_channel.v  (BUG-TIMER, chưa verify C5)
+# peripheral/timer/rtl/timer_channel.v  (BUG-TIMER) ✅ verified C5
 # cache_interface/icache_axi_interface.v (BUG-ICACHE) ✅ verified via B2
+# cache_interface/icache/icache_controller.v (BUG-C4 sub2: FIX-ICACHE-LASTWORD-RACE) ✅ applied
 # memory/inst_mem_axi_slave.v            (A3 fix) ✅ verified
 # interconnect/tb/tb_axi4_crossbar.v    (A5 fix — testbench only) ✅ verified
 # cpu/tb/tb_riscv_soc_top.v             (B3 testbench) ✅ verified
@@ -464,8 +617,8 @@ rtk git status
 # gnu_toolchain/tests/*.hex             (rebuilt)
 ```
 
-**Quy tắc commit**: C3 PASS. Nên commit tất cả RTL fix đã verify.
-BUG-TIMER commit sau khi C5 PASS.
+**Quy tắc commit**: Commit IFU + ICache fix sau khi C4 PASS (chờ PLIC fix).
+C8 đã PASS — không cần firmware fix riêng.
 
 ---
 
@@ -476,7 +629,16 @@ A1 ✅ → A2 ✅ → A3 ✅ → A4 ✅ → A5 ✅ → A6 ✅ → A7 ✅ → A8 
     ↓
 B1 ✅ → B2 ✅ → B3 ✅
     ↓
-C1 ✅ → C2 ✅ → C3 ✅ → C4 ⚠️ → C5 ✅ → C6 ⚠️ → C7 ⚠️ → C8 ✅ → C9 ✅
+C1 ✅ → C2 ✅ → C3 ✅ → C8 ✅ → C9 ✅ → C10 ✅
     ↓
-C10 ⚠️  →  SoC VERIFIED
+C5 ⚠️ (BUG-C5-RAW: timer_irq_count stale sau mret — thử fence r,r trong while loop)
+C4 ⚠️ (BUG-C4-GPIO-CRASH: PC→0x01000000 trước uart_init — trace log/test_gpio.log)
+C6 ❓ (chưa debug — re-run sau plic.h revert để có baseline)
+C7 ❓ (chưa debug — re-run để xem log)
+    ↓
+[Fix BUG-C5-RAW] → C5 ✅
+[Fix BUG-C4-GPIO-CRASH] → C4 ✅
+[Debug C6 C7] → C6 C7 ✅
+    ↓
+C10 re-run ✅ → SoC VERIFIED
 ```

@@ -2,24 +2,32 @@
 # =============================================================================
 # regression_full.sh — Full IP regression test suite
 #
-# Chạy 9 firmware tests qua workflow chuẩn (copy hex → urun_verilog.sh → log).
+# Chạy 10 firmware tests qua workflow chuẩn.
 # Báo cáo PASS/FAIL với UART output snippet cho mỗi test.
 #
 # Usage:
-#   bash regression_full.sh                  # chạy tất cả 9 test
+#   bash regression_full.sh                  # chạy tất cả, tuần tự
 #   bash regression_full.sh test_uart        # chỉ chạy 1 test
 #   bash regression_full.sh -b               # rebuild firmware hex trước
 #   bash regression_full.sh -b test_ascon    # rebuild rồi chạy 1 test
+#   bash regression_full.sh -j               # PARALLEL: chạy tất cả song song (~75s thay vì 10min)
+#   bash regression_full.sh -j test_gpio test_timer test_plic  # parallel một nhóm test
+#   bash regression_full.sh -b -j            # rebuild rồi chạy parallel
+#
+# Mode -j (parallel):
+#   Compile mỗi test với hex riêng (-DIMEM_INIT_FILE baked in).
+#   Chạy tất cả vvp đồng thời trên background.
+#   Tổng thời gian = test chậm nhất (~75s vs 10 phút serial).
 #
 # Output:
-#   log/<test>.log              — log từng test (compatible với urun_verilog.sh -l)
-#   memory/program.hex          — bị thay tạm thời, restore sau khi xong
-#   memory/program.hex.bak      — backup tự động (nếu chưa có)
+#   log/<test>.log              — log từng test
+#   memory/program.hex          — bị thay tạm thời (chỉ khi KHÔNG dùng -j)
+#   memory/program.hex.bak      — backup tự động (chỉ khi KHÔNG dùng -j)
 #
 # Pass criteria:
 #   grep "*** PASS" trong log → PASS
 #   grep "*** FAIL" trong log → FAIL
-#   Cả hai không có            → TIMEOUT (CPU stuck hoặc test chưa hoàn tất)
+#   Cả hai không có            → TIMEOUT
 # =============================================================================
 
 set -u
@@ -56,24 +64,20 @@ declare -A IP_NAME=(
 
 # ── Parse args ──
 DO_BUILD=0
-TARGET=""
+PARALLEL=0
+TARGETS=()
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -b|--build) DO_BUILD=1; shift ;;
+        -j|--parallel) PARALLEL=1; shift ;;
         -h|--help)
-            sed -n '2,25p' "$0"; exit 0 ;;
-        *) TARGET="$1"; shift ;;
+            sed -n '2,35p' "$0"; exit 0 ;;
+        *) TARGETS+=("$1"); shift ;;
     esac
 done
 
-if [[ -n "$TARGET" ]]; then
-    ALL_TESTS=("$TARGET")
-fi
-
-# ── Backup program.hex nếu chưa có ──
-if [[ ! -f memory/program.hex.bak && -f memory/program.hex ]]; then
-    cp memory/program.hex memory/program.hex.bak
-    echo "[INFO] Backed up memory/program.hex → memory/program.hex.bak"
+if [[ ${#TARGETS[@]} -gt 0 ]]; then
+    ALL_TESTS=("${TARGETS[@]}")
 fi
 
 # ── Build hex nếu yêu cầu ──
@@ -107,31 +111,100 @@ fi
 
 # ── Run sims ──
 echo "=============================================="
-echo " Run regression — ${#ALL_TESTS[@]} test(s)"
+echo " Run regression — ${#ALL_TESTS[@]} test(s)${PARALLEL:+ [PARALLEL]}"
 echo "=============================================="
 mkdir -p log
 
-for t in "${ALL_TESTS[@]}"; do
-    hex="gnu_toolchain/tests/${t}.hex"
-    if [[ ! -f "$hex" ]]; then
-        echo "  [SKIP] $hex không tồn tại (chạy '$0 -b' để build trước)"
-        continue
-    fi
-    ip="${IP_NAME[$t]:-$t}"
-    printf "  %-40s ... " "$ip"
-    cp "$hex" memory/program.hex
-    if ./workflow/urun_verilog.sh -l "$t" run_soc_ascon.v > /dev/null 2>&1; then
-        echo "DONE"
-    else
-        echo "SIM_ERR"
-    fi
-done
+if [[ $PARALLEL -eq 1 ]]; then
+    # ── Parallel mode ──────────────────────────────────────────────────────
+    # Compile mỗi test với hex riêng baked vào VVP → không conflict program.hex
+    # Chạy tất cả vvp background → tổng thời gian = test chậm nhất
+    VVP_DIR="/tmp/regression_$$"
+    mkdir -p "$VVP_DIR"
 
-# ── Restore program.hex ──
-if [[ -f memory/program.hex.bak ]]; then
-    cp memory/program.hex.bak memory/program.hex
-    echo ""
-    echo "[INFO] Restored memory/program.hex from backup"
+    declare -A PIDS
+    declare -A VVP_FILES
+
+    echo "  [1/2] Compiling ${#ALL_TESTS[@]} test(s) ..."
+    for t in "${ALL_TESTS[@]}"; do
+        hex="gnu_toolchain/tests/${t}.hex"
+        if [[ ! -f "$hex" ]]; then
+            echo "  [SKIP] $hex không tồn tại"; continue
+        fi
+        abs_hex="$(pwd)/${hex}"
+        vvp="${VVP_DIR}/${t}.vvp"
+        VVP_FILES[$t]="$vvp"
+        iverilog -g2005 \
+            -DIMEM_INIT_FILE="\"${abs_hex}\"" \
+            -o "$vvp" run_soc_ascon.v > /dev/null 2>&1 &
+        PIDS["compile_$t"]=$!
+    done
+    # Chờ tất cả compile xong
+    for t in "${ALL_TESTS[@]}"; do
+        pid=${PIDS["compile_$t"]:-}
+        [[ -n "$pid" ]] && wait "$pid"
+    done
+    echo "  [1/2] Compile done."
+
+    # Launch tất cả simulations song song
+    echo "  [2/2] Launching simulations (parallel) ..."
+    unset PIDS; declare -A PIDS
+    START_TIME=$SECONDS
+    for t in "${ALL_TESTS[@]}"; do
+        vvp="${VVP_FILES[$t]:-}"
+        if [[ -z "$vvp" || ! -f "$vvp" ]]; then
+            echo "  [SKIP] $t compile failed"; continue
+        fi
+        ip="${IP_NAME[$t]:-$t}"
+        printf "  %-40s ... started\n" "$ip"
+        vvp "$vvp" > "log/${t}.log" 2>&1 &
+        PIDS[$t]=$!
+    done
+
+    # Chờ từng test và báo khi xong
+    for t in "${ALL_TESTS[@]}"; do
+        pid=${PIDS[$t]:-}
+        [[ -z "$pid" ]] && continue
+        wait "$pid"
+        elapsed=$(( SECONDS - START_TIME ))
+        ip="${IP_NAME[$t]:-$t}"
+        pass_cnt=$(/bin/grep -c '\*\*\* PASS' "log/${t}.log" 2>/dev/null || true)
+        result="TIMEOUT/FAIL"
+        [[ "${pass_cnt:-0}" -gt 0 ]] && result="PASS"
+        printf "  %-40s ... %s  (+%ds)\n" "$ip" "$result" "$elapsed"
+    done
+    rm -rf "$VVP_DIR"
+
+else
+    # ── Serial mode (legacy) ──────────────────────────────────────────────
+    # Backup program.hex nếu chưa có
+    if [[ ! -f memory/program.hex.bak && -f memory/program.hex ]]; then
+        cp memory/program.hex memory/program.hex.bak
+        echo "[INFO] Backed up memory/program.hex → memory/program.hex.bak"
+    fi
+
+    for t in "${ALL_TESTS[@]}"; do
+        hex="gnu_toolchain/tests/${t}.hex"
+        if [[ ! -f "$hex" ]]; then
+            echo "  [SKIP] $hex không tồn tại (chạy '$0 -b' để build trước)"
+            continue
+        fi
+        ip="${IP_NAME[$t]:-$t}"
+        printf "  %-40s ... " "$ip"
+        cp "$hex" memory/program.hex
+        if ./workflow/urun_verilog.sh -l "$t" run_soc_ascon.v > /dev/null 2>&1; then
+            echo "DONE"
+        else
+            echo "SIM_ERR"
+        fi
+    done
+
+    # Restore program.hex
+    if [[ -f memory/program.hex.bak ]]; then
+        cp memory/program.hex.bak memory/program.hex
+        echo ""
+        echo "[INFO] Restored memory/program.hex from backup"
+    fi
 fi
 
 # ── Summary table ──

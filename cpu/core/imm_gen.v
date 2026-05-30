@@ -15,6 +15,7 @@ module imm_gen (
         OP_I_TYPE   = 7'b0010011,    // I-type: ADDI, ANDI, ORI, etc.
         OP_LOAD     = 7'b0000011,    // I-type: LW, LH, LB
         OP_JALR     = 7'b1100111,    // I-type: JALR
+        OP_SYSTEM   = 7'b1110011,    // I-type: CSR / MRET / WFI
         OP_STORE    = 7'b0100011,    // S-type: SW, SH, SB
         OP_BRANCH   = 7'b1100011,    // B-type: BEQ, BNE, BLT, etc.
         OP_LUI      = 7'b0110111,    // U-type: LUI
@@ -33,7 +34,7 @@ module imm_gen (
             // Format: imm[11:0] = instr[31:20]
             // Sign-extend from bit 31
             // ================================================================
-            OP_I_TYPE, OP_LOAD, OP_JALR: begin
+            OP_I_TYPE, OP_LOAD, OP_JALR, OP_SYSTEM: begin
                 imm = {{20{instr[31]}}, instr[31:20]};
             end
             

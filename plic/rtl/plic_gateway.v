@@ -49,6 +49,13 @@ module plic_gateway (
             if (irq_in && !in_service && !claim) begin
                 pending_r <= 1'b1;
             end
+
+`ifdef DEBUG_WDATA
+            if (irq_in && !pending_r)
+                $display("[%6d] [GW] irq_in=%b in_service=%b claim=%b → pending_r=%b (will set=%b)",
+                         $time, irq_in, in_service, claim, pending_r,
+                         irq_in && !in_service && !claim);
+`endif
         end
     end
 

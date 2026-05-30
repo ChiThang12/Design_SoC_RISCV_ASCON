@@ -53,7 +53,15 @@ module riscv_cpu_core (
         OP_LOAD   = 7'b0000011,
         OP_STORE  = 7'b0100011,
         OP_BRANCH = 7'b1100011,
-        OP_JALR   = 7'b1100111;
+        OP_JALR   = 7'b1100111,
+        OP_SYSTEM = 7'b1110011;
+
+    localparam [11:0]
+        CSR_MSTATUS = 12'h300,
+        CSR_MIE     = 12'h304,
+        CSR_MTVEC   = 12'h305,
+        CSR_MEPC    = 12'h341,
+        CSR_MCAUSE  = 12'h342;
 
     // =========================================================================
     // INTERRUPT SYNCHRONIZATION & PENDING LOGIC
@@ -76,23 +84,29 @@ module riscv_cpu_core (
         end
     end
 
+    reg [31:0] csr_mstatus_r, csr_mie_r, csr_mtvec_r, csr_mepc_r, csr_mcause_r;
+
     wire irq_pending = ext_irq_s2 | tmr_irq_s2 | sw_irq_s2;
+    wire irq_source_pending = (ext_irq_s2 && csr_mie_r[11]) ||
+                              (tmr_irq_s2 && csr_mie_r[7])  ||
+                              (sw_irq_s2  && csr_mie_r[3]);
+    wire irq_take_req = csr_mstatus_r[3] && irq_source_pending;
 
     reg irq_pending_lat;
     reg [1:0] irq_flush_cnt_r;
     always @(posedge clk or posedge rst) begin
         if (rst)
             irq_pending_lat <= 1'b0;
-        else if (irq_flush_done)
+        else if (irq_take)
             irq_pending_lat <= 1'b0;
-        else if (irq_pending)
+        else if (irq_take_req)
             irq_pending_lat <= 1'b1;
     end
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
             irq_flush_cnt_r <= 2'b00;
-        end else if ((irq_flush_cnt_r == 2'b00) && irq_pending_lat) begin
+        end else if ((irq_flush_cnt_r == 2'b00) && irq_take) begin
             irq_flush_cnt_r <= 2'b11;
         end else if (irq_flush_cnt_r != 2'b00) begin
             irq_flush_cnt_r <= {1'b0, irq_flush_cnt_r[1]};
@@ -238,12 +252,16 @@ module riscv_cpu_core (
     // =========================================================================
     // Decode true source usage early so hazard detection does not treat
     // immediate bits as rs2 dependencies on I-type instructions.
+    wire is_csr_id = (opcode_id == OP_SYSTEM) && (funct3_id != 3'b000);
+    wire csr_uses_rs1_id = is_csr_id && !funct3_id[2];
+
     assign rs1_used_id = (opcode_id == OP_R_TYPE) ||
                          (opcode_id == OP_I_TYPE) ||
                          (opcode_id == OP_LOAD)   ||
                          (opcode_id == OP_STORE)  ||
                          (opcode_id == OP_BRANCH) ||
-                         (opcode_id == OP_JALR);
+                         (opcode_id == OP_JALR)   ||
+                         csr_uses_rs1_id;
 
     assign rs2_used_id = (opcode_id == OP_R_TYPE) ||
                          (opcode_id == OP_STORE)  ||
@@ -312,13 +330,12 @@ module riscv_cpu_core (
     // stall_any includes debug_mode, WFI idle state, and LSU backpressure.
     assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r | mem_stage_wait;
 
-    localparam [6:0] OP_SYSTEM = 7'b1110011;
     wire is_wfi_id = (opcode_id == OP_SYSTEM) &&
                      (funct3_id == 3'b000) &&
                      (rs1_id == 5'b00000) &&
                      (rd_id == 5'b00000) &&
                      (instr_id[31:20] == 12'h105);
-    wire wfi_wake = irq_pending | irq_pending_lat | dbg_halt_s2 | debug_mode;
+    wire wfi_wake = irq_take_req | irq_pending_lat | dbg_halt_s2 | debug_mode;
     wire wfi_enter = is_wfi_id && !cpu_wfi_r && !wfi_wake && !stall_any;
 
     always @(posedge clk or posedge rst) begin
@@ -382,8 +399,14 @@ module riscv_cpu_core (
     // IFU redirect priority: mispredict recovery > actual branch/jump > WFI consume > prediction
     wire [31:0] wfi_resume_pc = pc_id + 32'd4;
 
-    wire        ifu_pc_src    = mispredict_ex || pc_src_ex || wfi_enter || predict_taken_id;
-    wire [31:0] ifu_target_pc = mispredict_ex ? pc_plus_4_ex  :
+    wire irq_eligible = lsu_sb_empty_w && !dcache_req && !debug_mode &&
+                        (opcode_ex != 7'b0000000);
+    wire irq_take = (irq_flush_cnt_r == 2'b00) && irq_pending_lat && irq_eligible;
+    wire [31:0] irq_target_pc = {csr_mtvec_r[31:2], 2'b00};
+
+    wire        ifu_pc_src    = irq_take || mispredict_ex || pc_src_ex || wfi_enter || predict_taken_id;
+    wire [31:0] ifu_target_pc = irq_take      ? irq_target_pc :
+                                mispredict_ex ? pc_plus_4_ex  :
                                 pc_src_ex     ? target_pc_ex  :
                                 wfi_enter     ? wfi_resume_pc :
                                                 branch_target_id;
@@ -402,8 +425,13 @@ module riscv_cpu_core (
     wire is_jalr_ex = (opcode_ex == 7'b1100111);
     wire jalr_wrong_target = is_jalr_ex && jump_ex && predict_taken_ex;
 
-    wire flush_if_id_final = flush_if_id | irq_flush | wfi_enter | jalr_wrong_target;
-    wire flush_id_ex_final = flush_id_ex | irq_flush | wfi_enter;
+    // FIX-MRET-FLUSH: MRET must squash both the instruction in ID (→ flush_id_ex) and
+    // the instruction in IF (→ flush_if_id) that were fetched speculatively after MRET.
+    // FIX-JAL-FLUSH: Unpredicted JAL/JALR (predict_taken_ex=0) must also flush IF and ID
+    // to prevent wrong-path instructions from corrupting register values via forwarding.
+    wire jump_unpredicted_ex = jump_ex && !predict_taken_ex;
+    wire flush_if_id_final = flush_if_id | irq_flush | irq_take | wfi_enter | jalr_wrong_target | is_mret_ex | jump_unpredicted_ex;
+    wire flush_id_ex_final = flush_id_ex | irq_flush | wfi_enter | is_mret_ex | jump_unpredicted_ex;
 
     // =========================================================================
     // STAGE 1: IF
@@ -451,6 +479,8 @@ module riscv_cpu_core (
         .fence      (fence_id)
     );
 
+    wire regwrite_id_final = regwrite_id || is_csr_id;
+
     reg_file register_file (
         .clock        (clk),
         .reset        (rst),
@@ -486,7 +516,7 @@ module riscv_cpu_core (
         .fwd_a_data      (alu_in1_forwarded),
         .fwd_b_data      (alu_in2_pre_mux),
         // Control inputs
-        .regwrite_in     (regwrite_id),
+        .regwrite_in     (regwrite_id_final),
         .alusrc_in       (alusrc_id),
         .memread_in      (memread_id),
         .memwrite_in     (memwrite_id),
@@ -664,11 +694,76 @@ module riscv_cpu_core (
     // Determines if the branch is actually taken to control the PC source.
     // =========================================================================
     wire [31:0] jalr_target;
+    wire is_system_ex = (opcode_ex == OP_SYSTEM);
+    wire is_csr_ex = is_system_ex && (funct3_ex != 3'b000);
+    wire is_mret_ex = is_system_ex && (funct3_ex == 3'b000) && (imm_ex[11:0] == 12'h302);
+    wire [11:0] csr_addr_ex = imm_ex[11:0];
+    wire [31:0] csr_src_ex = funct3_ex[2] ? {27'b0, rs1_ex} : alu_in1_forwarded;
+
+    reg [31:0] csr_read_data_ex;
+    always @(*) begin
+        case (csr_addr_ex)
+            CSR_MSTATUS: csr_read_data_ex = csr_mstatus_r;
+            CSR_MIE:     csr_read_data_ex = csr_mie_r;
+            CSR_MTVEC:   csr_read_data_ex = csr_mtvec_r;
+            CSR_MEPC:    csr_read_data_ex = csr_mepc_r;
+            CSR_MCAUSE:  csr_read_data_ex = csr_mcause_r;
+            default:     csr_read_data_ex = 32'h00000000;
+        endcase
+    end
+
+    reg        csr_write_req_ex;
+    reg [31:0] csr_write_data_ex;
+    always @(*) begin
+        csr_write_req_ex  = 1'b0;
+        csr_write_data_ex = csr_read_data_ex;
+        case (funct3_ex)
+            3'b001, 3'b101: begin
+                csr_write_req_ex  = 1'b1;
+                csr_write_data_ex = csr_src_ex;
+            end
+            3'b010, 3'b110: begin
+                csr_write_req_ex  = (csr_src_ex != 32'h00000000);
+                csr_write_data_ex = csr_read_data_ex | csr_src_ex;
+            end
+            3'b011, 3'b111: begin
+                csr_write_req_ex  = (csr_src_ex != 32'h00000000);
+                csr_write_data_ex = csr_read_data_ex & ~csr_src_ex;
+            end
+            default: begin
+                csr_write_req_ex  = 1'b0;
+                csr_write_data_ex = csr_read_data_ex;
+            end
+        endcase
+    end
+
+    wire [31:0] alu_result_ex_final = is_csr_ex ? csr_read_data_ex : alu_result_ex;
     assign jalr_target  = (alu_in1 + imm_ex) & 32'hFFFFFFFE;
     // branch_target_ex = pc_id + imm_id, pre-computed in ID stage to remove
     // this adder from the EX stage critical path.
-    assign target_pc_ex = (opcode_ex == 7'b1100111) ? jalr_target : branch_target_ex;
-    assign pc_src_ex    = (branch_ex & branch_taken_ex) | jump_ex;
+    assign target_pc_ex = is_mret_ex              ? {csr_mepc_r[31:2], 2'b00} :
+                          (opcode_ex == OP_JALR)  ? jalr_target               :
+                                                    branch_target_ex;
+    assign pc_src_ex    = (branch_ex & branch_taken_ex) | jump_ex | is_mret_ex;
+
+    wire csr_commit_ex  = is_csr_ex && !stall_any;
+    wire mret_commit_ex = is_mret_ex && !stall_any;
+
+    // =========================================================================
+    // DEBUG DISPLAY — IRQ/MRET/RA tracking (remove after C5 fixed)
+    // =========================================================================
+    always @(posedge clk) begin
+        if (!rst) begin
+            if (irq_take)
+                $display("[%0t] [IRQ-TAKE] mepc<=%h mtvec=%h pc_ex=%h pc_id=%h pc_if=%h opcode=%b",
+                    $time, irq_resume_pc, csr_mtvec_r, pc_ex, pc_id, pc_if, opcode_ex);
+            if (mret_commit_ex)
+                $display("[%0t] [MRET-EX] ret->%h flush_if=%b flush_id=%b pc_id=%h pc_if=%h",
+                    $time, {csr_mepc_r[31:2],2'b00}, flush_if_id_final, flush_id_ex_final, pc_id, pc_if);
+            if (regwrite_wb && (rd_wb == 5'd1))
+                $display("[%0t] [WB-RA] ra <= %h", $time, write_back_data_wb);
+        end
+    end
 
     // =========================================================================
     // EX/MEM PIPELINE REGISTER (standalone module)
@@ -685,7 +780,7 @@ module riscv_cpu_core (
         .memwrite_in    (memwrite_ex),
         .jump_in        (jump_ex),
         // Data inputs
-        .alu_result_in  (alu_result_ex),
+        .alu_result_in  (alu_result_ex_final),
         .write_data_in  (alu_in2_pre_mux),
         .pc_plus_4_in   (pc_plus_4_ex),
         .rd_in          (rd_ex),
@@ -890,5 +985,44 @@ module riscv_cpu_core (
         .lsu_dep_stall  (lsu_dep_stall),
         .mul_ex_stall   (mul_ex_stall_wire)
     );
+
+    wire [31:0] irq_cause_code = ext_irq_s2 ? 32'h8000000B :
+                                 tmr_irq_s2 ? 32'h80000007 :
+                                              32'h80000003;
+    wire        ex_valid_for_irq = (opcode_ex != 7'b0000000);
+    wire [31:0] irq_resume_pc = ex_valid_for_irq ? (pc_src_ex ? target_pc_ex : pc_plus_4_ex) :
+                                 (pc_id != 32'h00000000) ? pc_id :
+                                                            pc_if;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            csr_mstatus_r <= 32'h00000000;
+            csr_mie_r     <= 32'h00000000;
+            csr_mtvec_r   <= 32'h00000000;
+            csr_mepc_r    <= 32'h00000000;
+            csr_mcause_r  <= 32'h00000000;
+        end else begin
+            if (irq_take) begin
+                csr_mepc_r       <= irq_resume_pc;
+                csr_mcause_r     <= irq_cause_code;
+                csr_mstatus_r[7] <= csr_mstatus_r[3];
+                csr_mstatus_r[3] <= 1'b0;
+            end else if (mret_commit_ex) begin
+                csr_mstatus_r[3] <= csr_mstatus_r[7];
+                csr_mstatus_r[7] <= 1'b1;
+            end
+
+            if (csr_commit_ex) begin
+                case (csr_addr_ex)
+                    CSR_MSTATUS: csr_mstatus_r <= csr_write_data_ex;
+                    CSR_MIE:     csr_mie_r     <= csr_write_data_ex;
+                    CSR_MTVEC:   csr_mtvec_r   <= csr_write_data_ex;
+                    CSR_MEPC:    csr_mepc_r    <= csr_write_data_ex;
+                    CSR_MCAUSE:  csr_mcause_r  <= csr_write_data_ex;
+                    default: begin end
+                endcase
+            end
+        end
+    end
 
 endmodule

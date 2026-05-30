@@ -13,7 +13,7 @@ Disassembly of section .text:
   14:	06c28293          	addi	x5,x5,108 # 7c <trap_handler>
   18:	30529073          	csrrw	x0,mtvec,x5
   1c:	00001297          	auipc	x5,0x1
-  20:	93c28293          	addi	x5,x5,-1732 # 958 <__data_load>
+  20:	94028293          	addi	x5,x5,-1728 # 95c <__data_load>
   24:	10000317          	auipc	x6,0x10000
   28:	fdc30313          	addi	x6,x6,-36 # 10000000 <__data_start>
   2c:	10000397          	auipc	x7,0x10000
@@ -42,7 +42,7 @@ Disassembly of section .text:
 
 00000070 <_bss_done>:
   70:	00001097          	auipc	x1,0x1
-  74:	880080e7          	jalr	x1,-1920(x1) # 8f0 <main>
+  74:	884080e7          	jalr	x1,-1916(x1) # 8f4 <main>
 
 00000078 <_halt>:
   78:	0000006f          	jal	x0,78 <_halt>
@@ -511,17 +511,17 @@ Disassembly of section .text:
  6cc:	00000097          	auipc	x1,0x0
  6d0:	a58080e7          	jalr	x1,-1448(x1) # 124 <uart_puts>
  6d4:	000017b7          	lui	x15,0x1
- 6d8:	38878513          	addi	x10,x15,904 # 1388 <__data_load+0xa30>
+ 6d8:	38878513          	addi	x10,x15,904 # 1388 <__data_load+0xa2c>
  6dc:	00000097          	auipc	x1,0x0
  6e0:	b98080e7          	jalr	x1,-1128(x1) # 274 <timer0_oneshot>
  6e4:	000407b7          	lui	x15,0x40
- 6e8:	fff78513          	addi	x10,x15,-1 # 3ffff <__data_load+0x3f6a7>
+ 6e8:	fff78513          	addi	x10,x15,-1 # 3ffff <__data_load+0x3f6a3>
  6ec:	00000097          	auipc	x1,0x0
  6f0:	c20080e7          	jalr	x1,-992(x1) # 30c <timer0_wait_timeout>
  6f4:	00050793          	addi	x15,x10,0
  6f8:	00078663          	beq	x15,x0,704 <run_timer_test+0x5c>
  6fc:	fff00793          	addi	x15,x0,-1
- 700:	1e00006f          	jal	x0,8e0 <run_timer_test+0x238>
+ 700:	1e40006f          	jal	x0,8e4 <run_timer_test+0x23c>
  704:	00000097          	auipc	x1,0x0
  708:	c50080e7          	jalr	x1,-944(x1) # 354 <timer0_clear>
  70c:	00000097          	auipc	x1,0x0
@@ -548,128 +548,129 @@ Disassembly of section .text:
  760:	dfc080e7          	jalr	x1,-516(x1) # 558 <irq_set_mtvec>
  764:	00000097          	auipc	x1,0x0
  768:	e28080e7          	jalr	x1,-472(x1) # 58c <irq_enable_external>
- 76c:	00000097          	auipc	x1,0x0
- 770:	e08080e7          	jalr	x1,-504(x1) # 574 <irq_enable_global>
- 774:	00100593          	addi	x11,x0,1
- 778:	3e800513          	addi	x10,x0,1000
+ 76c:	100007b7          	lui	x15,0x10000
+ 770:	03478513          	addi	x10,x15,52 # 10000034 <__data_start+0x34>
+ 774:	00000097          	auipc	x1,0x0
+ 778:	9b0080e7          	jalr	x1,-1616(x1) # 124 <uart_puts>
  77c:	00000097          	auipc	x1,0x0
- 780:	b38080e7          	jalr	x1,-1224(x1) # 2b4 <timer0_autoreload>
- 784:	100007b7          	lui	x15,0x10000
- 788:	03478513          	addi	x10,x15,52 # 10000034 <__data_start+0x34>
- 78c:	00000097          	auipc	x1,0x0
- 790:	998080e7          	jalr	x1,-1640(x1) # 124 <uart_puts>
- 794:	000107b7          	lui	x15,0x10
- 798:	00f12423          	sw	x15,8(x2)
- 79c:	0280006f          	jal	x0,7c4 <run_timer_test+0x11c>
- 7a0:	00812783          	lw	x15,8(x2)
- 7a4:	fff78793          	addi	x15,x15,-1 # ffff <__data_load+0xf6a7>
- 7a8:	00f12423          	sw	x15,8(x2)
- 7ac:	00812783          	lw	x15,8(x2)
- 7b0:	00079a63          	bne	x15,x0,7c4 <run_timer_test+0x11c>
- 7b4:	00000097          	auipc	x1,0x0
- 7b8:	dcc080e7          	jalr	x1,-564(x1) # 580 <irq_disable_global>
- 7bc:	ffe00793          	addi	x15,x0,-2
- 7c0:	1200006f          	jal	x0,8e0 <run_timer_test+0x238>
- 7c4:	100007b7          	lui	x15,0x10000
- 7c8:	09c7a703          	lw	x14,156(x15) # 1000009c <timer_irq_count>
- 7cc:	00200793          	addi	x15,x0,2
- 7d0:	fce7f8e3          	bgeu	x15,x14,7a0 <run_timer_test+0xf8>
- 7d4:	00000097          	auipc	x1,0x0
- 7d8:	dac080e7          	jalr	x1,-596(x1) # 580 <irq_disable_global>
- 7dc:	00000097          	auipc	x1,0x0
- 7e0:	b94080e7          	jalr	x1,-1132(x1) # 370 <timer0_stop>
- 7e4:	00500513          	addi	x10,x0,5
- 7e8:	00000097          	auipc	x1,0x0
- 7ec:	cc8080e7          	jalr	x1,-824(x1) # 4b0 <plic_disable>
- 7f0:	100007b7          	lui	x15,0x10000
- 7f4:	04478513          	addi	x10,x15,68 # 10000044 <__data_start+0x44>
- 7f8:	00000097          	auipc	x1,0x0
- 7fc:	92c080e7          	jalr	x1,-1748(x1) # 124 <uart_puts>
- 800:	00000097          	auipc	x1,0x0
- 804:	c1c080e7          	jalr	x1,-996(x1) # 41c <wdt_clear>
- 808:	0000c7b7          	lui	x15,0xc
- 80c:	35078513          	addi	x10,x15,848 # c350 <__data_load+0xb9f8>
- 810:	00000097          	auipc	x1,0x0
- 814:	b74080e7          	jalr	x1,-1164(x1) # 384 <wdt_enable>
- 818:	00012623          	sw	x0,12(x2)
- 81c:	03c0006f          	jal	x0,858 <run_timer_test+0x1b0>
- 820:	00012223          	sw	x0,4(x2)
- 824:	0140006f          	jal	x0,838 <run_timer_test+0x190>
- 828:	00000013          	addi	x0,x0,0
- 82c:	00412783          	lw	x15,4(x2)
- 830:	00178793          	addi	x15,x15,1
- 834:	00f12223          	sw	x15,4(x2)
- 838:	00412703          	lw	x14,4(x2)
- 83c:	0c700793          	addi	x15,x0,199
- 840:	fee7f4e3          	bgeu	x15,x14,828 <run_timer_test+0x180>
- 844:	00000097          	auipc	x1,0x0
- 848:	b88080e7          	jalr	x1,-1144(x1) # 3cc <wdt_feed>
- 84c:	00c12783          	lw	x15,12(x2)
- 850:	00178793          	addi	x15,x15,1
- 854:	00f12623          	sw	x15,12(x2)
- 858:	00c12703          	lw	x14,12(x2)
- 85c:	00900793          	addi	x15,x0,9
- 860:	fce7f0e3          	bgeu	x15,x14,820 <run_timer_test+0x178>
- 864:	00000097          	auipc	x1,0x0
- 868:	ba0080e7          	jalr	x1,-1120(x1) # 404 <wdt_expired>
- 86c:	00050793          	addi	x15,x10,0
- 870:	00078663          	beq	x15,x0,87c <run_timer_test+0x1d4>
- 874:	ffd00793          	addi	x15,x0,-3
- 878:	0680006f          	jal	x0,8e0 <run_timer_test+0x238>
- 87c:	00000097          	auipc	x1,0x0
- 880:	b70080e7          	jalr	x1,-1168(x1) # 3ec <wdt_disable>
- 884:	100007b7          	lui	x15,0x10000
- 888:	05478513          	addi	x10,x15,84 # 10000054 <__data_start+0x54>
- 88c:	00000097          	auipc	x1,0x0
- 890:	898080e7          	jalr	x1,-1896(x1) # 124 <uart_puts>
- 894:	00000097          	auipc	x1,0x0
- 898:	b88080e7          	jalr	x1,-1144(x1) # 41c <wdt_clear>
- 89c:	000187b7          	lui	x15,0x18
- 8a0:	6a078513          	addi	x10,x15,1696 # 186a0 <__data_load+0x17d48>
- 8a4:	00000097          	auipc	x1,0x0
- 8a8:	ae0080e7          	jalr	x1,-1312(x1) # 384 <wdt_enable>
- 8ac:	00000097          	auipc	x1,0x0
- 8b0:	b58080e7          	jalr	x1,-1192(x1) # 404 <wdt_expired>
- 8b4:	00050793          	addi	x15,x10,0
- 8b8:	00078663          	beq	x15,x0,8c4 <run_timer_test+0x21c>
- 8bc:	ffc00793          	addi	x15,x0,-4
- 8c0:	0200006f          	jal	x0,8e0 <run_timer_test+0x238>
- 8c4:	00000097          	auipc	x1,0x0
- 8c8:	b28080e7          	jalr	x1,-1240(x1) # 3ec <wdt_disable>
- 8cc:	100007b7          	lui	x15,0x10000
- 8d0:	06478513          	addi	x10,x15,100 # 10000064 <__data_start+0x64>
- 8d4:	00000097          	auipc	x1,0x0
- 8d8:	850080e7          	jalr	x1,-1968(x1) # 124 <uart_puts>
- 8dc:	00000793          	addi	x15,x0,0
- 8e0:	00078513          	addi	x10,x15,0
- 8e4:	01c12083          	lw	x1,28(x2)
- 8e8:	02010113          	addi	x2,x2,32
- 8ec:	00008067          	jalr	x0,0(x1)
+ 780:	df8080e7          	jalr	x1,-520(x1) # 574 <irq_enable_global>
+ 784:	00100593          	addi	x11,x0,1
+ 788:	0000c7b7          	lui	x15,0xc
+ 78c:	35078513          	addi	x10,x15,848 # c350 <__data_load+0xb9f4>
+ 790:	00000097          	auipc	x1,0x0
+ 794:	b24080e7          	jalr	x1,-1244(x1) # 2b4 <timer0_autoreload>
+ 798:	000107b7          	lui	x15,0x10
+ 79c:	00f12423          	sw	x15,8(x2)
+ 7a0:	0280006f          	jal	x0,7c8 <run_timer_test+0x120>
+ 7a4:	00812783          	lw	x15,8(x2)
+ 7a8:	fff78793          	addi	x15,x15,-1 # ffff <__data_load+0xf6a3>
+ 7ac:	00f12423          	sw	x15,8(x2)
+ 7b0:	00812783          	lw	x15,8(x2)
+ 7b4:	00079a63          	bne	x15,x0,7c8 <run_timer_test+0x120>
+ 7b8:	00000097          	auipc	x1,0x0
+ 7bc:	dc8080e7          	jalr	x1,-568(x1) # 580 <irq_disable_global>
+ 7c0:	ffe00793          	addi	x15,x0,-2
+ 7c4:	1200006f          	jal	x0,8e4 <run_timer_test+0x23c>
+ 7c8:	100007b7          	lui	x15,0x10000
+ 7cc:	09c7a703          	lw	x14,156(x15) # 1000009c <timer_irq_count>
+ 7d0:	00200793          	addi	x15,x0,2
+ 7d4:	fce7f8e3          	bgeu	x15,x14,7a4 <run_timer_test+0xfc>
+ 7d8:	00000097          	auipc	x1,0x0
+ 7dc:	da8080e7          	jalr	x1,-600(x1) # 580 <irq_disable_global>
+ 7e0:	00000097          	auipc	x1,0x0
+ 7e4:	b90080e7          	jalr	x1,-1136(x1) # 370 <timer0_stop>
+ 7e8:	00500513          	addi	x10,x0,5
+ 7ec:	00000097          	auipc	x1,0x0
+ 7f0:	cc4080e7          	jalr	x1,-828(x1) # 4b0 <plic_disable>
+ 7f4:	100007b7          	lui	x15,0x10000
+ 7f8:	04478513          	addi	x10,x15,68 # 10000044 <__data_start+0x44>
+ 7fc:	00000097          	auipc	x1,0x0
+ 800:	928080e7          	jalr	x1,-1752(x1) # 124 <uart_puts>
+ 804:	00000097          	auipc	x1,0x0
+ 808:	c18080e7          	jalr	x1,-1000(x1) # 41c <wdt_clear>
+ 80c:	0000c7b7          	lui	x15,0xc
+ 810:	35078513          	addi	x10,x15,848 # c350 <__data_load+0xb9f4>
+ 814:	00000097          	auipc	x1,0x0
+ 818:	b70080e7          	jalr	x1,-1168(x1) # 384 <wdt_enable>
+ 81c:	00012623          	sw	x0,12(x2)
+ 820:	03c0006f          	jal	x0,85c <run_timer_test+0x1b4>
+ 824:	00012223          	sw	x0,4(x2)
+ 828:	0140006f          	jal	x0,83c <run_timer_test+0x194>
+ 82c:	00000013          	addi	x0,x0,0
+ 830:	00412783          	lw	x15,4(x2)
+ 834:	00178793          	addi	x15,x15,1
+ 838:	00f12223          	sw	x15,4(x2)
+ 83c:	00412703          	lw	x14,4(x2)
+ 840:	0c700793          	addi	x15,x0,199
+ 844:	fee7f4e3          	bgeu	x15,x14,82c <run_timer_test+0x184>
+ 848:	00000097          	auipc	x1,0x0
+ 84c:	b84080e7          	jalr	x1,-1148(x1) # 3cc <wdt_feed>
+ 850:	00c12783          	lw	x15,12(x2)
+ 854:	00178793          	addi	x15,x15,1
+ 858:	00f12623          	sw	x15,12(x2)
+ 85c:	00c12703          	lw	x14,12(x2)
+ 860:	00900793          	addi	x15,x0,9
+ 864:	fce7f0e3          	bgeu	x15,x14,824 <run_timer_test+0x17c>
+ 868:	00000097          	auipc	x1,0x0
+ 86c:	b9c080e7          	jalr	x1,-1124(x1) # 404 <wdt_expired>
+ 870:	00050793          	addi	x15,x10,0
+ 874:	00078663          	beq	x15,x0,880 <run_timer_test+0x1d8>
+ 878:	ffd00793          	addi	x15,x0,-3
+ 87c:	0680006f          	jal	x0,8e4 <run_timer_test+0x23c>
+ 880:	00000097          	auipc	x1,0x0
+ 884:	b6c080e7          	jalr	x1,-1172(x1) # 3ec <wdt_disable>
+ 888:	100007b7          	lui	x15,0x10000
+ 88c:	05478513          	addi	x10,x15,84 # 10000054 <__data_start+0x54>
+ 890:	00000097          	auipc	x1,0x0
+ 894:	894080e7          	jalr	x1,-1900(x1) # 124 <uart_puts>
+ 898:	00000097          	auipc	x1,0x0
+ 89c:	b84080e7          	jalr	x1,-1148(x1) # 41c <wdt_clear>
+ 8a0:	000187b7          	lui	x15,0x18
+ 8a4:	6a078513          	addi	x10,x15,1696 # 186a0 <__data_load+0x17d44>
+ 8a8:	00000097          	auipc	x1,0x0
+ 8ac:	adc080e7          	jalr	x1,-1316(x1) # 384 <wdt_enable>
+ 8b0:	00000097          	auipc	x1,0x0
+ 8b4:	b54080e7          	jalr	x1,-1196(x1) # 404 <wdt_expired>
+ 8b8:	00050793          	addi	x15,x10,0
+ 8bc:	00078663          	beq	x15,x0,8c8 <run_timer_test+0x220>
+ 8c0:	ffc00793          	addi	x15,x0,-4
+ 8c4:	0200006f          	jal	x0,8e4 <run_timer_test+0x23c>
+ 8c8:	00000097          	auipc	x1,0x0
+ 8cc:	b24080e7          	jalr	x1,-1244(x1) # 3ec <wdt_disable>
+ 8d0:	100007b7          	lui	x15,0x10000
+ 8d4:	06478513          	addi	x10,x15,100 # 10000064 <__data_start+0x64>
+ 8d8:	00000097          	auipc	x1,0x0
+ 8dc:	84c080e7          	jalr	x1,-1972(x1) # 124 <uart_puts>
+ 8e0:	00000793          	addi	x15,x0,0
+ 8e4:	00078513          	addi	x10,x15,0
+ 8e8:	01c12083          	lw	x1,28(x2)
+ 8ec:	02010113          	addi	x2,x2,32
+ 8f0:	00008067          	jalr	x0,0(x1)
 
-000008f0 <main>:
- 8f0:	fe010113          	addi	x2,x2,-32
- 8f4:	00112e23          	sw	x1,28(x2)
- 8f8:	00000097          	auipc	x1,0x0
- 8fc:	db0080e7          	jalr	x1,-592(x1) # 6a8 <run_timer_test>
- 900:	00a12623          	sw	x10,12(x2)
- 904:	00c12783          	lw	x15,12(x2)
- 908:	00079c63          	bne	x15,x0,920 <main+0x30>
- 90c:	100007b7          	lui	x15,0x10000
- 910:	07478513          	addi	x10,x15,116 # 10000074 <__data_start+0x74>
- 914:	00000097          	auipc	x1,0x0
- 918:	810080e7          	jalr	x1,-2032(x1) # 124 <uart_puts>
- 91c:	0340006f          	jal	x0,950 <main+0x60>
- 920:	100007b7          	lui	x15,0x10000
- 924:	08478513          	addi	x10,x15,132 # 10000084 <__data_start+0x84>
- 928:	fffff097          	auipc	x1,0xfffff
- 92c:	7fc080e7          	jalr	x1,2044(x1) # 124 <uart_puts>
- 930:	00c12783          	lw	x15,12(x2)
- 934:	00078513          	addi	x10,x15,0
- 938:	00000097          	auipc	x1,0x0
- 93c:	8c4080e7          	jalr	x1,-1852(x1) # 1fc <uart_puthex32>
- 940:	100007b7          	lui	x15,0x10000
- 944:	09878513          	addi	x10,x15,152 # 10000098 <__data_start+0x98>
- 948:	fffff097          	auipc	x1,0xfffff
- 94c:	7dc080e7          	jalr	x1,2012(x1) # 124 <uart_puts>
- 950:	00000013          	addi	x0,x0,0
- 954:	ffdff06f          	jal	x0,950 <main+0x60>
+000008f4 <main>:
+ 8f4:	fe010113          	addi	x2,x2,-32
+ 8f8:	00112e23          	sw	x1,28(x2)
+ 8fc:	00000097          	auipc	x1,0x0
+ 900:	dac080e7          	jalr	x1,-596(x1) # 6a8 <run_timer_test>
+ 904:	00a12623          	sw	x10,12(x2)
+ 908:	00c12783          	lw	x15,12(x2)
+ 90c:	00079c63          	bne	x15,x0,924 <main+0x30>
+ 910:	100007b7          	lui	x15,0x10000
+ 914:	07478513          	addi	x10,x15,116 # 10000074 <__data_start+0x74>
+ 918:	00000097          	auipc	x1,0x0
+ 91c:	80c080e7          	jalr	x1,-2036(x1) # 124 <uart_puts>
+ 920:	0340006f          	jal	x0,954 <main+0x60>
+ 924:	100007b7          	lui	x15,0x10000
+ 928:	08478513          	addi	x10,x15,132 # 10000084 <__data_start+0x84>
+ 92c:	fffff097          	auipc	x1,0xfffff
+ 930:	7f8080e7          	jalr	x1,2040(x1) # 124 <uart_puts>
+ 934:	00c12783          	lw	x15,12(x2)
+ 938:	00078513          	addi	x10,x15,0
+ 93c:	00000097          	auipc	x1,0x0
+ 940:	8c0080e7          	jalr	x1,-1856(x1) # 1fc <uart_puthex32>
+ 944:	100007b7          	lui	x15,0x10000
+ 948:	09878513          	addi	x10,x15,152 # 10000098 <__data_start+0x98>
+ 94c:	fffff097          	auipc	x1,0xfffff
+ 950:	7d8080e7          	jalr	x1,2008(x1) # 124 <uart_puts>
+ 954:	00000013          	addi	x0,x0,0
+ 958:	ffdff06f          	jal	x0,954 <main+0x60>

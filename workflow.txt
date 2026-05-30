@@ -1,0 +1,10 @@
+Cách dùng nhanh
+Tình huống	Lệnh	Thời gian
+Fix bug X, verify nhanh	./regression_full.sh test_timer	~74s
+Sanity check nhóm test	./regression_full.sh -j test_timer test_gpio test_clint	~80s
+Full regression (10 tests)	./regression_full.sh -j	~80-90s (thay vì 10 phút)
+Rebuild + full regression	./regression_full.sh -b -j	~2 phút
+Nguyên tắc cho dev loop:
+
+Fix code → ./regression_full.sh test_X (74s) → xem log → lặp lại
+Khi hài lòng → ./regression_full.sh -j để verify toàn bộ không có regression

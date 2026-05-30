@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 
 `timescale 1ns/1ps
+`define DEBUG_WDATA                // C1/C2/C3 WDATA trace (LSU→DCache→AXI)
 `include "soc_hs.v"
 
 // ============================================================================
@@ -1139,7 +1140,7 @@ always @(posedge clk) begin
                          cycle_count, m1_awaddr, m1_awlen,
                          slave_name_of_addr(m1_awaddr));
         end
-        if (m1_wvalid && m1_wready && `LOG_LEVEL >= 3)
+        if (m1_wvalid && m1_wready && `LOG_LEVEL >= 2)
             $display("[%6d] [M1-W ] data=0x%08h  strb=%b%s",
                      cycle_count, m1_wdata, m1_wstrb,
                      m1_wlast ? "  [LAST]" : "");

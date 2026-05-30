@@ -625,6 +625,10 @@ module dcache_controller (
                                     evict_nc         <= 1'b1;
                                     evict_wstrb_nc   <= cpu_wstrb;
                                     main_evict_start <= 1'b1;  // [FIX-1]
+`ifdef DEBUG_WDATA
+                                    $display("[%6d] [C2-NC-WRITE] addr=%08h cpu_wdata=%08h wstrb=%04b",
+                                             $time, cpu_addr, cpu_wdata, cpu_wstrb);
+`endif
                                     stat_writes      <= stat_writes + 1;
                                 end else begin
                                     refill_addr  <= cpu_addr;

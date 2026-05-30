@@ -342,6 +342,47 @@ module icache_controller (
     reg        stall_data_rdy;
 
     // =========================================================================
+    // [FIX-ICACHE-LASTWORD-RACE] Last-beat buffer
+    // BUG: At refill_done (cycle Y), data_write_enable is set NBA so the actual
+    // data_array[idx][refill_word] write happens at end of cycle Y+1. But
+    // ctrl_valid/ctrl_tag were also set NBA at cy Y -> ctrl_hit=1 at cy Y+1.
+    // Result: at cy Y+1, CPU may read a NEW PC at offset==refill_word and see
+    // STALE data (still the evicted line's word).
+    // Fix: latch the last beat's data at cy Y; bypass data_array at cy Y+1
+    // when ctrl_hit=1 but index/tag/offset match this latched entry.
+    // =========================================================================
+    reg [31:0] last_word_data;
+    reg [4:0]  last_word_idx;
+    reg [21:0] last_word_tag;
+    reg [2:0]  last_word_off;
+    reg        last_word_valid;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            last_word_valid <= 1'b0;
+            last_word_data  <= 32'h0;
+            last_word_idx   <= 5'h0;
+            last_word_tag   <= 22'h0;
+            last_word_off   <= 3'h0;
+        end else begin
+            if (refill_done && refill_data_valid) begin
+                last_word_valid <= 1'b1;
+                last_word_data  <= refill_data;
+                last_word_idx   <= pf_index;
+                last_word_tag   <= pf_tag;
+                last_word_off   <= refill_word;
+            end else begin
+                last_word_valid <= 1'b0;
+            end
+        end
+    end
+
+    wire last_word_hit = last_word_valid &&
+                         (last_word_idx == cpu_index) &&
+                         (last_word_tag == cpu_tag) &&
+                         (last_word_off == cpu_offset);
+
+    // =========================================================================
     // CPU output
     // =========================================================================
     reg        cpu_ready_int;
@@ -361,6 +402,8 @@ module icache_controller (
                     cpu_rdata_int = stall_data;
                 else if (line_just_done && refill_data_valid && (refill_word == cpu_offset))
                     cpu_rdata_int = refill_data;
+                else if (last_word_hit)
+                    cpu_rdata_int = last_word_data;
                 else
                     cpu_rdata_int = data_read_data;
             end else if (loading_cpu_line && stall_data_rdy && refill_done) begin

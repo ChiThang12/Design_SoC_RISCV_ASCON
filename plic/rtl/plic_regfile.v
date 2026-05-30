@@ -121,6 +121,10 @@ module plic_regfile #(
                     complete_pulse_r <= 1'b1;
                 end
                 // 0x080 = pending RO: write ignored
+`ifdef DEBUG_WDATA
+                $display("[%6d] [PLIC-WREXEC] aw_off=%03h w_data=%08h w_strb=%04b prio_src8=%0d en=%08h thr=%0d",
+                         $time, aw_off, w_data_lat, w_strb_lat, prio_r[8], enable_r, threshold_r);
+`endif
             end
         end
     end

@@ -372,6 +372,15 @@ module LSU (
     end
 `endif
 
+`ifdef DEBUG_WDATA
+    always @(posedge clk) begin
+        if (!rst && do_drain_pop)
+            $display("[%6d] [C1-SB-DRAIN] addr=%08h wdata=%08h wstrb=%04b ptr=%0d",
+                     $time, sb_addr[sb_rd_ptr], sb_wdata[sb_rd_ptr],
+                     sb_wstrb[sb_rd_ptr], sb_rd_ptr);
+    end
+`endif
+
     wire [31:0] drain_addr  = sb_addr [sb_rd_ptr];
     wire [31:0] drain_wdata = sb_wdata[sb_rd_ptr];
     wire [3:0]  drain_wstrb = sb_wstrb[sb_rd_ptr];

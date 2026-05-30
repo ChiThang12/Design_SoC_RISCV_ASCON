@@ -300,6 +300,11 @@ module dcache_axi_interface #(
                         ev_d3         <= evict_data_3;
                         ev_burst_len  <= evict_nc ? 8'd0 : 8'd3;
                         ev_nc_mode    <= evict_nc;
+`ifdef DEBUG_WDATA
+                        $display("[%6d] [C3a-EV-LATCH] nc=%b d0=%08h d1=%08h d2=%08h d3=%08h addr=%08h",
+                                 $time, evict_nc, evict_data_0, evict_data_1,
+                                 evict_data_2, evict_data_3, evict_addr);
+`endif
                         M_AXI_AWVALID <= 1'b1;
                         evict_busy    <= 1'b1;
                         ev_state      <= EV_AW;
@@ -315,6 +320,10 @@ module dcache_axi_interface #(
                         M_AXI_WDATA   <= ev_d0;
                         M_AXI_WSTRB   <= ev_nc_mode ? evict_wstrb_nc : 4'hf;
                         M_AXI_WLAST   <= ev_nc_mode ? 1'b1 : 1'b0;
+`ifdef DEBUG_WDATA
+                        $display("[%6d] [C3b-AXI-WDATA] addr=%08h ev_d0=%08h wstrb=%04b nc=%b",
+                                 $time, M_AXI_AWADDR, ev_d0, evict_wstrb_nc, ev_nc_mode);
+`endif
                         ev_beat       <= 2'b00;
                         ev_state      <= EV_W;
                     end

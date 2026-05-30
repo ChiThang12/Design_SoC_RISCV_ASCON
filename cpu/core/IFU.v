@@ -84,14 +84,35 @@ module IFU (
     always @(posedge clock or posedge reset) begin
         if (reset)
             instr_hold <= 32'h00000013; // NOP
-        else if (imem_ready && !stall)
+        else if (imem_ready && !stall && !redirect_pending)
+            // FIX-IFU-INSTR-HOLD: do NOT capture imem_rdata when redirect_pending=1;
+            // that data belongs to the pre-redirect PC and must not replay on next miss.
             instr_hold <= imem_rdata;
-        else 
-            instr_hold <= instr_hold;
+        // else: keep instr_hold unchanged (stall, cache miss, or pending redirect)
     end
 
-    // Combinational output: direct from memory when ready, else held value
-    assign Instruction_Code = (imem_ready && !stall) ? imem_rdata : instr_hold;
+    // [FIX-IFU-REDIRECT-SLIP] When a redirect was latched while stalled,
+    // imem_rdata on stall-clear is for the old PC → gate with redirect_pending.
+    //
+    // [FIX-IFU-POST-REDIRECT] When redirect fires while ifu_can_advance=1
+    // (no stall), redirect_pending is never set so instr_hold is stale.
+    // post_redirect_nop stays high from redirect-commit until ICache responds
+    // with data for the new PC, suppressing stale instr_hold output.
+    localparam IFU_NOP = 32'h00000013;
+
+    reg post_redirect_nop;
+    always @(posedge clock or posedge reset) begin
+        if (reset)
+            post_redirect_nop <= 1'b0;
+        else if (imem_ready && !stall && !redirect_pending)
+            post_redirect_nop <= 1'b0; // ICache responded for new PC → clear
+        else if ((pc_src && ifu_can_advance) || (redirect_pending && ifu_can_advance))
+            post_redirect_nop <= 1'b1; // redirect just committed
+    end
+
+    assign Instruction_Code = (redirect_pending || (post_redirect_nop && !imem_ready)) ? IFU_NOP
+                            : (imem_ready && !stall)                                   ? imem_rdata
+                                                                                       : instr_hold;
 
     // PC output: directly from PC register
     assign PC_out = PC;

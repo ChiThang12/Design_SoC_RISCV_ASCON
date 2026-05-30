@@ -52,10 +52,9 @@ static int run_timer_test(void)
 
     irq_set_mtvec(timer_isr);
     irq_enable_external();
-    irq_enable_global();
-
-    timer0_autoreload(1000u, 1u);       /* LOAD=1000, irq_en=1 */
     uart_puts("[DBG] B wait\r\n");
+    irq_enable_global();
+    timer0_autoreload(50000u, 1u);      /* IRQ sparse enough to avoid UART/debug overlap */
 
     /* 0x10000 iterations × ~4 cycles ≈ 262K cycles < 800K watchdog */
     timeout = 0x10000u;
