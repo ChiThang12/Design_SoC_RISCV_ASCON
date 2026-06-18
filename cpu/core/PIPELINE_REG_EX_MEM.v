@@ -62,11 +62,18 @@ module PIPELINE_REG_EX_MEM (
     output reg         is_mul_out
 );
 
-    reg [78:0] stalled_sig_r;
+    // [FIX-REPLAY-SP] Signature must identify the *instruction instance*, not its
+    // data. Including alu_result_in/write_data_in broke the pass-once dedup: when an
+    // ALU instr (e.g. addi sp,sp,N) sits in EX during an upstream stall (icache miss)
+    // and forwards its own ungated WB result back into EX, alu_result_in increments
+    // every cycle. The data-sensitive signature then never matched stalled_sig_r, so
+    // the instruction passed through (and committed) every stall cycle — corrupting sp.
+    // pc_plus_4_in uniquely identifies the stalled instruction; data fields are excluded.
+    reg [46:0] stalled_sig_r;
     reg        stalled_sig_valid_r;
-    wire [78:0] ex_sig = {
+    wire [46:0] ex_sig = {
         regwrite_in, memread_in, memwrite_in, jump_in, is_mul_in,
-        rd_in, byte_size_in, funct3_in, alu_result_in, pc_plus_4_in
+        rd_in, byte_size_in, funct3_in, pc_plus_4_in
     };
     wire same_stalled_sig = stalled_sig_valid_r && (ex_sig == stalled_sig_r);
 
@@ -83,7 +90,7 @@ module PIPELINE_REG_EX_MEM (
             rd_out        <= 5'b0;
             byte_size_out <= 2'b0;
             funct3_out    <= 3'b0;
-            stalled_sig_r <= 79'b0;
+            stalled_sig_r <= 47'b0;
             stalled_sig_valid_r <= 1'b0;
         end else if (!stall_ex_mem) begin
             // Data path: always latch
@@ -96,25 +103,30 @@ module PIPELINE_REG_EX_MEM (
 
             // Control path: while upstream is stalled, let each distinct EX
             // instruction advance exactly once, then bubble duplicate replays.
+            // [FIX-REPLAY-SP] Remember the identity of the *last instruction that
+            // actually passed* on every commit (not only while stall_any). The old
+            // code cleared stalled_sig_valid_r whenever !stall_any, so an instruction
+            // that committed on a non-stalled cycle and then got frozen in EX by a
+            // stall asserting the next cycle (e.g. icache miss on the following fetch)
+            // was no longer recognized as a duplicate → it committed a 2nd time. By
+            // retaining the last-passed signature, that stall-onset replay is squashed
+            // immediately, giving exactly one commit per dynamic instruction.
             if (stall_any && same_stalled_sig) begin
                 regwrite_out <= 1'b0;
                 memread_out  <= 1'b0;
                 memwrite_out <= 1'b0;
                 jump_out     <= 1'b0;
                 is_mul_out   <= 1'b0;
+                // keep stalled_sig_r/valid: the frozen instruction is still in EX
             end else begin
                 regwrite_out <= regwrite_in;
                 memread_out  <= memread_in;
                 memwrite_out <= memwrite_in;
                 jump_out     <= jump_in;
                 is_mul_out   <= is_mul_in;
-            end
-
-            if (stall_any) begin
-                stalled_sig_r <= ex_sig;
+                // record identity of this (first) pass so any replay is squashed
+                stalled_sig_r       <= ex_sig;
                 stalled_sig_valid_r <= 1'b1;
-            end else begin
-                stalled_sig_valid_r <= 1'b0;
             end
         end
     end

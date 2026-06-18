@@ -99,6 +99,14 @@ module dma_read_engine #(
     // ─── Current source address (auto-increments per burst for multi-block DMA) ─
     reg [ADDR_WIDTH-1:0] cur_src_addr;
 
+    // ─── Phase-change detection: track src_addr used at last rd_start ─────────
+    // At dma_start, rd_use_override_w has NOT yet updated (NBA latency).
+    // cur_src_addr captured at dma_start therefore holds the WRONG base address.
+    // Fix: compare src_addr at rd_start with the last known base; if different,
+    // it is the first burst of a new phase → use src_addr directly.
+    // For continuation bursts within the same phase: use auto-incremented cur_src_addr.
+    reg [ADDR_WIDTH-1:0] last_rd_src_addr;  // all-1s sentinel = "invalid / new DMA"
+
     // ─── Beat counter (tracks which beat of burst we are on) ─────────────────
     // [FIX-4] Needed to correctly push every beat and to compute err_addr per beat
     reg [7:0] beat_cnt;
@@ -131,16 +139,18 @@ module dma_read_engine #(
             M_AXI_RREADY   <= 1'b0;
             fifo_push      <= 1'b0;
             fifo_din       <= {AXI_DATA_WIDTH{1'b0}};
-            beat_cnt       <= 8'h00;
-            burst_len_r    <= 8'h00;
-            cur_src_addr   <= {ADDR_WIDTH{1'b0}};
+            beat_cnt          <= 8'h00;
+            burst_len_r       <= 8'h00;
+            cur_src_addr      <= {ADDR_WIDTH{1'b0}};
+            last_rd_src_addr  <= {ADDR_WIDTH{1'b1}};  // all-1s sentinel = invalid
         end else begin
             // ── Default: clear 1-cycle strobes ───────────────────────────────
             rd_done   <= 1'b0;
             fifo_push <= 1'b0;
 
-            // Capture base address on DMA start (also used for simultaneous rd_start)
-            if (dma_start) cur_src_addr <= src_addr;
+            // FIX-ADDR: Invalidate last_rd_src_addr on new DMA op so the first
+            // rd_start of each DMA always treats itself as a phase-start.
+            if (dma_start) last_rd_src_addr <= {ADDR_WIDTH{1'b1}};
 
             case (state)
 
@@ -157,11 +167,26 @@ module dma_read_engine #(
                         rd_err_addr   <= {ADDR_WIDTH{1'b0}};
 
                         rd_busy       <= 1'b1;
-                        burst_len_r   <= burst_len;        // latch for safety
+                        burst_len_r   <= burst_len;
                         M_AXI_ARID    <= {AXI_ID_WIDTH{1'b0}};
-                        // dma_start and rd_start arrive together for block-0; use src_addr directly.
-                        // For blocks 1+, dma_start=0 and cur_src_addr holds the next address.
-                        M_AXI_ARADDR  <= dma_start ? src_addr : cur_src_addr;
+
+                        // FIX-ADDR: rd_start fires 1 cycle after dma_start.
+                        // At dma_start cycle, rd_use_override_w has not yet updated
+                        // (registered NBA), so src_addr was stale if we captured it
+                        // at dma_start.  Instead: at rd_start time, check whether
+                        // src_addr has changed since the last rd_start (phase change).
+                        // If changed (or first burst ever) → new phase, use src_addr.
+                        // If unchanged → continuation burst, use auto-incremented cur_src_addr.
+                        if (src_addr != last_rd_src_addr) begin
+                            // New phase: src_addr is the correct base (override already settled)
+                            M_AXI_ARADDR <= src_addr;
+                            cur_src_addr <= src_addr;   // re-init base for continuation tracking
+                        end else begin
+                            // Same phase, continuation burst: use auto-incremented address
+                            M_AXI_ARADDR <= cur_src_addr;
+                        end
+                        last_rd_src_addr <= src_addr;  // remember for next rd_start
+
                         M_AXI_ARLEN   <= burst_len;
                         M_AXI_ARVALID <= 1'b1;
                         state         <= RD_ADDR;

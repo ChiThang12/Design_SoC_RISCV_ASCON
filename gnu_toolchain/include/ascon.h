@@ -1,6 +1,6 @@
 /* ============================================================================
  * ascon.h — ASCON Crypto Accelerator Library (CPU-Direct & DMA Mode)
- * Version : 2.5
+ * Version : 2.7
  *
  * Sử dụng Inline Assembly để truy cập phần cứng an toàn tuyệt đối,
  * tránh mọi can thiệp của compiler optimization (không bị reorder, duplicate).
@@ -8,19 +8,32 @@
  * Base Address giả định: 0x2000_0000
  * (Chỉnh sửa ASCON_BASE_HI nếu SoC của bạn map IP vào vùng nhớ khác)
  *
- * ── Fix v2.5: FIX-CTRL-DMA-START ────────────────────────────────────────────
- * CTRL register (offset 0x020) — hợp đồng chính xác theo RTL
- * (ascon_axi_slave.v line 372, line 383):
+ * ── Fix v2.7 (P1 + P2) ──────────────────────────────────────────────────────
+ * [P1] Thêm 4 thanh ghi AD_DATA_0..3 (0x058–0x064):
+ *      CPU ghi payload Associated Data (≤ 16 byte = 128-bit) trước khi start.
+ *      AD_LEN = 0  → hardware bỏ qua AD phase (empty AD).
+ *      AD_LEN > 0  → hardware đưa {AD_DATA_0..3} vào core_ad_in.
+ *      Dùng: ascon_set_ad(d0,d1,d2,d3, len) hoặc ascon_clear_ad().
  *
+ * [P2] STATUS[6] TAG_MISMATCH chỉ được set trong decrypt mode (reg_mode[1]=1).
+ *      Trước đây bị set nhầm trong encrypt mode → firmware không cần
+ *      workaround nữa.
+ *
+ * ── Fix v2.6: FIX-BUG-TOP9 — kết nối TAG_IN và AD registers ────────────────
+ * Trong decrypt mode, CPU phải ghi tag cần verify vào TAG_IN_0..3
+ * trước khi gọi ascon_core_start() hoặc ascon_dma_start().
+ * Hardware (ascon_TAG_COMPARATOR) sẽ tự so sánh và set STATUS bit TAG_MISMATCH.
+ *
+ * Register TAG_IN (offset 0x128..0x134) ghi theo thứ tự:
+ *   TAG_IN_0 = byte[127:96] (MS word)
+ *   TAG_IN_3 = byte[ 31: 0] (LS word)
+ *
+ * ── Fix v2.5: FIX-CTRL-DMA-START ────────────────────────────────────────────
+ * CTRL register (offset 0x020) — hợp đồng chính xác theo RTL:
  *   bit[0] CORE_START : 1-cycle pulse khởi động CORE
  *   bit[1] SOFT_RST   : soft reset toàn IP (CORE + DMA)
  *   bit[2] DMA_EN     : enable + khởi động DMA transfer
- *
- * Muốn DMA chạy → phải set CẢ bit[0] (START) lẫn bit[2] (DMA_EN):
- *   CTRL = 0x5 (bit0 | bit2)
- *
- * Trước đây ASCON_CTRL_DMA_START = (1u << 2) = 0x4 → thiếu bit0 →
- * DMA nhận lệnh nhưng CORE không được kích → CORE_DONE không bao giờ set.
+ *   CTRL = 0x5 (bit0 | bit2) để khởi động DMA + CORE đồng thời
  *
  * ── Fix v2.4 (giữ nguyên): FIX-MODE-OVERLAP ────────────────────────────────
  * ADDR_MODE (offset 0x000):
@@ -67,6 +80,18 @@
 #define ASCON_OFS_DMA_DST   0x104
 #define ASCON_OFS_DMA_LEN   0x108
 #define ASCON_OFS_DMA_BURST 0x114
+/* AEAD registers — Added in v2.6 (FIX-BUG-TOP9) */
+#define ASCON_OFS_AD_ADDR   0x120   /* DMA source address for Associated Data     */
+#define ASCON_OFS_AD_LEN    0x124   /* Byte length of Associated Data             */
+#define ASCON_OFS_TAG_IN_0  0x128   /* Expected tag word 0 [127:96] (for decrypt) */
+#define ASCON_OFS_TAG_IN_1  0x12C   /* Expected tag word 1 [ 95:64]               */
+#define ASCON_OFS_TAG_IN_2  0x130   /* Expected tag word 2 [ 63:32]               */
+#define ASCON_OFS_TAG_IN_3  0x134   /* Expected tag word 3 [  31:0]               */
+/* P1 FIX v2.7: AD payload data registers (CPU-direct mode, max 128-bit = 16 bytes) */
+#define ASCON_OFS_AD_DATA_0 0x058   /* AD payload word 0 [127:96] (MS word)       */
+#define ASCON_OFS_AD_DATA_1 0x05C   /* AD payload word 1 [ 95:64]                 */
+#define ASCON_OFS_AD_DATA_2 0x060   /* AD payload word 2 [ 63:32]                 */
+#define ASCON_OFS_AD_DATA_3 0x064   /* AD payload word 3 [  31:0] (LS word)       */
 
 /* ── Mode Register Bits (Thanh ghi 0x000) ──────────────────────────────── */
 /*
@@ -93,6 +118,11 @@
 #define ASCON_ST_DMA_DONE   (1u << 3)
 #define ASCON_ST_CORE_ERR   (1u << 4)
 #define ASCON_ST_DMA_ERR    (1u << 5)
+/* TAG_MISMATCH: set by hardware TAG_COMPARATOR when decrypt tag != computed tag.
+ * P2 FIX v2.7: Bit này chỉ được set khi MODE=Decrypt (reg_mode[1]=1).
+ * Trong encrypt mode hardware không còn set nhầm bit này nữa.
+ * Firmware chỉ cần kiểm tra bit này sau CORE_DONE trong decrypt mode.  */
+#define ASCON_ST_TAG_MISMATCH (1u << 6)
 
 /* ── CTRL Bits (Thanh ghi 0x020) ────────────────────────────────────────── */
 /*
@@ -255,25 +285,94 @@ static inline void ascon_get_tag(uint32_t *t0, uint32_t *t1, uint32_t *t2, uint3
 }
 
 /* -------------------------------------------------------------------------
- * USAGE EXAMPLE — DMA Mode, ASCON-128 Encrypt
+ * DECRYPT SUPPORT — Set expected tag for hardware tag comparator
  * -------------------------------------------------------------------------
- *   // 1. Ghi plaintext vào DMEM trước
- *   DMEM->PTEXT_0 = 0xAABBCCDD;
+ * Phải gọi trước ascon_core_start() / ascon_dma_start() khi decrypt.
+ * Hardware TAG_COMPARATOR sẽ tự so sánh và đặt STATUS[6]=TAG_MISMATCH nếu
+ * tag nhận được không khớp với tag tính toán.
  *
- *   // 2. Reset + cấu hình
+ * t0 = byte[127:96] (MS word), t3 = byte[31:0] (LS word)
+ */
+static inline void ascon_set_tag_in(uint32_t t0, uint32_t t1, uint32_t t2, uint32_t t3) {
+    ASCON_WRITE(ASCON_OFS_TAG_IN_0, t0);
+    ASCON_WRITE(ASCON_OFS_TAG_IN_1, t1);
+    ASCON_WRITE(ASCON_OFS_TAG_IN_2, t2);
+    ASCON_WRITE(ASCON_OFS_TAG_IN_3, t3);
+}
+
+/* -------------------------------------------------------------------------
+ * P1 FIX v2.7 — ASSOCIATED DATA SUPPORT (CPU-direct, max 128-bit = 16 bytes)
+ * -------------------------------------------------------------------------
+ * Ghi AD payload vào thanh ghi AD_DATA_0..3 và cấu hình AD_LEN.
+ * Hardware sẽ tự feed d0..d3 vào core_ad_in khi AD_LEN != 0.
+ *
+ * d0 = byte[127:96] (MS word), d3 = byte[31:0] (LS word)
+ * byte_len: số byte AD thực (1–16). Hardware dùng để padding.
+ *
+ * Gọi trước ascon_core_start() hoặc ascon_dma_start().
+ * Để bỏ qua AD (empty AD), gọi ascon_clear_ad().
+ */
+static inline void ascon_set_ad(uint32_t d0, uint32_t d1, uint32_t d2, uint32_t d3,
+                                uint32_t byte_len) {
+    ASCON_WRITE(ASCON_OFS_AD_DATA_0, d0);
+    ASCON_WRITE(ASCON_OFS_AD_DATA_1, d1);
+    ASCON_WRITE(ASCON_OFS_AD_DATA_2, d2);
+    ASCON_WRITE(ASCON_OFS_AD_DATA_3, d3);
+    ASCON_WRITE(ASCON_OFS_AD_LEN,    byte_len);
+}
+
+/* Bỏ qua AD phase (empty AD — AD_LEN = 0) */
+static inline void ascon_clear_ad(void) {
+    ASCON_WRITE(ASCON_OFS_AD_LEN, 0u);
+}
+
+/* Busy-wait CORE_DONE, sau đó kiểm tra TAG_MISMATCH.
+ * Trả về: 0 nếu OK, -1 nếu TAG_MISMATCH (tấn công hoặc sai tag).
+ */
+static inline int ascon_wait_core_done_check_tag(void) {
+    uint32_t status;
+    do {
+        ASCON_READ(ASCON_OFS_STATUS, status);
+    } while (!(status & ASCON_ST_CORE_DONE));
+    return (status & ASCON_ST_TAG_MISMATCH) ? -1 : 0;
+}
+
+/* -------------------------------------------------------------------------
+ * USAGE EXAMPLE 1 — DMA Mode, ASCON-128 Encrypt
+ * -------------------------------------------------------------------------
  *   ascon_soft_reset();
  *   ascon_set_mode(ASCON_MODE_128_ENC);
  *   ascon_set_key  (0xDEADBEEF, 0xCAFEBABE, 0x01234567, 0x89ABCDEF);
  *   ascon_set_nonce(0x11111111, 0x22222222, 0x33333333, 0x44444444);
- *
- *   // 3. Cấu hình DMA + fence + start (CTRL = 0x5)
- *   ascon_dma_config(DMEM_DMA_SRC_ADDR, DMEM_DMA_OUTPUT_ADDR, DMEM_DMA_INPUT_LEN);
+ *   ascon_dma_config(PT_BASE, CT_BASE, byte_len);
  *   __asm__ volatile ("fence rw, rw" ::: "memory");
- *   ascon_dma_start();   // ghi CTRL = 0x5 (DMA_EN | CORE_START)
- *
- *   // 4. Poll
+ *   ascon_dma_start();              // CTRL = 0x5
  *   uint32_t st = ascon_wait_dma_done();
- *   if (!(st & ASCON_ST_DMA_ERR)) ascon_wait_core_done();
+ *   // Đọc tag kết quả:
+ *   uint32_t t0, t1, t2, t3;
+ *   ascon_get_tag(&t0, &t1, &t2, &t3);
+ *
+ * -------------------------------------------------------------------------
+ * USAGE EXAMPLE 2 — DMA Mode, ASCON-128 Decrypt + Tag Verify
+ * -------------------------------------------------------------------------
+ *   ascon_soft_reset();
+ *   ascon_set_mode(ASCON_MODE_128_DEC);
+ *   ascon_set_key  (0xDEADBEEF, 0xCAFEBABE, 0x01234567, 0x89ABCDEF);
+ *   ascon_set_nonce(0x11111111, 0x22222222, 0x33333333, 0x44444444);
+ *
+ *   // Ghi tag can verify (lay tu encrypt truoc do)
+ *   ascon_set_tag_in(t0, t1, t2, t3);
+ *
+ *   ascon_dma_config(CT_BASE, PT_BASE, byte_len);
+ *   __asm__ volatile ("fence rw, rw" ::: "memory");
+ *   ascon_dma_start();
+ *   uint32_t st = ascon_wait_dma_done();
+ *   if (st & ASCON_ST_DMA_ERR) { return -1; }  // loi DMA
+ *
+ *   // Kiem tra tag_match sau CORE_DONE
+ *   if (ascon_wait_core_done_check_tag() != 0) {
+ *       return -1;  // TAG_MISMATCH: ban tin bi tamper hoac sai key/nonce
+ *   }
  * ------------------------------------------------------------------------- */
 
 #endif /* _ASCON_H_ */

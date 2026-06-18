@@ -28,9 +28,13 @@
 //   S_POST_INIT     → XOR key vào state
 //   S_AD_LOAD       → load AD block
 //   S_AD_PERM       → chạy pb
+//   S_AD_PAD_LOAD   → NEW: load extra 0x01 padding block for AD
+//   S_AD_PAD_PERM   → NEW: run pb after extra AD pad block
 //   S_DOM_SEP       → domain separation
 //   S_DATA_LOAD     → load plaintext/ciphertext block
 //   S_DATA_PERM     → chạy pb
+//   S_DATA_PAD_LOAD → NEW: load extra 0x01 padding block for Data
+//   S_DATA_PAD_PERM → NEW: run pb after extra Data pad block
 //   S_PRE_FIN       → XOR key
 //   S_FIN_PERM      → chạy pa (12 rounds)
 //   S_TAG_GEN       → generate/compare tag
@@ -86,9 +90,11 @@ module ascon_CONTROLLER #(
     output reg          do_post_init_key_xor,
     output reg          do_pre_fin_key_xor,
     output reg          do_dom_sep,
+    output reg          is_extra_pad_block,  // NEW: tell DATAPATH to absorb pure pad block
 
     // Status outputs
     output reg          data_ready,
+    output reg          ad_ready,       // NEW: high when CONTROLLER is in S_AD_LOAD
     output reg          data_out_valid,
     output reg          done,
     output reg          busy
@@ -97,18 +103,19 @@ module ascon_CONTROLLER #(
     // =========================================================================
     // Mode-dependent parameters
     // =========================================================================
+    // NIST Ascon-AEAD128: a=12, b=8, rate=16 bytes
+    // HW mode[0]=0 maps to Ascon-AEAD128 (b=8, rate=16)
+    // HW mode[0]=1 maps to Ascon-AEAD128a legacy (b=8, rate=32) -- same pb_rounds
     wire        is_128a    = mode[0];
 
-    // pb rounds: 6 for ASCON-128, 8 for ASCON-128a
-    wire [3:0]  pb_rounds  = is_128a ? 4'd8 : 4'd6;
+    // pb rounds: 8 for NIST Ascon-AEAD128 (was 6 for old Ascon-128, now fixed)
+    wire [3:0]  pb_rounds  = 4'd8;
 
     // pa rounds: always 12
     wire [3:0]  pa_rounds  = 4'd12;
 
-    // start_rc for pb: rc = 12 - pb_rounds
-    // ASCON-128:  pb=6 → start_rc = 6
-    // ASCON-128a: pb=8 → start_rc = 4
-    wire [3:0]  pb_start_rc = is_128a ? 4'd4 : 4'd6;
+    // start_rc for pb: rc = 12 - pb_rounds = 12 - 8 = 4
+    wire [3:0]  pb_start_rc = 4'd4;
 
     // pa always starts at rc=0
     wire [3:0]  pa_start_rc = 4'd0;
@@ -116,24 +123,66 @@ module ascon_CONTROLLER #(
     // =========================================================================
     // FSM State encoding
     // =========================================================================
-    localparam [3:0]
-        S_IDLE       = 4'd0,
-        S_INIT_LOAD  = 4'd1,
-        S_INIT_PERM  = 4'd2,
-        S_POST_INIT  = 4'd3,
-        S_AD_LOAD    = 4'd4,
-        S_AD_PERM    = 4'd5,
-        S_DOM_SEP    = 4'd6,
-        S_DATA_LOAD  = 4'd7,
-        S_DATA_PERM  = 4'd8,
-        S_PRE_FIN    = 4'd9,
-        S_FIN_PERM   = 4'd10,
-        S_TAG_GEN    = 4'd11,
-        S_DONE       = 4'd12;
+    localparam [4:0]
+        S_IDLE          = 5'd0,
+        S_INIT_LOAD     = 5'd1,
+        S_INIT_PERM     = 5'd2,
+        S_POST_INIT     = 5'd3,
+        S_AD_LOAD       = 5'd4,
+        S_AD_PERM       = 5'd5,
+        S_AD_PAD_LOAD   = 5'd6,   // NEW: extra padding block for AD
+        S_AD_PAD_PERM   = 5'd7,   // NEW: pb after extra AD pad
+        S_DOM_SEP       = 5'd8,
+        S_DATA_LOAD     = 5'd9,
+        S_DATA_PERM     = 5'd10,
+        S_DATA_PAD_LOAD = 5'd11,  // NEW: extra padding block for Data
+        S_DATA_PAD_PERM = 5'd12,  // NEW: pb after extra Data pad
+        S_PRE_FIN       = 5'd13,
+        S_FIN_PERM      = 5'd14,
+        S_TAG_GEN       = 5'd15,
+        S_DONE          = 5'd16;
 
-    reg [3:0] state, next_state;
+    reg [4:0] state, next_state;
 
-    // (perm_done from PERMUTATION already encodes the correct latency — no extra counter needed)
+    // Registered flags: capture extra_pad_block_needed at the moment we load
+    // the last AD/Data block. By the time we reach S_AD_PERM / S_DATA_PERM,
+    // pad_enable is already deasserted so extra_pad_block_needed would be 0.
+    reg  ad_extra_pad_pending;    // set when last AD block fills rate exactly
+    reg  data_extra_pad_pending;  // set when last Data block fills rate exactly
+    // Latch ad_last at absorption time — DMA pump holds ad_last=1 for only 1 cycle
+    // (PRES state). By S_AD_PERM, the pump has moved to WAIT/DONE so ad_last=0.
+    // Use ad_last_latched in S_AD_PERM to decide whether to loop back or go to DOM_SEP.
+    reg  ad_last_latched;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            ad_extra_pad_pending   <= 1'b0;
+            data_extra_pad_pending <= 1'b0;
+            ad_last_latched        <= 1'b0;
+        end else begin
+            // Capture when entering S_AD_LOAD and a block is being absorbed
+            if (state == S_AD_LOAD && ad_valid && extra_pad_block_needed)
+                ad_extra_pad_pending <= 1'b1;
+            else if (state == S_AD_PAD_PERM && perm_done)
+                ad_extra_pad_pending <= 1'b0;  // consumed
+            else if (state == S_DOM_SEP)
+                ad_extra_pad_pending <= 1'b0;  // reset at DOM_SEP
+
+            // Latch ad_last the cycle a block is absorbed in S_AD_LOAD
+            if (state == S_AD_LOAD && ad_valid)
+                ad_last_latched <= ad_last;
+            else if (state == S_IDLE)
+                ad_last_latched <= 1'b0;
+
+            // Capture when last data block fills rate exactly
+            if (state == S_DATA_LOAD && data_valid && data_last && extra_pad_block_needed)
+                data_extra_pad_pending <= 1'b1;
+            else if (state == S_DATA_PAD_LOAD)
+                data_extra_pad_pending <= 1'b0;  // consumed
+            else if (state == S_IDLE)
+                data_extra_pad_pending <= 1'b0;  // reset on new operation
+        end
+    end
 
     // =========================================================================
     // FSM — Sequential
@@ -141,8 +190,9 @@ module ascon_CONTROLLER #(
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n)
             state <= S_IDLE;
-        else
+        else begin
             state <= next_state;
+        end
     end
 
     // =========================================================================
@@ -167,7 +217,9 @@ module ascon_CONTROLLER #(
         do_post_init_key_xor = 1'b0;
         do_pre_fin_key_xor   = 1'b0;
         do_dom_sep           = 1'b0;
+        is_extra_pad_block   = 1'b0;   // NEW: default off
         data_ready           = (state == S_IDLE) || (state == S_DATA_LOAD);
+        ad_ready             = (state == S_AD_LOAD); // NEW
         data_out_valid       = 1'b0;
         done                 = 1'b0;
         busy                 = 1'b1;
@@ -227,8 +279,9 @@ module ascon_CONTROLLER #(
                     perm_start_rc = pb_start_rc;
                     perm_start    = 1'b1;
                     next_state    = S_AD_PERM;
-                end else if (!ad_valid && !ad_last) begin
-                    // No AD at all: go to domain separation
+                end else if (ad_last) begin
+                    // ad_last=1, valid=0: "no AD" signal → skip to DOM_SEP
+                    // ad_valid=0, ad_last=0: AD expected but not ready → hold (wait)
                     next_state = S_DOM_SEP;
                 end
             end
@@ -238,11 +291,38 @@ module ascon_CONTROLLER #(
                 if (perm_done) begin
                     state_src_sel = 2'b10;
                     state_load    = 1'b1;
-                    if (ad_last || extra_pad_block_needed) begin
+                    if (ad_extra_pad_pending) begin
+                        // Data exactly filled rate: must absorb one more pure pad block
+                        next_state = S_AD_PAD_LOAD;
+                    end else if (ad_last_latched) begin
+                        // Use latched value: ad_last from DMA is only 1 for 1 cycle (PRES),
+                        // by the time perm_done fires the DMA pump is in DONE, ad_last=0.
                         next_state = S_DOM_SEP;
                     end else begin
                         next_state = S_AD_LOAD;
                     end
+                end
+            end
+
+            // ---- AD_PAD_LOAD: absorb a pure 0x01 padding block for AD ----
+            S_AD_PAD_LOAD: begin
+                is_extra_pad_block = 1'b1;  // tell DATAPATH to use PURE_PAD_BLOCK
+                dp_pad_enable  = 1'b1;
+                dp_block_sel   = 2'b00;  // AD lane
+                state_src_sel  = 2'b01;  // from datapath XOR
+                state_load     = 1'b1;
+                perm_rounds    = pb_rounds;
+                perm_start_rc  = pb_start_rc;
+                perm_start     = 1'b1;
+                next_state     = S_AD_PAD_PERM;
+            end
+
+            // ---- AD_PAD_PERM: wait for pb after extra AD pad block ----
+            S_AD_PAD_PERM: begin
+                if (perm_done) begin
+                    state_src_sel = 2'b10;
+                    state_load    = 1'b1;
+                    next_state    = S_DOM_SEP;
                 end
             end
 
@@ -264,10 +344,22 @@ module ascon_CONTROLLER #(
                     state_load     = 1'b1;
                     data_out_valid = 1'b1;
 
-                    perm_rounds    = pb_rounds;
-                    perm_start_rc  = pb_start_rc;
-                    perm_start     = !data_last;  // don't permute on last block
-                    next_state     = data_last ? S_PRE_FIN : S_DATA_PERM;
+                    if (data_last && extra_pad_block_needed) begin
+                        // Last block exactly fills rate: need extra pad block + pb
+                        perm_rounds   = pb_rounds;
+                        perm_start_rc = pb_start_rc;
+                        perm_start    = 1'b1;
+                        next_state    = S_DATA_PERM;  // then goes to S_DATA_PAD_LOAD
+                    end else if (data_last) begin
+                        // Normal last block: no more permutation, go finalize
+                        perm_start = 1'b0;
+                        next_state = S_PRE_FIN;
+                    end else begin
+                        perm_rounds   = pb_rounds;
+                        perm_start_rc = pb_start_rc;
+                        perm_start    = 1'b1;
+                        next_state    = S_DATA_PERM;
+                    end
                 end else begin
                     next_state     = S_DATA_LOAD; // wait for valid data
                 end
@@ -278,8 +370,25 @@ module ascon_CONTROLLER #(
                 if (perm_done) begin
                     state_src_sel = 2'b10;
                     state_load    = 1'b1;
-                    next_state    = S_DATA_LOAD;
+                    // Check if we just came from a last-block with extra pad needed
+                    if (data_extra_pad_pending) begin
+                        next_state = S_DATA_PAD_LOAD;
+                    end else begin
+                        next_state = S_DATA_LOAD;
+                    end
                 end
+            end
+
+            // ---- DATA_PAD_LOAD: absorb a pure 0x01 padding block for Data ----
+            S_DATA_PAD_LOAD: begin
+                is_extra_pad_block = 1'b1;  // tell DATAPATH to use PURE_PAD_BLOCK
+                dp_pad_enable  = 1'b1;
+                dp_block_sel   = 2'b01;  // data lane
+                dp_enc_dec     = enc_dec;
+                state_src_sel  = 2'b01;  // from datapath XOR
+                state_load     = 1'b1;
+                // No perm after last data pad — go directly to finalize
+                next_state     = S_PRE_FIN;
             end
 
             // ---- PRE_FIN: XOR key into state ----

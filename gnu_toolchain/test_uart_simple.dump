@@ -10,184 +10,155 @@ Disassembly of section .text:
    8:	00000013          	addi	x0,x0,0
    c:	00000013          	addi	x0,x0,0
   10:	00000297          	auipc	x5,0x0
-  14:	06c28293          	addi	x5,x5,108 # 7c <trap_handler>
+  14:	01828293          	addi	x5,x5,24 # 28 <trap_handler>
   18:	30529073          	csrrw	x0,mtvec,x5
-  1c:	00000297          	auipc	x5,0x0
-  20:	28428293          	addi	x5,x5,644 # 2a0 <__data_load>
-  24:	10000317          	auipc	x6,0x10000
-  28:	fdc30313          	addi	x6,x6,-36 # 10000000 <__bss_end>
-  2c:	10000397          	auipc	x7,0x10000
-  30:	fd438393          	addi	x7,x7,-44 # 10000000 <__bss_end>
-  34:	00730e63          	beq	x6,x7,50 <_copy_done>
+  1c:	00000097          	auipc	x1,0x0
+  20:	0b4080e7          	jalr	x1,180(x1) # d0 <main>
 
-00000038 <_copy_data>:
-  38:	00735c63          	bge	x6,x7,50 <_copy_done>
-  3c:	0002ae03          	lw	x28,0(x5)
-  40:	01c32023          	sw	x28,0(x6)
-  44:	00428293          	addi	x5,x5,4
-  48:	00430313          	addi	x6,x6,4
-  4c:	fedff06f          	jal	x0,38 <_copy_data>
+00000024 <_halt>:
+  24:	0000006f          	jal	x0,24 <_halt>
 
-00000050 <_copy_done>:
-  50:	10000297          	auipc	x5,0x10000
-  54:	fb028293          	addi	x5,x5,-80 # 10000000 <__bss_end>
-  58:	10000317          	auipc	x6,0x10000
-  5c:	fa830313          	addi	x6,x6,-88 # 10000000 <__bss_end>
+00000028 <trap_handler>:
+  28:	0000006f          	jal	x0,28 <trap_handler>
 
-00000060 <_clear_bss>:
-  60:	0062d863          	bge	x5,x6,70 <_bss_done>
-  64:	0002a023          	sw	x0,0(x5)
-  68:	00428293          	addi	x5,x5,4
-  6c:	ff5ff06f          	jal	x0,60 <_clear_bss>
+0000002c <uart_init>:
+  2c:	ff010113          	addi	x2,x2,-16
+  30:	00a12623          	sw	x10,12(x2)
+  34:	00058793          	addi	x15,x11,0
+  38:	00060713          	addi	x14,x12,0
+  3c:	00f105a3          	sb	x15,11(x2)
+  40:	00070793          	addi	x15,x14,0
+  44:	00f10523          	sb	x15,10(x2)
+  48:	500007b7          	lui	x15,0x50000
+  4c:	01078793          	addi	x15,x15,16 # 50000010 <__stack_top+0x3fffe020>
+  50:	00c12703          	lw	x14,12(x2)
+  54:	00e7a023          	sw	x14,0(x15)
+  58:	0110000f          	fence	w,w
+  5c:	00a14783          	lbu	x15,10(x2)
+  60:	00179793          	slli	x15,x15,0x1
+  64:	0027f693          	andi	x13,x15,2
+  68:	00b14783          	lbu	x15,11(x2)
+  6c:	0017f713          	andi	x14,x15,1
+  70:	500007b7          	lui	x15,0x50000
+  74:	00c78793          	addi	x15,x15,12 # 5000000c <__stack_top+0x3fffe01c>
+  78:	00e6e733          	or	x14,x13,x14
+  7c:	00e7a023          	sw	x14,0(x15)
+  80:	0110000f          	fence	w,w
+  84:	00000013          	addi	x0,x0,0
+  88:	01010113          	addi	x2,x2,16
+  8c:	00008067          	jalr	x0,0(x1)
 
-00000070 <_bss_done>:
-  70:	00000097          	auipc	x1,0x0
-  74:	0b4080e7          	jalr	x1,180(x1) # 124 <main>
+00000090 <uart_putc>:
+  90:	ff010113          	addi	x2,x2,-16
+  94:	00050793          	addi	x15,x10,0
+  98:	00f107a3          	sb	x15,15(x2)
+  9c:	00000013          	addi	x0,x0,0
+  a0:	500007b7          	lui	x15,0x50000
+  a4:	00878793          	addi	x15,x15,8 # 50000008 <__stack_top+0x3fffe018>
+  a8:	0007a783          	lw	x15,0(x15)
+  ac:	0027f793          	andi	x15,x15,2
+  b0:	fe0798e3          	bne	x15,x0,a0 <uart_putc+0x10>
+  b4:	500007b7          	lui	x15,0x50000
+  b8:	00f14703          	lbu	x14,15(x2)
+  bc:	00e7a023          	sw	x14,0(x15) # 50000000 <__stack_top+0x3fffe010>
+  c0:	0110000f          	fence	w,w
+  c4:	00000013          	addi	x0,x0,0
+  c8:	01010113          	addi	x2,x2,16
+  cc:	00008067          	jalr	x0,0(x1)
 
-00000078 <_halt>:
-  78:	0000006f          	jal	x0,78 <_halt>
-
-0000007c <trap_handler>:
-  7c:	0000006f          	jal	x0,7c <trap_handler>
-
-00000080 <uart_init>:
-  80:	ff010113          	addi	x2,x2,-16
-  84:	00a12623          	sw	x10,12(x2)
-  88:	00058793          	addi	x15,x11,0
-  8c:	00060713          	addi	x14,x12,0
-  90:	00f105a3          	sb	x15,11(x2)
-  94:	00070793          	addi	x15,x14,0
-  98:	00f10523          	sb	x15,10(x2)
-  9c:	500007b7          	lui	x15,0x50000
-  a0:	01078793          	addi	x15,x15,16 # 50000010 <__stack_top+0x3fffe020>
-  a4:	00c12703          	lw	x14,12(x2)
-  a8:	00e7a023          	sw	x14,0(x15)
-  ac:	0110000f          	fence	w,w
-  b0:	00a14783          	lbu	x15,10(x2)
-  b4:	00179793          	slli	x15,x15,0x1
-  b8:	0027f693          	andi	x13,x15,2
-  bc:	00b14783          	lbu	x15,11(x2)
-  c0:	0017f713          	andi	x14,x15,1
-  c4:	500007b7          	lui	x15,0x50000
-  c8:	00c78793          	addi	x15,x15,12 # 5000000c <__stack_top+0x3fffe01c>
-  cc:	00e6e733          	or	x14,x13,x14
-  d0:	00e7a023          	sw	x14,0(x15)
-  d4:	0110000f          	fence	w,w
-  d8:	00000013          	addi	x0,x0,0
-  dc:	01010113          	addi	x2,x2,16
-  e0:	00008067          	jalr	x0,0(x1)
-
-000000e4 <uart_putc>:
-  e4:	ff010113          	addi	x2,x2,-16
-  e8:	00050793          	addi	x15,x10,0
-  ec:	00f107a3          	sb	x15,15(x2)
-  f0:	00000013          	addi	x0,x0,0
-  f4:	500007b7          	lui	x15,0x50000
-  f8:	00878793          	addi	x15,x15,8 # 50000008 <__stack_top+0x3fffe018>
-  fc:	0007a783          	lw	x15,0(x15)
- 100:	0027f793          	andi	x15,x15,2
- 104:	fe0798e3          	bne	x15,x0,f4 <uart_putc+0x10>
- 108:	500007b7          	lui	x15,0x50000
- 10c:	00f14703          	lbu	x14,15(x2)
- 110:	00e7a023          	sw	x14,0(x15) # 50000000 <__stack_top+0x3fffe010>
- 114:	0110000f          	fence	w,w
- 118:	00000013          	addi	x0,x0,0
- 11c:	01010113          	addi	x2,x2,16
- 120:	00008067          	jalr	x0,0(x1)
-
-00000124 <main>:
- 124:	ff010113          	addi	x2,x2,-16
- 128:	00112623          	sw	x1,12(x2)
- 12c:	00000613          	addi	x12,x0,0
- 130:	00000593          	addi	x11,x0,0
- 134:	36400513          	addi	x10,x0,868
+000000d0 <main>:
+  d0:	ff010113          	addi	x2,x2,-16
+  d4:	00112623          	sw	x1,12(x2)
+  d8:	00000613          	addi	x12,x0,0
+  dc:	00000593          	addi	x11,x0,0
+  e0:	36400513          	addi	x10,x0,868
+  e4:	00000097          	auipc	x1,0x0
+  e8:	f48080e7          	jalr	x1,-184(x1) # 2c <uart_init>
+  ec:	05500513          	addi	x10,x0,85
+  f0:	00000097          	auipc	x1,0x0
+  f4:	fa0080e7          	jalr	x1,-96(x1) # 90 <uart_putc>
+  f8:	04100513          	addi	x10,x0,65
+  fc:	00000097          	auipc	x1,0x0
+ 100:	f94080e7          	jalr	x1,-108(x1) # 90 <uart_putc>
+ 104:	05200513          	addi	x10,x0,82
+ 108:	00000097          	auipc	x1,0x0
+ 10c:	f88080e7          	jalr	x1,-120(x1) # 90 <uart_putc>
+ 110:	05400513          	addi	x10,x0,84
+ 114:	00000097          	auipc	x1,0x0
+ 118:	f7c080e7          	jalr	x1,-132(x1) # 90 <uart_putc>
+ 11c:	02000513          	addi	x10,x0,32
+ 120:	00000097          	auipc	x1,0x0
+ 124:	f70080e7          	jalr	x1,-144(x1) # 90 <uart_putc>
+ 128:	04f00513          	addi	x10,x0,79
+ 12c:	00000097          	auipc	x1,0x0
+ 130:	f64080e7          	jalr	x1,-156(x1) # 90 <uart_putc>
+ 134:	04b00513          	addi	x10,x0,75
  138:	00000097          	auipc	x1,0x0
- 13c:	f48080e7          	jalr	x1,-184(x1) # 80 <uart_init>
- 140:	05500513          	addi	x10,x0,85
+ 13c:	f58080e7          	jalr	x1,-168(x1) # 90 <uart_putc>
+ 140:	00d00513          	addi	x10,x0,13
  144:	00000097          	auipc	x1,0x0
- 148:	fa0080e7          	jalr	x1,-96(x1) # e4 <uart_putc>
- 14c:	04100513          	addi	x10,x0,65
+ 148:	f4c080e7          	jalr	x1,-180(x1) # 90 <uart_putc>
+ 14c:	00a00513          	addi	x10,x0,10
  150:	00000097          	auipc	x1,0x0
- 154:	f94080e7          	jalr	x1,-108(x1) # e4 <uart_putc>
- 158:	05200513          	addi	x10,x0,82
+ 154:	f40080e7          	jalr	x1,-192(x1) # 90 <uart_putc>
+ 158:	05b00513          	addi	x10,x0,91
  15c:	00000097          	auipc	x1,0x0
- 160:	f88080e7          	jalr	x1,-120(x1) # e4 <uart_putc>
- 164:	05400513          	addi	x10,x0,84
+ 160:	f34080e7          	jalr	x1,-204(x1) # 90 <uart_putc>
+ 164:	05000513          	addi	x10,x0,80
  168:	00000097          	auipc	x1,0x0
- 16c:	f7c080e7          	jalr	x1,-132(x1) # e4 <uart_putc>
- 170:	02000513          	addi	x10,x0,32
+ 16c:	f28080e7          	jalr	x1,-216(x1) # 90 <uart_putc>
+ 170:	04100513          	addi	x10,x0,65
  174:	00000097          	auipc	x1,0x0
- 178:	f70080e7          	jalr	x1,-144(x1) # e4 <uart_putc>
- 17c:	04f00513          	addi	x10,x0,79
+ 178:	f1c080e7          	jalr	x1,-228(x1) # 90 <uart_putc>
+ 17c:	05300513          	addi	x10,x0,83
  180:	00000097          	auipc	x1,0x0
- 184:	f64080e7          	jalr	x1,-156(x1) # e4 <uart_putc>
- 188:	04b00513          	addi	x10,x0,75
+ 184:	f10080e7          	jalr	x1,-240(x1) # 90 <uart_putc>
+ 188:	05300513          	addi	x10,x0,83
  18c:	00000097          	auipc	x1,0x0
- 190:	f58080e7          	jalr	x1,-168(x1) # e4 <uart_putc>
- 194:	00d00513          	addi	x10,x0,13
+ 190:	f04080e7          	jalr	x1,-252(x1) # 90 <uart_putc>
+ 194:	05d00513          	addi	x10,x0,93
  198:	00000097          	auipc	x1,0x0
- 19c:	f4c080e7          	jalr	x1,-180(x1) # e4 <uart_putc>
- 1a0:	00a00513          	addi	x10,x0,10
+ 19c:	ef8080e7          	jalr	x1,-264(x1) # 90 <uart_putc>
+ 1a0:	02000513          	addi	x10,x0,32
  1a4:	00000097          	auipc	x1,0x0
- 1a8:	f40080e7          	jalr	x1,-192(x1) # e4 <uart_putc>
- 1ac:	05b00513          	addi	x10,x0,91
+ 1a8:	eec080e7          	jalr	x1,-276(x1) # 90 <uart_putc>
+ 1ac:	07500513          	addi	x10,x0,117
  1b0:	00000097          	auipc	x1,0x0
- 1b4:	f34080e7          	jalr	x1,-204(x1) # e4 <uart_putc>
- 1b8:	05000513          	addi	x10,x0,80
+ 1b4:	ee0080e7          	jalr	x1,-288(x1) # 90 <uart_putc>
+ 1b8:	06100513          	addi	x10,x0,97
  1bc:	00000097          	auipc	x1,0x0
- 1c0:	f28080e7          	jalr	x1,-216(x1) # e4 <uart_putc>
- 1c4:	04100513          	addi	x10,x0,65
+ 1c0:	ed4080e7          	jalr	x1,-300(x1) # 90 <uart_putc>
+ 1c4:	07200513          	addi	x10,x0,114
  1c8:	00000097          	auipc	x1,0x0
- 1cc:	f1c080e7          	jalr	x1,-228(x1) # e4 <uart_putc>
- 1d0:	05300513          	addi	x10,x0,83
+ 1cc:	ec8080e7          	jalr	x1,-312(x1) # 90 <uart_putc>
+ 1d0:	07400513          	addi	x10,x0,116
  1d4:	00000097          	auipc	x1,0x0
- 1d8:	f10080e7          	jalr	x1,-240(x1) # e4 <uart_putc>
- 1dc:	05300513          	addi	x10,x0,83
+ 1d8:	ebc080e7          	jalr	x1,-324(x1) # 90 <uart_putc>
+ 1dc:	05f00513          	addi	x10,x0,95
  1e0:	00000097          	auipc	x1,0x0
- 1e4:	f04080e7          	jalr	x1,-252(x1) # e4 <uart_putc>
- 1e8:	05d00513          	addi	x10,x0,93
+ 1e4:	eb0080e7          	jalr	x1,-336(x1) # 90 <uart_putc>
+ 1e8:	07300513          	addi	x10,x0,115
  1ec:	00000097          	auipc	x1,0x0
- 1f0:	ef8080e7          	jalr	x1,-264(x1) # e4 <uart_putc>
- 1f4:	02000513          	addi	x10,x0,32
+ 1f0:	ea4080e7          	jalr	x1,-348(x1) # 90 <uart_putc>
+ 1f4:	06900513          	addi	x10,x0,105
  1f8:	00000097          	auipc	x1,0x0
- 1fc:	eec080e7          	jalr	x1,-276(x1) # e4 <uart_putc>
- 200:	07500513          	addi	x10,x0,117
+ 1fc:	e98080e7          	jalr	x1,-360(x1) # 90 <uart_putc>
+ 200:	06d00513          	addi	x10,x0,109
  204:	00000097          	auipc	x1,0x0
- 208:	ee0080e7          	jalr	x1,-288(x1) # e4 <uart_putc>
- 20c:	06100513          	addi	x10,x0,97
+ 208:	e8c080e7          	jalr	x1,-372(x1) # 90 <uart_putc>
+ 20c:	07000513          	addi	x10,x0,112
  210:	00000097          	auipc	x1,0x0
- 214:	ed4080e7          	jalr	x1,-300(x1) # e4 <uart_putc>
- 218:	07200513          	addi	x10,x0,114
+ 214:	e80080e7          	jalr	x1,-384(x1) # 90 <uart_putc>
+ 218:	06c00513          	addi	x10,x0,108
  21c:	00000097          	auipc	x1,0x0
- 220:	ec8080e7          	jalr	x1,-312(x1) # e4 <uart_putc>
- 224:	07400513          	addi	x10,x0,116
+ 220:	e74080e7          	jalr	x1,-396(x1) # 90 <uart_putc>
+ 224:	06500513          	addi	x10,x0,101
  228:	00000097          	auipc	x1,0x0
- 22c:	ebc080e7          	jalr	x1,-324(x1) # e4 <uart_putc>
- 230:	05f00513          	addi	x10,x0,95
+ 22c:	e68080e7          	jalr	x1,-408(x1) # 90 <uart_putc>
+ 230:	00d00513          	addi	x10,x0,13
  234:	00000097          	auipc	x1,0x0
- 238:	eb0080e7          	jalr	x1,-336(x1) # e4 <uart_putc>
- 23c:	07300513          	addi	x10,x0,115
+ 238:	e5c080e7          	jalr	x1,-420(x1) # 90 <uart_putc>
+ 23c:	00a00513          	addi	x10,x0,10
  240:	00000097          	auipc	x1,0x0
- 244:	ea4080e7          	jalr	x1,-348(x1) # e4 <uart_putc>
- 248:	06900513          	addi	x10,x0,105
- 24c:	00000097          	auipc	x1,0x0
- 250:	e98080e7          	jalr	x1,-360(x1) # e4 <uart_putc>
- 254:	06d00513          	addi	x10,x0,109
- 258:	00000097          	auipc	x1,0x0
- 25c:	e8c080e7          	jalr	x1,-372(x1) # e4 <uart_putc>
- 260:	07000513          	addi	x10,x0,112
- 264:	00000097          	auipc	x1,0x0
- 268:	e80080e7          	jalr	x1,-384(x1) # e4 <uart_putc>
- 26c:	06c00513          	addi	x10,x0,108
- 270:	00000097          	auipc	x1,0x0
- 274:	e74080e7          	jalr	x1,-396(x1) # e4 <uart_putc>
- 278:	06500513          	addi	x10,x0,101
- 27c:	00000097          	auipc	x1,0x0
- 280:	e68080e7          	jalr	x1,-408(x1) # e4 <uart_putc>
- 284:	00d00513          	addi	x10,x0,13
- 288:	00000097          	auipc	x1,0x0
- 28c:	e5c080e7          	jalr	x1,-420(x1) # e4 <uart_putc>
- 290:	00a00513          	addi	x10,x0,10
- 294:	00000097          	auipc	x1,0x0
- 298:	e50080e7          	jalr	x1,-432(x1) # e4 <uart_putc>
- 29c:	0000006f          	jal	x0,29c <main+0x178>
+ 244:	e50080e7          	jalr	x1,-432(x1) # 90 <uart_putc>
+ 248:	0000006f          	jal	x0,248 <main+0x178>

@@ -2,6 +2,7 @@
 
 `timescale 1ns/1ps
 `define DEBUG_WDATA                // C1/C2/C3 WDATA trace (LSU→DCache→AXI)
+`define DEBUG_DCACHE               // FLUSH + NC-WRITE trace in dcache_controller
 `include "soc_hs.v"
 
 // ============================================================================
@@ -821,10 +822,10 @@ integer    uart_line_len;
 // ============================================================================
 // Waveform dump
 // ============================================================================
-// initial begin
-//     $dumpfile("waveform_soc.vcd");
-//     $dumpvars(0, run_soc);
-// end
+initial begin
+    $dumpfile("waveform_soc.vcd");
+    $dumpvars(0, run_soc);
+end
 
 // ============================================================================
 // (1) Cycle Counter

@@ -417,7 +417,13 @@ module riscv_cpu_core (
     // stall_ex_mem: freeze EX/MEM on LSU dependency OR when a MEM-stage LSU
     // request is still waiting for handshake. fence_stall alone must still not
     // block an older store already sitting in MEM.
-    wire stall_ex_mem = lsu_dep_stall | mem_stage_wait;
+    // [FIX-REPLAY-SP] Also freeze on stall_if (icache miss). Without this, an EX
+    // instruction is held in EX by the ID/EX freeze (stall_any) yet EX/MEM keeps
+    // advancing — so it commits once DURING the miss and again at stall release,
+    // double-writing its destination (observed: addi sp,sp,N retiring twice →
+    // corrupted SP, out-of-DMEM stores, DMA test hang). Freezing EX/MEM together
+    // with the front-end makes the instruction advance exactly once, at release.
+    wire stall_ex_mem = lsu_dep_stall | mem_stage_wait | stall_if;
 
     // [FIX-JALR-TARGET] JALR predicted taken đến pc+imm (sai). EX sẽ correct
     // đến rs1+imm. Flush IF/ID tại cycle JALR-in-EX để xóa instruction fetched

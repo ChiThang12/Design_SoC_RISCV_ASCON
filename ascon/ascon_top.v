@@ -1,7 +1,23 @@
 `timescale 1ns/1ps
 
 // ============================================================================
-// Module  : ascon_ip_top  (v5 — bỏ AXI-Stream, fix INCR burst, fix DMA race)
+// Module  : ascon_ip_top  (v7 — AD DMA + Watchdog + Zeroization + DMA errors)
+//
+// CHANGES vs v6:
+//   P1-AD-DMA : core_ad_in/valid/last nay được multiplexed giữa CPU-Direct
+//               (register bank) và DMA mode (từ ascon_dma.core_ad_*).
+//               ascon_dma đã có FSM để tự fetch AD từ RAM qua AXI Master.
+//   P2-WDT    : ascon_watchdog module được instantiate, kết nối wdt_cfg/ctrl
+//               từ slave vào watchdog, output timeout vào slave STATUS[7].
+//   P3-ZEROI  : CTRL[3]=ZEROIZE xử lý trong slave (reg bank clear).
+//   P3-DMAERR : status_rd_error/wr_error/fifo_overflow/err_addr kết nối
+//               từ ascon_dma vào slave thay vì bỏ trống.
+//
+// CHANGES vs v5:
+//   FIX-BUG-TOP9 : core_tag_received và core_ad_* trước đây bị hard-code =
+//                  128'h0 / 1'b0. Fix: kéo từ register slave (TAG_IN_0..3 và
+//                  AD_ADDR/AD_LEN). Decrypt AEAD và AD injection nay hoạt động
+//                  đúng chuẩn NIST SP 800-232.
 //
 // CHANGES vs v4:
 //   FIX-BUG-TOP5 : Xóa hoàn toàn AXI-Stream mode và u_axis instantiation.
@@ -41,6 +57,7 @@
 // FIX-BUG-TOP1: Xóa tất cả `include — dùng compile filelist thay thế (xem NOTE ở header)
 `include "ascon/interface/ascon_axi_slave.v"
 `include "ascon/rtl/ascon_CORE.v"
+`include "ascon/rtl/ascon_watchdog.v"
 `include "ascon/dma/ascon_dma.v"
 
 module ascon_ip_top #(
@@ -204,6 +221,7 @@ module ascon_ip_top #(
     wire         dma_core_data_ready;
     wire         dma_core_start;
     wire         dma_core_data_last; // NEW
+    wire         core_ad_ready_w;    // NEW: CONTROLLER in S_AD_LOAD → DMA AD pump gate
 
     wire [31:0]  core_dma_ctext_0;
     wire [31:0]  core_dma_ctext_1;
@@ -211,6 +229,37 @@ module ascon_ip_top #(
     wire [31:0]  core_dma_tag_1;
     wire [31:0]  core_dma_tag_2;
     wire [31:0]  core_dma_tag_3;
+
+    // =========================================================================
+    // Internal wires: slave AEAD outputs (tag_received + AD DMA channel)
+    // =========================================================================
+    wire [31:0]  slave_tag_in_0, slave_tag_in_1;
+    wire [31:0]  slave_tag_in_2, slave_tag_in_3;
+    wire [31:0]  slave_ad_addr,  slave_ad_len;
+    // P1 FIX: AD payload data registers from slave (up to 128-bit)
+    wire [31:0]  slave_ad_data_0, slave_ad_data_1;
+    wire [31:0]  slave_ad_data_2, slave_ad_data_3;
+    // Watchdog / DMA1 (reserved — not connected to engine yet)
+    /* verilator lint_off UNUSEDSIGNAL */
+    wire [31:0]  slave_wdt_cfg;
+    wire         slave_wdt_ctrl;
+    wire [31:0]  slave_dma1_src, slave_dma1_dst, slave_dma1_len;
+    wire [7:0]   slave_dma1_burst_len;
+    wire         slave_dma1_en, slave_dma1_start, slave_dma1_soft_rst;
+    /* verilator lint_on UNUSEDSIGNAL */
+
+    // =========================================================================
+    // Watchdog internal wires
+    // =========================================================================
+    wire wdt_timeout_w;  // timeout sticky → slave STATUS[7]
+
+    // =========================================================================
+    // DMA granular error wires
+    // =========================================================================
+    wire        dma_rd_error_w;
+    wire        dma_wr_error_w;
+    wire        dma_fifo_ov_w;
+    wire [31:0] dma_err_addr_w;
 
     // =========================================================================
     // [FIX] Bỏ AXI-Stream mode. core_start_mux:
@@ -229,8 +278,11 @@ module ascon_ip_top #(
     end
     wire slave_core_start_pulse = slave_core_start & ~slave_core_start_d;
 
+    // DMA mode: core_start gated only on dma_core_start (not data_valid).
+    // data_valid is separate — CONTROLLER starts INIT early at dma_start,
+    // then waits in S_DATA_LOAD until data_valid=1 from the payload pump.
     wire core_start_mux = slave_dma_en
-        ? (dma_core_start & dma_core_data_valid)
+        ? dma_core_start
         : slave_core_start_pulse;
 
     // DMA cung cấp 2x32-bit word (ptext_0=upper, ptext_1=lower) → ghép 64-bit
@@ -243,10 +295,36 @@ module ascon_ip_top #(
     wire core_data_last = slave_dma_en ? dma_core_data_last : 1'b1;
     wire core_data_valid = slave_dma_en ? dma_core_data_valid : 1'b1;
 
-    wire [127:0] core_ad_in    = 128'h0;
-    wire         core_ad_valid = 1'b0;
-    wire         core_ad_last  = 1'b0;
-    wire [127:0] core_tag_received = 128'h0;
+    // =========================================================================
+    // AD input mux:
+    //   CPU-Direct (dma_en=0): lấy từ register bank (slave_ad_data_0..3)
+    //   DMA mode   (dma_en=1): lấy từ DMA engine (dma_ad_in_w/valid/last)
+    //   DMA engine tự fetch AD từ RAM theo phase AD, FSM trong ascon_dma.
+    // =========================================================================
+    // DMA AD output wires
+    wire [127:0] dma_ad_in_w;
+    wire         dma_ad_valid_w;
+    wire         dma_ad_last_w;
+
+    wire [127:0] core_ad_in    = slave_dma_en ? dma_ad_in_w
+                                              : {slave_ad_data_0, slave_ad_data_1,
+                                                 slave_ad_data_2, slave_ad_data_3};
+    wire         core_ad_valid = slave_dma_en ? dma_ad_valid_w
+                                              : (slave_ad_len != 32'h0);
+    // core_ad_last semantics:
+    //   last=1, valid=0 → "no AD at all" → CONTROLLER skips to DOM_SEP
+    //   last=1, valid=1 → last AD block
+    //   last=0, valid=0 → AD expected but not ready yet → CONTROLLER holds in S_AD_LOAD
+    wire         core_ad_last  = slave_dma_en
+                                    ? ((slave_ad_len == 32'h0) ? 1'b1 : dma_ad_last_w)
+                                    : ((slave_ad_len == 32'h0) ? 1'b1 : core_ad_valid);
+
+    // FIX-BUG-TOP9: kết nối tag_received từ register slave thay vì hard-code 0.
+    // CPU ghi TAG_IN_0..3 (0x128..0x134) trước khi decrypt → CORE so sánh đúng.
+    wire [127:0] core_tag_received = {
+        slave_tag_in_0, slave_tag_in_1,
+        slave_tag_in_2, slave_tag_in_3
+    };
 
     // Slice core output for DMA
     assign core_dma_ctext_0 = core_data_out_w[127:96];
@@ -323,6 +401,7 @@ module ascon_ip_top #(
         .core_data_out      (core_data_out_w),
         .core_tag_out       (core_tag_out_w),
         .core_tag_valid     (core_tag_valid_w),
+        .core_tag_match     (core_tag_match_w), // FIX-BUG-TOP9: tag comparator → STATUS[6]
 
         .dma_src_addr       (slave_dma_src_addr),
         .dma_dst_addr       (slave_dma_dst_addr),
@@ -336,7 +415,43 @@ module ascon_ip_top #(
         .dma_done           (dma_done_w),
         .dma_error          (dma_error_w),
 
-        .irq                (irq)
+        .irq                (irq),
+
+        // AEAD outputs
+        .ad_addr_o          (slave_ad_addr),
+        .ad_len_o           (slave_ad_len),
+        .tag_in_o_0         (slave_tag_in_0),
+        .tag_in_o_1         (slave_tag_in_1),
+        .tag_in_o_2         (slave_tag_in_2),
+        .tag_in_o_3         (slave_tag_in_3),
+
+        // P1 FIX: AD payload data
+        .ad_data_o_0        (slave_ad_data_0),
+        .ad_data_o_1        (slave_ad_data_1),
+        .ad_data_o_2        (slave_ad_data_2),
+        .ad_data_o_3        (slave_ad_data_3),
+
+        // Watchdog outputs
+        .wdt_cfg_o          (slave_wdt_cfg),
+        .wdt_ctrl_o         (slave_wdt_ctrl),
+
+        // Watchdog timeout input (v7 P2)
+        .wdt_timeout_i      (wdt_timeout_w),
+
+        // DMA granular error inputs (v7 P3)
+        .dma_rd_error_i     (dma_rd_error_w),
+        .dma_wr_error_i     (dma_wr_error_w),
+        .dma_fifo_overflow_i(dma_fifo_ov_w),
+        .dma_err_addr_i     (dma_err_addr_w),
+
+        // DMA channel 1 outputs (reserved)
+        .dma1_src_addr      (slave_dma1_src),
+        .dma1_dst_addr      (slave_dma1_dst),
+        .dma1_len           (slave_dma1_len),
+        .dma1_burst_len     (slave_dma1_burst_len),
+        .dma1_en            (slave_dma1_en),
+        .dma1_start         (slave_dma1_start),
+        .dma1_soft_rst      (slave_dma1_soft_rst)
     );
 
     // =========================================================================
@@ -377,6 +492,7 @@ module ascon_ip_top #(
         .data_out     (core_data_out_w),
         .data_out_valid(core_data_out_valid_w),
         .data_ready   (core_data_ready_w), // NEW
+        .ad_ready     (core_ad_ready_w),   // NEW: for DMA AD pump synchronization
         .tag_out      (core_tag_out_w),
         .tag_valid    (core_tag_valid_w),
         .tag_match    (core_tag_match_w),
@@ -401,7 +517,10 @@ module ascon_ip_top #(
         .src_addr             (slave_dma_src_addr),
         .dst_addr             (slave_dma_dst_addr),
         .byte_len             (slave_dma_length),
-        .burst_len            (slave_dma_burst_len), // FIX: Use configurable burst length
+        .burst_len            (slave_dma_burst_len),
+        // AD parameters (v7 P1)
+        .ad_src_addr          (slave_ad_addr),
+        .ad_len               (slave_ad_len),
 
         .dma_start            (slave_dma_start),
         .dma_soft_rst         (slave_dma_soft_rst),
@@ -410,25 +529,29 @@ module ascon_ip_top #(
         .dma_done             (dma_done_w),
         .dma_error            (dma_error_w),
 
-        /* verilator lint_off PINCONNECTEMPTY */
+        // DMA granular errors (v7 P3) — kết nối đầy đủ thay vì bỏ trống
         .status_rd_done       (),
         .status_wr_done       (),
-        .status_rd_error      (),
-        .status_wr_error      (),
-        .status_fifo_overflow (),
-        .dma_err_addr         (),
-        /* verilator lint_on PINCONNECTEMPTY */
+        .status_rd_error      (dma_rd_error_w),
+        .status_wr_error      (dma_wr_error_w),
+        .status_fifo_overflow (dma_fifo_ov_w),
+        .dma_err_addr         (dma_err_addr_w),
 
         .core_ptext_0         (dma_core_ptext_0),
         .core_ptext_1         (dma_core_ptext_1),
         .core_data_valid      (dma_core_data_valid),
-        .core_data_ready      (dma_core_data_ready), // Now connected correctly
+        .core_data_ready      (dma_core_data_ready),
         .core_start           (dma_core_start),
-        .core_data_last       (dma_core_data_last), // NEW
+        .core_data_last       (dma_core_data_last),
         .core_busy            (core_busy_w),
         .core_done            (core_done_w),
-        .core_data_out_valid  (core_data_out_valid_w), // NEW
-        .core_tag_valid       (core_tag_valid_w),      // NEW
+        .core_data_out_valid  (core_data_out_valid_w),
+        .core_tag_valid       (core_tag_valid_w),
+        // AD outputs (v7 P1)
+        .core_ad_in           (dma_ad_in_w),
+        .core_ad_valid        (dma_ad_valid_w),
+        .core_ad_last         (dma_ad_last_w),
+        .core_ad_ready        (core_ad_ready_w),   // CONTROLLER in S_AD_LOAD → gate AD pump
 
         .core_ctext_0         (core_dma_ctext_0),
         .core_ctext_1         (core_dma_ctext_1),
@@ -474,6 +597,20 @@ module ascon_ip_top #(
         .M_AXI_RLAST          (M_AXI_RLAST),
         .M_AXI_RVALID         (M_AXI_RVALID),
         .M_AXI_RREADY         (M_AXI_RREADY)
+    );
+
+    // =========================================================================
+    // u_wdt : ascon_watchdog (P2)
+    // clear khi core_done hoặc soft_rst
+    // =========================================================================
+    ascon_watchdog u_wdt (
+        .clk    (clk),
+        .rst_n  (rst_n),
+        .cfg    (slave_wdt_cfg),
+        .enable (slave_wdt_ctrl),
+        .busy   (core_busy_w | dma_busy_w),
+        .clear  (core_done_w | slave_core_soft_rst),
+        .timeout(wdt_timeout_w)
     );
 
     // =========================================================================

@@ -455,6 +455,10 @@ module dcache_controller (
                             flush_state <= `FLUSH_DONE;
                         else
                             flush_state <= `FLUSH_SCAN;
+`ifdef DEBUG_DCACHE
+                        $display("[%0t][FLUSH-START] flush=%b inval=%b dirty_bitmap=%016h",
+                                 $time, fence_flush, fence_inval, dirty_bitmap);
+`endif
                     end
                 end
 
@@ -483,6 +487,11 @@ module dcache_controller (
                     evict_addr        <= {tag_evict_tag_out, flush_index, 4'b0000};
                     flush_evict_start <= 1'b1;   // [FIX-1] dedicated signal
                     flush_state       <= `FLUSH_EVICT;
+`ifdef DEBUG_DCACHE
+                    $display("[%0t][FLUSH-EVICT-ADDR] addr=%08h idx=%0d tag=%05h",
+                             $time, {tag_evict_tag_out, flush_index, 4'b0000},
+                             flush_index, tag_evict_tag_out);
+`endif
                 end
 
                 `FLUSH_EVICT: begin
@@ -496,6 +505,9 @@ module dcache_controller (
                 `FLUSH_DONE: begin
                     flush_busy  <= 1'b0;
                     flush_state <= `FLUSH_IDLE;
+`ifdef DEBUG_DCACHE
+                    $display("[%0t][FLUSH-DONE] flush_busy 1->0", $time);
+`endif
                 end
 
                 default: flush_state <= `FLUSH_IDLE;
@@ -627,6 +639,10 @@ module dcache_controller (
                                     main_evict_start <= 1'b1;  // [FIX-1]
 `ifdef DEBUG_WDATA
                                     $display("[%6d] [C2-NC-WRITE] addr=%08h cpu_wdata=%08h wstrb=%04b",
+                                             $time, cpu_addr, cpu_wdata, cpu_wstrb);
+`endif
+`ifdef DEBUG_DCACHE
+                                    $display("[%0t][NC-WRITE-START] addr=%08h data=%08h wstrb=%04b",
                                              $time, cpu_addr, cpu_wdata, cpu_wstrb);
 `endif
                                     stat_writes      <= stat_writes + 1;
@@ -770,5 +786,29 @@ module dcache_controller (
             end
         end
     end
+
+`ifdef DEBUG_DCACHE
+    // =========================================================================
+    // DEBUG_DCACHE monitor — track NC write flow and blocking conditions
+    // =========================================================================
+    always @(posedge clk) begin
+        // Blocked NC write: cpu_req for NC addr but flush is running
+        if (flush_busy && cpu_req && cpu_we && (cpu_addr[31:29] != 3'b000))
+            $display("[%0t][NC-WR-BLOCKED-FLUSH] addr=%08h data=%08h",
+                     $time, cpu_addr, cpu_wdata);
+        // Blocked NC write: nc_just_completed guard firing
+        if (!flush_busy && !fence_any && nc_just_completed && cpu_req && cpu_we && (cpu_addr[31:29] != 3'b000))
+            $display("[%0t][NC-WR-BLOCKED-GUARD] addr=%08h data=%08h",
+                     $time, cpu_addr, cpu_wdata);
+        // NC_WRITE completes: state leaving NC_WRITE — show flush_busy at that moment
+        if (state == DCACHE_STATE_NC_WRITE && next_state == DCACHE_STATE_IDLE)
+            $display("[%0t][NC-WRITE-DONE] addr=%08h evict_done=%b flush_busy=%b cpu_ready_int=%b",
+                     $time, cur_addr, evict_done, flush_busy, cpu_ready_int);
+        // FLUSH_DONE transition: show fence_any and cpu_req at that exact moment
+        if (flush_state == `FLUSH_DONE)
+            $display("[%0t][FLUSH-DONE-SNAPSHOT] fence_any=%b cpu_req=%b cpu_we=%b cpu_addr=%08h state=%0d",
+                     $time, fence_any, cpu_req, cpu_we, cpu_addr, state);
+    end
+`endif
 
 endmodule

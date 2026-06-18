@@ -355,6 +355,10 @@ module dcache_axi_interface #(
                         evict_done   <= 1'b1;
                         evict_busy   <= 1'b0;
                         ev_state     <= EV_IDLE;
+`ifdef DEBUG_DCACHE
+                        $display("[%0t][EV-B-DONE] addr=%08h BRESP=%02b nc=%b",
+                                 $time, M_AXI_AWADDR, M_AXI_BRESP, ev_nc_mode);
+`endif
                     end
                 end
 

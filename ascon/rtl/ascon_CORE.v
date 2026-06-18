@@ -57,6 +57,7 @@ module ascon_CORE #(
     output wire [127:0] data_out,
     output wire         data_out_valid,
     output wire         data_ready,
+    output wire         ad_ready,       // NEW: CONTROLLER in S_AD_LOAD
     output wire [127:0] tag_out,
     output wire         tag_valid,
     output wire         tag_match,
@@ -101,6 +102,7 @@ module ascon_CORE #(
     wire [127:0] dp_data_out;
     wire         dp_data_out_valid;
     wire         dp_extra_pad;
+    wire         ctrl_is_extra_pad;  // NEW: extra padding block flag from CTRL
     wire [319:0] perm_state_out;
     wire         perm_done;
     /* verilator lint_off UNUSEDSIGNAL */
@@ -215,6 +217,7 @@ module ascon_CORE #(
         .mode(mode_int),             // ← mode_int
         .enc_dec(ctrl_dp_enc_dec),
         .pad_enable(ctrl_dp_pad_enable), .block_sel(ctrl_dp_block_sel),
+        .is_extra_pad_block(ctrl_is_extra_pad),  // NEW
         .ad_in(ad_in), .data_in(data_in), .data_len(data_len),
         .state_in(state_reg_out),
         .state_xored(dp_state_xored),
@@ -264,7 +267,7 @@ module ascon_CORE #(
         .ad_in(ad_in), .ad_valid(ad_valid), .ad_last(ad_last),
         .data_in(data_in), .data_valid(data_valid), .data_last(data_last), .data_len(data_len),
         .tag_received(tag_received),
-        .data_ready(data_ready), .data_out_valid(ctrl_data_out_valid),
+        .data_ready(data_ready), .ad_ready(ad_ready), .data_out_valid(ctrl_data_out_valid),
         .done(ctrl_done_sig), .busy(ctrl_busy_sig),
         .load_key(ctrl_load_key), .load_nonce(ctrl_load_nonce),
         .init_start(ctrl_init_start),
@@ -278,6 +281,7 @@ module ascon_CORE #(
         .do_post_init_key_xor(ctrl_post_init_key_xor),
         .do_pre_fin_key_xor(ctrl_pre_fin_key_xor),
         .do_dom_sep(ctrl_dom_sep),
+        .is_extra_pad_block(ctrl_is_extra_pad),  // NEW
         .extra_pad_block_needed(dp_extra_pad_r),  // [FIX-UNOPTFLAT] registered
         .init_done(init_valid), .perm_done(perm_done),
         .tag_gen_valid(tag_gen_valid), .tag_cmp_done(tag_cmp_done)

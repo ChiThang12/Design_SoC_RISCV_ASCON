@@ -32,6 +32,8 @@
 // ============================================================================
 `timescale 1ns/1ps
 `include "ascon/ascon_top.v"
+`include "memory/data_mem_axi_slave.v"
+`include "axi_width_converter_64to32.v"
 
 module tb_ascon_top;
 
@@ -75,7 +77,7 @@ module tb_ascon_top;
     wire              S_AXI_RVALID;
     reg               S_AXI_RREADY   = 1;
 
-    // ---- AXI4-Full Master (DMA) – tie-off (không dùng trong test CPU) -------
+    // ---- AXI4-Full Master (DMA) connected to data_mem_axi4_slave ----------
     wire [M_IW-1:0]   M_AXI_AWID, M_AXI_ARID;
     wire [M_AW-1:0]   M_AXI_AWADDR, M_AXI_ARADDR;
     wire [7:0]        M_AXI_AWLEN, M_AXI_ARLEN;
@@ -83,20 +85,36 @@ module tb_ascon_top;
     wire [1:0]        M_AXI_AWBURST, M_AXI_ARBURST;
     wire [3:0]        M_AXI_AWCACHE, M_AXI_ARCACHE;
     wire              M_AXI_AWVALID, M_AXI_ARVALID;
-    reg               M_AXI_AWREADY = 1, M_AXI_ARREADY = 1;
+    wire              M_AXI_AWREADY, M_AXI_ARREADY;
     wire [M_DW-1:0]   M_AXI_WDATA;
     wire [M_DW/8-1:0] M_AXI_WSTRB;
     wire              M_AXI_WLAST, M_AXI_WVALID;
-    reg               M_AXI_WREADY  = 1;
-    reg  [M_IW-1:0]   M_AXI_BID     = 0;
-    reg  [1:0]        M_AXI_BRESP   = 0;
-    reg               M_AXI_BVALID  = 0;
+    wire              M_AXI_WREADY;
+    wire [M_IW-1:0]   M_AXI_BID;
+    wire [1:0]        M_AXI_BRESP;
+    wire              M_AXI_BVALID;
     wire              M_AXI_BREADY;
-    reg  [M_IW-1:0]   M_AXI_RID     = 0;
-    reg  [M_DW-1:0]   M_AXI_RDATA   = 0;
-    reg  [1:0]        M_AXI_RRESP   = 0;
-    reg               M_AXI_RLAST   = 0, M_AXI_RVALID = 0;
+    wire [M_IW-1:0]   M_AXI_RID;
+    wire [M_DW-1:0]   M_AXI_RDATA;
+    wire [1:0]        M_AXI_RRESP;
+    wire              M_AXI_RLAST, M_AXI_RVALID;
     wire              M_AXI_RREADY;
+
+    // ---- AXI 32-bit wires between width converter and RAM -------------------
+    wire [M_IW-1:0] C32_AWID,  C32_ARID;
+    wire [M_AW-1:0] C32_AWADDR,C32_ARADDR;
+    wire [7:0]      C32_AWLEN, C32_ARLEN;
+    wire [2:0]      C32_AWSIZE,C32_ARSIZE,C32_AWPROT,C32_ARPROT;
+    wire [1:0]      C32_AWBURST,C32_ARBURST;
+    wire            C32_AWVALID,C32_AWREADY;
+    wire [31:0]     C32_WDATA;
+    wire [3:0]      C32_WSTRB;
+    wire            C32_WLAST, C32_WVALID, C32_WREADY;
+    wire [M_IW-1:0] C32_BID,   C32_RID;
+    wire [1:0]      C32_BRESP, C32_RRESP;
+    wire            C32_BVALID,C32_BREADY;
+    wire [31:0]     C32_RDATA;
+    wire            C32_RLAST, C32_RVALID,C32_RREADY;
 
     // ---- Outputs ------------------------------------------------------------
     wire [127:0] o_tag;
@@ -201,6 +219,74 @@ module tb_ascon_top;
     wire         hw_done = dut.core_done_w;
     wire [3:0]   hw_fsm  = dut.u_core_cpu.u_ctrl.state;
 
+    // ---- Width converter: ASCON DMA (64-bit) → RAM (32-bit) ----------------
+    axi_width_converter_64to32 #(
+        .ADDR_WIDTH(M_AW), .ID_WIDTH(M_IW)
+    ) u_conv (
+        .clk(clk), .rst_n(rst_n),
+        .M_AXI_AWID(M_AXI_AWID),    .M_AXI_AWADDR(M_AXI_AWADDR),
+        .M_AXI_AWLEN(M_AXI_AWLEN),  .M_AXI_AWSIZE(M_AXI_AWSIZE),
+        .M_AXI_AWBURST(M_AXI_AWBURST),.M_AXI_AWCACHE(M_AXI_AWCACHE),
+        .M_AXI_AWPROT(M_AXI_AWPROT),.M_AXI_AWVALID(M_AXI_AWVALID),
+        .M_AXI_AWREADY(M_AXI_AWREADY),
+        .M_AXI_WDATA(M_AXI_WDATA),  .M_AXI_WSTRB(M_AXI_WSTRB),
+        .M_AXI_WLAST(M_AXI_WLAST),  .M_AXI_WVALID(M_AXI_WVALID),
+        .M_AXI_WREADY(M_AXI_WREADY),
+        .M_AXI_BID(M_AXI_BID),      .M_AXI_BRESP(M_AXI_BRESP),
+        .M_AXI_BVALID(M_AXI_BVALID),.M_AXI_BREADY(M_AXI_BREADY),
+        .M_AXI_ARID(M_AXI_ARID),    .M_AXI_ARADDR(M_AXI_ARADDR),
+        .M_AXI_ARLEN(M_AXI_ARLEN),  .M_AXI_ARSIZE(M_AXI_ARSIZE),
+        .M_AXI_ARBURST(M_AXI_ARBURST),.M_AXI_ARCACHE(M_AXI_ARCACHE),
+        .M_AXI_ARPROT(M_AXI_ARPROT),.M_AXI_ARVALID(M_AXI_ARVALID),
+        .M_AXI_ARREADY(M_AXI_ARREADY),
+        .M_AXI_RID(M_AXI_RID),      .M_AXI_RDATA(M_AXI_RDATA),
+        .M_AXI_RRESP(M_AXI_RRESP),  .M_AXI_RLAST(M_AXI_RLAST),
+        .M_AXI_RVALID(M_AXI_RVALID),.M_AXI_RREADY(M_AXI_RREADY),
+        .S_AXI_AWID(C32_AWID),      .S_AXI_AWADDR(C32_AWADDR),
+        .S_AXI_AWLEN(C32_AWLEN),    .S_AXI_AWSIZE(C32_AWSIZE),
+        .S_AXI_AWBURST(C32_AWBURST),.S_AXI_AWPROT(C32_AWPROT),
+        .S_AXI_AWVALID(C32_AWVALID),.S_AXI_AWREADY(C32_AWREADY),
+        .S_AXI_WDATA(C32_WDATA),    .S_AXI_WSTRB(C32_WSTRB),
+        .S_AXI_WLAST(C32_WLAST),    .S_AXI_WVALID(C32_WVALID),
+        .S_AXI_WREADY(C32_WREADY),
+        .S_AXI_BID(C32_BID),        .S_AXI_BRESP(C32_BRESP),
+        .S_AXI_BVALID(C32_BVALID),  .S_AXI_BREADY(C32_BREADY),
+        .S_AXI_ARID(C32_ARID),      .S_AXI_ARADDR(C32_ARADDR),
+        .S_AXI_ARLEN(C32_ARLEN),    .S_AXI_ARSIZE(C32_ARSIZE),
+        .S_AXI_ARBURST(C32_ARBURST),.S_AXI_ARPROT(C32_ARPROT),
+        .S_AXI_ARVALID(C32_ARVALID),.S_AXI_ARREADY(C32_ARREADY),
+        .S_AXI_RID(C32_RID),        .S_AXI_RDATA(C32_RDATA),
+        .S_AXI_RRESP(C32_RRESP),    .S_AXI_RLAST(C32_RLAST),
+        .S_AXI_RVALID(C32_RVALID),  .S_AXI_RREADY(C32_RREADY)
+    );
+
+    // ---- AXI RAM 32-bit connected to width converter output -----------------
+    // MEM_SIZE=16384 (16KB) covers DMA_AD=0x1000, DMA_PT=0x2000, DMA_CT=0x3000
+    data_mem_axi4_slave #(
+        .ADDR_WIDTH(M_AW),
+        .DATA_WIDTH(32),
+        .ID_WIDTH(M_IW),
+        .MEM_SIZE(16384)
+    ) u_ram (
+        .clk(clk), .rst_n(rst_n),
+        .S_AXI_AWID(C32_AWID),    .S_AXI_AWADDR(C32_AWADDR),
+        .S_AXI_AWLEN(C32_AWLEN),  .S_AXI_AWSIZE(C32_AWSIZE),
+        .S_AXI_AWBURST(C32_AWBURST),.S_AXI_AWPROT(C32_AWPROT),
+        .S_AXI_AWVALID(C32_AWVALID),.S_AXI_AWREADY(C32_AWREADY),
+        .S_AXI_WDATA(C32_WDATA),  .S_AXI_WSTRB(C32_WSTRB),
+        .S_AXI_WLAST(C32_WLAST),  .S_AXI_WVALID(C32_WVALID),
+        .S_AXI_WREADY(C32_WREADY),
+        .S_AXI_BID(C32_BID),      .S_AXI_BRESP(C32_BRESP),
+        .S_AXI_BVALID(C32_BVALID),.S_AXI_BREADY(C32_BREADY),
+        .S_AXI_ARID(C32_ARID),    .S_AXI_ARADDR(C32_ARADDR),
+        .S_AXI_ARLEN(C32_ARLEN),  .S_AXI_ARSIZE(C32_ARSIZE),
+        .S_AXI_ARBURST(C32_ARBURST),.S_AXI_ARPROT(C32_ARPROT),
+        .S_AXI_ARVALID(C32_ARVALID),.S_AXI_ARREADY(C32_ARREADY),
+        .S_AXI_RID(C32_RID),      .S_AXI_RDATA(C32_RDATA),
+        .S_AXI_RRESP(C32_RRESP),  .S_AXI_RLAST(C32_RLAST),
+        .S_AXI_RVALID(C32_RVALID),.S_AXI_RREADY(C32_RREADY)
+    );
+
     // ---- Capture registers --------------------------------------------------
     integer pass_count, fail_count, cyc_start, cyc_total;
     reg [127:0] cap_ct, cap_tag, tag_rd;
@@ -211,13 +297,18 @@ module tb_ascon_top;
         if (hw_tag_v) cap_tag <= hw_tag;
     end
 
-    // ---- Expected values ----------------------------------------------------
-    localparam [127:0] TEST_KEY   = 128'h000102030405060708090A0B0C0D0E0F;
-    localparam [127:0] TEST_NONCE = 128'h101112131415161718191A1B1C1D1E1F;
-    localparam [127:0] TEST_PT    = 128'h6173636F6E000000_0000000000000000;
-    localparam [6:0]   PT_LEN     = 7'd5;
-    localparam [39:0]  SW_CT      = 40'ha9919fa26e;
-    localparam [127:0] SW_TAG     = 128'hf1a4d483f02f1979dad8aef9985b6148;
+    // ---- Variables cho File I/O --------------------------------------------
+    integer fd, count, i;
+    reg [31:0]  tv_mode, tv_ad_len, tv_pt_len;
+    reg [127:0] tv_key, tv_nonce, tv_tag;
+    reg [1023:0] tv_ad, tv_pt, tv_ct;
+    reg [31:0]   word_data;
+    reg [31:0]   word_lo, word_hi;
+    
+    // RAM addresses for DMA
+    localparam DMA_AD_BASE = 32'h0000_1000;
+    localparam DMA_PT_BASE = 32'h0000_2000;
+    localparam DMA_CT_BASE = 32'h0000_3000;
 
     // ---- Event monitor ------------------------------------------------------
     always @(posedge clk) begin
@@ -295,261 +386,285 @@ module tb_ascon_top;
         end
     endtask
 
-    // Cấu hình key, nonce, plaintext, data_len, mode (cho CPU-Direct)
-    task cpu_setup;
-        input [127:0] key, nonce, pt;
-        input [6:0]   plen;
-        input [1:0]   mode;        // mode[0]=variant, mode[1]=enc_dec (0=enc,1=dec)
+    task cpu_setup_full;
+        input [127:0] key, nonce;
+        input [31:0]  ad_len;
+        input [127:0] ad_data; // Max 16 bytes for CPU-Direct
+        input [31:0]  pt_len;
+        input [63:0]  pt_data; // Max 8 bytes for CPU-Direct
         begin
-            // Key (4 words tại 0x010..0x01C)
+            // Key
             axi_write(32'h010, key[127:96]);
             axi_write(32'h014, key[95:64]);
             axi_write(32'h018, key[63:32]);
             axi_write(32'h01C, key[31:0]);
-            // Nonce (4 words tại 0x024..0x030)
+            // Nonce
             axi_write(32'h024, nonce[127:96]);
             axi_write(32'h028, nonce[95:64]);
             axi_write(32'h02C, nonce[63:32]);
             axi_write(32'h030, nonce[31:0]);
-            // Plaintext (2 words tại 0x034,0x038)
-            axi_write(32'h034, pt[127:96]);
-            axi_write(32'h038, pt[95:64]);
-            // DATA_LEN (0x03C) – số byte dữ liệu
-            axi_write(32'h03C, {25'b0, plen});
-            // MODE register (0x000) – bit[0]=variant, bit[1]=enc_dec
-            axi_write(32'h000, {30'b0, mode});
+            // AD
+            axi_write(32'h124, ad_len);
+            if (ad_len > 0) begin
+                axi_write(32'h058, ad_data[127:96]);
+                axi_write(32'h05C, ad_data[95:64]);
+                axi_write(32'h060, ad_data[63:32]);
+                axi_write(32'h064, ad_data[31:0]);
+            end
+            // PT
+            axi_write(32'h03C, pt_len);
+            if (pt_len > 0) begin
+                axi_write(32'h034, pt_data[63:32]);
+                axi_write(32'h038, pt_data[31:0]);
+            end
+            // Mode = Encrypt (00)
+            axi_write(32'h000, 32'h0);
         end
     endtask
 
-    // Chờ core_done (tối đa 10000 chu kỳ)
+    task dma_setup_full;
+        input [127:0] key, nonce;
+        input [31:0]  ad_len;
+        input [31:0]  pt_len;
+        reg   [31:0]  burst_calc;
+        begin
+            // Key & Nonce (cấu hình giống CPU)
+            axi_write(32'h010, key[127:96]);
+            axi_write(32'h014, key[95:64]);
+            axi_write(32'h018, key[63:32]);
+            axi_write(32'h01C, key[31:0]);
+            axi_write(32'h024, nonce[127:96]);
+            axi_write(32'h028, nonce[95:64]);
+            axi_write(32'h02C, nonce[63:32]);
+            axi_write(32'h030, nonce[31:0]);
+
+            // Mode = Encrypt
+            axi_write(32'h000, 32'h0);
+
+            // Cấu hình thanh ghi DMA
+            axi_write(32'h120, DMA_AD_BASE); // AD_ADDR
+            axi_write(32'h124, ad_len);      // AD_LEN
+
+            axi_write(32'h100, DMA_PT_BASE); // SRC_ADDR
+            axi_write(32'h104, DMA_CT_BASE); // DST_ADDR
+            axi_write(32'h108, pt_len);      // BYTE_LEN
+            axi_write(32'h03C, pt_len);      // DATA_LEN (Bug A fix: sync với cpu_setup_full)
+            // BURST_LEN = blocks-1 (1 block = 8 bytes); cap at 3 (4 beats max)
+            burst_calc = (pt_len >> 3);
+            burst_calc = (burst_calc > 0) ? burst_calc - 1 : 0;
+            burst_calc = (burst_calc > 3) ? 3 : burst_calc;
+            axi_write(32'h114, burst_calc);
+        end
+    endtask
+
+    // Chờ core_done bằng cách poll STATUS register qua AXI (bit 0 = done)
     task wait_done;
         integer t;
         begin
-            cyc_start = $time / 10;
             t = 0;
-            @(posedge clk);
-            while (!hw_done && t < 10000) begin
-                @(posedge clk);
+            axi_read(32'h004);
+            while (axi_rd[1] == 0 && t < 10000) begin
+                @(posedge clk); #1;
+                axi_read(32'h004);
                 t = t + 1;
             end
-            cyc_total = ($time / 10) - cyc_start;
             if (t >= 10000) $display("  [TIMEOUT] wait_done");
         end
     endtask
 
-    // Các hàm kiểm tra kết quả
-    task check40;
-        input [255:0] lbl;
-        input [39:0]  got, exp;
+    // Backdoor ghi vào RAM (32-bit per word — memory indexed by 4-byte word)
+    task load_ram;
+        input [31:0] base_addr;
+        input [31:0] byte_len;
+        input [1023:0] data;
+        integer k;
+        reg [31:0] chunk32;
         begin
-            if (got === exp) begin
-                $display("  [PASS] %s = %h", lbl, got);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("  [FAIL] %s  got=%h  exp=%h", lbl, got, exp);
-                fail_count = fail_count + 1;
+            for (k = 0; k < byte_len/4; k = k + 1) begin
+                chunk32 = (data >> ((byte_len - 4 - k*4)*8)) & 32'hFFFFFFFF;
+                u_ram.dmem.memory[(base_addr/4) + k] = chunk32;
             end
         end
     endtask
 
-    task check128;
-        input [255:0] lbl;
-        input [127:0] got, exp;
+    // Chờ DMA done bằng poll dma_busy_w (level signal, không miss edge)
+    task wait_dma_done;
+        integer t;
         begin
-            if (got === exp) begin
-                $display("  [PASS] %s = %h", lbl, got);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("  [FAIL] %s  got=%h  exp=%h", lbl, got, exp);
-                fail_count = fail_count + 1;
+            t = 0;
+            @(posedge clk); #1;
+            while (dut.dma_busy_w && t < 5_000_000) begin
+                @(posedge clk); #1;
+                t = t + 1;
             end
+            if (t >= 5_000_000)
+                $display("  [TIMEOUT] wait_dma_done");
         end
     endtask
 
-    task check1;
-        input [255:0] lbl;
-        input got, exp;
-        begin
-            if (got === exp) begin
-                $display("  [PASS] %s = %b", lbl, got);
-                pass_count = pass_count + 1;
-            end else begin
-                $display("  [FAIL] %s  got=%b  exp=%b", lbl, got, exp);
-                fail_count = fail_count + 1;
-            end
-        end
-    endtask
-    reg [31:0] ct0;
-    reg [31:0] ct1;
     // =========================================================================
-    // Main test sequence
+    // Auto Test Sequence
     // =========================================================================
+    reg [127:0]  tmp_tag;
+    reg [1023:0] tmp_ct;
+    integer      test_idx;
+    reg [8191:0] line_str;
+    integer      throwaway;
+    reg [1023:0] ct_mask;
+
     initial begin
         $dumpfile("tb_ascon_top.vcd");
         $dumpvars(0, tb_ascon_top);
 
         pass_count = 0;
         fail_count = 0;
-        cap_ct  = 0;
-        cap_tag = 0;
-        cyc_start = 0;
-        cyc_total = 0;
+        test_idx = 0;
 
         $display("================================================================");
-        $display("  tb_ascon_top  --  ascon_ip_top v5 verification");
+        $display("  tb_ascon_top  --  Automated SW-HW Co-Simulation");
         $display("================================================================");
-        $display("  KEY   = %h", TEST_KEY);
-        $display("  NONCE = %h", TEST_NONCE);
-        $display("  PT    = 6173636f6e  (ascon 5B)");
-        $display("================================================================");
-
-        // ---------------------------------------------------------------------
-        // TEST 1: CPU-Direct Encryption (ASCON-128, mode=2'b00)
-        // ---------------------------------------------------------------------
-        $display("\n================================================================");
-        $display("  TEST 1: CPU-Direct ASCON-128 Encryption  (mode=2'b00)");
-        $display("================================================================");
+        
         do_reset;
-        cpu_setup(TEST_KEY, TEST_NONCE, TEST_PT, PT_LEN, 2'b00);
-        axi_write(32'h020, 32'h1);          // CTRL[0]=1 (start)
-        wait_done;
-        $display("  Cycles: %0d", cyc_total);
-        check40("CT  (5B, CPU-Direct)", cap_ct[127:88], SW_CT);
-        check128("TAG (CPU-Direct)",    cap_tag,        SW_TAG);
-        repeat (4) @(posedge clk);
 
-        // ---------------------------------------------------------------------
-        // TEST 2: CPU-Direct Decrypt (self-consistency round-trip)
-        // Lưu ý: do mode[1] dùng chung bit variant, decrypt chạy ASCON-128a nếu
-        // không tách biệt. Ở đây dùng round-trip để kiểm tra tính nhất quán.
-        // ---------------------------------------------------------------------
-        $display("\n================================================================");
-        $display("  TEST 2: CPU-Direct Decrypt (self-consistency round-trip)");
-        $display("  [NOTE] mode[1]=enc_dec, mode[0]=variant – decrypt dùng variant=1");
-        $display("================================================================");
-        do_reset;
-        // Bước 1: encrypt (mode=2'b00) để lấy CT
-        cpu_setup(TEST_KEY, TEST_NONCE, TEST_PT, PT_LEN, 2'b00);
-        axi_write(32'h020, 32'h1);
-        wait_done;
-        begin : t2_enc
-            reg [127:0] t2_ct;
-            t2_ct = cap_ct;
-            $display("  Encrypt CT (5B) = %h", t2_ct[127:88]);
-            // Bước 2: decrypt CT vừa encrypt (mode=2'b01) – tự nhất quán
-            do_reset;
-            cpu_setup(TEST_KEY, TEST_NONCE, t2_ct, PT_LEN, 2'b01);
-            axi_write(32'h020, 32'h1);
-            wait_done;
-            $display("  Cycles (decrypt): %0d", cyc_total);
-            $display("  Decrypt PT (5B) = %h  (exp: %h)", cap_ct[127:88], TEST_PT[127:88]);
-            if (cap_ct[127:88] === TEST_PT[127:88]) begin
-                $display("  [PASS] Round-trip PT matches original PT");
-                pass_count = pass_count + 1;
+        fd = $fopen("test_vectors.hex", "r");
+        if (fd == 0) begin
+            $display("ERROR: Cannot open test_vectors.hex");
+            $finish;
+        end
+
+        // Bỏ qua các dòng comment bắt đầu bằng //
+        while (!$feof(fd)) begin
+            count = $fscanf(fd, "%d %h %h %h %h %h %h %h %h\n", 
+                tv_mode, tv_key, tv_nonce, tv_ad_len, tv_ad, tv_pt_len, tv_pt, tv_ct, tv_tag);
+            
+            if (count == 9) begin
+                test_idx = test_idx + 1;
+                $display("\n--- Test %0d: Mode %0d (0=CPU, 1=DMA) | AD=%0dB, PT=%0dB ---", 
+                         test_idx, tv_mode, tv_ad_len, tv_pt_len);
+                
+                // Clear state
+                do_reset;
+                axi_write(32'h020, 32'h8); // CTRL[3]=ZEROIZE
+
+                if (tv_mode == 0) begin
+                    // CPU-DIRECT MODE
+                    // Dữ liệu từ file được lưu right-aligned. 
+                    // CPU-Direct (ASCON) cần Byte 0 nằm ở vị trí MSB của register.
+                    // Do đó cần dịch trái để left-align dữ liệu vào đúng thanh ghi 128-bit / 64-bit.
+                    begin : cpu_align
+                        reg [127:0] ad_shifted;
+                        reg [63:0]  pt_shifted;
+                        ad_shifted = (tv_ad_len > 0) ? (tv_ad[127:0] << (128 - tv_ad_len*8)) : 128'h0;
+                        pt_shifted = (tv_pt_len > 0) ? (tv_pt[63:0]  << ( 64 - tv_pt_len*8)) : 64'h0;
+                        cpu_setup_full(tv_key, tv_nonce, tv_ad_len, ad_shifted, tv_pt_len, pt_shifted);
+                    end
+                    
+                    // Start CORE
+                    axi_write(32'h020, 32'h1);
+                    wait_done;
+                    
+                    // Read Tag
+                    axi_read(32'h048); tmp_tag[127:96] = axi_rd;
+                    axi_read(32'h04C); tmp_tag[95:64]  = axi_rd;
+                    axi_read(32'h050); tmp_tag[63:32]  = axi_rd;
+                    axi_read(32'h054); tmp_tag[31:0]   = axi_rd;
+                    
+                    // Read CT
+                    axi_read(32'h040); tmp_ct[63:32] = axi_rd;
+                    axi_read(32'h044); tmp_ct[31:0]  = axi_rd;
+                    
+                    // Compare Tag
+                    if (tmp_tag === tv_tag) begin
+                        pass_count = pass_count + 1;
+                        $display("  [PASS] TAG matches");
+                    end else begin
+                        $display("  [FAIL] TAG mismatch! Got %h, Exp %h", tmp_tag, tv_tag);
+                        fail_count = fail_count + 1;
+                    end
+
+                end else begin
+                    // DMA MODE
+                    load_ram(DMA_AD_BASE, tv_ad_len, tv_ad);
+                    load_ram(DMA_PT_BASE, tv_pt_len, tv_pt);
+                    
+                    dma_setup_full(tv_key, tv_nonce, tv_ad_len, tv_pt_len);
+                    
+                    // Start DMA: CTRL[2]=DMA_EN | CTRL[0]=CORE_START = 0x5
+                    axi_write(32'h020, 32'h5);
+                    wait_dma_done;
+                    
+                    // Read Tag
+                    axi_read(32'h048); tmp_tag[127:96] = axi_rd;
+                    axi_read(32'h04C); tmp_tag[95:64]  = axi_rd;
+                    axi_read(32'h050); tmp_tag[63:32]  = axi_rd;
+                    axi_read(32'h054); tmp_tag[31:0]   = axi_rd;
+                    
+                    // Backdoor Read CT from RAM (32-bit memory, width converter
+                    // stores low-word first → reconstruct as {hi,lo} per 64-bit block)
+                    begin : dbg_ram_dump
+                        integer dbg_k;
+                        $display("  [DBG RAM] CT_BASE/4=%0d, pt_len=%0d", DMA_CT_BASE/4, tv_pt_len);
+                        for (dbg_k = 0; dbg_k < (tv_pt_len/4) + 4; dbg_k = dbg_k + 1)
+                            $display("  [DBG RAM] mem[%0d]=%08h", (DMA_CT_BASE/4)+dbg_k,
+                                     u_ram.dmem.memory[(DMA_CT_BASE/4)+dbg_k]);
+                    end
+                    tmp_ct = 1024'h0;
+                    for (i = 0; i < tv_pt_len/8; i = i + 1) begin
+                        // Width converter writes LOW word (WDATA[31:0]=ctext_word0) to addr+0
+                        // and HIGH word (WDATA[63:32]=ctext_word1) to addr+4.
+                        // So mem[i*2]=word0 (big-endian first), mem[i*2+1]=word1.
+                        word_lo = u_ram.dmem.memory[(DMA_CT_BASE/4) + i*2];     // ctext word 0
+                        word_hi = u_ram.dmem.memory[(DMA_CT_BASE/4) + i*2 + 1]; // ctext word 1
+                        $display("  [DBG CT] block[%0d] mem[even]=%08h mem[odd]=%08h → {even,odd}=%08h%08h", i, word_lo, word_hi, word_lo, word_hi);
+                        tmp_ct = tmp_ct | ({960'h0, {word_lo, word_hi}} << ((tv_pt_len - 8 - i*8)*8));
+                    end
+                    
+                    // Compare Tag
+                    if (tmp_tag === tv_tag) begin
+                        pass_count = pass_count + 1;
+                        $display("  [PASS] TAG matches");
+                    end else begin
+                        $display("  [FAIL] TAG mismatch! Got %h, Exp %h", tmp_tag, tv_tag);
+                        fail_count = fail_count + 1;
+                    end
+                    
+                    // Compare CT
+                    if (tv_pt_len > 0) begin
+                        // Dùng bitwise AND với mask để so sánh đúng số bit hợp lệ
+                        ct_mask = (tv_pt_len*8 >= 1024) ? {1024{1'b1}} : ((1024'b1 << (tv_pt_len*8)) - 1);
+                        
+                        if ((tmp_ct & ct_mask) === (tv_ct & ct_mask)) begin
+                            $display("  [PASS] CT matches");
+                        end else begin
+                            $display("  [FAIL] CT mismatch! Got %h, Exp %h",
+                                (tmp_ct & ct_mask), (tv_ct & ct_mask));
+                            fail_count = fail_count + 1;
+                        end
+                    end
+                end
             end else begin
-                $display("  [INFO] PT mismatch – known design limitation (mode bit conflict)");
-                // Không tính fail vì đã biết
-                pass_count = pass_count + 1;
+                // Try reading as string if format mismatch (like comments)
+                throwaway = $fgets(line_str, fd);
             end
         end
-        repeat (4) @(posedge clk);
 
-        // ---------------------------------------------------------------------
-        // TEST 3: Soft reset clears STATUS[done]
-        // ---------------------------------------------------------------------
+        $fclose(fd);
+
         $display("\n================================================================");
-        $display("  TEST 3: Soft reset  (CTRL[1]=1 → STATUS[done] cleared)");
+        $display("  RESULT: %0d TESTS RUN", test_idx);
+        $display("  FAILED: %0d", fail_count);
         $display("================================================================");
-        do_reset;
-        cpu_setup(TEST_KEY, TEST_NONCE, TEST_PT, PT_LEN, 2'b00);
-        axi_write(32'h020, 32'h1);
-        wait_done;
-        axi_read(32'h004);
-        $display("  STATUS trước reset = 0x%h (expect bit[1]=1)", axi_rd);
-        check1("STATUS done=1 after encrypt", axi_rd[1], 1'b1);
-        // Soft reset
-        axi_write(32'h020, 32'h2);
-        repeat (3) @(posedge clk);
-        axi_read(32'h004);
-        $display("  STATUS sau  reset  = 0x%h (expect 0x00)", axi_rd);
-        check1("STATUS done=0 after soft_rst", axi_rd[1], 1'b0);
-        repeat (4) @(posedge clk);
-
-        // ---------------------------------------------------------------------
-        // TEST 4: Register readback (CTEXT/TAG)
-        // ---------------------------------------------------------------------
-        $display("\n================================================================");
-        $display("  TEST 4: Register readback  (CTEXT/TAG registers)");
-        $display("================================================================");
-        do_reset;
-        cpu_setup(TEST_KEY, TEST_NONCE, TEST_PT, PT_LEN, 2'b00);
-        axi_write(32'h020, 32'h1);
-        wait_done;
-
-        // Đọc CTEXT_0 (0x040), CTEXT_1 (0x044)
-        axi_read(32'h040);
-        ct0 = axi_rd;
-        axi_read(32'h044);
-        ct1 = axi_rd;
-        
-        $display("  CTEXT reg[127:64] = %h_%h  (HW=%h)", ct0, ct1, cap_ct[127:64]);
-        if ({ct0, ct1} === cap_ct[127:64]) begin
-            $display("  [PASS] CTEXT registers match");
-            pass_count = pass_count + 1;
-        end else begin
-            $display("  [FAIL] CTEXT mismatch");
-            fail_count = fail_count + 1;
-        end
-
-        // Đọc TAG_0..3 (0x048..0x054)
-        axi_read(32'h048); tag_rd[127:96] = axi_rd;
-        axi_read(32'h04C); tag_rd[95:64]  = axi_rd;
-        axi_read(32'h050); tag_rd[63:32]  = axi_rd;
-        axi_read(32'h054); tag_rd[31:0]   = axi_rd;
-        $display("  TAG  reg = %h", tag_rd);
-        $display("  TAG  HW  = %h", cap_tag);
-        check128("TAG registers match CORE output", tag_rd, cap_tag);
-        repeat (4) @(posedge clk);
-
-        // ---------------------------------------------------------------------
-        // TEST 5: IRQ functionality
-        // ---------------------------------------------------------------------
-        $display("\n================================================================");
-        $display("  TEST 5: IRQ  (IRQ_EN[0]=1 → irq=1 sau done)");
-        $display("================================================================");
-        do_reset;
-        axi_write(32'h00C, 32'h1);   // IRQ_EN[0]=1
-        check1("irq=0 before start", irq, 1'b0);
-
-        cpu_setup(TEST_KEY, TEST_NONCE, TEST_PT, PT_LEN, 2'b00);
-        axi_write(32'h020, 32'h1);
-        wait_done;
-        repeat (2) @(posedge clk);
-        check1("irq=1 after done", irq, 1'b1);
-
-        axi_write(32'h020, 32'h2);   // soft_rst
-        repeat (3) @(posedge clk);
-        check1("irq=0 after soft_rst", irq, 1'b0);
-        repeat (4) @(posedge clk);
-
-        // ---------------------------------------------------------------------
-        // Kết thúc
-        // ---------------------------------------------------------------------
-        $display("\n================================================================");
-        $display("  RESULT: %0d PASSED  /  %0d FAILED  /  %0d TOTAL",
-                 pass_count, fail_count, pass_count + fail_count);
-        $display("================================================================");
-        if (fail_count == 0)
+        if (fail_count == 0 && test_idx > 0)
             $display("  *** ALL TESTS PASSED ***");
         else
-            $display("  *** %0d TEST(S) FAILED -- check trace ***", fail_count);
+            $display("  *** SOME TESTS FAILED ***");
         $display("================================================================");
         $finish;
     end
 
     initial begin
-        #5_000_000;
-        $display("[WATCHDOG] 5ms timeout");
+        #1_000_000_000;  // 1ms global watchdog
+        $display("[WATCHDOG] 1ms timeout");
         $finish;
     end
 

@@ -47,6 +47,11 @@ ALL_TESTS=(
     test_ascon
     test_dma_uart
     test_integration
+    test_ascon_cpu8_noad
+    test_ascon_cpu8_ad
+    test_ascon_dma_noad
+    test_ascon_dma_ad
+    test_ascon_bench
 )
 
 declare -A IP_NAME=(
@@ -60,6 +65,11 @@ declare -A IP_NAME=(
     ["test_ascon"]="ASCON DMA 16-block AEAD"
     ["test_dma_uart"]="GP-DMA mem-to-mem"
     ["test_integration"]="Integration (all 6 IPs)"
+    ["test_ascon_cpu8_noad"]="ASCON CPU-direct 8B no AD"
+    ["test_ascon_cpu8_ad"]="ASCON CPU-direct 8B + AD"
+    ["test_ascon_dma_noad"]="ASCON DMA 128B no AD"
+    ["test_ascon_dma_ad"]="ASCON DMA 128B + AD"
+    ["test_ascon_bench"]="ASCON bench cross-mode"
 )
 
 # ── Parse args ──
@@ -80,6 +90,16 @@ if [[ ${#TARGETS[@]} -gt 0 ]]; then
     ALL_TESTS=("${TARGETS[@]}")
 fi
 
+# ── Per-test build flags ──
+# Mặc định: -O 0 (không có -c) → full CRT0 chạy, copy .rodata từ ROM→DMEM → uart_puts string literals hoạt động
+# test_uart_simple: -c vì deliberately dùng putc, không cần CRT0 (xem comment trong file)
+# test_crt0_verify: KHÔNG -c vì chính nó đang test CRT0 path
+# test_integration: -c vì unity build quá lớn (overflow 40 bytes khi có full CRT0)
+declare -A BUILD_EXTRA_FLAGS=(
+    ["test_uart_simple"]="-c"
+    ["test_integration"]="-c"
+)
+
 # ── Build hex nếu yêu cầu ──
 if [[ $DO_BUILD -eq 1 ]]; then
     echo "=============================================="
@@ -93,8 +113,9 @@ if [[ $DO_BUILD -eq 1 ]]; then
         if [[ ! -f "$src" ]]; then
             echo "  [SKIP] $src không tồn tại"; continue
         fi
+        extra_flags="${BUILD_EXTRA_FLAGS[$t]:-}"
         printf "  Building %-30s ... " "$t"
-        if ./compile_c_to_hex.sh -i "$src" -o "$hex" -O 0 > /dev/null 2>&1; then
+        if ./compile_c_to_hex.sh -i "$src" -o "$hex" -O 0 $extra_flags > /dev/null 2>&1; then
             echo "OK"
         else
             echo "FAIL"

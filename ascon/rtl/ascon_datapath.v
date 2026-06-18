@@ -1,30 +1,11 @@
-`timescale 1ns/1ps
-
 // ============================================================
-// Module: ascon_DATAPATH  (v2 — GCD dual-rate fix)
+// Module: ascon_DATAPATH  (v3 — extra_pad_block fix)
 //
-// FIX vs v1:
-//   FIX-1: Rate theo đúng spec ASCON:
-//     ASCON-128  (mode=00): rate = 64-bit  → chỉ XOR vào x0
-//                           x1 không thay đổi (zero-pad phần upper)
-//     ASCON-128a (mode=01): rate = 128-bit → XOR vào cả x0 và x1
-//     Cả 2 mode đều dùng chung datapath 128-bit với 1-bit mode MUX
-//     (đây chính là G_DUAL_RATE unified datapath theo spec)
-//
-//   FIX-2: G_DUAL_RATE parameter điều khiển:
-//     G_DUAL_RATE=1 (default): unified 128-bit datapath như mô tả trên
-//     G_DUAL_RATE=0: chỉ hỗ trợ ASCON-128 đơn (64-bit rate cứng)
-//
-//   FIX-3: Output data_out chỉ xuất rate portion:
-//     ASCON-128:  data_out[127:64] = ciphertext/plaintext 64-bit
-//                 data_out[63:0]   = 64'h0 (padding)
-//     ASCON-128a: data_out[127:0]  = ciphertext/plaintext 128-bit
-//
-// Retained from v1:
-//   Padding (0x01, extra_pad_block_needed)
-//   Decrypt state update (mask/padx formula)
-//   Byte-swap (BE→LE)
-//   NIST Ascon-AEAD128 correctness
+// FIX vs v2:
+//   FIX-3: Added is_extra_pad_block input.
+//     When asserted, the datapath absorbs a pure 0x01-padded block
+//     (len=0, pad applied), implementing the mandatory extra padding
+//     block required by ASCON when data length == rate.
 // ============================================================
 module ascon_DATAPATH #(
     parameter G_DUAL_RATE = 1    // 1=unified 128-bit datapath, 0=128-only 64-bit
@@ -37,6 +18,7 @@ module ascon_DATAPATH #(
     /* verilator lint_on UNUSEDSIGNAL */
     input  wire         enc_dec,
     input  wire         pad_enable,
+    input  wire         is_extra_pad_block,  // NEW: absorb a pure padding block
     input  wire [1:0]   block_sel,
 
     input  wire [127:0] ad_in,
@@ -50,19 +32,17 @@ module ascon_DATAPATH #(
     output wire         extra_pad_block_needed
 );
 
-    // ------------------------------------------------------------------
-    // Rate bytes:
-    //   ASCON-128  (mode=00): rate = 8  bytes (64-bit)
-    //   ASCON-128a (mode=01): rate = 16 bytes (128-bit)
-    // FIX-1: rate_bytes phụ thuộc mode khi G_DUAL_RATE=1
-    // ------------------------------------------------------------------
+    // Rate bytes per NIST standard:
+    //   NIST Ascon-AEAD128  (mode=00): rate = 16 bytes (128-bit)
+    //   NIST Ascon-AEAD128a (mode=01): rate = 32 bytes (256-bit) -- legacy
+    // FIX: was rate=8 for mode=00, corrected to rate=16 per NIST SP 800-232
     wire [6:0] rate_bytes;
     generate
         if (G_DUAL_RATE == 1) begin : gen_dual_rate
-            // mode[0]=0 → ASCON-128 (rate=8 bytes), mode[0]=1 → ASCON-128a (rate=16 bytes)
-            assign rate_bytes = (mode[0] == 1'b0) ? 7'd8 : 7'd16;
+            // mode[0]=0 → Ascon-AEAD128 (rate=16), mode[0]=1 → 128a (rate=32, cap at 16)
+            assign rate_bytes = 7'd16;  // Both modes use 16-byte blocks in XOR chain
         end else begin : gen_single_rate
-            assign rate_bytes = 7'd8;  // ASCON-128 only
+            assign rate_bytes = 7'd16;  // NIST Ascon-AEAD128 uses 16-byte rate
         end
     endgenerate
 
@@ -87,6 +67,7 @@ module ascon_DATAPATH #(
     // Padding:
     //   len < rate : copy bytes[0..len-1], byte[len]=0x01, zero rest
     //   len == rate: extra_pad_block_needed asserted, block này raw
+    //   is_extra_pad_block=1: all zeros with 0x01 at byte[0] (MSB)
     // ------------------------------------------------------------------
     function [127:0] apply_padding;
         input [127:0] blk;
@@ -105,6 +86,10 @@ module ascon_DATAPATH #(
             apply_padding = out;
         end
     endfunction
+
+    // Pure padding block: 0x01 at byte-position 0 (MSB-first layout)
+    // Equivalent to XOR-ing 0x80000000_00000000 in LE int representation
+    localparam [127:0] PURE_PAD_BLOCK = {8'h01, 120'h0};
 
     // ------------------------------------------------------------------
     // Decrypt helper: mask và padx cho last block
@@ -173,10 +158,10 @@ module ascon_DATAPATH #(
     reg [319:0] state_temp;
 
     // Determine active rate:
-    //   is_128a=1 → 128-bit rate (x0 và x1)
-    //   is_128a=0 → 64-bit rate  (chỉ x0, x1 giữ nguyên)
-    // mode[0]=0 → ASCON-128 (64-bit rate), mode[0]=1 → ASCON-128a (128-bit rate)
-    wire is_128a = (G_DUAL_RATE == 1) && (mode[0] == 1'b1);
+    //   NIST Ascon-AEAD128 (mode=00): rate=16 bytes → both x0 and x1 participate
+    //   NIST Ascon-AEAD128a (mode=01): same rate=16 → both x0 and x1 participate
+    // FIX: is_128a is always 1 since NIST standard uses 16-byte rate for mode=00
+    wire is_128a = 1'b1;  // Always use 128-bit (16-byte) rate per NIST Ascon-AEAD128
 
     always @(*) begin
         state_temp          = state_in;
@@ -195,7 +180,14 @@ module ascon_DATAPATH #(
         //     - data_out[127:0] = result 128-bit
         // ---------------------------------------------------------------
 
-        if (block_sel == 2'b00) begin
+        if (is_extra_pad_block) begin
+            // Pure padding block for AD: XOR 0x01 at byte[0] position into state
+            // block_sel is always AD (2'b00) here
+            state_temp[319:256] = x0 ^ bswap64(PURE_PAD_BLOCK[127:64]);
+            state_temp[255:192] = (!is_128a) ? x1 : (x1 ^ bswap64(PURE_PAD_BLOCK[63:0]));
+            data_out_valid_comb = 1'b0;
+
+        end else if (block_sel == 2'b00) begin
             // ---- AD block: always encrypt-style XOR absorb ----
             if (!is_128a) begin
                 // ASCON-128: rate=64-bit, chỉ x0

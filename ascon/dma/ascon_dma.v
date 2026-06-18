@@ -3,7 +3,7 @@
 // ============================================================================
 // Module  : ascon_dma
 // Project : ASCON Crypto Accelerator IP
-// Version : 1.2  (fix: remove nonexistent wr_start connection to u_ctrl_fsm)
+// Version : 2.0  (v4.0 AD fetch phase: thêm AD DMA channel dùng chung AXI Master)
 //
 // Description:
 //   ASCON-dedicated DMA engine. Orchestrates the full data movement pipeline:
@@ -72,34 +72,35 @@ module ascon_dma #(
 
     // =========================================================================
     // Control interface (from ascon_reg_bank via ascon_axi_slave)
-    // Registers: DMA_SRC_ADDR(0x100), DMA_DST_ADDR(0x104), DMA_BYTE_LEN(0x108)
-    //            DMA_CTRL(0x10C), DMA_BURST_LEN(0x114)
     // =========================================================================
-    input  wire [ADDR_WIDTH-1:0]  src_addr,      // DMA_SRC_ADDR
-    input  wire [ADDR_WIDTH-1:0]  dst_addr,      // DMA_DST_ADDR
-    input  wire [31:0]            byte_len,      // DMA_BYTE_LEN
+    input  wire [ADDR_WIDTH-1:0]  src_addr,      // DMA_SRC_ADDR (plaintext)
+    input  wire [ADDR_WIDTH-1:0]  dst_addr,      // DMA_DST_ADDR (ciphertext+tag output)
+    input  wire [31:0]            byte_len,      // DMA_BYTE_LEN (plaintext bytes)
     input  wire [7:0]             burst_len,     // DMA_BURST_LEN[7:0]
+
+    // ── AD parameters (v2.0) ────────────────────────────────────────────────
+    input  wire [ADDR_WIDTH-1:0]  ad_src_addr,   // AD_ADDR register: source of AD in memory
+    input  wire [31:0]            ad_len,        // AD_LEN register: AD byte length (0=no AD)
 
     input  wire                   dma_start,     // from DMA_CTRL[0] pulse
     input  wire                   dma_soft_rst,  // from DMA_CTRL[1] pulse
 
-    // Status outputs → to ascon_reg_bank for DMA_STATUS register (0x110)
-    output wire                   dma_busy,      // DMA_STATUS[0]
-    output wire                   dma_done,      // DMA_STATUS[1]  (sticky in reg_bank)
-    output wire                   dma_error,     // DMA_STATUS[4|5] aggregate
+    // Status outputs
+    output wire                   dma_busy,
+    output wire                   dma_done,
+    output wire                   dma_error,
 
-    // Full status bits for DMA_STATUS register
-    output wire                   status_rd_done,       // DMA_STATUS[2]
-    output wire                   status_wr_done,       // DMA_STATUS[3]
-    output wire                   status_rd_error,      // DMA_STATUS[4]
-    output wire                   status_wr_error,      // DMA_STATUS[5]
-    output wire                   status_fifo_overflow, // DMA_STATUS[6]
+    output wire                   status_rd_done,
+    output wire                   status_wr_done,
+    output wire                   status_rd_error,
+    output wire                   status_wr_error,
+    output wire                   status_fifo_overflow,
 
     // DMA_ERR_ADDR (0x118) — address that caused AXI error
     output wire [ADDR_WIDTH-1:0]  dma_err_addr,
 
     // =========================================================================
-    // Interface to ascon_CORE
+    // Interface to ascon_CORE — Payload (PT/CT)
     // =========================================================================
     output wire [31:0]            core_ptext_0,
     output wire [31:0]            core_ptext_1,
@@ -112,7 +113,13 @@ module ascon_dma #(
     input  wire                   core_data_out_valid,
     input  wire                   core_tag_valid,
 
-    // Results from core (captured by ctrl_fsm on core_done)
+    // ── Interface to ascon_CORE — AD (v2.0) ──────────────────────────────────
+    output wire [127:0]           core_ad_in,    // AD block to core (upper 64-bit valid)
+    output wire                   core_ad_valid, // AD block valid pulse
+    output wire                   core_ad_last,  // last AD block flag
+    input  wire                   core_ad_ready, // CONTROLLER in S_AD_LOAD (gate AD pump)
+
+    // Results from core
     input  wire [31:0]            core_ctext_0,
     input  wire [31:0]            core_ctext_1,
     input  wire [31:0]            core_tag_0,
@@ -216,13 +223,18 @@ module ascon_dma #(
     // Aggregate error address: whichever engine errored last
     assign dma_err_addr = rd_error_w ? rd_err_addr_w : wr_err_addr_w;
 
-    // Aggregate status flags — [FIX-RTL-1] include FSM error
+    // Aggregate status flags
     assign status_rd_error = rd_error_w;
     assign status_wr_error = wr_error_w;
     assign dma_error       = rd_error_w | wr_error_w | dma_error_fsm_w;
 
+    // Internal wires for AD src address override to read engine (v2.0)
+    wire [31:0]  rd_override_addr_w;
+    wire         rd_use_override_w;
+    wire [7:0]   rd_burst_len_w;       // [FIX-AD-BURST] per-phase ARLEN from FSM
+
     // =========================================================================
-    // [FIX-RTL-2] Soft-reset: combined rst_n for FIFOs includes dma_soft_rst
+    // Soft-reset: combined rst_n for FIFOs includes dma_soft_rst
     // =========================================================================
     wire fifo_rst_n = rst_n & ~dma_soft_rst;
 
@@ -269,30 +281,38 @@ module ascon_dma #(
     // =========================================================================
     // DMA Control FSM
     // =========================================================================
-    dma_ctrl_fsm u_ctrl_fsm (
+    dma_ctrl_fsm #(
+        .RD_FIFO_DEPTH       (RD_FIFO_DEPTH)
+    ) u_ctrl_fsm (
         .clk                 (clk),
         .rst_n               (rst_n),
         .dma_start           (dma_start),
         .dma_soft_rst        (dma_soft_rst),
         .byte_len            (byte_len),
         .burst_len           (burst_len),
+        // AD parameters (v2.0)
+        .ad_src_addr         (ad_src_addr),
+        .ad_len              (ad_len),
         // Status
         .dma_busy            (dma_busy),
         .dma_done            (dma_done),
         .dma_error           (dma_error_fsm_w),
         // Read engine
         .rd_start            (rd_start_w),
+        .rd_override_addr    (rd_override_addr_w),  // v2.0
+        .rd_use_override     (rd_use_override_w),   // v2.0
+        .rd_burst_len        (rd_burst_len_w),      // [FIX-AD-BURST]
         .rd_busy             (rd_busy_w),
         .rd_done             (rd_done_w),
         .rd_error            (rd_error_w),
-        // RD FIFO (registered path — kept for compatibility)
+        // RD FIFO (registered path)
         .rd_fifo_dout        (rd_fifo_dout),
         .rd_fifo_pop         (rd_fifo_pop),
         .rd_fifo_empty       (rd_fifo_empty),
-        // RD FIFO (FWFT path — zero-latency)
+        // RD FIFO (FWFT path)
         .rd_fifo_fwft_dout   (rd_fifo_fwft_dout),
         .rd_fifo_fwft_valid  (rd_fifo_fwft_valid),
-        // ascon_CORE
+        // ascon_CORE — Payload
         .core_ptext_0        (core_ptext_0),
         .core_ptext_1        (core_ptext_1),
         .core_data_valid     (core_data_valid),
@@ -303,6 +323,11 @@ module ascon_dma #(
         .core_done           (core_done),
         .core_data_out_valid (core_data_out_valid),
         .core_tag_valid      (core_tag_valid),
+        // ascon_CORE — AD (v2.0)
+        .core_ad_in          (core_ad_in),
+        .core_ad_valid       (core_ad_valid),
+        .core_ad_last        (core_ad_last),
+        .core_ad_ready       (core_ad_ready),
         // Results
         .core_ctext_0        (core_ctext_0),
         .core_ctext_1        (core_ctext_1),
@@ -327,6 +352,9 @@ module ascon_dma #(
     // =========================================================================
     // DMA Read Engine
     // =========================================================================
+    // v2.0: read engine src_addr muxed between AD addr (override) and PT addr (default)
+    wire [ADDR_WIDTH-1:0] rd_engine_src_addr = rd_use_override_w ? rd_override_addr_w : src_addr;
+
     dma_read_engine #(
         .ADDR_WIDTH     (ADDR_WIDTH),
         .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
@@ -334,9 +362,9 @@ module ascon_dma #(
     ) u_rd_engine (
         .clk            (clk),
         .rst_n          (rst_n),
-        // Control
-        .src_addr       (src_addr),
-        .burst_len      (burst_len),
+        // Control — src_addr muxed for AD vs payload (v2.0)
+        .src_addr       (rd_engine_src_addr),
+        .burst_len      (rd_burst_len_w),     // [FIX-AD-BURST] per-phase ARLEN
         .dma_start      (dma_start),
         .rd_start       (rd_start_w),
         .rd_busy        (rd_busy_w),

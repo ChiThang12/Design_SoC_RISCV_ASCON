@@ -103,12 +103,13 @@ module dma_write_engine #(
 
     // ── FSM state encoding ────────────────────────────────────────────────────
     localparam [2:0]
-        WR_IDLE   = 3'd0,
-        WR_ADDR   = 3'd1,
-        WR_LOAD_H = 3'd2,
-        WR_DATA_L = 3'd3,
-        WR_BEAT   = 3'd4,
-        WR_RESP   = 3'd5;
+        WR_IDLE     = 3'd0,
+        WR_ADDR     = 3'd1,
+        WR_LOAD_H   = 3'd2,
+        WR_DATA_L   = 3'd3,
+        WR_BEAT     = 3'd4,
+        WR_RESP     = 3'd5,
+        WR_WAIT_POP = 3'd6; // Wait 1 cycle for FIFO rd_ptr NBA to settle after H-pop
 
     reg [2:0]            state;
     reg [31:0]           wdata_hi;          // latched high word of current beat
@@ -195,10 +196,10 @@ module dma_write_engine #(
                         if (M_AXI_AWREADY && M_AXI_AWVALID) begin
                             M_AXI_AWVALID <= 1'b0;
                             if (fifo_fwft_valid) begin
-                                // Fast path: H word available now (pop → L becomes head)
+                                // Latch H, pop it, then wait 1 cycle for rd_ptr NBA to settle
                                 wdata_hi <= fifo_fwft_dout;
                                 fifo_pop <= 1'b1;
-                                state    <= WR_DATA_L;
+                                state    <= WR_WAIT_POP;
                             end else begin
                                 // Slow path: FIFO temporarily empty, wait for H
                                 state <= WR_LOAD_H;
@@ -210,9 +211,18 @@ module dma_write_engine #(
                     WR_LOAD_H: begin
                         if (fifo_fwft_valid) begin
                             wdata_hi <= fifo_fwft_dout;
-                            fifo_pop <= 1'b1;   // pop H → L becomes fwft_dout next cycle
-                            state    <= WR_DATA_L;
+                            fifo_pop <= 1'b1;   // pop H → rd_ptr NBA fires this cycle
+                            state    <= WR_WAIT_POP; // wait 1 cycle for rd_ptr to settle
                         end
+                    end
+
+                    // ── WR_WAIT_POP: absorb 1-cycle rd_ptr NBA latency after H-pop ─
+                    // fwft_dout uses combinational rd_idx; rd_ptr is NBA → updates at
+                    // END of the pop cycle. Reading fwft_dout in the very next cycle
+                    // (WR_DATA_L) still sees old rd_ptr if we skip this wait state.
+                    // By inserting WR_WAIT_POP, fwft_dout at WR_DATA_L correctly shows L.
+                    WR_WAIT_POP: begin
+                        state <= WR_DATA_L;
                     end
 
                     // ── WR_DATA_L: stall until L word ready; build WDATA; WVALID ──
@@ -239,14 +249,10 @@ module dma_write_engine #(
                             if (beats_in_burst > 8'd1) begin
                                 // More beats remain in this burst
                                 beats_in_burst <= beats_in_burst - 8'd1;
-                                // fwft_dout now has next H word (L was popped in WR_DATA_L)
-                                if (fifo_fwft_valid) begin
-                                    wdata_hi <= fifo_fwft_dout;
-                                    fifo_pop <= 1'b1;
-                                    state    <= WR_DATA_L;
-                                end else begin
-                                    state <= WR_LOAD_H;
-                                end
+                                // FIX-WR-BEAT: fifo_pop from WR_DATA_L fires at THIS rising edge,
+                                // so rd_ptr NBA has not settled yet — fwft_dout still shows old L.
+                                // Route through WR_LOAD_H so rd_ptr settles before reading next H.
+                                state <= WR_LOAD_H;
                             end else begin
                                 // Last beat of this burst: wait for B response
                                 beats_in_burst <= 8'd0;
