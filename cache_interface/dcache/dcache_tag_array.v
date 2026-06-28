@@ -38,6 +38,7 @@ module dcache_tag_array #(
     output wire                  hit,
     output wire                  dirty_out,
     output wire [TAG_WIDTH-1:0]  evict_tag_out,
+    output wire [1:0]            state_out,
 
     // Update (fill new line after refill)
     input  wire                  update_valid,
@@ -48,6 +49,10 @@ module dcache_tag_array #(
     input  wire                  dirty_set,
     input  wire                  dirty_clear,
     input  wire [5:0]            dirty_index,
+    input  wire                  line_shared,
+    input  wire [5:0]            line_shared_index,
+    input  wire                  line_invalidate,
+    input  wire [5:0]            line_invalidate_index,
 
     // [FENCE-TYPE] Flush vs Invalidate — tách biệt
     // flush_all=1      : clear dirty bits ONLY  (fence w,w)
@@ -59,9 +64,13 @@ module dcache_tag_array #(
     // =========================================================================
     // Storage arrays
     // =========================================================================
-    reg [TAG_WIDTH-1:0] tags  [0:NUM_SETS-1];
-    reg                 valid [0:NUM_SETS-1];
-    reg                 dirty [0:NUM_SETS-1];
+    localparam [1:0] STATE_I = 2'b00;
+    localparam [1:0] STATE_S = 2'b01;
+    localparam [1:0] STATE_E = 2'b10;
+    localparam [1:0] STATE_M = 2'b11;
+
+    reg [TAG_WIDTH-1:0] tags   [0:NUM_SETS-1];
+    reg [1:0]           states [0:NUM_SETS-1];
 
     integer i;
 
@@ -72,17 +81,17 @@ module dcache_tag_array #(
         if (!rst_n) begin
             // Power-on reset: invalidate everything
             for (i = 0; i < NUM_SETS; i = i + 1) begin
-                valid[i] <= 1'b0;
-                dirty[i] <= 1'b0;
-                tags[i]  <= {TAG_WIDTH{1'b0}};
+                states[i] <= STATE_I;
+                tags[i]   <= {TAG_WIDTH{1'b0}};
             end
         end else begin
             // ─── Priority (highest → lowest) ───────────────────────────────
             // 1. invalidate_all : clear valid + dirty tất cả sets (fence iorw)
             // 2. flush_all      : clear dirty ONLY (fence w,w) — valid an toàn
-            // 3. update_valid   : install new tag sau refill
-            // 4. dirty_set      : mark line dirty sau write
-            // 5. dirty_clear    : clear dirty sau eviction
+            // 3. line_invalidate: clear one line for external snoop invalidate
+            // 4. update_valid   : install new tag sau refill
+            // 5. dirty_set      : mark line dirty sau write
+            // 6. dirty_clear    : clear dirty sau eviction
             // Các op này không conflict trong thực tế vì controller serializes
             // fence trước khi resume normal operation.
             // ─────────────────────────────────────────────────────────────────
@@ -90,29 +99,36 @@ module dcache_tag_array #(
             if (invalidate_all) begin
                 // fence iorw / fence.i → invalidate toàn bộ
                 for (i = 0; i < NUM_SETS; i = i + 1) begin
-                    valid[i] <= 1'b0;
-                    dirty[i] <= 1'b0;
+                    states[i] <= STATE_I;
                 end
             end else if (flush_all) begin
                 // fence w,w → chỉ clear dirty, GIỮ NGUYÊN valid
                 // Stack frame vẫn readable, không cần refill lại
                 for (i = 0; i < NUM_SETS; i = i + 1) begin
-                    dirty[i] <= 1'b0;
+                    if (states[i] == STATE_M)
+                        states[i] <= STATE_E;
                 end
             end else begin
                 // Normal operation
+                if (line_invalidate) begin
+                    states[line_invalidate_index] <= STATE_I;
+                end
+
+                if (line_shared && (states[line_shared_index] != STATE_I)) begin
+                    states[line_shared_index] <= STATE_S;
+                end
+
                 if (update_valid) begin
-                    tags [update_index] <= update_tag;
-                    valid[update_index] <= 1'b1;
-                    dirty[update_index] <= 1'b0; // new refill = clean
+                    tags[update_index]   <= update_tag;
+                    states[update_index] <= STATE_E; // clean line owned locally
                 end
 
                 if (dirty_set) begin
-                    dirty[dirty_index] <= 1'b1;
+                    states[dirty_index] <= STATE_M;
                 end
 
-                if (dirty_clear) begin
-                    dirty[dirty_index] <= 1'b0;
+                if (dirty_clear && (states[dirty_index] != STATE_I)) begin
+                    states[dirty_index] <= STATE_E;
                 end
             end
         end
@@ -124,21 +140,25 @@ module dcache_tag_array #(
     reg                 hit_r;
     reg                 dirty_r;
     reg [TAG_WIDTH-1:0] evict_tag_r;
+    reg [1:0]           state_r;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             hit_r       <= 1'b0;
             dirty_r     <= 1'b0;
             evict_tag_r <= {TAG_WIDTH{1'b0}};
+            state_r     <= STATE_I;
         end else begin
-            hit_r       <= valid[lookup_index] && (tags[lookup_index] == lookup_tag);
-            dirty_r     <= dirty[lookup_index];
+            hit_r       <= (states[lookup_index] != STATE_I) && (tags[lookup_index] == lookup_tag);
+            dirty_r     <= (states[lookup_index] == STATE_M);
             evict_tag_r <= tags[lookup_index];
+            state_r     <= states[lookup_index];
         end
     end
 
     assign hit          = hit_r;
     assign dirty_out    = dirty_r;
     assign evict_tag_out = evict_tag_r;
+    assign state_out     = state_r;
 
 endmodule

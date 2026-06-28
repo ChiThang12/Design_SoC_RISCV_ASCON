@@ -1,0 +1,148 @@
+🧱 Kiến trúc Multicore Đề xuất
+1. Tổng quan
+Chúng ta sẽ xây dựng một hệ thống dual-core đối xứng (Symmetric Multi-Processing - SMP) bằng cách nhân đôi nhân CPU hiện có. Điểm then chốt là các nhân CPU phải chia sẻ vùng nhớ chính (Main Memory) và có cơ chế duy trì sự nhất quán (cache coherency) giữa các cache L1 của chúng với nhau và với DMA.
+2. Các thành phần chính và nhiệm vụ
+Thành phần
+Nhiệm vụ
+Nguồn (Từ project của anh)
+CPU Core 0 & Core 1
+Hai instance của CPU RISC-V 5-stage hiện tại.
+cpu/ (Instance hóa 2 lần)
+ICache 0 & ICache 1
+Cache lệnh riêng cho từng nhân.
+cache_interface/icache/ (Instance hóa 2 lần)
+DCache 0 & DCache 1
+Cache dữ liệu riêng cho từng nhân. Đây là nơi cần sửa nhiều nhất.
+cache_interface/dcache/ (Instance hóa 2 lần + Thêm logic coherency)
+Snoop Bus / Coherency Controller
+Thành phần mới. Kết nối các DCache và DMA với nhau. Quản lý các giao dịch snoop để đảm bảo dữ liệu nhất quán.
+Thiết kế mới (Có thể tham khảo từ Culsans)
+ASCON DMA (Đã sửa)
+DMA với ATU và sideband snoop interface. Cần mở rộng để giao tiếp với Snoop Bus thay vì chỉ một DCache.
+ascon/dma/ (Đã có)
+AXI Crossbar
+Kết nối tất cả các master (CPU, DMA) với các slave (Memory, Peripherals).
+interconnect/ (Đã có, cần thêm master cho Core 1)
+
+3. Luồng hoạt động coherency (dự kiến)
+CPU0 ghi dữ liệu X: Dữ liệu được ghi vào DCache0 và được đánh dấu là Modified (M).
+CPU1 muốn đọc dữ liệu X:
+CPU1 gửi request đọc. DCache1 bị miss.
+DCache1 gửi một giao dịch Snoop lên Snoop Bus: "Ai có địa chỉ X không?".
+DCache0 thấy mình có dữ liệu X ở trạng thái Modified. Nó sẽ trả lời (snoop response) và gửi dữ liệu lên bus. Đồng thời, nó có thể chuyển trạng thái của dòng cache đó sang Shared (S).
+DCache1 nhận dữ liệu, lưu vào cache của mình ở trạng thái Shared.
+DMA muốn đọc dữ liệu X:
+DMA gửi một snoop read request (giống như đã làm với một DCache).
+Snoop Bus sẽ chuyển tiếp request này đến tất cả các DCache (DCache0 và DCache1).
+DCache nào có dữ liệu mới nhất (Modified) sẽ trả lời. DMA sẽ lấy dữ liệu đó. Đây chính là sức mạnh của Selective Coherent DMA được mở rộng ra môi trường multicore.
+
+📅 Kế hoạch triển khai chi tiết (Roadmap)
+Tôi chia kế hoạch thành 5 giai đoạn, mỗi giai đoạn có mục tiêu và sản phẩm bàn giao rõ ràng.
+Giai đoạn 1: Nền tảng và Khảo sát (Tuần 1-2)
+Mục tiêu: Xác định chiến lược và chọn lựa giải pháp kỹ thuật.
+Công việc:
+Khảo sát các giải pháp có sẵn: Nghiên cứu kỹ các dự án mã nguồn mở như Culsans, BlackParrot-BedRock, hoặc các thiết kế đơn giản hơn từ GitHub để tham khảo cách họ triển khai giao thức MOESI/MESI.
+Quyết định giao thức: Do target là một hệ thống nhúng 2 nhân, một giao thức snoop-based MESI (hoặc MOESI đơn giản) là phù hợp. Chúng ta sẽ không cần một bộ điều khiển directory phức tạp.
+Thiết kế kiến trúc Snoop Bus: Vẽ sơ đồ khối chi tiết cho thành phần Snoop Bus mới, xác định các tín hiệu giao tiếp với DCache và DMA.
+Sản phẩm bàn giao:
+Tài liệu thiết kế kiến trúc multicore (Architecture Specification).
+Quyết định chọn giao thức MESI.
+Giai đoạn 2: Sửa đổi RTL và Tích hợp (Tuần 3-6)
+Mục tiêu: Code và tích hợp các thành phần mới.
+Công việc:
+Nâng cấp DCache:
+Sửa dcache_tag_array.v để thay thế 2 bit valid/dirty bằng trạng thái MESI (4 trạng thái, cần 2 bit).
+Sửa dcache_controller.v: Thêm FSM để xử lý các giao dịch snoop từ bên ngoài (ví dụ: trạng thái SNOOP_WAIT, SNOOP_RESP).
+Cảnh báo: Đây là phần sửa đổi rủi ro cao nhất. Cần phải thay đổi cẩn thận và kiểm thử kỹ lưỡng.
+Thiết kế và Code Snoop Bus:
+Tạo module mới snoop_bus.v hoặc mở rộng crossbar.
+Module này sẽ nhận các request snoop từ DMA (dc_snoop_* signal đã có) và từ các DCache.
+Nó sẽ có nhiệm vụ broadcast request đến tất cả các DCache và tổng hợp phản hồi (snoop response) để gửi lại cho bên yêu cầu.
+Sửa đổi Top-level (soc_top.v):
+Instance hóa CPU Core 1, ICache 1, DCache 1.
+Kết nối các DCache và DMA vào Snoop Bus mới.
+Điều chỉnh AXI Crossbar để thêm master cho CPU Core 1.
+Sản phẩm bàn giao:
+RTL code mới và sửa đổi.
+Các testbench unit test cho DCache MESI và Snoop Bus.
+Giai đoạn 3: Mở rộng Testbench và Firmware (Tuần 7-8)
+Mục tiêu: Tạo môi trường kiểm thử cho hệ thống 2 nhân.
+Công việc:
+Viết Testbench (Verilog): Tạo testbench để mô phỏng SoC dual-core.
+Viết Firmware (C):
+Viết các chương trình nhỏ cho từng nhân (ví dụ: Core 0 chạy task A, Core 1 chạy task B).
+Cần có cơ chế synchronization đơn giản giữa 2 nhân (ví dụ: dùng spinlock trên một biến trong memory) để điều phối luồng dữ liệu.
+Chuẩn bị kịch bản test:
+Test 1 (CPU-CPU Coherency): Core 0 ghi dữ liệu, Core 1 đọc dữ liệu. Kiểm tra xem Core 1 có đọc đúng dữ liệu mới nhất không (cache-to-cache transfer).
+Test 2 (DMA-CPU Coherency): Core 0 ghi dữ liệu (dirty trong DCache0). DMA đọc dữ liệu (kiểm tra snoop broadcast có lấy được dữ liệu từ DCache0 không).
+Test 3 (Output-Cache-Hit 2 nhân): DMA ghi output. Core 1 đã cache output đó từ trước. (Đây là kịch bản mở rộng của output-cache-hit control, rất giá trị cho paper).
+Sản phẩm bàn giao:
+Bộ testbench và firmware cho các kịch bản.
+Giai đoạn 4: Mô phỏng, Debug và Thu thập số liệu (Tuần 9-12)
+Mục tiêu: Chạy mô phỏng, debug lỗi và thu thập số liệu để so sánh.
+Công việc:
+Debug: Sử dụng waveform (GTKWave) để theo dõi các tín hiệu snoop, trạng thái MESI, và dữ liệu trên bus.
+Chạy các kịch bản và đo đạc:
+Đo throughput của DMA trong các kịch bản với 1 nhân và 2 nhân.
+Đo số lượng giao dịch snoop trên bus.
+Đo cache miss rate của từng nhân.
+Sản phẩm bàn giao:
+Log file của các lần chạy test thành công (PASS).
+Dữ liệu thô (raw data) về performance.
+Giai đoạn 5: Viết và Tinh chỉnh Paper (Tuần 13-16)
+Mục tiêu: Tích hợp kết quả mới vào bài báo.
+Công việc:
+Cập nhật Section III (Proposed Architecture): Mô tả kiến trúc dual-core mới, đặc biệt là Snoop Bus và cách nó mở rộng cơ chế sideband snoop ban đầu.
+Cập nhật Section V (Results): Thêm các bảng so sánh mới.
+Viết Section VI (Discussion): Phân tích sâu về các kết quả mới. Đây là nơi để làm nổi bật luận điểm: "Selective Coherent DMA là một giải pháp có khả năng mở rộng, hiệu quả và phù hợp với xu hướng đa nhân của các SoC hiện đại."
+Sản phẩm bàn giao:
+Bản thảo paper hoàn chỉnh.
+
+🧪 Các kịch bản thử nghiệm và số liệu cần đo
+Kịch bản
+Mô tả
+Chế độ cần đo
+Số liệu kỳ vọng
+1. CPU-CPU Coherency
+Core 0 ghi data, Core 1 đọc.
+COH_CTRL=0 (fallback software), COH_CTRL=3 (full hw)
+So sánh số chu kỳ và transaction. Chứng minh phần cứng nhanh hơn.
+2. DMA Input Coherency
+Core 0 ghi dirty data, DMA đọc.
+COH_CTRL=1 (selective)
+M2_AR=0 (không đọc AXI). Snoop broadcast hit vào DCache0.
+3. DMA Output w/ Cache-Hit
+DMA ghi output, Core 1 đã cache output đó.
+COH_CTRL=1 vs COH_CTRL=3
+COH_CTRL=1 fail (do không invalidate). COH_CTRL=3 đúng. Định lượng chi phí của full coherence.
+4. Tranh chấp Bus (Contention)
+Cả Core 1 và DMA cùng truy cập memory.
+COH_CTRL=1
+Đo mức độ suy giảm throughput của DMA khi có thêm CPU hoạt động.
+
+
+⚠️ Phân tích rủi ro và kế hoạch dự phòng
+Rủi ro
+Mức độ
+Kế hoạch dự phòng (Plan B)
+Sửa DCache thành MESI quá phức tạp, gây lỗi khó debug.
+Rất Cao
+Không sửa DCache thành MESI hoàn chỉnh. Thay vào đó, giữ nguyên valid/dirty và thêm một cơ chế "Snoop Filter" hoặc "Directory" nhỏ bên ngoài để quản lý coherency. Cách này đã được đề cập trong các nghiên cứu như Culsans.
+Hệ thống 2 nhân không đạt timing closure trên FPGA.
+Trung bình
+Giảm tần số clock (ví dụ từ 100MHz xuống 75MHz) cho bản multicore. Paper có thể báo cáo kết quả ở tần số thấp hơn.
+Không đủ thời gian để hoàn thiện.
+Trung bình
+Hạ mục tiêu: Nếu không kịp chạy hết các kịch bản, chỉ cần chứng minh được kịch bản 2 (DMA đọc input) và kịch bản 3 (output-cache-hit) là đã đủ sức mạnh cho một paper.
+Không tìm được tài liệu tham khảo phù hợp cho Snoop Bus.
+Thấp
+Tài liệu về Culsans và NoX là những nguồn tham khảo rất tốt. Ngoài ra, có thể tham khảo các thiết kế MESI đơn giản trên GitHub.
+
+
+💎 Kết luận và Lời khuyên
+Hướng đi multicore là sự lựa chọn đúng đắn để đưa paper của anh lên một tầm cao mới. Nó không chỉ củng cố giá trị của giải pháp Selective Coherent DMA mà còn đặt bài báo vào bối cảnh của các hệ thống hiện đại, nơi mà bài toán cache coherency là một thách thức cốt lõi.
+Lời khuyên cuối cùng của tôi:
+Bắt tay ngay vào Giai đoạn 1 và 2. Đây là phần khó nhất và tốn thời gian nhất. Hãy ưu tiên làm việc này.
+Luôn giữ tinh thần "Plan B". Nếu việc sửa DCache trở nên quá khó, hãy chuyển sang giải pháp Snoop Filter bên ngoài. Sự linh hoạt này sẽ giúp anh không bị bế tắc.
+Tận dụng tối đa các công cụ có sẵn. Dự án Culsans và NoX có thể là những tài liệu tham khảo vô cùng quý giá cho phần Related Work.
+

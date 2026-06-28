@@ -14,7 +14,9 @@
 `include "cpu/core/PIPELINE_REG_EX_MEM.v"
 `include "cpu/core/PIPELINE_REG_MEM_WB.v"
 `include "cpu/core/LSU.v"
-module riscv_cpu_core (
+module riscv_cpu_core #(
+    parameter [31:0] HART_ID = 32'd0
+) (
     input wire clk,
     input wire rst,
 
@@ -61,7 +63,8 @@ module riscv_cpu_core (
         CSR_MIE     = 12'h304,
         CSR_MTVEC   = 12'h305,
         CSR_MEPC    = 12'h341,
-        CSR_MCAUSE  = 12'h342;
+        CSR_MCAUSE  = 12'h342,
+        CSR_MHARTID = 12'hF14;
 
     // =========================================================================
     // INTERRUPT SYNCHRONIZATION & PENDING LOGIC
@@ -714,6 +717,7 @@ module riscv_cpu_core (
             CSR_MTVEC:   csr_read_data_ex = csr_mtvec_r;
             CSR_MEPC:    csr_read_data_ex = csr_mepc_r;
             CSR_MCAUSE:  csr_read_data_ex = csr_mcause_r;
+            CSR_MHARTID: csr_read_data_ex = HART_ID;
             default:     csr_read_data_ex = 32'h00000000;
         endcase
     end
@@ -756,10 +760,11 @@ module riscv_cpu_core (
     wire mret_commit_ex = is_mret_ex && !stall_any;
 
     // =========================================================================
-    // DEBUG DISPLAY — IRQ/MRET/RA tracking (remove after C5 fixed)
+    // DEBUG DISPLAY — optional trace for IRQ/MRET/RA tracking
     // =========================================================================
     always @(posedge clk) begin
         if (!rst) begin
+`ifdef DEBUG_CPU_TRACE
             if (irq_take)
                 $display("[%0t] [IRQ-TAKE] mepc<=%h mtvec=%h pc_ex=%h pc_id=%h pc_if=%h opcode=%b",
                     $time, irq_resume_pc, csr_mtvec_r, pc_ex, pc_id, pc_if, opcode_ex);
@@ -768,6 +773,7 @@ module riscv_cpu_core (
                     $time, {csr_mepc_r[31:2],2'b00}, flush_if_id_final, flush_id_ex_final, pc_id, pc_if);
             if (regwrite_wb && (rd_wb == 5'd1))
                 $display("[%0t] [WB-RA] ra <= %h", $time, write_back_data_wb);
+`endif
         end
     end
 

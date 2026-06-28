@@ -1,0 +1,46 @@
+  cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+
+  Build firmware:
+
+  cd gnu_toolchain
+  ./compile_c_to_hex.sh -i tests/test_ascon_dma_coherent_nofence.c -o tests/test_ascon_dma_coherent_nofence.hex -k -O 0
+  -c
+  ./compile_c_to_hex.sh -i tests/test_ascon_dma_nocoherent_nofence.c -o tests/test_ascon_dma_nocoherent_nofence.hex -k
+  -O 0 -c
+  cd ..
+
+  Chạy demo coherent no-fence:
+
+  iverilog -g2012 -I. -o /tmp/run_soc_coherent_nofence.vvp run_soc_coherent_nofence.v
+  vvp /tmp/run_soc_coherent_nofence.vvp
+
+  Chạy demo negative no-coherent no-fence:
+
+  iverilog -g2012 -I. -o /tmp/run_soc_nocoherent_nofence.vvp run_soc_nocoherent_nofence.v
+  vvp /tmp/run_soc_nocoherent_nofence.vvp
+
+  Chạy regression liên quan:
+
+  iverilog -g2012 -I. -o /tmp/tb_dcache_snoop.vvp cache_interface/dcache/tb/tb_dcache_snoop.v
+  vvp /tmp/tb_dcache_snoop.vvp
+
+  iverilog -g2012 -I. -o /tmp/tb_dcache.vvp cache_interface/dcache/tb/tb_dcache.v
+  vvp /tmp/tb_dcache.vvp
+
+  iverilog -g2012 -I. -o /tmp/tb_ascon_dma.vvp ascon/dma/tb/tb_ascon_dma.v
+  vvp /tmp/tb_ascon_dma.vvp
+
+  Kiểm tra disassembly đoạn no-fence:
+
+  rg -n "<dirty_plaintext_without_fence>|# 1ec <dirty_plaintext_without_fence>|<ascon_write_raw>|fence" gnu_toolchain/
+  test_ascon_dma_coherent_nofence.dump
+
+  rg -n "<dirty_plaintext_without_fence>|# 1ec <dirty_plaintext_without_fence>|<ascon_write_raw>|fence" gnu_toolchain/
+  test_ascon_dma_nocoherent_nofence.dump
+
+  Kiểm tra whitespace/diff cơ bản:
+
+  git diff --check -- ascon/ascon_top.v cache_interface/dcache/tb/tb_dcache_snoop.v gnu_toolchain/tests/
+  test_ascon_dma_coherent_nofence.c gnu_toolchain/tests/test_ascon_dma_nocoherent_nofence.c gnu_toolchain/tests/
+  test_ascon_dma_coherent_nofence.hex gnu_toolchain/tests/test_ascon_dma_nocoherent_nofence.hex
+  run_soc_coherent_nofence.v run_soc_nocoherent_nofence.v paper2/02_plan_new_arch.md

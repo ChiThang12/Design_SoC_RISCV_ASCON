@@ -97,6 +97,8 @@ static uint32_t run_dma_enc(uint32_t use_ad, uint32_t n_blocks,
 {
     uint32_t ts0, ts1, status, timeout;
     uint32_t byte_len = n_blocks * 8u;
+    uint32_t dma_burst = (n_blocks > 8u) ? 7u :
+                         (n_blocks > 0u) ? (n_blocks - 1u) : 0u;
 
     ascon_soft_reset();
     ascon_set_mode(ASCON_MODE_128_ENC);
@@ -106,7 +108,7 @@ static uint32_t run_dma_enc(uint32_t use_ad, uint32_t n_blocks,
     else        ascon_clear_ad();
     ASCON_WRITE(ASCON_OFS_DATA_LEN, 8u);
     ascon_dma_config(PT_MULTI_BASE, CT_MULTI_BASE, byte_len);
-    ASCON_WRITE(ASCON_OFS_DMA_BURST, 7u);
+    ASCON_WRITE(ASCON_OFS_DMA_BURST, dma_burst);
 
     __asm__ volatile ("csrr %0, mcycle" : "=r"(ts0));
     __asm__ volatile ("fence rw,rw" ::: "memory");

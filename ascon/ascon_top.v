@@ -77,7 +77,7 @@ module ascon_ip_top #(
     parameter M_ID_WIDTH    = 4,
     // ---- DMA FIFO ----
     parameter RD_FIFO_DEPTH = 4,
-    parameter WR_FIFO_DEPTH = 32
+    parameter WR_FIFO_DEPTH = 512
 ) (
     input  wire  clk,
     input  wire  rst_n,
@@ -163,6 +163,15 @@ module ascon_ip_top #(
     input  wire                        M_AXI_RVALID,
     output wire                        M_AXI_RREADY,
 
+    // Optional sideband snoop interface for hardware-coherent DMA
+    output wire [M_ADDR_WIDTH-1:0]      DC_SNOOP_ADDR,
+    output wire [1:0]                   DC_SNOOP_CMD,
+    output wire                         DC_SNOOP_REQ_VALID,
+    input  wire                         DC_SNOOP_REQ_READY,
+    input  wire                         DC_SNOOP_RESP_VALID,
+    input  wire                         DC_SNOOP_RESP_HIT,
+    input  wire [127:0]                 DC_SNOOP_RESP_DATA,
+
     // Tag output (parallel)
     output wire [127:0]               o_tag,
     output wire                       o_tag_valid,
@@ -203,6 +212,9 @@ module ascon_ip_top #(
     wire [31:0]  slave_dma_src_addr;
     wire [31:0]  slave_dma_dst_addr;
     wire [31:0]  slave_dma_length;
+    wire [31:0]  slave_atu_base;
+    wire [31:0]  slave_atu_window;
+    wire [1:0]   slave_dma_coh_ctrl;
     wire [7:0]   slave_dma_burst_len; // NEW
     wire         slave_dma_en;
     wire         slave_dma_start;
@@ -266,9 +278,8 @@ module ascon_ip_top #(
     //   CPU-Direct: slave_core_start_pulse (rising-edge của slave_core_start)
     //               → đảm bảo CORE nhận đúng 1-cycle pulse, không bị restart
     //                 liên tục nếu AXI slave giữ core_start HIGH nhiều cycle
-    //   DMA mode:   dma_core_start AND dma_core_data_valid
-    //               → tránh race condition (CORE không được start trước khi
-    //                 DMA FSM đã nạp dữ liệu vào ptext_0/ptext_1)
+    //   DMA mode:   dma_core_start starts CORE early; CORE then waits in
+    //               S_DATA_LOAD until dma_core_data_valid asserts.
     // =========================================================================
     // Edge-detect: tạo 1-cycle pulse từ slave_core_start (có thể là level)
     reg slave_core_start_d;
@@ -278,9 +289,6 @@ module ascon_ip_top #(
     end
     wire slave_core_start_pulse = slave_core_start & ~slave_core_start_d;
 
-    // DMA mode: core_start gated only on dma_core_start (not data_valid).
-    // data_valid is separate — CONTROLLER starts INIT early at dma_start,
-    // then waits in S_DATA_LOAD until data_valid=1 from the payload pump.
     wire core_start_mux = slave_dma_en
         ? dma_core_start
         : slave_core_start_pulse;
@@ -410,6 +418,9 @@ module ascon_ip_top #(
         .dma_en             (slave_dma_en),
         .dma_start          (slave_dma_start),
         .dma_soft_rst       (slave_dma_soft_rst),
+        .dma_coh_ctrl_o     (slave_dma_coh_ctrl),
+        .atu_base_o         (slave_atu_base),
+        .atu_window_o       (slave_atu_window),
 
         .dma_busy           (dma_busy_w),
         .dma_done           (dma_done_w),
@@ -521,6 +532,9 @@ module ascon_ip_top #(
         // AD parameters (v7 P1)
         .ad_src_addr          (slave_ad_addr),
         .ad_len               (slave_ad_len),
+        .atu_base             (slave_atu_base),
+        .atu_window           (slave_atu_window),
+        .coh_ctrl             (slave_dma_coh_ctrl),
 
         .dma_start            (slave_dma_start),
         .dma_soft_rst         (slave_dma_soft_rst),
@@ -596,7 +610,14 @@ module ascon_ip_top #(
         .M_AXI_RRESP          (M_AXI_RRESP),
         .M_AXI_RLAST          (M_AXI_RLAST),
         .M_AXI_RVALID         (M_AXI_RVALID),
-        .M_AXI_RREADY         (M_AXI_RREADY)
+        .M_AXI_RREADY         (M_AXI_RREADY),
+        .DC_SNOOP_ADDR        (DC_SNOOP_ADDR),
+        .DC_SNOOP_CMD         (DC_SNOOP_CMD),
+        .DC_SNOOP_REQ_VALID   (DC_SNOOP_REQ_VALID),
+        .DC_SNOOP_REQ_READY   (DC_SNOOP_REQ_READY),
+        .DC_SNOOP_RESP_VALID  (DC_SNOOP_RESP_VALID),
+        .DC_SNOOP_RESP_HIT    (DC_SNOOP_RESP_HIT),
+        .DC_SNOOP_RESP_DATA   (DC_SNOOP_RESP_DATA)
     );
 
     // =========================================================================

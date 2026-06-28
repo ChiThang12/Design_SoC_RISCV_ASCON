@@ -71,6 +71,13 @@ wire        mem_wlast, mem_wvalid, mem_wready;
 wire        mem_bvalid, mem_bready;
 wire [3:0]  mem_wstrb;
 wire [31:0] stat_hits, stat_misses, stat_writes;
+reg  [31:0] dc_snoop_addr;
+reg  [1:0]  dc_snoop_cmd;
+reg         dc_snoop_req_valid;
+wire        dc_snoop_req_ready;
+wire        dc_snoop_resp_valid;
+wire        dc_snoop_resp_hit;
+wire [127:0] dc_snoop_resp_data;
 
 dcache_top #(.ID_WIDTH(4)) dut (
     .clk(clk), .rst_n(rst_n),
@@ -78,6 +85,7 @@ dcache_top #(.ID_WIDTH(4)) dut (
     .cpu_req(cpu_req),     .cpu_we(cpu_we),
     .cpu_rdata(cpu_rdata), .cpu_ready(cpu_ready),
     .fence_type(fence_type),
+    .miss_snoop_enable(1'b0),
     .current_addr(current_addr), .current_data(current_data),
     .current_valid(current_valid),
     .mem_arid(mem_arid),     .mem_araddr(mem_araddr),   .mem_arlen(mem_arlen),
@@ -92,6 +100,13 @@ dcache_top #(.ID_WIDTH(4)) dut (
     .mem_wlast(mem_wlast),   .mem_wvalid(mem_wvalid),   .mem_wready(mem_wready),
     .mem_bid(mem_bid),       .mem_bresp(mem_bresp),
     .mem_bvalid(mem_bvalid), .mem_bready(mem_bready),
+    .dc_snoop_addr(dc_snoop_addr), .dc_snoop_cmd(dc_snoop_cmd),
+    .dc_snoop_req_valid(dc_snoop_req_valid), .dc_snoop_req_ready(dc_snoop_req_ready),
+    .dc_snoop_resp_valid(dc_snoop_resp_valid), .dc_snoop_resp_hit(dc_snoop_resp_hit),
+    .dc_snoop_resp_data(dc_snoop_resp_data),
+    .miss_snoop_addr(), .miss_snoop_cmd(), .miss_snoop_req_valid(),
+    .miss_snoop_req_ready(1'b0), .miss_snoop_resp_valid(1'b0),
+    .miss_snoop_resp_hit(1'b0), .miss_snoop_resp_data(128'h0),
     .stat_hits(stat_hits),   .stat_misses(stat_misses), .stat_writes(stat_writes)
 );
 
@@ -102,7 +117,7 @@ wire [2:0]  probe_flush_state  = dut.controller_inst.flush_state;
 wire [5:0]  probe_flush_index  = dut.controller_inst.flush_index;
 wire        probe_flush_busy   = dut.controller_inst.flush_busy;
 wire [2:0]  probe_main_state   = dut.controller_inst.state;
-wire [63:0] probe_dirty_bitmap = dut.controller_inst.dirty_bitmap;
+wire [63:0] probe_dirty_bitmap = dut.controller_inst.u_flush_ctrl.dirty_bitmap;
 
 wire [5:0]  probe_dra_index    = dut.data_read_all_index;
 wire [31:0] probe_drw0         = dut.data_read_word_0;
@@ -316,6 +331,7 @@ task do_reset;
     begin
         rst_n=0; cpu_req=0; cpu_we=0;
         cpu_addr=0; cpu_wdata=0; cpu_wstrb=4'hF; fence_type=0;
+        dc_snoop_addr=0; dc_snoop_cmd=0; dc_snoop_req_valid=0;
         repeat(4) @(posedge clk);
         rst_n=1; repeat(2) @(posedge clk);
     end

@@ -36,6 +36,11 @@
 // Changes vs v1.9:
 //   FIX-BUG1 : Nâng cấp AXI4-Lite → AXI4-Full, burst read/write.
 //   FIX-BUG2 : Thêm register ADDR_DATA_LEN (offset 0x03C).
+//
+//   ATU-1    : Thêm register ADDR_ATU_BASE/ADDR_ATU_WINDOW cho DMA address
+//              translation window ở phía ascon_dma.
+//   COH-1    : Thêm register ADDR_DMA_COH_CTRL cho ASCON DMA sideband coherence.
+//              bit[0]=read snoop enable, bit[1]=write invalidate enable.
 // ============================================================================
 module ascon_axi_slave #(
     parameter ADDR_WIDTH = 32,
@@ -122,6 +127,9 @@ module ascon_axi_slave #(
     output wire                    dma_en,
     output reg                     dma_start,
     output reg                     dma_soft_rst,
+    output wire [1:0]              dma_coh_ctrl_o,
+    output wire [31:0]             atu_base_o,
+    output wire [31:0]             atu_window_o,
 
     input  wire                    dma_busy,
     input  wire                    dma_done,
@@ -207,6 +215,9 @@ module ascon_axi_slave #(
         ADDR_DMA1_DST   = 12'h144,
         ADDR_DMA1_LEN   = 12'h148,
         ADDR_DMA1_BURST = 12'h14C,
+        ADDR_ATU_BASE   = 12'h150,
+        ADDR_ATU_WINDOW = 12'h154,
+        ADDR_DMA_COH_CTRL = 12'h158,
         // P1 FIX: CPU-direct AD payload registers (up to 128-bit = 16 bytes)
         // Nằm sau TAG_3 (0x054), không xung đột với bất kỳ offset nào khác
         ADDR_AD_DATA_0  = 12'h058,
@@ -290,6 +301,8 @@ module ascon_axi_slave #(
     // Second DMA channel registers
     reg [31:0] reg_dma1_src, reg_dma1_dst, reg_dma1_len;
     reg [7:0]  reg_dma1_burst_len;
+    reg [31:0] reg_atu_base, reg_atu_window;
+    reg [1:0]  reg_dma_coh_ctrl;
     // Existing DMA registers
     reg [31:0] reg_dma_src, reg_dma_dst, reg_dma_len;
     reg [7:0]  reg_dma_burst_len;
@@ -388,6 +401,9 @@ module ascon_axi_slave #(
                 ADDR_DMA1_DST:   reg_read_mux = reg_dma1_dst;
                 ADDR_DMA1_LEN:   reg_read_mux = reg_dma1_len;
                 ADDR_DMA1_BURST: reg_read_mux = {24'h0, reg_dma1_burst_len};
+                ADDR_ATU_BASE:   reg_read_mux = reg_atu_base;
+                ADDR_ATU_WINDOW: reg_read_mux = reg_atu_window;
+                ADDR_DMA_COH_CTRL: reg_read_mux = {30'h0, reg_dma_coh_ctrl};
                 default:         reg_read_mux = 32'h0;
             endcase
         end
@@ -439,6 +455,9 @@ module ascon_axi_slave #(
             reg_dma1_dst  <= 32'h0;
             reg_dma1_len  <= 32'h0;
             reg_dma1_burst_len <= 8'h0;
+            reg_atu_base  <= 32'h0000_0000;
+            reg_atu_window<= 32'h0000_0000;
+            reg_dma_coh_ctrl <= 2'b00;
             // P1 FIX reset
             reg_ad_data_0 <= 32'h0; reg_ad_data_1 <= 32'h0;
             reg_ad_data_2 <= 32'h0; reg_ad_data_3 <= 32'h0;
@@ -564,6 +583,11 @@ module ascon_axi_slave #(
                             ADDR_DMA1_LEN:  reg_dma1_len <= apply_strb(reg_dma1_len, wr_exec_data, wr_exec_strb);
                             ADDR_DMA1_BURST: begin
                                 if (wr_exec_strb[0]) reg_dma1_burst_len <= wr_exec_data[7:0];
+                            end
+                            ADDR_ATU_BASE:   reg_atu_base <= apply_strb(reg_atu_base, wr_exec_data, wr_exec_strb);
+                            ADDR_ATU_WINDOW: reg_atu_window <= apply_strb(reg_atu_window, wr_exec_data, wr_exec_strb);
+                            ADDR_DMA_COH_CTRL: begin
+                                if (wr_exec_strb[0]) reg_dma_coh_ctrl <= wr_exec_data[1:0];
                             end
                             default: ;
                         endcase
@@ -779,6 +803,7 @@ module ascon_axi_slave #(
     assign dma_length   = reg_dma_len;
     assign dma_burst_len= reg_dma_burst_len;
     assign dma_en       = reg_dma_en;
+    assign dma_coh_ctrl_o = reg_dma_coh_ctrl;
 
     // =========================================================================
     // Output wires: AEAD (AD address/length + tag_received)
@@ -804,6 +829,8 @@ module ascon_axi_slave #(
     assign dma1_len       = reg_dma1_len;
     assign dma1_burst_len = reg_dma1_burst_len;
     assign dma1_en        = 1'b0;       // reserved: DMA-1 not yet wired to engine
+    assign atu_base_o     = reg_atu_base;
+    assign atu_window_o   = reg_atu_window;
     assign dma1_start     = 1'b0;
     assign dma1_soft_rst  = 1'b0;
 

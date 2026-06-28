@@ -1,11 +1,11 @@
 
 Discarded input sections
 
- .comment       0x00000000       0x23 /tmp/ccoLPNOD.o
+ .comment       0x00000000       0x23 /tmp/ccEKPzKW.o
  .riscv.attributes
-                0x00000000       0x33 /tmp/ccoLPNOD.o
+                0x00000000       0x33 /tmp/ccEKPzKW.o
  .riscv.attributes
-                0x00000000       0x35 /tmp/ccwu0ouV.o
+                0x00000000       0x35 /tmp/cciagL9d.o
 
 Memory Configuration
 
@@ -17,35 +17,35 @@ DMEM_STACK       0x10001000         0x00000ff0         xrw
 
 Linker script and memory map
 
-LOAD /tmp/ccoLPNOD.o
-LOAD /tmp/ccwu0ouV.o
+LOAD /tmp/ccEKPzKW.o
+LOAD /tmp/cciagL9d.o
                 0x00000000                        . = 0x0
 
 .text           0x00000000      0xadc
  *(.text.start)
- .text.start    0x00000000       0x80 /tmp/ccwu0ouV.o
+ .text.start    0x00000000       0x80 /tmp/cciagL9d.o
                 0x00000000                _start
                 0x0000007c                trap_handler
  *(.text*)
- .text          0x00000080      0xa5c /tmp/ccoLPNOD.o
+ .text          0x00000080      0xa5c /tmp/ccEKPzKW.o
                 0x00000a68                main
- .text          0x00000adc        0x0 /tmp/ccwu0ouV.o
+ .text          0x00000adc        0x0 /tmp/cciagL9d.o
                 0x00000adc                        . = ALIGN (0x4)
                 0x00000adc                        __data_load = LOADADDR (.data)
 
 .rela.dyn       0x00000adc        0x0
  .rela.text.start
-                0x00000adc        0x0 /tmp/ccoLPNOD.o
+                0x00000adc        0x0 /tmp/ccEKPzKW.o
 
 .data           0x10000000       0x3c load address 0x00000adc
                 0x10000000                        __data_start = .
  *(.rodata*)
- .rodata        0x10000000       0x3b /tmp/ccoLPNOD.o
+ .rodata        0x10000000       0x3b /tmp/ccEKPzKW.o
  *(.srodata*)
  *(.sdata2*)
  *(.data*)
- .data          0x1000003b        0x0 /tmp/ccoLPNOD.o
- .data          0x1000003b        0x0 /tmp/ccwu0ouV.o
+ .data          0x1000003b        0x0 /tmp/ccEKPzKW.o
+ .data          0x1000003b        0x0 /tmp/cciagL9d.o
  *(.sdata*)
                 0x1000003c                        . = ALIGN (0x4)
  *fill*         0x1000003b        0x1 
@@ -54,8 +54,8 @@ LOAD /tmp/ccwu0ouV.o
 .bss            0x1000003c        0x0 load address 0x00000b18
                 0x1000003c                        __bss_start = .
  *(.bss*)
- .bss           0x1000003c        0x0 /tmp/ccoLPNOD.o
- .bss           0x1000003c        0x0 /tmp/ccwu0ouV.o
+ .bss           0x1000003c        0x0 /tmp/ccEKPzKW.o
+ .bss           0x1000003c        0x0 /tmp/cciagL9d.o
  *(.sbss*)
  *(COMMON)
                 0x1000003c                        . = ALIGN (0x4)

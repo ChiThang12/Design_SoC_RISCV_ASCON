@@ -412,7 +412,8 @@ module dma_ctrl_fsm #(
     // =========================================================================
     reg [2:0]  push_state;
     reg [31:0] latch_ctext_1;
-    reg [31:0] latch_tag_1, latch_tag_2, latch_tag_3;
+    reg [31:0] latch_tag_0, latch_tag_1, latch_tag_2, latch_tag_3;
+    reg        tag_latch_pending;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -426,9 +427,11 @@ module dma_ctrl_fsm #(
             dma_done             <= 1'b0;
             dma_error            <= 1'b0;
             latch_ctext_1        <= 32'h0;
+            latch_tag_0          <= 32'h0;
             latch_tag_1          <= 32'h0;
             latch_tag_2          <= 32'h0;
             latch_tag_3          <= 32'h0;
+            tag_latch_pending    <= 1'b0;
         end else if (dma_soft_rst) begin
             wr_fifo_push         <= 1'b0;
             wr_fifo_din          <= 32'h0;
@@ -439,6 +442,7 @@ module dma_ctrl_fsm #(
             dma_busy             <= 1'b0;
             dma_done             <= 1'b0;
             dma_error            <= 1'b0;
+            tag_latch_pending    <= 1'b0;
         end else begin
             wr_fifo_push <= 1'b0;
             dma_done     <= 1'b0;
@@ -454,7 +458,7 @@ module dma_ctrl_fsm #(
             if (rd_error || wr_error)
                 dma_error <= 1'b1;
 
-            if (wr_fifo_full && (core_data_out_valid || core_tag_valid || push_state != 0)) begin
+            if (wr_fifo_full && (core_data_out_valid || core_tag_valid || push_state != 0 || tag_latch_pending)) begin
                 status_fifo_overflow <= 1'b1;
                 dma_error            <= 1'b1;
             end else begin
@@ -464,33 +468,53 @@ module dma_ctrl_fsm #(
                             wr_fifo_din   <= core_ctext_0;
                             wr_fifo_push  <= 1'b1;
                             latch_ctext_1 <= core_ctext_1;
+                            if (core_tag_valid) begin
+                                tag_latch_pending <= 1'b1;
+                                latch_tag_0 <= core_tag_0;
+                                latch_tag_1 <= core_tag_1;
+                                latch_tag_2 <= core_tag_2;
+                                latch_tag_3 <= core_tag_3;
+                            end
                             push_state    <= 3'd1;
                         end else if (core_tag_valid) begin
-                            wr_fifo_din  <= core_tag_0;
+                            wr_fifo_din  <= core_tag_1;
                             wr_fifo_push <= 1'b1;
-                            latch_tag_1  <= core_tag_1;
+                            latch_tag_0  <= core_tag_0;
                             latch_tag_2  <= core_tag_2;
                             latch_tag_3  <= core_tag_3;
+                            tag_latch_pending <= 1'b0;
+                            push_state   <= 3'd2;
+                        end else if (tag_latch_pending) begin
+                            wr_fifo_din  <= latch_tag_1;
+                            wr_fifo_push <= 1'b1;
+                            tag_latch_pending <= 1'b0;
                             push_state   <= 3'd2;
                         end
                     end
                     3'd1: begin
                         wr_fifo_din  <= latch_ctext_1;
                         wr_fifo_push <= 1'b1;
+                        if (core_tag_valid) begin
+                            tag_latch_pending <= 1'b1;
+                            latch_tag_0 <= core_tag_0;
+                            latch_tag_1 <= core_tag_1;
+                            latch_tag_2 <= core_tag_2;
+                            latch_tag_3 <= core_tag_3;
+                        end
                         push_state   <= 3'd0;
                     end
                     3'd2: begin
-                        wr_fifo_din  <= latch_tag_1;
+                        wr_fifo_din  <= latch_tag_0;
                         wr_fifo_push <= 1'b1;
                         push_state   <= 3'd3;
                     end
                     3'd3: begin
-                        wr_fifo_din  <= latch_tag_2;
+                        wr_fifo_din  <= latch_tag_3;
                         wr_fifo_push <= 1'b1;
                         push_state   <= 3'd4;
                     end
                     3'd4: begin
-                        wr_fifo_din  <= latch_tag_3;
+                        wr_fifo_din  <= latch_tag_2;
                         wr_fifo_push <= 1'b1;
                         push_state   <= 3'd0;
                     end

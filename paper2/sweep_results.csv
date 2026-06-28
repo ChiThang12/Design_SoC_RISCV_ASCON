@@ -1,0 +1,13 @@
+mode,payload_bytes,fair_cycles,throughput_fair_mbps,snoop_read,snoop_inv,m2_ar,m2_aw,notes
+software_fenced_baseline,128,91,1125.27,0,0,2,2,old software-managed coherence path with fence before DMA start
+software_fenced_baseline,256,159,1288.05,0,0,4,3,old software-managed coherence path with fence before DMA start
+software_fenced_baseline,512,295,1388.47,0,0,8,5,old software-managed coherence path with fence before DMA start
+software_fenced_baseline,1024,567,1444.80,0,0,16,9,old software-managed coherence path with fence before DMA start
+full_coherent_coh3,128,171,598.83,8,9,0,2,read snoop plus write invalidate
+full_coherent_coh3,256,296,691.89,16,17,0,3,read snoop plus write invalidate
+full_coherent_coh3,512,592,691.89,35,33,6,5,read snoop plus write invalidate with some AXI read fallback
+full_coherent_coh3,1024,1129,725.60,67,65,6,9,read snoop plus write invalidate with some AXI read fallback
+selective_coherent_coh1,128,92,1113.04,8,0,0,2,read snoop with non-temporal output
+selective_coherent_coh1,256,160,1280.00,16,0,0,3,read snoop with non-temporal output
+selective_coherent_coh1,512,312,1312.82,35,0,6,5,read snoop with non-temporal output and some AXI read fallback
+selective_coherent_coh1,1024,584,1402.74,67,0,6,9,read snoop with non-temporal output and some AXI read fallback

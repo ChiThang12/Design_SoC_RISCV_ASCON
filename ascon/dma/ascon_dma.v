@@ -28,7 +28,7 @@
 //   ├── dma_read_engine      — AXI4 master read (fetch plaintext)
 //   ├── dma_write_engine     — AXI4 master write (store ctext + tag)
 //   ├── sync_fifo (rd_fifo)  — 4 × 64-bit RD FIFO
-//   └── sync_fifo (wr_fifo)  — 8 × 32-bit WR FIFO
+//   └── sync_fifo (wr_fifo)  — WR_FIFO_DEPTH × 32-bit WR FIFO
 //
 // External interfaces:
 //   Control   : from ascon_axi_slave (reg_bank) — src_addr, dst_addr, byte_len,
@@ -59,13 +59,16 @@
 `include "ascon/dma/rtl/dma_read_engine.v"
 `include "ascon/dma/rtl/dma_write_engine.v"
 `include "ascon/dma/rtl/dma_ctrl_fsm.v"
+`include "ascon/dma/rtl/dma_atu.v"
+`include "ascon/dma/rtl/dma_snoop_arb.v"
+`include "ascon/dma/rtl/dma_err_latch.v"
 
 module ascon_dma #(
     parameter ADDR_WIDTH     = 32,
     parameter AXI_DATA_WIDTH = 64,   // AXI4 Master data bus width
     parameter AXI_ID_WIDTH   = 4,
     parameter RD_FIFO_DEPTH  = 4,    // entries (64-bit each)
-    parameter WR_FIFO_DEPTH  = 32    // entries (32-bit each); 8 blocks × 2 ctext + 4 tag = 20 max
+    parameter WR_FIFO_DEPTH  = 512   // entries (32-bit each); supports coherent sweep up to 1KB payload
 ) (
     input  wire  clk,
     input  wire  rst_n,
@@ -81,6 +84,9 @@ module ascon_dma #(
     // ── AD parameters (v2.0) ────────────────────────────────────────────────
     input  wire [ADDR_WIDTH-1:0]  ad_src_addr,   // AD_ADDR register: source of AD in memory
     input  wire [31:0]            ad_len,        // AD_LEN register: AD byte length (0=no AD)
+    input  wire [ADDR_WIDTH-1:0]  atu_base,      // ATU physical base
+    input  wire [ADDR_WIDTH-1:0]  atu_window,    // ATU window size / enable range
+    input  wire [1:0]             coh_ctrl,      // [0]=read snoop, [1]=write invalidate
 
     input  wire                   dma_start,     // from DMA_CTRL[0] pulse
     input  wire                   dma_soft_rst,  // from DMA_CTRL[1] pulse
@@ -172,7 +178,16 @@ module ascon_dma #(
     input  wire [1:0]                    M_AXI_RRESP,
     input  wire                          M_AXI_RLAST,
     input  wire                          M_AXI_RVALID,
-    output wire                          M_AXI_RREADY
+    output wire                          M_AXI_RREADY,
+
+    // Optional sideband snoop interface to DCache
+    output wire [ADDR_WIDTH-1:0]         DC_SNOOP_ADDR,
+    output wire [1:0]                    DC_SNOOP_CMD,
+    output wire                          DC_SNOOP_REQ_VALID,
+    input  wire                          DC_SNOOP_REQ_READY,
+    input  wire                          DC_SNOOP_RESP_VALID,
+    input  wire                          DC_SNOOP_RESP_HIT,
+    input  wire [127:0]                 DC_SNOOP_RESP_DATA
 );
 
     // =========================================================================
@@ -193,7 +208,7 @@ module ascon_dma #(
     wire [31:0] wr_fifo_dout;
     wire        wr_fifo_pop;
     wire        wr_fifo_empty;
-    wire [5:0]  wr_fifo_count;
+    wire [$clog2(WR_FIFO_DEPTH):0] wr_fifo_count;
 
     // FWFT (combinational) outputs for zero-latency reads
     wire [63:0] rd_fifo_fwft_dout;
@@ -220,18 +235,94 @@ module ascon_dma #(
     // [FIX-RTL-1] dma_ctrl_fsm의 dma_error output을 캡처할 wire
     wire        dma_error_fsm_w;   // FSM internal error flag
 
-    // Aggregate error address: whichever engine errored last
-    assign dma_err_addr = rd_error_w ? rd_err_addr_w : wr_err_addr_w;
+    // ATU-translated addresses
+    wire [ADDR_WIDTH-1:0] src_addr_atu;
+    wire [ADDR_WIDTH-1:0] dst_addr_atu;
+    wire [ADDR_WIDTH-1:0] ad_src_addr_atu;
 
-    // Aggregate status flags
-    assign status_rd_error = rd_error_w;
-    assign status_wr_error = wr_error_w;
-    assign dma_error       = rd_error_w | wr_error_w | dma_error_fsm_w;
+    dma_err_latch #(
+        .ADDR_WIDTH (ADDR_WIDTH)
+    ) u_err_latch (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .rd_error       (rd_error_w),
+        .rd_err_addr    (rd_err_addr_w),
+        .wr_error       (wr_error_w),
+        .wr_err_addr    (wr_err_addr_w),
+        .fsm_error      (dma_error_fsm_w),
+        .dma_error      (dma_error),
+        .dma_err_addr   (dma_err_addr),
+        .status_rd_error(status_rd_error),
+        .status_wr_error(status_wr_error)
+    );
 
     // Internal wires for AD src address override to read engine (v2.0)
     wire [31:0]  rd_override_addr_w;
     wire         rd_use_override_w;
     wire [7:0]   rd_burst_len_w;       // [FIX-AD-BURST] per-phase ARLEN from FSM
+
+    wire         coh_read_en  = coh_ctrl[0];
+    wire         coh_write_en = coh_ctrl[1];
+
+    wire                         rd_snoop_req_valid;
+    wire [1:0]                   rd_snoop_req_cmd;
+    wire [ADDR_WIDTH-1:0]        rd_snoop_req_addr;
+    wire                         rd_snoop_req_ready;
+    wire                         rd_snoop_resp_valid;
+    wire                         rd_snoop_resp_hit;
+    wire [127:0]                   rd_snoop_resp_data;
+
+    wire                         wr_snoop_req_valid;
+    wire [1:0]                   wr_snoop_req_cmd;
+    wire [ADDR_WIDTH-1:0]        wr_snoop_req_addr;
+    wire                         wr_snoop_req_ready;
+    wire                         wr_snoop_resp_valid;
+    wire                         wr_snoop_resp_hit;
+    wire [127:0]                   wr_snoop_resp_data;
+
+    dma_snoop_arb #(
+        .ADDR_WIDTH       (ADDR_WIDTH),
+        .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
+        .SNOOP_DATA_WIDTH (128)
+    ) u_snoop_arb (
+        .clk            (clk),
+        .rst_n          (rst_n),
+        .dma_soft_rst   (dma_soft_rst),
+        .rd_req_valid   (rd_snoop_req_valid),
+        .rd_req_cmd     (rd_snoop_req_cmd),
+        .rd_req_addr    (rd_snoop_req_addr),
+        .rd_req_ready   (rd_snoop_req_ready),
+        .rd_resp_valid  (rd_snoop_resp_valid),
+        .rd_resp_hit    (rd_snoop_resp_hit),
+        .rd_resp_data   (rd_snoop_resp_data),
+        .wr_req_valid   (wr_snoop_req_valid),
+        .wr_req_cmd     (wr_snoop_req_cmd),
+        .wr_req_addr    (wr_snoop_req_addr),
+        .wr_req_ready   (wr_snoop_req_ready),
+        .wr_resp_valid  (wr_snoop_resp_valid),
+        .wr_resp_hit    (wr_snoop_resp_hit),
+        .wr_resp_data   (wr_snoop_resp_data),
+        .DC_SNOOP_ADDR       (DC_SNOOP_ADDR),
+        .DC_SNOOP_CMD        (DC_SNOOP_CMD),
+        .DC_SNOOP_REQ_VALID  (DC_SNOOP_REQ_VALID),
+        .DC_SNOOP_REQ_READY  (DC_SNOOP_REQ_READY),
+        .DC_SNOOP_RESP_VALID (DC_SNOOP_RESP_VALID),
+        .DC_SNOOP_RESP_HIT   (DC_SNOOP_RESP_HIT),
+        .DC_SNOOP_RESP_DATA  (DC_SNOOP_RESP_DATA)
+    );
+
+    dma_atu #(
+        .ADDR_WIDTH (ADDR_WIDTH)
+    ) u_atu (
+        .atu_base      (atu_base),
+        .atu_window    (atu_window),
+        .src_addr      (src_addr),
+        .dst_addr      (dst_addr),
+        .ad_src_addr   (ad_src_addr),
+        .src_addr_atu  (src_addr_atu),
+        .dst_addr_atu  (dst_addr_atu),
+        .ad_src_addr_atu(ad_src_addr_atu)
+    );
 
     // =========================================================================
     // Soft-reset: combined rst_n for FIFOs includes dma_soft_rst
@@ -291,7 +382,7 @@ module ascon_dma #(
         .byte_len            (byte_len),
         .burst_len           (burst_len),
         // AD parameters (v2.0)
-        .ad_src_addr         (ad_src_addr),
+        .ad_src_addr         (ad_src_addr_atu),
         .ad_len              (ad_len),
         // Status
         .dma_busy            (dma_busy),
@@ -353,12 +444,13 @@ module ascon_dma #(
     // DMA Read Engine
     // =========================================================================
     // v2.0: read engine src_addr muxed between AD addr (override) and PT addr (default)
-    wire [ADDR_WIDTH-1:0] rd_engine_src_addr = rd_use_override_w ? rd_override_addr_w : src_addr;
+    wire [ADDR_WIDTH-1:0] rd_engine_src_addr = rd_use_override_w ? rd_override_addr_w : src_addr_atu;
 
     dma_read_engine #(
-        .ADDR_WIDTH     (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-        .AXI_ID_WIDTH   (AXI_ID_WIDTH)
+        .ADDR_WIDTH       (ADDR_WIDTH),
+        .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
+        .AXI_ID_WIDTH     (AXI_ID_WIDTH),
+        .SNOOP_DATA_WIDTH (128)
     ) u_rd_engine (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -371,6 +463,14 @@ module ascon_dma #(
         .rd_done        (rd_done_w),
         .rd_error       (rd_error_w),
         .rd_err_addr    (rd_err_addr_w),
+        .coherent_read_en(coh_read_en),
+        .snoop_req_valid (rd_snoop_req_valid),
+        .snoop_req_cmd   (rd_snoop_req_cmd),
+        .snoop_req_addr  (rd_snoop_req_addr),
+        .snoop_req_ready (rd_snoop_req_ready),
+        .snoop_resp_valid(rd_snoop_resp_valid),
+        .snoop_resp_hit  (rd_snoop_resp_hit),
+        .snoop_resp_data (rd_snoop_resp_data),
         // RD FIFO push
         .fifo_din       (rd_fifo_din),
         .fifo_push      (rd_fifo_push),
@@ -398,19 +498,29 @@ module ascon_dma #(
     // DMA Write Engine
     // =========================================================================
     dma_write_engine #(
-        .ADDR_WIDTH     (ADDR_WIDTH),
-        .AXI_DATA_WIDTH (AXI_DATA_WIDTH),
-        .AXI_ID_WIDTH   (AXI_ID_WIDTH)
+        .ADDR_WIDTH       (ADDR_WIDTH),
+        .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
+        .AXI_ID_WIDTH     (AXI_ID_WIDTH),
+        .SNOOP_DATA_WIDTH (128),
+        .WR_FIFO_DEPTH    (WR_FIFO_DEPTH)
     ) u_wr_engine (
         .clk            (clk),
         .rst_n          (rst_n),
-        .dst_addr       (dst_addr),
+        .dst_addr       (dst_addr_atu),
         .dma_start      (dma_start),
         .total_wr_beats (total_wr_beats_w),
         .wr_busy        (wr_busy_w),
         .wr_done        (wr_done_w),
         .wr_error       (wr_error_w),
         .wr_err_addr    (wr_err_addr_w),
+        .coherent_invalidate_en(coh_write_en),
+        .snoop_req_valid (wr_snoop_req_valid),
+        .snoop_req_cmd   (wr_snoop_req_cmd),
+        .snoop_req_addr  (wr_snoop_req_addr),
+        .snoop_req_ready (wr_snoop_req_ready),
+        .snoop_resp_valid(wr_snoop_resp_valid),
+        .snoop_resp_hit  (wr_snoop_resp_hit),
+        .snoop_resp_data (wr_snoop_resp_data),
         // WR FIFO pop (registered path)
         .fifo_dout      (wr_fifo_dout),
         .fifo_pop       (wr_fifo_pop),

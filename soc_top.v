@@ -70,6 +70,7 @@
 `include "memory/inst_mem_axi_slave.v"
 `include "memory/data_mem_axi_slave.v"
 `include "interconnect/axi4_crossbar_5m12s.v"
+`include "interconnect/axi4_master_mux_2m.v"
 `include "ascon/ascon_top.v"
 `include "axi_width_converter_64to32.v"
 `include "controller/soc_ctrl_slave.v"
@@ -84,6 +85,8 @@
 `include "peripheral/timer/timer_top.v"
 `include "peripheral/otp/otp_stub_slave.v"
 `include "peripheral/spi/spi_top.v"
+`include "cache_interface/dcache/dcache_snoop_bus_2way.v"
+`include "cache_interface/dcache/dcache_snoop_arb_3to1.v"
 
 module soc_top #(
     // ── AXI parameters ────────────────────────────────────────────────────
@@ -190,8 +193,8 @@ wire timer_wake_req; // AON timeout FF từ timer_top
 wire soft_rst_pulse; // từ soc_ctrl_slave → clk_reset_ctrl (1-cycle pulse)
 wire jtag_ndmreset;  // từ jtag_debug_top → clk_reset_ctrl
 wire cpu_wfi;
-wire cpu_perf_stall;      // [A2] = stall_any from CPU
-wire cpu_perf_instr_ret;  // [A2] = regwrite_wb && !stall_any from CPU
+wire cpu_perf_stall;      // [A2] = aggregate stall_any from active cores
+wire cpu_perf_instr_ret;  // [A2] = aggregate retire pulse from active cores
 wire uart_active;
 wire timer_active;
 wire gpio_wake_armed;
@@ -307,6 +310,10 @@ wire [31:0] cpu_imem_addr;
 wire        cpu_imem_valid;
 wire [31:0] icache_imem_rdata;
 wire        icache_imem_ready;
+wire [31:0] cpu1_imem_addr;
+wire        cpu1_imem_valid;
+wire [31:0] icache1_imem_rdata;
+wire        icache1_imem_ready;
 
 wire [31:0] cpu_dcache_addr;
 wire [31:0] cpu_dcache_wdata;
@@ -316,6 +323,57 @@ wire        cpu_dcache_we;
 wire [31:0] dcache_cpu_rdata;
 wire        dcache_cpu_ready;
 wire [1:0]  cpu_dcache_fence_type;
+wire [31:0] cpu1_dcache_addr;
+wire [31:0] cpu1_dcache_wdata;
+wire [3:0]  cpu1_dcache_wstrb;
+wire        cpu1_dcache_req;
+wire        cpu1_dcache_we;
+wire [31:0] dcache1_cpu_rdata;
+wire        dcache1_cpu_ready;
+wire [1:0]  cpu1_dcache_fence_type;
+
+wire [31:0] dc_snoop_addr;
+wire [1:0]  dc_snoop_cmd;
+wire        dc_snoop_req_valid;
+wire        dc_snoop_req_ready;
+wire        dc_snoop_resp_valid;
+wire        dc_snoop_resp_hit;
+wire [127:0] dc_snoop_resp_data;
+wire [31:0] dc0_snoop_addr;
+wire [1:0]  dc0_snoop_cmd;
+wire        dc0_snoop_req_valid;
+wire        dc0_snoop_req_ready;
+wire        dc0_snoop_resp_valid;
+wire        dc0_snoop_resp_hit;
+wire [127:0] dc0_snoop_resp_data;
+wire [31:0] dc1_snoop_addr;
+wire [1:0]  dc1_snoop_cmd;
+wire        dc1_snoop_req_valid;
+wire        dc1_snoop_req_ready;
+wire        dc1_snoop_resp_valid;
+wire        dc1_snoop_resp_hit;
+wire [127:0] dc1_snoop_resp_data;
+wire [31:0] dc_bus_snoop_addr;
+wire [1:0]  dc_bus_snoop_cmd;
+wire        dc_bus_snoop_req_valid;
+wire        dc_bus_snoop_req_ready;
+wire        dc_bus_snoop_resp_valid;
+wire        dc_bus_snoop_resp_hit;
+wire [127:0] dc_bus_snoop_resp_data;
+wire [31:0] cpu0_miss_snoop_addr;
+wire [1:0]  cpu0_miss_snoop_cmd;
+wire        cpu0_miss_snoop_req_valid;
+wire        cpu0_miss_snoop_req_ready;
+wire        cpu0_miss_snoop_resp_valid;
+wire        cpu0_miss_snoop_resp_hit;
+wire [127:0] cpu0_miss_snoop_resp_data;
+wire [31:0] cpu1_miss_snoop_addr;
+wire [1:0]  cpu1_miss_snoop_cmd;
+wire        cpu1_miss_snoop_req_valid;
+wire        cpu1_miss_snoop_req_ready;
+wire        cpu1_miss_snoop_resp_valid;
+wire        cpu1_miss_snoop_resp_hit;
+wire [127:0] cpu1_miss_snoop_resp_data;
 
 assign core_bus_active =
     m0_arvalid | m0_awvalid | m0_wvalid | m0_rvalid | m0_bvalid |
@@ -404,6 +462,33 @@ wire [31:0] icache_stat_misses;
 wire [31:0] dcache_stat_hits;
 wire [31:0] dcache_stat_misses;
 wire [31:0] dcache_stat_writes;
+wire [31:0] icache0_stat_hits;
+wire [31:0] icache0_stat_misses;
+wire [31:0] icache1_stat_hits;
+wire [31:0] icache1_stat_misses;
+wire [31:0] dcache0_stat_hits;
+wire [31:0] dcache0_stat_misses;
+wire [31:0] dcache0_stat_writes;
+wire [31:0] dcache1_stat_hits;
+wire [31:0] dcache1_stat_misses;
+wire [31:0] dcache1_stat_writes;
+
+wire cpu0_wfi;
+wire cpu1_wfi;
+wire cpu0_perf_stall;
+wire cpu1_perf_stall;
+wire cpu0_perf_instr_ret;
+wire cpu1_perf_instr_ret;
+
+assign cpu_wfi            = cpu0_wfi & cpu1_wfi;
+assign cpu_perf_stall     = cpu0_perf_stall | cpu1_perf_stall;
+assign cpu_perf_instr_ret = cpu0_perf_instr_ret | cpu1_perf_instr_ret;
+
+assign icache_stat_hits   = icache0_stat_hits + icache1_stat_hits;
+assign icache_stat_misses = icache0_stat_misses + icache1_stat_misses;
+assign dcache_stat_hits   = dcache0_stat_hits + dcache1_stat_hits;
+assign dcache_stat_misses = dcache0_stat_misses + dcache1_stat_misses;
+assign dcache_stat_writes = dcache0_stat_writes + dcache1_stat_writes;
 
 // ============================================================================
 // SECTION 8: AXI4 Master wires (M0–M4)
@@ -429,6 +514,38 @@ wire                  m0_rvalid, m0_rready;
 wire                  m0_wvalid, m0_wready;
 wire                  m0_bvalid, m0_bready;
 
+wire [ID_WIDTH-1:0]   i0_arid,  i0_awid,  i0_bid,  i0_rid;
+wire [ADDR_WIDTH-1:0] i0_araddr, i0_awaddr;
+wire [7:0]            i0_arlen,  i0_awlen;
+wire [2:0]            i0_arsize, i0_awsize;
+wire [1:0]            i0_arburst, i0_awburst;
+wire [2:0]            i0_arprot, i0_awprot;
+wire                  i0_arvalid, i0_arready;
+wire                  i0_awvalid, i0_awready;
+wire [DATA_WIDTH-1:0] i0_rdata,   i0_wdata;
+wire [DATA_WIDTH/8-1:0] i0_wstrb;
+wire [1:0]            i0_rresp,  i0_bresp;
+wire                  i0_rlast,  i0_wlast;
+wire                  i0_rvalid, i0_rready;
+wire                  i0_wvalid, i0_wready;
+wire                  i0_bvalid, i0_bready;
+
+wire [ID_WIDTH-1:0]   i1_arid,  i1_awid,  i1_bid,  i1_rid;
+wire [ADDR_WIDTH-1:0] i1_araddr, i1_awaddr;
+wire [7:0]            i1_arlen,  i1_awlen;
+wire [2:0]            i1_arsize, i1_awsize;
+wire [1:0]            i1_arburst, i1_awburst;
+wire [2:0]            i1_arprot, i1_awprot;
+wire                  i1_arvalid, i1_arready;
+wire                  i1_awvalid, i1_awready;
+wire [DATA_WIDTH-1:0] i1_rdata,   i1_wdata;
+wire [DATA_WIDTH/8-1:0] i1_wstrb;
+wire [1:0]            i1_rresp,  i1_bresp;
+wire                  i1_rlast,  i1_wlast;
+wire                  i1_rvalid, i1_rready;
+wire                  i1_wvalid, i1_wready;
+wire                  i1_bvalid, i1_bready;
+
 // ── M1: DCache ──────────────────────────────────────────────────────────────
 wire [ID_WIDTH-1:0]   m1_arid,  m1_awid,  m1_bid,  m1_rid;
 wire [ADDR_WIDTH-1:0] m1_araddr, m1_awaddr;
@@ -445,6 +562,38 @@ wire                  m1_rlast,  m1_wlast;
 wire                  m1_rvalid, m1_rready;
 wire                  m1_wvalid, m1_wready;
 wire                  m1_bvalid, m1_bready;
+
+wire [ID_WIDTH-1:0]   d0_arid,  d0_awid,  d0_bid,  d0_rid;
+wire [ADDR_WIDTH-1:0] d0_araddr, d0_awaddr;
+wire [7:0]            d0_arlen,  d0_awlen;
+wire [2:0]            d0_arsize, d0_awsize;
+wire [1:0]            d0_arburst, d0_awburst;
+wire [2:0]            d0_arprot, d0_awprot;
+wire                  d0_arvalid, d0_arready;
+wire                  d0_awvalid, d0_awready;
+wire [DATA_WIDTH-1:0] d0_rdata,   d0_wdata;
+wire [DATA_WIDTH/8-1:0] d0_wstrb;
+wire [1:0]            d0_rresp,  d0_bresp;
+wire                  d0_rlast,  d0_wlast;
+wire                  d0_rvalid, d0_rready;
+wire                  d0_wvalid, d0_wready;
+wire                  d0_bvalid, d0_bready;
+
+wire [ID_WIDTH-1:0]   d1_arid,  d1_awid,  d1_bid,  d1_rid;
+wire [ADDR_WIDTH-1:0] d1_araddr, d1_awaddr;
+wire [7:0]            d1_arlen,  d1_awlen;
+wire [2:0]            d1_arsize, d1_awsize;
+wire [1:0]            d1_arburst, d1_awburst;
+wire [2:0]            d1_arprot, d1_awprot;
+wire                  d1_arvalid, d1_arready;
+wire                  d1_awvalid, d1_awready;
+wire [DATA_WIDTH-1:0] d1_rdata,   d1_wdata;
+wire [DATA_WIDTH/8-1:0] d1_wstrb;
+wire [1:0]            d1_rresp,  d1_bresp;
+wire                  d1_rlast,  d1_wlast;
+wire                  d1_rvalid, d1_rready;
+wire                  d1_wvalid, d1_wready;
+wire                  d1_bvalid, d1_bready;
 
 // ── M2: ASCON DMA (32-bit, saụ width converter) ──────────────────────────────
 wire [ID_WIDTH-1:0]   m2_arid,  m2_awid,  m2_bid,  m2_rid;
@@ -873,7 +1022,9 @@ otp_stub_slave #(
 // mà không dùng reset. Khi halted, CPU đóng băng pipeline nhưng giữ
 // nguyên PC và register state — debugger có thể inspect và tiếp tục.
 // ============================================================================
-riscv_cpu_core u_cpu (
+riscv_cpu_core #(
+    .HART_ID(32'd0)
+) u_cpu (
     .clk             (clk_core),
     .rst             (cpu_rst),
 
@@ -899,13 +1050,48 @@ riscv_cpu_core u_cpu (
     .debug_resumereq (jtag_resumereq),
     .debug_halted    (jtag_halted),
     .debug_running   (jtag_running),
-    .cpu_wfi_o       (cpu_wfi),
-    .perf_stall_o    (cpu_perf_stall),
-    .perf_instr_ret_o(cpu_perf_instr_ret)
+    .cpu_wfi_o       (cpu0_wfi),
+    .perf_stall_o    (cpu0_perf_stall),
+    .perf_instr_ret_o(cpu0_perf_instr_ret)
+);
+
+// CPU1 shares the current IRQ fabric and stop-the-world debug controls.
+// A distinct hart ID / per-hart debug register path still needs core-level CSR work.
+riscv_cpu_core #(
+    .HART_ID(32'd1)
+) u_cpu1 (
+    .clk             (clk_core),
+    .rst             (cpu_rst),
+
+    .imem_addr       (cpu1_imem_addr),
+    .imem_valid      (cpu1_imem_valid),
+    .imem_rdata      (icache1_imem_rdata),
+    .imem_ready      (icache1_imem_ready),
+
+    .dcache_addr     (cpu1_dcache_addr),
+    .dcache_wdata    (cpu1_dcache_wdata),
+    .dcache_wstrb    (cpu1_dcache_wstrb),
+    .dcache_req      (cpu1_dcache_req),
+    .dcache_we       (cpu1_dcache_we),
+    .dcache_rdata    (dcache1_cpu_rdata),
+    .dcache_ready    (dcache1_cpu_ready),
+    .dcache_fence_type(cpu1_dcache_fence_type),
+
+    .external_irq    (external_irq),
+    .timer_irq       (timer_irq),
+    .sw_irq          (sw_irq),
+
+    .debug_haltreq   (jtag_haltreq),
+    .debug_resumereq (jtag_resumereq),
+    .debug_halted    (),
+    .debug_running   (),
+    .cpu_wfi_o       (cpu1_wfi),
+    .perf_stall_o    (cpu1_perf_stall),
+    .perf_instr_ret_o(cpu1_perf_instr_ret)
 );
 
 // ============================================================================
-// SECTION 13: INSTANCE — icache_top  (Master M0)
+// SECTION 13: INSTANCE — icache_top  (per-core) + shared AXI master M0
 // ============================================================================
 icache_top u_icache (
     .clk         (clk_core),
@@ -917,29 +1103,117 @@ icache_top u_icache (
     .cpu_ready   (icache_imem_ready),
     .flush       (1'b0),
 
-    .mem_arid    (m0_arid),   .mem_araddr (m0_araddr),
-    .mem_arlen   (m0_arlen),  .mem_arsize (m0_arsize),
-    .mem_arburst (m0_arburst),.mem_arprot (m0_arprot),
-    .mem_arvalid (m0_arvalid),.mem_arready(m0_arready),
-    .mem_rid     (m0_rid),    .mem_rdata  (m0_rdata),
-    .mem_rresp   (m0_rresp),  .mem_rlast  (m0_rlast),
-    .mem_rvalid  (m0_rvalid), .mem_rready (m0_rready),
-    .mem_awid    (m0_awid),   .mem_awaddr (m0_awaddr),
-    .mem_awlen   (m0_awlen),  .mem_awsize (m0_awsize),
-    .mem_awburst (m0_awburst),.mem_awprot (m0_awprot),
-    .mem_awvalid (m0_awvalid),.mem_awready(m0_awready),
-    .mem_wdata   (m0_wdata),  .mem_wstrb  (m0_wstrb),
-    .mem_wlast   (m0_wlast),  .mem_wvalid (m0_wvalid),
-    .mem_wready  (m0_wready),
-    .mem_bid     (m0_bid),    .mem_bresp  (m0_bresp),
-    .mem_bvalid  (m0_bvalid), .mem_bready (m0_bready),
+    .mem_arid    (i0_arid),   .mem_araddr (i0_araddr),
+    .mem_arlen   (i0_arlen),  .mem_arsize (i0_arsize),
+    .mem_arburst (i0_arburst),.mem_arprot (i0_arprot),
+    .mem_arvalid (i0_arvalid),.mem_arready(i0_arready),
+    .mem_rid     (i0_rid),    .mem_rdata  (i0_rdata),
+    .mem_rresp   (i0_rresp),  .mem_rlast  (i0_rlast),
+    .mem_rvalid  (i0_rvalid), .mem_rready (i0_rready),
+    .mem_awid    (i0_awid),   .mem_awaddr (i0_awaddr),
+    .mem_awlen   (i0_awlen),  .mem_awsize (i0_awsize),
+    .mem_awburst (i0_awburst),.mem_awprot (i0_awprot),
+    .mem_awvalid (i0_awvalid),.mem_awready(i0_awready),
+    .mem_wdata   (i0_wdata),  .mem_wstrb  (i0_wstrb),
+    .mem_wlast   (i0_wlast),  .mem_wvalid (i0_wvalid),
+    .mem_wready  (i0_wready),
+    .mem_bid     (i0_bid),    .mem_bresp  (i0_bresp),
+    .mem_bvalid  (i0_bvalid), .mem_bready (i0_bready),
 
-    .stat_hits   (icache_stat_hits),
-    .stat_misses (icache_stat_misses)
+    .stat_hits   (icache0_stat_hits),
+    .stat_misses (icache0_stat_misses)
+);
+
+icache_top u_icache1 (
+    .clk         (clk_core),
+    .rst_n       (cpu_rst_n),
+
+    .cpu_addr    (cpu1_imem_addr),
+    .cpu_req     (cpu1_imem_valid),
+    .cpu_rdata   (icache1_imem_rdata),
+    .cpu_ready   (icache1_imem_ready),
+    .flush       (1'b0),
+
+    .mem_arid    (i1_arid),   .mem_araddr (i1_araddr),
+    .mem_arlen   (i1_arlen),  .mem_arsize (i1_arsize),
+    .mem_arburst (i1_arburst),.mem_arprot (i1_arprot),
+    .mem_arvalid (i1_arvalid),.mem_arready(i1_arready),
+    .mem_rid     (i1_rid),    .mem_rdata  (i1_rdata),
+    .mem_rresp   (i1_rresp),  .mem_rlast  (i1_rlast),
+    .mem_rvalid  (i1_rvalid), .mem_rready (i1_rready),
+    .mem_awid    (i1_awid),   .mem_awaddr (i1_awaddr),
+    .mem_awlen   (i1_awlen),  .mem_awsize (i1_awsize),
+    .mem_awburst (i1_awburst),.mem_awprot (i1_awprot),
+    .mem_awvalid (i1_awvalid),.mem_awready(i1_awready),
+    .mem_wdata   (i1_wdata),  .mem_wstrb  (i1_wstrb),
+    .mem_wlast   (i1_wlast),  .mem_wvalid (i1_wvalid),
+    .mem_wready  (i1_wready),
+    .mem_bid     (i1_bid),    .mem_bresp  (i1_bresp),
+    .mem_bvalid  (i1_bvalid), .mem_bready (i1_bready),
+
+    .stat_hits   (icache1_stat_hits),
+    .stat_misses (icache1_stat_misses)
+);
+
+axi4_master_mux_2m #(
+    .ID_WIDTH   (ID_WIDTH),
+    .DATA_WIDTH (DATA_WIDTH),
+    .ADDR_WIDTH (ADDR_WIDTH)
+) u_icache_axi_mux (
+    .clk        (clk_core),
+    .rst_n      (fabric_rst_n),
+    .m0_arid    (i0_arid),   .m0_araddr  (i0_araddr),
+    .m0_arlen   (i0_arlen),  .m0_arsize  (i0_arsize),
+    .m0_arburst (i0_arburst),.m0_arprot  (i0_arprot),
+    .m0_arvalid (i0_arvalid),.m0_arready (i0_arready),
+    .m0_rid     (i0_rid),    .m0_rdata   (i0_rdata),
+    .m0_rresp   (i0_rresp),  .m0_rlast   (i0_rlast),
+    .m0_rvalid  (i0_rvalid), .m0_rready  (i0_rready),
+    .m0_awid    (i0_awid),   .m0_awaddr  (i0_awaddr),
+    .m0_awlen   (i0_awlen),  .m0_awsize  (i0_awsize),
+    .m0_awburst (i0_awburst),.m0_awprot  (i0_awprot),
+    .m0_awvalid (i0_awvalid),.m0_awready (i0_awready),
+    .m0_wdata   (i0_wdata),  .m0_wstrb   (i0_wstrb),
+    .m0_wlast   (i0_wlast),  .m0_wvalid  (i0_wvalid),
+    .m0_wready  (i0_wready),
+    .m0_bid     (i0_bid),    .m0_bresp   (i0_bresp),
+    .m0_bvalid  (i0_bvalid), .m0_bready  (i0_bready),
+    .m1_arid    (i1_arid),   .m1_araddr  (i1_araddr),
+    .m1_arlen   (i1_arlen),  .m1_arsize  (i1_arsize),
+    .m1_arburst (i1_arburst),.m1_arprot  (i1_arprot),
+    .m1_arvalid (i1_arvalid),.m1_arready (i1_arready),
+    .m1_rid     (i1_rid),    .m1_rdata   (i1_rdata),
+    .m1_rresp   (i1_rresp),  .m1_rlast   (i1_rlast),
+    .m1_rvalid  (i1_rvalid), .m1_rready  (i1_rready),
+    .m1_awid    (i1_awid),   .m1_awaddr  (i1_awaddr),
+    .m1_awlen   (i1_awlen),  .m1_awsize  (i1_awsize),
+    .m1_awburst (i1_awburst),.m1_awprot  (i1_awprot),
+    .m1_awvalid (i1_awvalid),.m1_awready (i1_awready),
+    .m1_wdata   (i1_wdata),  .m1_wstrb   (i1_wstrb),
+    .m1_wlast   (i1_wlast),  .m1_wvalid  (i1_wvalid),
+    .m1_wready  (i1_wready),
+    .m1_bid     (i1_bid),    .m1_bresp   (i1_bresp),
+    .m1_bvalid  (i1_bvalid), .m1_bready  (i1_bready),
+    .s_arid     (m0_arid),   .s_araddr   (m0_araddr),
+    .s_arlen    (m0_arlen),  .s_arsize   (m0_arsize),
+    .s_arburst  (m0_arburst),.s_arprot   (m0_arprot),
+    .s_arvalid  (m0_arvalid),.s_arready  (m0_arready),
+    .s_rid      (m0_rid),    .s_rdata    (m0_rdata),
+    .s_rresp    (m0_rresp),  .s_rlast    (m0_rlast),
+    .s_rvalid   (m0_rvalid), .s_rready   (m0_rready),
+    .s_awid     (m0_awid),   .s_awaddr   (m0_awaddr),
+    .s_awlen    (m0_awlen),  .s_awsize   (m0_awsize),
+    .s_awburst  (m0_awburst),.s_awprot   (m0_awprot),
+    .s_awvalid  (m0_awvalid),.s_awready  (m0_awready),
+    .s_wdata    (m0_wdata),  .s_wstrb    (m0_wstrb),
+    .s_wlast    (m0_wlast),  .s_wvalid   (m0_wvalid),
+    .s_wready   (m0_wready),
+    .s_bid      (m0_bid),    .s_bresp    (m0_bresp),
+    .s_bvalid   (m0_bvalid), .s_bready   (m0_bready)
 );
 
 // ============================================================================
-// SECTION 14: INSTANCE — dcache_top  (Master M1)
+// SECTION 14: INSTANCE — dcache_top  (per-core) + shared AXI master M1
 // ============================================================================
 dcache_top u_dcache (
     .clk         (clk_core),
@@ -953,31 +1227,224 @@ dcache_top u_dcache (
     .cpu_rdata   (dcache_cpu_rdata),
     .cpu_ready   (dcache_cpu_ready),
     .fence_type  (cpu_dcache_fence_type),
+    .miss_snoop_enable(1'b1),
 
     .current_addr (),
     .current_data (),
     .current_valid(),
 
-    .mem_arid    (m1_arid),   .mem_araddr (m1_araddr),
-    .mem_arlen   (m1_arlen),  .mem_arsize (m1_arsize),
-    .mem_arburst (m1_arburst),.mem_arprot (m1_arprot),
-    .mem_arvalid (m1_arvalid),.mem_arready(m1_arready),
-    .mem_rid     (m1_rid),    .mem_rdata  (m1_rdata),
-    .mem_rresp   (m1_rresp),  .mem_rlast  (m1_rlast),
-    .mem_rvalid  (m1_rvalid), .mem_rready (m1_rready),
-    .mem_awid    (m1_awid),   .mem_awaddr (m1_awaddr),
-    .mem_awlen   (m1_awlen),  .mem_awsize (m1_awsize),
-    .mem_awburst (m1_awburst),.mem_awprot (m1_awprot),
-    .mem_awvalid (m1_awvalid),.mem_awready(m1_awready),
-    .mem_wdata   (m1_wdata),  .mem_wstrb  (m1_wstrb),
-    .mem_wlast   (m1_wlast),  .mem_wvalid (m1_wvalid),
-    .mem_wready  (m1_wready),
-    .mem_bid     (m1_bid),    .mem_bresp  (m1_bresp),
-    .mem_bvalid  (m1_bvalid), .mem_bready (m1_bready),
+    .mem_arid    (d0_arid),   .mem_araddr (d0_araddr),
+    .mem_arlen   (d0_arlen),  .mem_arsize (d0_arsize),
+    .mem_arburst (d0_arburst),.mem_arprot (d0_arprot),
+    .mem_arvalid (d0_arvalid),.mem_arready(d0_arready),
+    .mem_rid     (d0_rid),    .mem_rdata  (d0_rdata),
+    .mem_rresp   (d0_rresp),  .mem_rlast  (d0_rlast),
+    .mem_rvalid  (d0_rvalid), .mem_rready (d0_rready),
+    .mem_awid    (d0_awid),   .mem_awaddr (d0_awaddr),
+    .mem_awlen   (d0_awlen),  .mem_awsize (d0_awsize),
+    .mem_awburst (d0_awburst),.mem_awprot (d0_awprot),
+    .mem_awvalid (d0_awvalid),.mem_awready(d0_awready),
+    .mem_wdata   (d0_wdata),  .mem_wstrb  (d0_wstrb),
+    .mem_wlast   (d0_wlast),  .mem_wvalid (d0_wvalid),
+    .mem_wready  (d0_wready),
+    .mem_bid     (d0_bid),    .mem_bresp  (d0_bresp),
+    .mem_bvalid  (d0_bvalid), .mem_bready (d0_bready),
 
-    .stat_hits   (dcache_stat_hits),
-    .stat_misses (dcache_stat_misses),
-    .stat_writes (dcache_stat_writes)
+    .dc_snoop_addr      (dc0_snoop_addr),
+    .dc_snoop_cmd       (dc0_snoop_cmd),
+    .dc_snoop_req_valid (dc0_snoop_req_valid),
+    .dc_snoop_req_ready (dc0_snoop_req_ready),
+    .dc_snoop_resp_valid(dc0_snoop_resp_valid),
+    .dc_snoop_resp_hit  (dc0_snoop_resp_hit),
+    .dc_snoop_resp_data (dc0_snoop_resp_data),
+    .miss_snoop_addr    (cpu0_miss_snoop_addr),
+    .miss_snoop_cmd     (cpu0_miss_snoop_cmd),
+    .miss_snoop_req_valid(cpu0_miss_snoop_req_valid),
+    .miss_snoop_req_ready(cpu0_miss_snoop_req_ready),
+    .miss_snoop_resp_valid(cpu0_miss_snoop_resp_valid),
+    .miss_snoop_resp_hit(cpu0_miss_snoop_resp_hit),
+    .miss_snoop_resp_data(cpu0_miss_snoop_resp_data),
+
+    .stat_hits   (dcache0_stat_hits),
+    .stat_misses (dcache0_stat_misses),
+    .stat_writes (dcache0_stat_writes)
+);
+
+dcache_top u_dcache1 (
+    .clk         (clk_core),
+    .rst_n       (fabric_rst_n),
+
+    .cpu_addr    (cpu1_dcache_addr),
+    .cpu_wdata   (cpu1_dcache_wdata),
+    .cpu_wstrb   (cpu1_dcache_wstrb),
+    .cpu_req     (cpu1_dcache_req),
+    .cpu_we      (cpu1_dcache_we),
+    .cpu_rdata   (dcache1_cpu_rdata),
+    .cpu_ready   (dcache1_cpu_ready),
+    .fence_type  (cpu1_dcache_fence_type),
+    .miss_snoop_enable(1'b1),
+
+    .current_addr (),
+    .current_data (),
+    .current_valid(),
+
+    .mem_arid    (d1_arid),   .mem_araddr (d1_araddr),
+    .mem_arlen   (d1_arlen),  .mem_arsize (d1_arsize),
+    .mem_arburst (d1_arburst),.mem_arprot (d1_arprot),
+    .mem_arvalid (d1_arvalid),.mem_arready(d1_arready),
+    .mem_rid     (d1_rid),    .mem_rdata  (d1_rdata),
+    .mem_rresp   (d1_rresp),  .mem_rlast  (d1_rlast),
+    .mem_rvalid  (d1_rvalid), .mem_rready (d1_rready),
+    .mem_awid    (d1_awid),   .mem_awaddr (d1_awaddr),
+    .mem_awlen   (d1_awlen),  .mem_awsize (d1_awsize),
+    .mem_awburst (d1_awburst),.mem_awprot (d1_awprot),
+    .mem_awvalid (d1_awvalid),.mem_awready(d1_awready),
+    .mem_wdata   (d1_wdata),  .mem_wstrb  (d1_wstrb),
+    .mem_wlast   (d1_wlast),  .mem_wvalid (d1_wvalid),
+    .mem_wready  (d1_wready),
+    .mem_bid     (d1_bid),    .mem_bresp  (d1_bresp),
+    .mem_bvalid  (d1_bvalid), .mem_bready (d1_bready),
+
+    .dc_snoop_addr      (dc1_snoop_addr),
+    .dc_snoop_cmd       (dc1_snoop_cmd),
+    .dc_snoop_req_valid (dc1_snoop_req_valid),
+    .dc_snoop_req_ready (dc1_snoop_req_ready),
+    .dc_snoop_resp_valid(dc1_snoop_resp_valid),
+    .dc_snoop_resp_hit  (dc1_snoop_resp_hit),
+    .dc_snoop_resp_data (dc1_snoop_resp_data),
+    .miss_snoop_addr    (cpu1_miss_snoop_addr),
+    .miss_snoop_cmd     (cpu1_miss_snoop_cmd),
+    .miss_snoop_req_valid(cpu1_miss_snoop_req_valid),
+    .miss_snoop_req_ready(cpu1_miss_snoop_req_ready),
+    .miss_snoop_resp_valid(cpu1_miss_snoop_resp_valid),
+    .miss_snoop_resp_hit(cpu1_miss_snoop_resp_hit),
+    .miss_snoop_resp_data(cpu1_miss_snoop_resp_data),
+
+    .stat_hits   (dcache1_stat_hits),
+    .stat_misses (dcache1_stat_misses),
+    .stat_writes (dcache1_stat_writes)
+);
+
+axi4_master_mux_2m #(
+    .ID_WIDTH   (ID_WIDTH),
+    .DATA_WIDTH (DATA_WIDTH),
+    .ADDR_WIDTH (ADDR_WIDTH)
+) u_dcache_axi_mux (
+    .clk        (clk_core),
+    .rst_n      (fabric_rst_n),
+    .m0_arid    (d0_arid),   .m0_araddr  (d0_araddr),
+    .m0_arlen   (d0_arlen),  .m0_arsize  (d0_arsize),
+    .m0_arburst (d0_arburst),.m0_arprot  (d0_arprot),
+    .m0_arvalid (d0_arvalid),.m0_arready (d0_arready),
+    .m0_rid     (d0_rid),    .m0_rdata   (d0_rdata),
+    .m0_rresp   (d0_rresp),  .m0_rlast   (d0_rlast),
+    .m0_rvalid  (d0_rvalid), .m0_rready  (d0_rready),
+    .m0_awid    (d0_awid),   .m0_awaddr  (d0_awaddr),
+    .m0_awlen   (d0_awlen),  .m0_awsize  (d0_awsize),
+    .m0_awburst (d0_awburst),.m0_awprot  (d0_awprot),
+    .m0_awvalid (d0_awvalid),.m0_awready (d0_awready),
+    .m0_wdata   (d0_wdata),  .m0_wstrb   (d0_wstrb),
+    .m0_wlast   (d0_wlast),  .m0_wvalid  (d0_wvalid),
+    .m0_wready  (d0_wready),
+    .m0_bid     (d0_bid),    .m0_bresp   (d0_bresp),
+    .m0_bvalid  (d0_bvalid), .m0_bready  (d0_bready),
+    .m1_arid    (d1_arid),   .m1_araddr  (d1_araddr),
+    .m1_arlen   (d1_arlen),  .m1_arsize  (d1_arsize),
+    .m1_arburst (d1_arburst),.m1_arprot  (d1_arprot),
+    .m1_arvalid (d1_arvalid),.m1_arready (d1_arready),
+    .m1_rid     (d1_rid),    .m1_rdata   (d1_rdata),
+    .m1_rresp   (d1_rresp),  .m1_rlast   (d1_rlast),
+    .m1_rvalid  (d1_rvalid), .m1_rready  (d1_rready),
+    .m1_awid    (d1_awid),   .m1_awaddr  (d1_awaddr),
+    .m1_awlen   (d1_awlen),  .m1_awsize  (d1_awsize),
+    .m1_awburst (d1_awburst),.m1_awprot  (d1_awprot),
+    .m1_awvalid (d1_awvalid),.m1_awready (d1_awready),
+    .m1_wdata   (d1_wdata),  .m1_wstrb   (d1_wstrb),
+    .m1_wlast   (d1_wlast),  .m1_wvalid  (d1_wvalid),
+    .m1_wready  (d1_wready),
+    .m1_bid     (d1_bid),    .m1_bresp   (d1_bresp),
+    .m1_bvalid  (d1_bvalid), .m1_bready  (d1_bready),
+    .s_arid     (m1_arid),   .s_araddr   (m1_araddr),
+    .s_arlen    (m1_arlen),  .s_arsize   (m1_arsize),
+    .s_arburst  (m1_arburst),.s_arprot   (m1_arprot),
+    .s_arvalid  (m1_arvalid),.s_arready  (m1_arready),
+    .s_rid      (m1_rid),    .s_rdata    (m1_rdata),
+    .s_rresp    (m1_rresp),  .s_rlast    (m1_rlast),
+    .s_rvalid   (m1_rvalid), .s_rready   (m1_rready),
+    .s_awid     (m1_awid),   .s_awaddr   (m1_awaddr),
+    .s_awlen    (m1_awlen),  .s_awsize   (m1_awsize),
+    .s_awburst  (m1_awburst),.s_awprot   (m1_awprot),
+    .s_awvalid  (m1_awvalid),.s_awready  (m1_awready),
+    .s_wdata    (m1_wdata),  .s_wstrb    (m1_wstrb),
+    .s_wlast    (m1_wlast),  .s_wvalid   (m1_wvalid),
+    .s_wready   (m1_wready),
+    .s_bid      (m1_bid),    .s_bresp    (m1_bresp),
+    .s_bvalid   (m1_bvalid), .s_bready   (m1_bready)
+);
+
+dcache_snoop_arb_3to1 #(
+    .ADDR_WIDTH (ADDR_WIDTH),
+    .DATA_WIDTH (128)
+) u_dcache_snoop_arb (
+    .clk             (clk_core),
+    .rst_n           (fabric_rst_n),
+    .req0_addr       (cpu0_miss_snoop_addr),
+    .req0_cmd        (cpu0_miss_snoop_cmd),
+    .req0_valid      (cpu0_miss_snoop_req_valid),
+    .req0_ready      (cpu0_miss_snoop_req_ready),
+    .req0_resp_valid (cpu0_miss_snoop_resp_valid),
+    .req0_resp_hit   (cpu0_miss_snoop_resp_hit),
+    .req0_resp_data  (cpu0_miss_snoop_resp_data),
+    .req1_addr       (cpu1_miss_snoop_addr),
+    .req1_cmd        (cpu1_miss_snoop_cmd),
+    .req1_valid      (cpu1_miss_snoop_req_valid),
+    .req1_ready      (cpu1_miss_snoop_req_ready),
+    .req1_resp_valid (cpu1_miss_snoop_resp_valid),
+    .req1_resp_hit   (cpu1_miss_snoop_resp_hit),
+    .req1_resp_data  (cpu1_miss_snoop_resp_data),
+    .req2_addr       (dc_snoop_addr),
+    .req2_cmd        (dc_snoop_cmd),
+    .req2_valid      (dc_snoop_req_valid),
+    .req2_ready      (dc_snoop_req_ready),
+    .req2_resp_valid (dc_snoop_resp_valid),
+    .req2_resp_hit   (dc_snoop_resp_hit),
+    .req2_resp_data  (dc_snoop_resp_data),
+    .up_addr         (dc_bus_snoop_addr),
+    .up_cmd          (dc_bus_snoop_cmd),
+    .up_valid        (dc_bus_snoop_req_valid),
+    .up_ready        (dc_bus_snoop_req_ready),
+    .up_resp_valid   (dc_bus_snoop_resp_valid),
+    .up_resp_hit     (dc_bus_snoop_resp_hit),
+    .up_resp_data    (dc_bus_snoop_resp_data)
+);
+
+dcache_snoop_bus_2way #(
+    .ADDR_WIDTH (ADDR_WIDTH),
+    .DATA_WIDTH (128)
+) u_dcache_snoop_bus (
+    .clk               (clk_core),
+    .rst_n             (fabric_rst_n),
+    .up_snoop_addr     (dc_bus_snoop_addr),
+    .up_snoop_cmd      (dc_bus_snoop_cmd),
+    .up_snoop_req_valid(dc_bus_snoop_req_valid),
+    .up_snoop_req_ready(dc_bus_snoop_req_ready),
+    .up_snoop_resp_valid(dc_bus_snoop_resp_valid),
+    .up_snoop_resp_hit (dc_bus_snoop_resp_hit),
+    .up_snoop_resp_data(dc_bus_snoop_resp_data),
+    .dc0_snoop_addr    (dc0_snoop_addr),
+    .dc0_snoop_cmd     (dc0_snoop_cmd),
+    .dc0_snoop_req_valid(dc0_snoop_req_valid),
+    .dc0_snoop_req_ready(dc0_snoop_req_ready),
+    .dc0_snoop_resp_valid(dc0_snoop_resp_valid),
+    .dc0_snoop_resp_hit(dc0_snoop_resp_hit),
+    .dc0_snoop_resp_data(dc0_snoop_resp_data),
+    .dc1_snoop_addr    (dc1_snoop_addr),
+    .dc1_snoop_cmd     (dc1_snoop_cmd),
+    .dc1_snoop_req_valid(dc1_snoop_req_valid),
+    .dc1_snoop_req_ready(dc1_snoop_req_ready),
+    .dc1_snoop_resp_valid(dc1_snoop_resp_valid),
+    .dc1_snoop_resp_hit(dc1_snoop_resp_hit),
+    .dc1_snoop_resp_data(dc1_snoop_resp_data)
 );
 
 // ============================================================================
@@ -1024,6 +1491,14 @@ ascon_ip_top u_ascon (
     .M_AXI_RID      (dma_rid),   .M_AXI_RDATA   (dma_rdata),
     .M_AXI_RRESP    (dma_rresp), .M_AXI_RLAST   (dma_rlast),
     .M_AXI_RVALID   (dma_rvalid),.M_AXI_RREADY  (dma_rready),
+
+    .DC_SNOOP_ADDR       (dc_snoop_addr),
+    .DC_SNOOP_CMD        (dc_snoop_cmd),
+    .DC_SNOOP_REQ_VALID  (dc_snoop_req_valid),
+    .DC_SNOOP_REQ_READY  (dc_snoop_req_ready),
+    .DC_SNOOP_RESP_VALID (dc_snoop_resp_valid),
+    .DC_SNOOP_RESP_HIT   (dc_snoop_resp_hit),
+    .DC_SNOOP_RESP_DATA  (dc_snoop_resp_data),
 
     // // AXI4-Stream (tied off)
     // .s_axis_tdata   (ascon_s_axis_tdata),

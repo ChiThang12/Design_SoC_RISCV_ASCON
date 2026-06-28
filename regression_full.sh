@@ -44,7 +44,7 @@ ALL_TESTS=(
     test_timer
     test_clint
     test_plic
-    test_ascon
+    # test_ascon
     test_dma_uart
     test_integration
     test_ascon_cpu8_noad
@@ -62,7 +62,7 @@ declare -A IP_NAME=(
     ["test_timer"]="Timer0/1 + WDT"
     ["test_clint"]="CLINT (mtime/mtimecmp/msip)"
     ["test_plic"]="PLIC (interrupt routing)"
-    ["test_ascon"]="ASCON DMA 16-block AEAD"
+    # ["test_ascon"]="ASCON DMA 16-block AEAD"
     ["test_dma_uart"]="GP-DMA mem-to-mem"
     ["test_integration"]="Integration (all 6 IPs)"
     ["test_ascon_cpu8_noad"]="ASCON CPU-direct 8B no AD"

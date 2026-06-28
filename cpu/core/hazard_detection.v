@@ -118,11 +118,11 @@ module hazard_detection (
     // New backward branch predicted taken in ID: flush IF/ID, redirect IFU to target
     assign flush_if_id = (branch_taken && !predict_taken_ex) || mispredict_ex || predict_taken_id;
     // [FIX-EX-LOST] Don't flush ID/EX on load_use_hazard when lsu_dep_stall is
-    // also asserted: lsu_dep_stall freezes EX/MEM (stall_ex_mem=lsu_dep_stall),
+    // also asserted or the front-end is stalled: lsu_dep_stall/stall_if freeze EX/MEM,
     // so a flush in this cycle drops the EX-stage instruction (it can't reach
     // EX/MEM register and is cleared from ID/EX). Other flush sources (branch
     // mispredict, fence, mul) must still fire even under EX/MEM stall.
-    assign flush_id_ex = (load_use_hazard && !lsu_dep_stall) ||
+    assign flush_id_ex = (load_use_hazard && !lsu_dep_stall && !imem_stall) ||
                          (branch_taken && !predict_taken_ex) ||
                          mispredict_ex || fence_stall || mul_result_stall;
 

@@ -160,6 +160,7 @@ dcache_top #(
     .cpu_rdata   (cpu_dcache_rdata),
     .cpu_ready   (cpu_dcache_ready),
     .fence_type  (cpu_dcache_fence_type),
+    .miss_snoop_enable(1'b0),
     // Debug
     .current_addr  (dc_debug_addr),
     .current_data  (dc_debug_data),
@@ -196,7 +197,24 @@ dcache_top #(
     .mem_bid     (dc_bid),
     .mem_bresp   (dc_bresp),
     .mem_bvalid  (dc_bvalid),
-    .mem_bready  (dc_bready)
+    .mem_bready  (dc_bready),
+    .dc_snoop_addr(32'h0),
+    .dc_snoop_cmd(2'b00),
+    .dc_snoop_req_valid(1'b0),
+    .dc_snoop_req_ready(),
+    .dc_snoop_resp_valid(),
+    .dc_snoop_resp_hit(),
+    .dc_snoop_resp_data(),
+    .miss_snoop_addr(),
+    .miss_snoop_cmd(),
+    .miss_snoop_req_valid(),
+    .miss_snoop_req_ready(1'b0),
+    .miss_snoop_resp_valid(1'b0),
+    .miss_snoop_resp_hit(1'b0),
+    .miss_snoop_resp_data(128'h0),
+    .stat_hits(),
+    .stat_misses(),
+    .stat_writes()
 );
 
 // ---------------------------------------------------------------------------

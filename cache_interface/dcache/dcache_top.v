@@ -30,6 +30,7 @@ module dcache_top #(
     output wire                  cpu_ready,
     // fence_type[0]=flush-dirty  fence_type[1]=invalidate-read
     input  wire [1:0]            fence_type,
+    input  wire                  miss_snoop_enable,
 
     // Debug
     output wire [ADDR_WIDTH-1:0] current_addr,
@@ -82,6 +83,25 @@ module dcache_top #(
     output wire                  mem_bready,
 
     // ========================================================================
+    // Sideband snoop interface from coherent DMA
+    // ========================================================================
+    input  wire [ADDR_WIDTH-1:0] dc_snoop_addr,
+    input  wire [1:0]            dc_snoop_cmd,
+    input  wire                  dc_snoop_req_valid,
+    output wire                  dc_snoop_req_ready,
+    output wire                  dc_snoop_resp_valid,
+    output wire                  dc_snoop_resp_hit,
+    output wire [127:0]          dc_snoop_resp_data,
+
+    output wire [ADDR_WIDTH-1:0] miss_snoop_addr,
+    output wire [1:0]            miss_snoop_cmd,
+    output wire                  miss_snoop_req_valid,
+    input  wire                  miss_snoop_req_ready,
+    input  wire                  miss_snoop_resp_valid,
+    input  wire                  miss_snoop_resp_hit,
+    input  wire [127:0]          miss_snoop_resp_data,
+
+    // ========================================================================
     // Statistics
     // ========================================================================
     output wire [31:0] stat_hits,
@@ -97,6 +117,7 @@ module dcache_top #(
     wire        tag_hit;
     wire        tag_dirty_out;
     wire [21:0] tag_evict_tag_out;
+    wire [1:0]  tag_state_out;
     wire        tag_update_valid;
     wire [5:0]  tag_update_index;
     wire [21:0] tag_update_tag;
@@ -105,6 +126,10 @@ module dcache_top #(
     wire        tag_dirty_set;
     wire        tag_dirty_clear;
     wire [5:0]  tag_dirty_index;
+    wire        tag_line_shared;
+    wire [5:0]  tag_line_shared_index;
+    wire        tag_line_invalidate;
+    wire [5:0]  tag_line_invalidate_index;
 
     // ========================================================================
     // Internal Signals — Data Array
@@ -158,12 +183,17 @@ module dcache_top #(
         .hit            (tag_hit),
         .dirty_out      (tag_dirty_out),
         .evict_tag_out  (tag_evict_tag_out),
+        .state_out      (tag_state_out),
         .update_valid   (tag_update_valid),
         .update_index   (tag_update_index),
         .update_tag     (tag_update_tag),
         .dirty_set      (tag_dirty_set),
         .dirty_clear    (tag_dirty_clear),
         .dirty_index    (tag_dirty_index),
+        .line_shared    (tag_line_shared),
+        .line_shared_index(tag_line_shared_index),
+        .line_invalidate(tag_line_invalidate),
+        .line_invalidate_index(tag_line_invalidate_index),
         .flush_all      (tag_flush_all),
         .invalidate_all (tag_invalidate_all)
     );
@@ -256,6 +286,7 @@ module dcache_top #(
         .cpu_rdata          (cpu_rdata),
         .cpu_ready          (cpu_ready),
         .fence_type         (fence_type),
+        .miss_snoop_enable  (miss_snoop_enable),
 
         .current_addr       (current_addr),
         .current_data       (current_data),
@@ -266,6 +297,7 @@ module dcache_top #(
         .tag_hit            (tag_hit),
         .tag_dirty_out      (tag_dirty_out),
         .tag_evict_tag_out  (tag_evict_tag_out),
+        .tag_state_out      (tag_state_out),
         .tag_update_valid   (tag_update_valid),
         .tag_update_index   (tag_update_index),
         .tag_update_tag     (tag_update_tag),
@@ -274,6 +306,10 @@ module dcache_top #(
         .tag_dirty_set      (tag_dirty_set),
         .tag_dirty_clear    (tag_dirty_clear),
         .tag_dirty_index    (tag_dirty_index),
+        .tag_line_shared    (tag_line_shared),
+        .tag_line_shared_index(tag_line_shared_index),
+        .tag_line_invalidate(tag_line_invalidate),
+        .tag_line_invalidate_index(tag_line_invalidate_index),
 
         .data_read_index    (data_read_index),
         .data_read_offset   (data_read_offset),
@@ -309,6 +345,21 @@ module dcache_top #(
         .evict_wstrb_nc     (evict_wstrb_nc),
         .evict_busy         (evict_busy),
         .evict_done         (evict_done),
+
+        .dc_snoop_addr      (dc_snoop_addr),
+        .dc_snoop_cmd       (dc_snoop_cmd),
+        .dc_snoop_req_valid (dc_snoop_req_valid),
+        .dc_snoop_req_ready (dc_snoop_req_ready),
+        .dc_snoop_resp_valid(dc_snoop_resp_valid),
+        .dc_snoop_resp_hit  (dc_snoop_resp_hit),
+        .dc_snoop_resp_data (dc_snoop_resp_data),
+        .miss_snoop_addr    (miss_snoop_addr),
+        .miss_snoop_cmd     (miss_snoop_cmd),
+        .miss_snoop_req_valid(miss_snoop_req_valid),
+        .miss_snoop_req_ready(miss_snoop_req_ready),
+        .miss_snoop_resp_valid(miss_snoop_resp_valid),
+        .miss_snoop_resp_hit(miss_snoop_resp_hit),
+        .miss_snoop_resp_data(miss_snoop_resp_data),
 
         .stat_hits          (stat_hits),
         .stat_misses        (stat_misses),

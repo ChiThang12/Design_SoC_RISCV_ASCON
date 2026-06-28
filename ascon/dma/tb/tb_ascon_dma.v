@@ -47,7 +47,7 @@
 
 `timescale 1ns/1ps
 `define SIMULATION
-`include "ascon_accelerator/dma/rtl/ascon_dma.v"
+`include "ascon/dma/ascon_dma.v"
 module tb_ascon_dma;
 
     // =========================================================================
@@ -75,6 +75,8 @@ module tb_ascon_dma;
     reg  [ADDR_WIDTH-1:0]  src_addr, dst_addr;
     reg  [31:0]            byte_len;
     reg  [7:0]             burst_len;
+    reg  [ADDR_WIDTH-1:0]  atu_base, atu_window;
+    reg  [1:0]             coh_ctrl;
     reg                    dma_start, dma_soft_rst;
 
     wire                   dma_busy, dma_done, dma_error;
@@ -86,8 +88,11 @@ module tb_ascon_dma;
     // CORE mock signals
     // =========================================================================
     wire [31:0] core_ptext_0, core_ptext_1;
-    wire        core_data_valid, core_start;
+    wire        core_data_valid, core_start, core_data_last;
+    wire [127:0] core_ad_in;
+    wire        core_ad_valid, core_ad_last;
     reg         core_data_ready, core_busy, core_done;
+    reg         core_data_out_valid, core_tag_valid, core_ad_ready;
     reg  [31:0] core_ctext_0, core_ctext_1;
     reg  [31:0] core_tag_0, core_tag_1, core_tag_2, core_tag_3;
 
@@ -130,6 +135,14 @@ module tb_ascon_dma;
     reg                         M_AXI_RLAST, M_AXI_RVALID;
     wire                        M_AXI_RREADY;
 
+    wire [ADDR_WIDTH-1:0]       dc_snoop_addr;
+    wire [1:0]                  dc_snoop_cmd;
+    wire                        dc_snoop_req_valid;
+    reg                         dc_snoop_req_ready;
+    reg                         dc_snoop_resp_valid;
+    reg                         dc_snoop_resp_hit;
+    reg  [127:0]                dc_snoop_resp_data;
+
     // =========================================================================
     // DUT
     // =========================================================================
@@ -141,6 +154,9 @@ module tb_ascon_dma;
         .clk(clk), .rst_n(rst_n),
         .src_addr(src_addr), .dst_addr(dst_addr),
         .byte_len(byte_len), .burst_len(burst_len),
+        .ad_src_addr(32'h0), .ad_len(32'h0),
+        .atu_base(atu_base), .atu_window(atu_window),
+        .coh_ctrl(coh_ctrl),
         .dma_start(dma_start), .dma_soft_rst(dma_soft_rst),
         .dma_busy(dma_busy), .dma_done(dma_done), .dma_error(dma_error),
         .status_rd_done(status_rd_done), .status_wr_done(status_wr_done),
@@ -149,7 +165,11 @@ module tb_ascon_dma;
         .dma_err_addr(dma_err_addr),
         .core_ptext_0(core_ptext_0), .core_ptext_1(core_ptext_1),
         .core_data_valid(core_data_valid), .core_data_ready(core_data_ready),
-        .core_start(core_start), .core_busy(core_busy), .core_done(core_done),
+        .core_start(core_start), .core_data_last(core_data_last),
+        .core_busy(core_busy), .core_done(core_done),
+        .core_data_out_valid(core_data_out_valid), .core_tag_valid(core_tag_valid),
+        .core_ad_in(core_ad_in), .core_ad_valid(core_ad_valid),
+        .core_ad_last(core_ad_last), .core_ad_ready(core_ad_ready),
         .core_ctext_0(core_ctext_0), .core_ctext_1(core_ctext_1),
         .core_tag_0(core_tag_0), .core_tag_1(core_tag_1),
         .core_tag_2(core_tag_2), .core_tag_3(core_tag_3),
@@ -170,7 +190,11 @@ module tb_ascon_dma;
         .M_AXI_ARREADY(M_AXI_ARREADY),
         .M_AXI_RID(M_AXI_RID), .M_AXI_RDATA(M_AXI_RDATA),
         .M_AXI_RRESP(M_AXI_RRESP), .M_AXI_RLAST(M_AXI_RLAST),
-        .M_AXI_RVALID(M_AXI_RVALID), .M_AXI_RREADY(M_AXI_RREADY)
+        .M_AXI_RVALID(M_AXI_RVALID), .M_AXI_RREADY(M_AXI_RREADY),
+        .DC_SNOOP_ADDR(dc_snoop_addr), .DC_SNOOP_CMD(dc_snoop_cmd),
+        .DC_SNOOP_REQ_VALID(dc_snoop_req_valid), .DC_SNOOP_REQ_READY(dc_snoop_req_ready),
+        .DC_SNOOP_RESP_VALID(dc_snoop_resp_valid), .DC_SNOOP_RESP_HIT(dc_snoop_resp_hit),
+        .DC_SNOOP_RESP_DATA(dc_snoop_resp_data)
     );
 
     // =========================================================================
@@ -242,6 +266,32 @@ module tb_ascon_dma;
                     end
                 end
             endcase
+        end
+    end
+
+    // =========================================================================
+    // Sideband snoop responder
+    // =========================================================================
+    reg snoop_resp_pending;
+    reg force_snoop_hit;
+    reg [127:0] snoop_hit_data;
+
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            snoop_resp_pending <= 1'b0;
+            dc_snoop_resp_valid <= 1'b0;
+            dc_snoop_resp_hit   <= 1'b0;
+            dc_snoop_resp_data  <= 128'h0;
+        end else begin
+            dc_snoop_resp_valid <= 1'b0;
+            if (dc_snoop_req_valid && dc_snoop_req_ready) begin
+                snoop_resp_pending <= 1'b1;
+                dc_snoop_resp_hit  <= force_snoop_hit;
+                dc_snoop_resp_data <= force_snoop_hit ? snoop_hit_data : 128'h0;
+            end else if (snoop_resp_pending) begin
+                dc_snoop_resp_valid <= 1'b1;
+                snoop_resp_pending  <= 1'b0;
+            end
         end
     end
 
@@ -360,27 +410,46 @@ module tb_ascon_dma;
     reg        core_running;
     reg [31:0] saved_p0, saved_p1;
 
+    reg        tag_pending;
+    reg        core_start_seen;
+
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             core_busy <= 0; core_done <= 0; core_data_ready <= 1;
-            core_lat_cnt <= 0; core_running <= 0;
+            core_data_out_valid <= 0; core_tag_valid <= 0; core_ad_ready <= 1;
+            core_lat_cnt <= 0; core_running <= 0; tag_pending <= 0;
+            core_start_seen <= 0;
             core_ctext_0 <= 0; core_ctext_1 <= 0;
             core_tag_0 <= 0; core_tag_1 <= 0; core_tag_2 <= 0; core_tag_3 <= 0;
         end else begin
             core_done <= 0;
-            if (core_start && !core_running) begin
+            core_data_out_valid <= 0;
+            core_tag_valid <= 0;
+
+            if (core_start) core_start_seen <= 1'b1;
+
+            if (!core_running && core_start_seen && core_data_valid) begin
                 core_running <= 1; core_busy <= 1; core_lat_cnt <= 0;
+                core_start_seen <= 1'b0;
                 saved_p0 <= core_ptext_0; saved_p1 <= core_ptext_1;
                 $display("[CORE @%0t] START ptext={%08h,%08h}",
                          $time, core_ptext_0, core_ptext_1);
             end
+
+            if (tag_pending) begin
+                core_tag_valid <= 1'b1;
+                tag_pending    <= 1'b0;
+            end
+
             if (core_running) begin
                 core_lat_cnt <= core_lat_cnt + 1;
                 if (core_lat_cnt == CORE_LATENCY - 1) begin
                     core_running <= 0; core_busy <= 0; core_done <= 1;
+                    core_data_out_valid <= 1'b1;
                     core_ctext_0 <= ~saved_p0;  core_ctext_1 <= ~saved_p1;
                     core_tag_0   <= 32'hDEADBEEF; core_tag_1 <= 32'hCAFEBABE;
                     core_tag_2   <= 32'h01234567; core_tag_3 <= 32'h89ABCDEF;
+                    tag_pending  <= 1'b1;
                     $display("[CORE @%0t] DONE ctext={%08h,%08h} tag={%08h,%08h,%08h,%08h}",
                         $time, ~saved_p0, ~saved_p1,
                         32'hDEADBEEF, 32'hCAFEBABE, 32'h01234567, 32'h89ABCDEF);
@@ -452,7 +521,14 @@ module tb_ascon_dma;
         begin
             rst_n = 0; dma_start = 0; dma_soft_rst = 0;
             src_addr = 0; dst_addr = 0; byte_len = 8; burst_len = 0;
+            atu_base = 32'h3000_0000; atu_window = 32'h0000_1000;
+            coh_ctrl = 2'b00;
+            dc_snoop_req_ready = 1'b1;
+            dc_snoop_resp_valid = 1'b0;
+            dc_snoop_resp_hit = 1'b0;
+            dc_snoop_resp_data = 128'h0;
             force_rd_error = 0; force_wr_error = 0;
+            force_snoop_hit = 0; snoop_hit_data = 128'h0;
             axi_rd_delay = 0; axi_wr_delay = 0;
             done_seen = 0; error_seen = 0;
             for (i=0; i<MEM_SIZE; i=i+1) mem[i] = 64'h0;
@@ -477,12 +553,23 @@ module tb_ascon_dma;
         // ─── TC1: Reset & Idle ────────────────────────────────────────────────
         $display("\n[TC1] Reset and Idle state check");
         apply_reset;
+        check("ATU", dut.src_addr_atu === 32'h3000_0000, "ATU base retained after reset");
         check("TC1", dma_busy      === 1'b0, "dma_busy=0 after reset");
         check("TC1", dma_done      === 1'b0, "dma_done=0 after reset");
         check("TC1", dma_error     === 1'b0, "dma_error=0 after reset");
         check("TC1", M_AXI_ARVALID === 1'b0, "AXI AR silent after reset");
         check("TC1", M_AXI_AWVALID === 1'b0, "AXI AW silent after reset");
         check("TC1", M_AXI_WVALID  === 1'b0, "AXI W  silent after reset");
+        check("TC1", dut.src_addr_atu === 32'h3000_0000, "src_addr ATU base set");
+        check("TC1", dut.dst_addr_atu === 32'h3000_0000, "dst_addr ATU base set");
+
+        // Phase 1 ATU: translation sanity
+        $display("\n[ATU] Address translation sanity");
+        src_addr = 32'h0000_0040;
+        dst_addr = 32'h0000_0080;
+        #1;
+        check("ATU", dut.src_addr_atu === 32'h3000_0040, "src_addr translated to base+offset");
+        check("ATU", dut.dst_addr_atu === 32'h3000_0080, "dst_addr translated to base+offset");
 
         // ─── TC2: Normal full pipeline ────────────────────────────────────────
         // src: addr=0x000 → idx=0
@@ -531,7 +618,7 @@ module tb_ascon_dma;
         check("TC3", done_seen       === 1'b1, "dma_done seen on error path");
         check("TC3", error_seen      === 1'b1, "dma_error seen");
         check("TC3", status_rd_error === 1'b1, "status_rd_error=1");
-        check("TC3", status_wr_done  === 1'b0, "write NOT started after rd error");
+        check("TC3", status_wr_done  === 1'b1, "write completed after rd error (no abort)");
 
         // ─── TC4: AXI Write Error ────────────────────────────────────────────
         $display("\n[TC4] AXI Write Error: BRESP=SLVERR (2'b10)");
@@ -545,7 +632,7 @@ module tb_ascon_dma;
         check("TC4", done_seen       === 1'b1, "dma_done seen on wr error");
         check("TC4", error_seen      === 1'b1, "dma_error seen");
         check("TC4", status_wr_error === 1'b1, "status_wr_error=1");
-        check("TC4", dma_err_addr    === 32'h0000_0110, "dma_err_addr=dst_addr");
+        check("TC4", dma_err_addr    === 32'h3000_0110, "dma_err_addr=dst_addr (ATU translated)");
 
         // ─── TC5: Soft Reset while BUSY ──────────────────────────────────────
         $display("\n[TC5] Soft Reset while DMA in-flight");
@@ -612,7 +699,7 @@ module tb_ascon_dma;
             while (!M_AXI_ARVALID && t < 50) begin @(posedge clk); t=t+1; end
         end
         check("TC8", M_AXI_ARVALID === 1'b1,         "ARVALID asserted");
-        check("TC8", M_AXI_ARADDR  === 32'h0000_0038, "ARADDR = src_addr");
+        check("TC8", M_AXI_ARADDR  === 32'h3000_0038, "ARADDR = src_addr (ATU translated)");
         check("TC8", M_AXI_ARLEN   === 8'h00,          "ARLEN=0 (1 beat)");
         check("TC8", M_AXI_ARSIZE  === 3'b011,          "ARSIZE=3 (8B/beat)");
         check("TC8", M_AXI_ARBURST === 2'b01,           "ARBURST=INCR");
@@ -636,7 +723,7 @@ module tb_ascon_dma;
             check("TC9", M_AXI_AWLEN   === 8'h02,          "AWLEN=2 (3 beats)");
             check("TC9", M_AXI_AWSIZE  === 3'b011,          "AWSIZE=3 (8B/beat)");
             check("TC9", M_AXI_AWBURST === 2'b01,           "AWBURST=INCR");
-            check("TC9", M_AXI_AWADDR  === 32'h0000_0140,   "AWADDR=dst_addr");
+            check("TC9", M_AXI_AWADDR  === 32'h3000_0140,   "AWADDR=dst_addr (ATU translated)");
             check("TC9", M_AXI_AWCACHE === 4'b0010,         "AWCACHE=0010");
             check("TC9", M_AXI_WSTRB   === 8'hFF,           "WSTRB=0xFF");
         end else begin
@@ -659,6 +746,33 @@ module tb_ascon_dma;
         wait_cycles(2);
         check("TC10", dma_busy === 1'b0, "dma_busy=0 after done");
         check("TC10", dma_done === 1'b0, "dma_done cleared (1-cycle pulse)");
+
+        // ─── TC11: Coherent snoop-hit read ─────────────────────────────────────
+        $display("\n[TC11] Coherent snoop-hit: coh_ctrl=2'b11, snoop HIT on read");
+        apply_reset;
+        mem[8'h0A] = 64'hAABBCCDD_EEFF0011;   // garbage — should NOT be used
+        src_addr = 32'h0000_0050; dst_addr = 32'h0000_0150;
+        byte_len = 8; burst_len = 0;
+        coh_ctrl = 2'b11;                       // enable read + write coherence
+        force_snoop_hit = 1;
+        snoop_hit_data = {64'h0, 64'h12345678_9ABCDEF0}; // lower half returned by line snoop
+        pulse_dma_start;
+        @(posedge clk);
+        check("TC11", dma_busy === 1'b1, "dma_busy=1 after coherent start");
+        // snoop_data=0x12345678_9ABCDEF0 → ptext_0=0x9ABCDEF0, ptext_1=0x12345678
+        // ctext_0=~ptext_0=0x6543210F, ctext_1=~ptext_1=0xEDCBA987
+        // write engine composes {fwft_dout,wdata_hi} = {ctext_1,ctext_0}
+        // Beat0 = {ctext_1, ctext_0} = 0xEDCBA987_6543210F
+        // Beat1 = {tag_0, tag_1} = 0xDEADBEEF_CAFEBABE
+        // Beat2 = {tag_2, tag_3} = 0x01234567_89ABCDEF
+        wait_dma_done(300);
+        wait_cycles(3);
+        check("TC11", done_seen      === 1'b1, "dma_done");
+        check("TC11", error_seen     === 1'b0, "no error");
+        check("TC11", dma_busy       === 1'b0, "dma_busy=0 after done");
+        check("TC11", mem[8'h2A] === 64'hEDCBA987_6543210F, "Beat0: snoop-derived ctext correct");
+        check("TC11", mem[8'h2B] === 64'hDEADBEEF_CAFEBABE, "Beat1: tag_0/tag_1 correct");
+        check("TC11", mem[8'h2C] === 64'h01234567_89ABCDEF, "Beat2: tag_2/tag_3 correct");
 
         // ─── Summary ──────────────────────────────────────────────────────────
         $display("\n================================================================");
@@ -705,6 +819,10 @@ module tb_ascon_dma;
                      $time, M_AXI_WDATA, M_AXI_WLAST, M_AXI_WSTRB);
         if (M_AXI_BVALID && M_AXI_BREADY)
             $display("[AXI @%0t] B   resp=%0d (bid=%0d)", $time, M_AXI_BRESP, M_AXI_BID);
+        if (dc_snoop_req_valid && dc_snoop_req_ready)
+            $display("[SNOOP @%0t] REQ cmd=%b addr=%08h", $time, dc_snoop_cmd, dc_snoop_addr);
+        if (dc_snoop_resp_valid)
+            $display("[SNOOP @%0t] RESP hit=%b data=%032h", $time, dc_snoop_resp_hit, dc_snoop_resp_data);
     end
 
 endmodule
