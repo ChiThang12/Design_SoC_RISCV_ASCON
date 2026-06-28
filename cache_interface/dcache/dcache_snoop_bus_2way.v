@@ -48,6 +48,7 @@ module dcache_snoop_bus_2way #(
     reg                  dc1_hit_r;
     reg [DATA_WIDTH-1:0] dc0_data_r;
     reg [DATA_WIDTH-1:0] dc1_data_r;
+    reg                  warn_collision_r;
 
     assign up_snoop_req_ready = (state == ST_IDLE);
 
@@ -72,6 +73,7 @@ module dcache_snoop_bus_2way #(
             dc1_hit_r          <= 1'b0;
             dc0_data_r         <= {DATA_WIDTH{1'b0}};
             dc1_data_r         <= {DATA_WIDTH{1'b0}};
+            warn_collision_r   <= 1'b0;
             up_snoop_resp_valid <= 1'b0;
             up_snoop_resp_hit   <= 1'b0;
             up_snoop_resp_data  <= {DATA_WIDTH{1'b0}};
@@ -91,11 +93,24 @@ module dcache_snoop_bus_2way #(
                         dc1_hit_r       <= 1'b0;
                         dc0_data_r      <= {DATA_WIDTH{1'b0}};
                         dc1_data_r      <= {DATA_WIDTH{1'b0}};
+                        warn_collision_r<= 1'b0;
                         state           <= ST_REQ;
                     end
                 end
 
                 ST_REQ: begin
+                    if (dc0_wait_resp_r && dc0_snoop_resp_valid) begin
+                        dc0_wait_resp_r <= 1'b0;
+                        dc0_hit_r       <= dc0_snoop_resp_hit;
+                        dc0_data_r      <= dc0_snoop_resp_data;
+                    end
+
+                    if (dc1_wait_resp_r && dc1_snoop_resp_valid) begin
+                        dc1_wait_resp_r <= 1'b0;
+                        dc1_hit_r       <= dc1_snoop_resp_hit;
+                        dc1_data_r      <= dc1_snoop_resp_data;
+                    end
+
                     if (!dc0_sent_r && dc0_snoop_req_ready) begin
                         dc0_sent_r      <= 1'b1;
                         dc0_wait_resp_r <= 1'b1;
@@ -127,6 +142,15 @@ module dcache_snoop_bus_2way #(
 
                     if ((!dc0_wait_resp_r || dc0_snoop_resp_valid) &&
                         (!dc1_wait_resp_r || dc1_snoop_resp_valid)) begin
+                        if ((dc0_wait_resp_r ? dc0_snoop_resp_hit : dc0_hit_r) &&
+                            (dc1_wait_resp_r ? dc1_snoop_resp_hit : dc1_hit_r) &&
+                            ((dc0_wait_resp_r ? dc0_snoop_resp_data : dc0_data_r) !=
+                             (dc1_wait_resp_r ? dc1_snoop_resp_data : dc1_data_r)) &&
+                            !warn_collision_r) begin
+                            warn_collision_r <= 1'b1;
+                            $display("[WARN] dcache_snoop_bus_2way: conflicting data returned by both caches for addr=%08x cmd=%0d",
+                                     snoop_addr_r, snoop_cmd_r);
+                        end
                         up_snoop_resp_valid <= 1'b1;
                         up_snoop_resp_hit   <= (dc0_wait_resp_r ? dc0_snoop_resp_hit : dc0_hit_r) |
                                                (dc1_wait_resp_r ? dc1_snoop_resp_hit : dc1_hit_r);

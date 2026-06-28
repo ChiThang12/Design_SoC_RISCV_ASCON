@@ -83,7 +83,7 @@ module dcache_next_state (
             end
 
             DCACHE_STATE_PEER_SNOOP: begin
-                if (miss_snoop_accepted && miss_snoop_resp_valid) begin
+                if (miss_snoop_resp_valid) begin
                     if (local_miss_dirty)
                         next_state = DCACHE_STATE_EVICT;
                     else

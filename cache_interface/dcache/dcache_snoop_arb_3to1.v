@@ -47,20 +47,69 @@ module dcache_snoop_arb_3to1 #(
 
     reg        wait_resp_r;
     reg [1:0]  owner_r;
+    reg [1:0]  last_grant_r;
 
-    wire pick0 = req0_valid;
-    wire pick1 = !req0_valid && req1_valid;
-    wire pick2 = !req0_valid && !req1_valid && req2_valid;
+    reg  [1:0] grant_owner_w;
+    reg        grant_valid_w;
 
-    assign up_valid = !wait_resp_r && (pick0 || pick1 || pick2);
-    assign up_addr  = pick0 ? req0_addr :
-                      pick1 ? req1_addr : req2_addr;
-    assign up_cmd   = pick0 ? req0_cmd  :
-                      pick1 ? req1_cmd  : req2_cmd;
+    localparam [1:0]
+        LAST_REQ2 = OWN_REQ2;
 
-    assign req0_ready = !wait_resp_r && pick0 && up_ready;
-    assign req1_ready = !wait_resp_r && pick1 && up_ready;
-    assign req2_ready = !wait_resp_r && pick2 && up_ready;
+    always @(*) begin
+        grant_owner_w = OWN_REQ0;
+        grant_valid_w = 1'b0;
+
+        case (last_grant_r)
+            OWN_REQ0: begin
+                if (req1_valid) begin
+                    grant_owner_w = OWN_REQ1;
+                    grant_valid_w = 1'b1;
+                end else if (req2_valid) begin
+                    grant_owner_w = OWN_REQ2;
+                    grant_valid_w = 1'b1;
+                end else if (req0_valid) begin
+                    grant_owner_w = OWN_REQ0;
+                    grant_valid_w = 1'b1;
+                end
+            end
+
+            OWN_REQ1: begin
+                if (req2_valid) begin
+                    grant_owner_w = OWN_REQ2;
+                    grant_valid_w = 1'b1;
+                end else if (req0_valid) begin
+                    grant_owner_w = OWN_REQ0;
+                    grant_valid_w = 1'b1;
+                end else if (req1_valid) begin
+                    grant_owner_w = OWN_REQ1;
+                    grant_valid_w = 1'b1;
+                end
+            end
+
+            default: begin
+                if (req0_valid) begin
+                    grant_owner_w = OWN_REQ0;
+                    grant_valid_w = 1'b1;
+                end else if (req1_valid) begin
+                    grant_owner_w = OWN_REQ1;
+                    grant_valid_w = 1'b1;
+                end else if (req2_valid) begin
+                    grant_owner_w = OWN_REQ2;
+                    grant_valid_w = 1'b1;
+                end
+            end
+        endcase
+    end
+
+    assign up_valid = !wait_resp_r && grant_valid_w;
+    assign up_addr  = (grant_owner_w == OWN_REQ0) ? req0_addr :
+                      (grant_owner_w == OWN_REQ1) ? req1_addr : req2_addr;
+    assign up_cmd   = (grant_owner_w == OWN_REQ0) ? req0_cmd  :
+                      (grant_owner_w == OWN_REQ1) ? req1_cmd  : req2_cmd;
+
+    assign req0_ready = !wait_resp_r && grant_valid_w && (grant_owner_w == OWN_REQ0) && up_ready;
+    assign req1_ready = !wait_resp_r && grant_valid_w && (grant_owner_w == OWN_REQ1) && up_ready;
+    assign req2_ready = !wait_resp_r && grant_valid_w && (grant_owner_w == OWN_REQ2) && up_ready;
 
     assign req0_resp_valid = wait_resp_r && (owner_r == OWN_REQ0) && up_resp_valid;
     assign req1_resp_valid = wait_resp_r && (owner_r == OWN_REQ1) && up_resp_valid;
@@ -77,15 +126,12 @@ module dcache_snoop_arb_3to1 #(
         if (!rst_n) begin
             wait_resp_r <= 1'b0;
             owner_r     <= OWN_REQ0;
+            last_grant_r <= LAST_REQ2;
         end else begin
             if (!wait_resp_r && up_valid && up_ready) begin
                 wait_resp_r <= 1'b1;
-                if (pick1)
-                    owner_r <= OWN_REQ1;
-                else if (pick2)
-                    owner_r <= OWN_REQ2;
-                else
-                    owner_r <= OWN_REQ0;
+                owner_r     <= grant_owner_w;
+                last_grant_r <= grant_owner_w;
             end else if (wait_resp_r && up_resp_valid) begin
                 wait_resp_r <= 1'b0;
             end

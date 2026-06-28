@@ -5,20 +5,34 @@ Scope:
 - Focused on the first RTL files that should change for the dual-core + snoop coherency plan
 
 Current status note:
-- The repo now has a directed protocol TB at `cache_interface/dcache/tb/tb_dcache_dualcore_protocol.v`
-- That TB proves the responder side of `CPU0 write -> CPU1 observe` through the existing snoop path
-- `soc_top.v` still lacks an automatic CPU-miss-driven cache-to-cache snoop initiator, so end-to-end CPU-CPU ownership transfer is not fully wired at top level yet
+- The repo now has a protocol TB at `cache_interface/dcache/tb/tb_dcache_dualcore_protocol.v`
+- That TB proves automatic `CPU1 read miss -> peer snoop -> dirty owner writeback/invalidate -> CPU1 refill latest data`
+- The same TB also proves DMA-style coherent read and invalidate through the shared snoop path
+- The repo also has `ascon/dma/tb/tb_ascon_dma.v` passing `66 PASS / 0 FAIL`
+- The snoop interconnect was refreshed and re-verified:
+  - `dcache_snoop_arb_3to1` now rotates grants more fairly
+  - `dma_snoop_arb` no longer locks into fixed read-over-write preference
+  - `dcache_snoop_bus_2way` now captures responder data more defensively and warns on conflicting dual-hit payloads
+- `soc_top.v` now wires CPU-miss-driven snoop initiators from both DCache instances through a 3-source snoop arbiter
+- `test_dualcore_peer_snoop` now proves `CPU0 dirty write -> CPU1 read same line` at firmware/top-level level
+- Remaining gap: full ASCON DMA engine end-to-end coherency is not complete yet
+- There is now an experimental SoC-level firmware/TB attempt:
+  - `gnu_toolchain/tests_dualcore/test_dualcore_ascon_dma_coherent.c`
+  - `tb_soc/tb_soc_dualcore_suite.v` optional GPIO-based completion check
+  - current verification still times out, so this is not a closed proof yet
 
 ## 1) Top-level integration first
 
 ### `soc_top.v`
 - Why it comes first: this is where the current CPU, ICache, DCache, DMA, and crossbar are wired together.
-- Likely changes:
-  - Instantiate `CPU Core 1`, `ICache 1`, and `DCache 1`
-  - Add the new snoop/coherency interconnect
-  - Duplicate or extend clock/reset wiring for the second core
-  - Route the new DCache snoop ports and DMA coherency ports
-  - Update debug/perf signals if you want per-core visibility
+- Status:
+  - `CPU Core 1`, `ICache 1`, and `DCache 1` are integrated.
+  - The shared snoop/coherency interconnect is present.
+  - CPU miss-snoop ports are routed through the arbiter.
+  - `CPU1` has `mhartid = 1` and shared IRQ/debug request wiring.
+- Follow-up:
+  - Add stronger per-core debug/perf visibility if the paper needs it.
+  - Add full ASCON DMA engine end-to-end coherency proof.
 
 ### `interconnect/axi4_crossbar_5m12s.v`
 - Why it matters: the current fabric is 5 masters; dual-core needs at least one more master path.
@@ -44,18 +58,20 @@ Current status note:
 
 ### `cache_interface/dcache/dcache_controller.v`
 - Why it is critical: this FSM already owns refill, eviction, fence, and snoop sideband handling.
-- Likely changes:
-  - Add explicit snoop states for read, invalidate, and response capture
-  - Handle cache-to-cache transfer cases
-  - Gate CPU requests while snoop traffic is active
-  - Make sure writeback / invalidate ordering is safe
+- Status:
+  - Explicit snoop handling for read/invalidate/response exists.
+  - Peer miss-snoop state exists for cacheable read misses.
+  - Dirty owner writeback/invalidate ordering is covered by protocol TB.
+- Follow-up:
+  - Direct cache-to-cache data forwarding is not implemented; current safe path is writeback/invalidate followed by refill.
+  - Keep stress-testing race cases between CPU request, flush, and snoop traffic.
 
 ### `cache_interface/dcache/dcache_top.v`
 - Why it is the integration point: it connects tag array, data array, controller, AXI interface, and sideband snoop ports.
-- Likely changes:
-  - Thread the new MESI/snoop signals through the top
-  - Expose per-cache coherency ports for the bus/controller
-  - Keep current CPU-facing API stable if possible
+- Status:
+  - MESI/snoop signals are threaded through the top.
+  - Per-cache snoop responder and miss-snoop initiator ports are exposed.
+  - CPU-facing API remains stable.
 
 ### `cache_interface/dcache/dcache_axi_interface.v`
 - Why it is likely to need follow-up edits: refill/evict timing already has delicate cycle-level behavior.
@@ -101,10 +117,11 @@ Current status note:
 
 ### `ascon/dma/rtl/dma_snoop_arb.v`
 - Why it matters: this arbiter likely becomes the place where request ordering is serialized.
-- Likely changes:
-  - Support multiple snoop targets
-  - Resolve read-vs-write snoop arbitration cleanly
-  - Keep response collection deterministic
+- Status:
+  - Read-vs-write snoop arbitration has been updated to a fairer alternation policy.
+  - Standalone DMA TB still passes after the update.
+- Follow-up:
+  - Add contention-focused measurement at SoC level if the paper needs fairness numbers.
 
 ### `ascon/ascon_top.v`
 - Why it matters: it is the integration point for ASCON core, DMA, and the slave register bank.
@@ -123,9 +140,11 @@ Current status note:
 
 ### `cpu/riscv_cpu_core_v2.v`
 - Why it is on the list: the current core already emits `dcache_req`, `dcache_we`, and `fence_type`.
-- Likely changes:
-  - Probably minimal for the first pass
-  - Only add ports if you need per-core ID, extra debug, or explicit coherency hooks
+- Status:
+  - Core has `HART_ID` parameter.
+  - `mhartid` CSR returns the configured hart ID.
+- Follow-up:
+  - Add more debug/perf hooks only if the paper needs per-core visibility.
 
 ### `cpu/core/LSU.v`
 - Why it is relevant: LSU is the place where loads/stores, fences, and bypass behavior meet the DCache handshake.

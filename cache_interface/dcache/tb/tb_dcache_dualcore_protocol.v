@@ -1,6 +1,7 @@
 `timescale 1ns/1ps
 `include "cache_interface/dcache/dcache_top.v"
 `include "cache_interface/dcache/dcache_snoop_bus_2way.v"
+`include "cache_interface/dcache/dcache_snoop_arb_3to1.v"
 
 module tb_dcache_dualcore_protocol;
     localparam [1:0] STATE_I = 2'b00;
@@ -53,6 +54,22 @@ module tb_dcache_dualcore_protocol;
     wire        up_snoop_resp_valid;
     wire        up_snoop_resp_hit;
     wire [127:0] up_snoop_resp_data;
+
+    wire [31:0] bus_snoop_addr;
+    wire [1:0]  bus_snoop_cmd;
+    wire        bus_snoop_req_valid;
+    wire        bus_snoop_req_ready;
+    wire        bus_snoop_resp_valid;
+    wire        bus_snoop_resp_hit;
+    wire [127:0] bus_snoop_resp_data;
+
+    wire [31:0] cpu1_miss_snoop_addr;
+    wire [1:0]  cpu1_miss_snoop_cmd;
+    wire        cpu1_miss_snoop_req_valid;
+    wire        cpu1_miss_snoop_req_ready;
+    wire        cpu1_miss_snoop_resp_valid;
+    wire        cpu1_miss_snoop_resp_hit;
+    wire [127:0] cpu1_miss_snoop_resp_data;
 
     wire [31:0] dc0_snoop_addr, dc1_snoop_addr;
     wire [1:0]  dc0_snoop_cmd, dc1_snoop_cmd;
@@ -156,6 +173,27 @@ module tb_dcache_dualcore_protocol;
         end
     endtask
 
+    task cpu1_write;
+        input [31:0] addr;
+        input [31:0] data;
+        integer timeout;
+        begin
+            @(posedge clk);
+            cpu1_addr <= addr;
+            cpu1_we <= 1'b1;
+            cpu1_wdata <= data;
+            cpu1_wstrb <= 4'hf;
+            cpu1_req <= 1'b1;
+            timeout = 0;
+            while (!cpu1_ready && timeout < 200) begin
+                @(posedge clk);
+                timeout = timeout + 1;
+            end
+            cpu1_req <= 1'b0;
+            @(posedge clk);
+        end
+    endtask
+
     task issue_upstream_snoop;
         input [31:0] addr;
         input [1:0] cmd;
@@ -222,7 +260,7 @@ module tb_dcache_dualcore_protocol;
         .cpu_addr(cpu1_addr), .cpu_wdata(cpu1_wdata), .cpu_wstrb(cpu1_wstrb),
         .cpu_req(cpu1_req), .cpu_we(cpu1_we), .cpu_rdata(cpu1_rdata), .cpu_ready(cpu1_ready),
         .fence_type(cpu1_fence_type),
-        .miss_snoop_enable(1'b0),
+        .miss_snoop_enable(1'b1),
         .current_addr(), .current_data(), .current_valid(),
         .mem_arid(mem1_arid), .mem_araddr(mem1_araddr), .mem_arlen(mem1_arlen),
         .mem_arsize(mem1_arsize), .mem_arburst(mem1_arburst), .mem_arprot(mem1_arprot),
@@ -239,22 +277,59 @@ module tb_dcache_dualcore_protocol;
         .dc_snoop_req_valid(dc1_snoop_req_valid), .dc_snoop_req_ready(dc1_snoop_req_ready),
         .dc_snoop_resp_valid(dc1_snoop_resp_valid), .dc_snoop_resp_hit(dc1_snoop_resp_hit),
         .dc_snoop_resp_data(dc1_snoop_resp_data),
-        .miss_snoop_addr(), .miss_snoop_cmd(), .miss_snoop_req_valid(),
-        .miss_snoop_req_ready(1'b0), .miss_snoop_resp_valid(1'b0),
-        .miss_snoop_resp_hit(1'b0), .miss_snoop_resp_data(128'h0),
+        .miss_snoop_addr(cpu1_miss_snoop_addr),
+        .miss_snoop_cmd(cpu1_miss_snoop_cmd),
+        .miss_snoop_req_valid(cpu1_miss_snoop_req_valid),
+        .miss_snoop_req_ready(cpu1_miss_snoop_req_ready),
+        .miss_snoop_resp_valid(cpu1_miss_snoop_resp_valid),
+        .miss_snoop_resp_hit(cpu1_miss_snoop_resp_hit),
+        .miss_snoop_resp_data(cpu1_miss_snoop_resp_data),
         .stat_hits(stat1_hits), .stat_misses(stat1_misses), .stat_writes(stat1_writes)
+    );
+
+    dcache_snoop_arb_3to1 snoop_arb (
+        .clk(clk),
+        .rst_n(rst_n),
+        .req0_addr(32'h0),
+        .req0_cmd(2'b00),
+        .req0_valid(1'b0),
+        .req0_ready(),
+        .req0_resp_valid(),
+        .req0_resp_hit(),
+        .req0_resp_data(),
+        .req1_addr(cpu1_miss_snoop_addr),
+        .req1_cmd(cpu1_miss_snoop_cmd),
+        .req1_valid(cpu1_miss_snoop_req_valid),
+        .req1_ready(cpu1_miss_snoop_req_ready),
+        .req1_resp_valid(cpu1_miss_snoop_resp_valid),
+        .req1_resp_hit(cpu1_miss_snoop_resp_hit),
+        .req1_resp_data(cpu1_miss_snoop_resp_data),
+        .req2_addr(up_snoop_addr),
+        .req2_cmd(up_snoop_cmd),
+        .req2_valid(up_snoop_req_valid),
+        .req2_ready(up_snoop_req_ready),
+        .req2_resp_valid(up_snoop_resp_valid),
+        .req2_resp_hit(up_snoop_resp_hit),
+        .req2_resp_data(up_snoop_resp_data),
+        .up_addr(bus_snoop_addr),
+        .up_cmd(bus_snoop_cmd),
+        .up_valid(bus_snoop_req_valid),
+        .up_ready(bus_snoop_req_ready),
+        .up_resp_valid(bus_snoop_resp_valid),
+        .up_resp_hit(bus_snoop_resp_hit),
+        .up_resp_data(bus_snoop_resp_data)
     );
 
     dcache_snoop_bus_2way snoop_bus (
         .clk(clk),
         .rst_n(rst_n),
-        .up_snoop_addr(up_snoop_addr),
-        .up_snoop_cmd(up_snoop_cmd),
-        .up_snoop_req_valid(up_snoop_req_valid),
-        .up_snoop_req_ready(up_snoop_req_ready),
-        .up_snoop_resp_valid(up_snoop_resp_valid),
-        .up_snoop_resp_hit(up_snoop_resp_hit),
-        .up_snoop_resp_data(up_snoop_resp_data),
+        .up_snoop_addr(bus_snoop_addr),
+        .up_snoop_cmd(bus_snoop_cmd),
+        .up_snoop_req_valid(bus_snoop_req_valid),
+        .up_snoop_req_ready(bus_snoop_req_ready),
+        .up_snoop_resp_valid(bus_snoop_resp_valid),
+        .up_snoop_resp_hit(bus_snoop_resp_hit),
+        .up_snoop_resp_data(bus_snoop_resp_data),
         .dc0_snoop_addr(dc0_snoop_addr),
         .dc0_snoop_cmd(dc0_snoop_cmd),
         .dc0_snoop_req_valid(dc0_snoop_req_valid),
@@ -347,19 +422,31 @@ module tb_dcache_dualcore_protocol;
         check(dcache1.tag_array_inst.states[8] == STATE_I,
               "CPU1 cache stays invalid until it performs its own fill");
 
-        issue_upstream_snoop(LINE_ADDR, 2'b10, snp_hit, snp_data);
+        cpu1_read(LINE_ADDR, rd1);
         repeat (8) @(posedge clk);
-        check(snp_hit === 1'b1, "protocol invalidate hits CPU0 owner");
-        check(wb0_count >= 1, "invalidate forces CPU0 dirty writeback");
+        check(wb0_count >= 1, "CPU1 read miss auto-snoop forces CPU0 dirty writeback");
         check(mem[midx(LINE_ADDR) + 0] == 32'haaaa_0001, "shared memory gets updated word 0");
         check(mem[midx(LINE_ADDR) + 1] == 32'hbbbb_0002, "shared memory gets updated word 1");
-        check(dcache0.tag_array_inst.states[8] == STATE_I, "CPU0 line invalidates after transfer");
-
-        cpu1_read(LINE_ADDR, rd1);
-        repeat (4) @(posedge clk);
+        check(dcache0.tag_array_inst.states[8] == STATE_I, "CPU0 line invalidates after CPU1 miss-snoop");
         check(rd1 == 32'haaaa_0001, "CPU1 observe sees CPU0 latest data");
-        check(dcache1.tag_array_inst.states[8] == STATE_E, "CPU1 refill installs transferred line");
+        check(dcache1.tag_array_inst.states[8] == STATE_E, "CPU1 refill installs latest line after auto-snoop");
         check(stat0_writes != 0 && stat1_misses != 0, "both caches participated in protocol flow");
+
+        cpu1_write(LINE_ADDR + 32'h8, 32'hcccc_0003);
+        repeat (4) @(posedge clk);
+        check(dcache1.tag_array_inst.states[8] == STATE_M, "CPU1 write makes line modified for DMA checks");
+
+        issue_upstream_snoop(LINE_ADDR, 2'b01, snp_hit, snp_data);
+        check(snp_hit === 1'b1, "DMA-style coherent read snoop hits CPU1 owner");
+        check(snp_data == 128'h4444_0000_cccc_0003_bbbb_0002_aaaa_0001,
+              "DMA-style coherent read returns CPU1 latest line");
+
+        issue_upstream_snoop(LINE_ADDR, 2'b10, snp_hit, snp_data);
+        repeat (8) @(posedge clk);
+        check(snp_hit === 1'b1, "DMA-style coherent write invalidate hits CPU1 owner");
+        check(wb1_count >= 1, "DMA-style invalidate forces CPU1 dirty writeback");
+        check(mem[midx(LINE_ADDR) + 2] == 32'hcccc_0003, "DMA-style invalidate updates shared memory word 2");
+        check(dcache1.tag_array_inst.states[8] == STATE_I, "CPU1 line invalidates after DMA-style write");
 
         $display("SUMMARY: %0d PASS / %0d FAIL", pass_count, fail_count);
         if (fail_count != 0)

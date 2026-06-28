@@ -34,11 +34,12 @@ module dma_snoop_arb #(
     input  wire [SNOOP_DATA_WIDTH-1:0] DC_SNOOP_RESP_DATA
 );
 
-    wire pick_rd = rd_req_valid;
-    wire pick_wr = !rd_req_valid && wr_req_valid;
-
     reg  wait_resp;
     reg  owner_wr;
+    reg  last_grant_wr;
+
+    wire pick_rd = rd_req_valid && (!wr_req_valid || last_grant_wr);
+    wire pick_wr = wr_req_valid && (!rd_req_valid || !last_grant_wr);
 
     assign DC_SNOOP_REQ_VALID = !wait_resp && (pick_rd || pick_wr);
     assign DC_SNOOP_CMD       = pick_rd ? rd_req_cmd : wr_req_cmd;
@@ -55,15 +56,18 @@ module dma_snoop_arb #(
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wait_resp <= 1'b0;
-            owner_wr  <= 1'b0;
+            wait_resp     <= 1'b0;
+            owner_wr      <= 1'b0;
+            last_grant_wr <= 1'b1;
         end else if (dma_soft_rst) begin
-            wait_resp <= 1'b0;
-            owner_wr  <= 1'b0;
+            wait_resp     <= 1'b0;
+            owner_wr      <= 1'b0;
+            last_grant_wr <= 1'b1;
         end else begin
             if (!wait_resp && DC_SNOOP_REQ_VALID && DC_SNOOP_REQ_READY) begin
                 wait_resp <= 1'b1;
                 owner_wr  <= pick_wr;
+                last_grant_wr <= pick_wr;
             end else if (wait_resp && DC_SNOOP_RESP_VALID) begin
                 wait_resp <= 1'b0;
             end

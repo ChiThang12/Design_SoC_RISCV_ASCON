@@ -26,6 +26,30 @@
 `define DC_REQ_MIN 8
 `endif
 
+`ifndef AUX0_CHECK_ENABLE
+`define AUX0_CHECK_ENABLE 0
+`endif
+
+`ifndef AUX1_CHECK_ENABLE
+`define AUX1_CHECK_ENABLE 0
+`endif
+
+`ifndef EXPECT_AUX0
+`define EXPECT_AUX0 32'h0000_0000
+`endif
+
+`ifndef EXPECT_AUX1
+`define EXPECT_AUX1 32'h0000_0000
+`endif
+
+`ifndef GPIO_CHECK_ENABLE
+`define GPIO_CHECK_ENABLE 0
+`endif
+
+`ifndef EXPECT_GPIO
+`define EXPECT_GPIO 32'h0000_0000
+`endif
+
 `ifndef TIMEOUT_CYCLES
 `define TIMEOUT_CYCLES 400000
 `endif
@@ -55,6 +79,12 @@ localparam [31:0] RESULT_FAIL       = 32'hDEAD_0001;
 localparam integer HEARTBEAT_TARGET = `HEARTBEAT_MIN;
 localparam integer DC_REQ_TARGET    = `DC_REQ_MIN;
 localparam integer TIMEOUT_TARGET   = `TIMEOUT_CYCLES;
+localparam integer AUX0_CHECK       = `AUX0_CHECK_ENABLE;
+localparam integer AUX1_CHECK       = `AUX1_CHECK_ENABLE;
+localparam [31:0] EXPECT_AUX0_VALUE = `EXPECT_AUX0;
+localparam [31:0] EXPECT_AUX1_VALUE = `EXPECT_AUX1;
+localparam integer GPIO_CHECK       = `GPIO_CHECK_ENABLE;
+localparam [31:0] EXPECT_GPIO_VALUE = `EXPECT_GPIO;
 
 integer cycles;
 integer core0_dc_req_count;
@@ -143,6 +173,9 @@ always @(posedge clk) begin
         dmem_sig1 == EXPECT_SIG1_VALUE &&
         dmem_result == RESULT_RUNNING &&
         dmem_heartbeat >= HEARTBEAT_TARGET &&
+        (!AUX0_CHECK || dmem_aux0 == EXPECT_AUX0_VALUE) &&
+        (!AUX1_CHECK || dmem_aux1 == EXPECT_AUX1_VALUE) &&
+        (!GPIO_CHECK || gpio == EXPECT_GPIO_VALUE) &&
         core0_dc_req_count >= DC_REQ_TARGET &&
         core1_dc_req_count >= DC_REQ_TARGET &&
         dcache0_writes != 0 &&
@@ -162,11 +195,62 @@ always @(posedge clk) begin
         $display("[FAIL] %s timeout waiting for dual-core progress", `SCENARIO_NAME);
         $display("  sig0=%08x sig1=%08x result=%08x heartbeat=%0d count=%0d aux0=%08x aux1=%08x",
                  dmem_sig0, dmem_sig1, dmem_result, dmem_heartbeat, dmem_count, dmem_aux0, dmem_aux1);
+        $display("  gpio=%08x", gpio);
         $display("  core0_dc_req_count=%0d core1_dc_req_count=%0d", core0_dc_req_count, core1_dc_req_count);
         $display("  dcache0 writes=%0d hits=%0d", dcache0_writes, dcache0_hits);
         $display("  dcache1 writes=%0d hits=%0d", dcache1_writes, dcache1_hits);
+        $display("  snoop cpu0: state=%0d miss_valid=%0b miss_ready=%0b miss_resp=%0b dc_req_valid=%0b dc_req_ready=%0b dc_resp=%0b",
+                 chip.u_soc_top.u_dcache.controller_inst.state,
+                 chip.u_soc_top.cpu0_miss_snoop_req_valid,
+                 chip.u_soc_top.cpu0_miss_snoop_req_ready,
+                 chip.u_soc_top.cpu0_miss_snoop_resp_valid,
+                 chip.u_soc_top.dc0_snoop_req_valid,
+                 chip.u_soc_top.dc0_snoop_req_ready,
+                 chip.u_soc_top.dc0_snoop_resp_valid);
+        $display("  snoop cpu1: state=%0d miss_valid=%0b miss_ready=%0b miss_resp=%0b dc_req_valid=%0b dc_req_ready=%0b dc_resp=%0b",
+                 chip.u_soc_top.u_dcache1.controller_inst.state,
+                 chip.u_soc_top.cpu1_miss_snoop_req_valid,
+                 chip.u_soc_top.cpu1_miss_snoop_req_ready,
+                 chip.u_soc_top.cpu1_miss_snoop_resp_valid,
+                 chip.u_soc_top.dc1_snoop_req_valid,
+                 chip.u_soc_top.dc1_snoop_req_ready,
+                 chip.u_soc_top.dc1_snoop_resp_valid);
         $finish;
     end
 end
+
+`ifdef DEBUG_SNOOP_TRACE
+always @(posedge clk) begin
+    if (por_n && ext_rst_n) begin
+        if (chip.u_soc_top.cpu0_miss_snoop_req_valid ||
+            chip.u_soc_top.cpu1_miss_snoop_req_valid ||
+            chip.u_soc_top.cpu0_miss_snoop_resp_valid ||
+            chip.u_soc_top.cpu1_miss_snoop_resp_valid ||
+            chip.u_soc_top.dc0_snoop_req_valid ||
+            chip.u_soc_top.dc1_snoop_req_valid ||
+            chip.u_soc_top.dc0_snoop_resp_valid ||
+            chip.u_soc_top.dc1_snoop_resp_valid) begin
+            $display("[SNOOP %0d] c0_miss v/r/resp=%0b/%0b/%0b c1_miss v/r/resp=%0b/%0b/%0b bus_state=%0d arb_wait=%0b dc0 v/r/resp=%0b/%0b/%0b dc1 v/r/resp=%0b/%0b/%0b st0=%0d st1=%0d",
+                     cycles,
+                     chip.u_soc_top.cpu0_miss_snoop_req_valid,
+                     chip.u_soc_top.cpu0_miss_snoop_req_ready,
+                     chip.u_soc_top.cpu0_miss_snoop_resp_valid,
+                     chip.u_soc_top.cpu1_miss_snoop_req_valid,
+                     chip.u_soc_top.cpu1_miss_snoop_req_ready,
+                     chip.u_soc_top.cpu1_miss_snoop_resp_valid,
+                     chip.u_soc_top.u_dcache_snoop_bus.state,
+                     chip.u_soc_top.u_dcache_snoop_arb.wait_resp_r,
+                     chip.u_soc_top.dc0_snoop_req_valid,
+                     chip.u_soc_top.dc0_snoop_req_ready,
+                     chip.u_soc_top.dc0_snoop_resp_valid,
+                     chip.u_soc_top.dc1_snoop_req_valid,
+                     chip.u_soc_top.dc1_snoop_req_ready,
+                     chip.u_soc_top.dc1_snoop_resp_valid,
+                     chip.u_soc_top.u_dcache.controller_inst.state,
+                     chip.u_soc_top.u_dcache1.controller_inst.state);
+        end
+    end
+end
+`endif
 
 endmodule

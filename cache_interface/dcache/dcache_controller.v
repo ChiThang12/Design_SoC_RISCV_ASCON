@@ -232,11 +232,14 @@ module dcache_controller (
                               !flush_busy;
     wire idle_hit = tag_hit && idle_tag_hit_valid;
 
-    wire snoop_cpu_ok = (state == DCACHE_STATE_PEER_SNOOP) || !cpu_req || (cpu_req && addr_is_nc);
+    wire snoop_cpu_ok = (state == DCACHE_STATE_IDLE) ||
+                         (state == DCACHE_STATE_PEER_SNOOP) ||
+                         !cpu_req || (cpu_req && addr_is_nc);
     wire snoop_safe_to_accept = ((state == DCACHE_STATE_IDLE) ||
                                  (state == DCACHE_STATE_PEER_SNOOP)) && !flush_busy && !fence_any &&
                                 snoop_cpu_ok && !do_deferred_write && !nc_just_completed &&
                                 !tag_line_invalidate;
+    wire cpu_req_without_snoop = cpu_req && !dc_snoop_req_valid;
 
     assign current_addr  = cur_addr;
     assign current_data  = cur_wdata;
@@ -280,7 +283,7 @@ module dcache_controller (
         .flush_busy(flush_busy),
         .snoop_busy(snoop_busy),
         .tag_line_invalidate(tag_line_invalidate),
-        .cpu_req(cpu_req),
+        .cpu_req(cpu_req_without_snoop),
         .fence_any(fence_any),
         .nc_just_completed(nc_just_completed),
         .do_deferred_write(do_deferred_write),
@@ -512,7 +515,7 @@ module dcache_controller (
                         end
 
                         if (!snoop_busy && !tag_line_invalidate &&
-                            cpu_req && !fence_any && !nc_just_completed && !do_deferred_write) begin
+                            cpu_req_without_snoop && !fence_any && !nc_just_completed && !do_deferred_write) begin
                             cur_addr  <= cpu_addr;
                             cur_wdata <= cpu_wdata;
                             cur_wstrb <= cpu_wstrb;
@@ -598,11 +601,7 @@ module dcache_controller (
                     end
 
                     DCACHE_STATE_PEER_SNOOP: begin
-                        if (!miss_snoop_accepted_r) begin
-                            miss_snoop_req_valid <= 1'b1;
-                            if (miss_snoop_req_ready)
-                                miss_snoop_accepted_r <= 1'b1;
-                        end else if (miss_snoop_resp_valid) begin
+                        if (miss_snoop_resp_valid) begin
                             if (local_miss_dirty_r) begin
                                 main_evict_addr_r     <= {tag_evict_tag_out, cur_index, 4'b0000};
                                 main_evict_data_0_r   <= data_read_word_0;
@@ -615,6 +614,10 @@ module dcache_controller (
                                 refill_addr  <= {cur_addr[31:4], 4'b0000};
                                 refill_start <= 1'b1;
                             end
+                        end else if (!miss_snoop_accepted_r) begin
+                            miss_snoop_req_valid <= 1'b1;
+                            if (miss_snoop_req_ready)
+                                miss_snoop_accepted_r <= 1'b1;
                         end
                     end
 

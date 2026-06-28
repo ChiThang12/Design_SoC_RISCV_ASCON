@@ -76,6 +76,25 @@ iverilog -g2005 -I. \
 vvp /tmp/test_dualcore_fence_flush.out
 ```
 
+Example for `test_dualcore_peer_snoop`:
+
+```bash
+cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+iverilog -g2005 -I. \
+  -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_peer_snoop.hex"' \
+  -DSCENARIO_NAME='"test_dualcore_peer_snoop"' \
+  -DEXPECT_SIG0=32'h5A11_0001 \
+  -DEXPECT_SIG1=32'hC001_D00D \
+  -DHEARTBEAT_MIN=2 \
+  -DDC_REQ_MIN=4 \
+  -DAUX0_CHECK_ENABLE=1 \
+  -DEXPECT_AUX0=32'hFACE_B00C \
+  -DAUX1_CHECK_ENABLE=1 \
+  -DEXPECT_AUX1=32'h2222_0001 \
+  -o /tmp/test_dualcore_peer_snoop.out tb_soc/tb_soc_dualcore_suite.v
+vvp /tmp/test_dualcore_peer_snoop.out
+```
+
 ## 3. Run the whole SoC dual-core suite
 
 ```bash
@@ -83,9 +102,39 @@ cd /home/chithang/Project/Design_SoC_RISCV_ASCON
 bash run_dualcore_suite.sh
 ```
 
-## 4. Run the directed coherency-protocol TB
+## 3a. Run the experimental ASCON dual-core coherency attempt
 
-This is the smallest targeted check for `CPU0 write -> CPU1 observe` at DCache/snoop level.
+```bash
+cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
+./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_ascon_dma_coherent.c -o tests_dualcore/test_dualcore_ascon_dma_coherent.hex -c
+```
+
+```bash
+cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+iverilog -g2005 -I. \
+  -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_ascon_dma_coherent.hex"' \
+  -DSCENARIO_NAME='"test_dualcore_ascon_dma_coherent"' \
+  -DEXPECT_SIG0=32'hA5C0_2301 \
+  -DEXPECT_SIG1=32'hD24A_6003 \
+  -DHEARTBEAT_MIN=0 \
+  -DDC_REQ_MIN=8 \
+  -DGPIO_CHECK_ENABLE=1 \
+  -DEXPECT_GPIO=32'hAC03_D003 \
+  -DTIMEOUT_CYCLES=300000 \
+  -o /tmp/test_dualcore_ascon_dma_coherent.out tb_soc/tb_soc_dualcore_suite.v
+vvp /tmp/test_dualcore_ascon_dma_coherent.out
+```
+
+Expected current status:
+- build PASS
+- SoC-level run still TIMEOUT
+
+## 4. Run the coherency-protocol TB
+
+This is the smallest targeted check for:
+- `CPU0 write dirty line -> CPU1 read miss -> automatic peer snoop -> CPU1 observe latest data`
+- DMA-style coherent read from latest cache owner
+- DMA-style coherent invalidate forcing dirty writeback and invalidation
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -115,7 +164,20 @@ iverilog -g2005 -I. -o /tmp/tb_dcache_mesi.out cache_interface/dcache/tb/tb_dcac
 vvp /tmp/tb_dcache_mesi.out
 ```
 
-## 6. Suggested execution order when validating dual-core
+## 6. Run the standalone ASCON DMA regression
+
+This verifies the DMA engine's coherent primitive path, including:
+- coherent read snoop hit through `coh_ctrl=2'b11`
+- coherent write invalidate before AXI writeback
+- error handling and AXI backpressure behavior after snoop-arbiter updates
+
+```bash
+cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+iverilog -g2005 -I. -o /tmp/tb_ascon_dma.out ascon/dma/tb/tb_ascon_dma.v
+vvp /tmp/tb_ascon_dma.out
+```
+
+## 7. Suggested execution order when validating dual-core
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -127,13 +189,18 @@ iverilog -g2005 -I. -o /tmp/tb_dcache_mesi.out cache_interface/dcache/tb/tb_dcac
 vvp /tmp/tb_dcache_mesi.out
 iverilog -g2005 -I. -o /tmp/tb_dcache_dualcore_protocol.out cache_interface/dcache/tb/tb_dcache_dualcore_protocol.v
 vvp /tmp/tb_dcache_dualcore_protocol.out
+iverilog -g2005 -I. -o /tmp/tb_ascon_dma.out ascon/dma/tb/tb_ascon_dma.v
+vvp /tmp/tb_ascon_dma.out
 bash run_dualcore_suite.sh
 ```
 
-## 7. Current gaps before claiming a complete dual-core coherency flow
+## 8. Current gaps before claiming a complete dual-core coherency flow
 
-- `tb_soc/tb_soc_dualcore_suite.v` proves dual-core execution and shared-memory traffic, but not automatic cache-to-cache snoop on a CPU miss.
-- `tb_dcache_dualcore_protocol.v` proves the responder side of the protocol, but it is still a directed TB, not a full top-level CPU-initiated coherency path.
-- `soc_top.v` still needs the path for `CPU1 miss -> snoop peer cache owner -> return latest line / force ownership transition`.
-- DMA multicore coherency is still pending for both read-side snoop and write-side invalidate ordering.
-- `CPU1` control-plane support is still partial: no separate `hart_id`, interrupt routing, or debug path yet.
+- `tb_dcache_dualcore_protocol.v` now proves automatic CPU read-miss peer snoop at DCache/snoop-bus level.
+- `tb_ascon_dma.v` now proves the standalone ASCON DMA coherent primitive path.
+- `soc_top.v` now wires both DCache miss-snoop initiators through the snoop arbiter.
+- The stable firmware suite now also includes `test_dualcore_peer_snoop.c`, proving `CPU0 dirty write -> CPU1 read same line` at top-level firmware level.
+- The snoop arbiters and snoop bus were refreshed and re-verified to reduce starvation risk and improve response robustness.
+- The CPU miss path currently uses peer invalidate/writeback followed by refill; direct cache-to-cache data forwarding is not implemented.
+- DMA-style snoop protocol is proven in the DCache protocol TB, but full ASCON DMA engine end-to-end coherency remains pending.
+- `CPU1` now has `mhartid = 1` and shared IRQ/debug request wiring, but separate per-hart interrupt routing and debug path are still partial.

@@ -43,7 +43,9 @@ Tiến độ hiện tại:
   - Da tich hop `CPU1 + ICache1 + DCache1` vao `soc_top.v`
   - Da dinh nghia `snoop bus / coherency controller` 2-way o muc top
   - Da chot cach noi DMA vao 2 DCache thay vi 1 DCache
-  - Ghi chu P0: `CPU1` hien chua noi vao debug/interrupt multi-hart; phan nay de lai cho pha sau cua control-plane SMP
+  - Da them duong `CPU miss -> peer snoop` qua snoop arbiter 3 nguon
+  - Da them `mhartid` rieng cho `CPU0/CPU1`
+  - Ghi chu P0: `CPU1` moi co shared IRQ/debug request co ban; per-hart debug/interrupt routing de lai cho pha sau cua control-plane SMP
 
 ## P1 - Ghép đường dữ liệu chính
 
@@ -60,8 +62,9 @@ Tiến độ hiện tại:
   - Giữ mode coherent và non-coherent tách bạch
 
 - [ ] Sửa `ascon/dma/rtl/dma_snoop_arb.v`
-  - Arbitrate nhiều snoop target
-  - Tổng hợp response theo thứ tự xác định
+  - Da sua arbitration giua DMA read snoop va write invalidate theo huong cong bang hon
+  - Da giu response collection on dinh sau cap nhat arbiter
+  - Con thieu top-level SoC proof cho contention CPU/DMA thuc te
 
 - [ ] Sửa `interconnect/axi4_crossbar_5m12s.v`
   - Thêm master path cho `Core 1`
@@ -98,10 +101,12 @@ Tiến độ hiện tại:
   - Da co `tb_soc/tb_soc_dualcore_suite.v` cho cac bai dual-core co ban
   - Da co firmware trong `gnu_toolchain/tests_dualcore/`
   - Da co `cache_interface/dcache/tb/tb_dcache_dualcore_protocol.v` cho case `CPU0 write -> CPU1 observe` o muc DCache/snoop bus
-  - Case protocol hien tai duoc chung minh theo huong directed snoop-read + invalidate/writeback
-  - Duong tu dong `CPU1 miss -> snoop peer cache` ben trong `soc_top` van con la buoc tiep theo
-  - Test DMA input coherency
-  - Test DMA output w/ cache-hit
+  - Case protocol hien tai da chung minh automatic `CPU1 read miss -> peer snoop -> dirty writeback/invalidate -> refill latest data`
+  - Da co protocol proof cho DMA-style coherent read va DMA-style invalidate qua upstream snoop source
+  - Da co `ascon/dma/tb/tb_ascon_dma.v` pass `66 PASS / 0 FAIL` cho standalone DMA coherent primitive path
+  - Da them WIP firmware `test_dualcore_ascon_dma_coherent.c` va optional GPIO-completion hook trong TB
+  - Con thieu stable SoC-level closure cho full ASCON DMA engine input coherency
+  - Con thieu stable SoC-level closure cho full ASCON DMA engine output w/ cache-hit
 
 - [x] Chạy mô phỏng và ghi log PASS ở mức dual-core
   - Da xong regression DCache don le
@@ -110,34 +115,39 @@ Tiến độ hiện tại:
   - `test_dualcore_basic`: `PASS`
   - `test_dualcore_cache_sweep`: `PASS`
   - `test_dualcore_fence_flush`: `PASS`
-  - `tb_dcache_dualcore_protocol.v`: `16 PASS / 0 FAIL`
-  - Chua co log cho snoop bus multicore protocol-level voi DMA
+  - `test_dualcore_peer_snoop`: `PASS`
+  - `tb_dcache_dualcore_protocol.v`: `22 PASS / 0 FAIL`
+  - `tb_ascon_dma.v`: `66 PASS / 0 FAIL`
+  - Da co log cho snoop bus multicore protocol-level voi DMA-style read/invalidate
+  - Da co log standalone ASCON DMA coherent primitive path
+  - Chua co log full ASCON DMA engine end-to-end qua SoC dual-core
 
 ## Thứ tự nên làm ngay
 
-1. `soc_top.v`
-2. `interconnect/axi4_crossbar_5m12s.v`
-3. Tao `snoop_bus` hoac `coherency_controller` moi
-4. `ascon/dma/rtl/ascon_dma.v`
-5. `ascon/dma/rtl/dma_read_engine.v`
-6. `ascon/dma/rtl/dma_write_engine.v`
-7. TB dual-core / DMA coherency o muc top
+1. `ascon/dma/rtl/ascon_dma.v`
+2. `ascon/dma/rtl/dma_read_engine.v`
+3. `ascon/dma/rtl/dma_write_engine.v`
+4. Full ASCON DMA coherency TB o muc top
+5. Them scoreboard/counter cho snoop transaction o top-level
+6. Benchmark contention va snoop metrics
 
 ## Van de hien tai can dong
 
-- Chua co duong tu dong `CPU miss -> snoop peer cache owner` trong `soc_top`
-- Chua co co che tra line moi nhat tu peer cache ve cho core dang miss o muc top-level
-- Chua co bai test top-level chung minh ownership transfer CPU-CPU ma khong can directed external snoop stimulus
-- Chua co bai test DMA multicore cho `coherent read` va `coherent write invalidate`
-- `CPU1` chua duoc tach rieng `hart_id`, interrupt path, debug path
+- Da co duong tu dong `CPU miss -> snoop peer cache owner` trong RTL/protocol path
+- Da co firmware/top-level test on dinh chung minh ownership transfer CPU-CPU
+- Chua co direct cache-to-cache data forwarding; hien dung peer dirty writeback/invalidate roi core miss refill
+- Da co DMA-style protocol TB cho `coherent read` va `coherent invalidate`
+- Da co standalone ASCON DMA TB xac nhan coherent primitive read/write snoop path van on sau cap nhat arbiter
+- Da co WIP SoC firmware/TB scaffold cho full ASCON DMA engine end-to-end
+- Chua co full ASCON DMA engine end-to-end qua SoC dual-core o muc stable/pass
+- `CPU1` da co `mhartid` rieng va shared IRQ/debug request, nhung chua co per-hart interrupt/debug path day du
 
 ## Duong hoan thien de dan den dual-core day du
 
-1. Noi xong path `CPU miss -> peer snoop` trong `soc_top` hoac trong coherency controller moi
-2. Them top-level TB cho `CPU0 write line`, `CPU1 read same line`, va xac nhan khong can directed snoop tu ben ngoai
-3. Them top-level TB cho `CPU0 dirty line`, `DMA coherent read`, va xac nhan DMA lay du lieu moi nhat
-4. Them top-level TB cho `DMA coherent write`, va xac nhan invalidate/downgrade dung tren ca `DCache0` va `DCache1`
-5. Sau khi on dinh du lieu, moi mo rong `hart_id`, interrupt, debug cho `CPU1`
+1. Neu can claim performance cao hon, them direct cache-to-cache forwarding thay vi writeback/refill
+2. Them top-level TB cho `CPU0 dirty line`, full ASCON DMA coherent read, va xac nhan DMA lay du lieu moi nhat
+3. Them top-level TB cho full ASCON DMA coherent write, va xac nhan invalidate/downgrade dung tren ca `DCache0` va `DCache1`
+4. Mo rong per-hart interrupt/debug cho `CPU1` neu paper can claim SMP control-plane day du
 
 ## Ghi chú
 
