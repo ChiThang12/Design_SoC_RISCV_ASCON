@@ -129,7 +129,12 @@ module dcache_controller (
     // ---------------------------------------------------------------------
     output reg [31:0]  stat_hits,
     output reg [31:0]  stat_misses,
-    output reg [31:0]  stat_writes
+    output reg [31:0]  stat_writes,
+    output reg [31:0]  stat_peer_snoop_reqs,
+    output reg [31:0]  stat_peer_snoop_hits,
+    output reg [31:0]  stat_c2c_forwards,
+    output reg [31:0]  stat_c2c_fill_cycles,
+    output reg [31:0]  stat_mem_refills
 );
 
     localparam [3:0]
@@ -141,7 +146,8 @@ module dcache_controller (
         DCACHE_STATE_REFILL_DRAIN = 4'b0101,
         DCACHE_STATE_NC_READ      = 4'b0110,
         DCACHE_STATE_NC_WRITE     = 4'b0111,
-        DCACHE_STATE_PEER_SNOOP   = 4'b1000;
+        DCACHE_STATE_PEER_SNOOP   = 4'b1000,
+        DCACHE_STATE_C2C_FILL     = 4'b1001;
 
     wire fence_flush = fence_type[0];
     wire fence_inval = fence_type[1];
@@ -176,6 +182,10 @@ module dcache_controller (
     reg [3:0]  deferred_wstrb;
     reg [5:0]  deferred_index;
     reg        miss_snoop_accepted_r;
+    reg        peer_forward_pending_r;
+    reg [127:0] peer_forward_line_r;
+    reg [1:0]  peer_fill_word_r;
+    wire       c2c_fill_done = (state == DCACHE_STATE_C2C_FILL) && (peer_fill_word_r == 2'b11);
 
     reg        main_evict_start;
     reg [31:0] main_evict_addr_r;
@@ -304,6 +314,9 @@ module dcache_controller (
         .requested_offset(requested_offset),
         .refill_done(refill_done),
         .requested_data_ready(requested_data_ready),
+        .peer_forward_pending(peer_forward_pending_r),
+        .miss_snoop_resp_hit(miss_snoop_resp_hit),
+        .c2c_fill_done(c2c_fill_done),
         .next_state(next_state)
     );
 
@@ -328,6 +341,7 @@ module dcache_controller (
         .requested_data_ready(requested_data_ready),
         .requested_data(requested_data),
         .evict_done(evict_done),
+        .c2c_fill_done(c2c_fill_done),
         .cpu_ready(cpu_ready),
         .cpu_rdata(cpu_rdata)
     );
@@ -463,6 +477,9 @@ module dcache_controller (
             miss_snoop_cmd       <= 2'b00;
             miss_snoop_req_valid <= 1'b0;
             miss_snoop_accepted_r<= 1'b0;
+            peer_forward_pending_r <= 1'b0;
+            peer_forward_line_r   <= 128'h0;
+            peer_fill_word_r      <= 2'b00;
             main_evict_start     <= 1'b0;
             main_evict_addr_r    <= 32'h0;
             main_evict_data_0_r  <= 32'h0;
@@ -485,6 +502,11 @@ module dcache_controller (
             stat_hits            <= 32'h0;
             stat_misses          <= 32'h0;
             stat_writes          <= 32'h0;
+            stat_peer_snoop_reqs <= 32'h0;
+            stat_peer_snoop_hits <= 32'h0;
+            stat_c2c_forwards    <= 32'h0;
+            stat_c2c_fill_cycles <= 32'h0;
+            stat_mem_refills     <= 32'h0;
         end else begin
             refill_start         <= 1'b0;
             refill_nc            <= 1'b0;
@@ -595,6 +617,7 @@ module dcache_controller (
                                 end else if (!miss_snoop_enable || cur_we) begin
                                     refill_addr  <= {cur_addr[31:4], 4'b0000};
                                     refill_start <= 1'b1;
+                                    stat_mem_refills <= stat_mem_refills + 1;
                                 end
                             end
                         end
@@ -602,6 +625,17 @@ module dcache_controller (
 
                     DCACHE_STATE_PEER_SNOOP: begin
                         if (miss_snoop_resp_valid) begin
+                            if (miss_snoop_resp_hit) begin
+                                peer_forward_pending_r <= 1'b1;
+                                peer_forward_line_r    <= miss_snoop_resp_data;
+                                requested_data         <= requested_offset == 2'b00 ? miss_snoop_resp_data[31:0] :
+                                                          requested_offset == 2'b01 ? miss_snoop_resp_data[63:32] :
+                                                          requested_offset == 2'b10 ? miss_snoop_resp_data[95:64] :
+                                                                                     miss_snoop_resp_data[127:96];
+                                requested_data_ready   <= 1'b1;
+                                peer_fill_word_r       <= 2'b00;
+                                stat_peer_snoop_hits   <= stat_peer_snoop_hits + 1;
+                            end
                             if (local_miss_dirty_r) begin
                                 main_evict_addr_r     <= {tag_evict_tag_out, cur_index, 4'b0000};
                                 main_evict_data_0_r   <= data_read_word_0;
@@ -610,14 +644,17 @@ module dcache_controller (
                                 main_evict_data_3_r   <= data_read_word_3;
                                 main_evict_index_r    <= cur_index;
                                 main_evict_start      <= 1'b1;
-                            end else begin
+                            end else if (!miss_snoop_resp_hit) begin
                                 refill_addr  <= {cur_addr[31:4], 4'b0000};
                                 refill_start <= 1'b1;
+                                stat_mem_refills <= stat_mem_refills + 1;
                             end
                         end else if (!miss_snoop_accepted_r) begin
                             miss_snoop_req_valid <= 1'b1;
-                            if (miss_snoop_req_ready)
+                            if (miss_snoop_req_ready) begin
                                 miss_snoop_accepted_r <= 1'b1;
+                                stat_peer_snoop_reqs  <= stat_peer_snoop_reqs + 1;
+                            end
                         end
                     end
 
@@ -629,8 +666,13 @@ module dcache_controller (
                     end
 
                     DCACHE_STATE_WAIT: begin
-                        refill_addr  <= {cur_addr[31:4], 4'b0000};
-                        refill_start <= 1'b1;
+                        if (peer_forward_pending_r) begin
+                            peer_fill_word_r <= 2'b00;
+                        end else begin
+                            refill_addr  <= {cur_addr[31:4], 4'b0000};
+                            refill_start <= 1'b1;
+                            stat_mem_refills <= stat_mem_refills + 1;
+                        end
                     end
 
                     DCACHE_STATE_REFILL: begin
@@ -686,6 +728,28 @@ module dcache_controller (
                             tag_update_valid <= 1'b1;
                             tag_update_index <= refill_index_r;
                             tag_update_tag   <= refill_tag_r;
+                        end
+                    end
+
+                    DCACHE_STATE_C2C_FILL: begin
+                        data_write_enable <= 1'b1;
+                        data_write_index  <= refill_index_r;
+                        data_write_offset <= peer_fill_word_r;
+                        data_write_data   <= peer_fill_word_r == 2'b00 ? peer_forward_line_r[31:0] :
+                                             peer_fill_word_r == 2'b01 ? peer_forward_line_r[63:32] :
+                                             peer_fill_word_r == 2'b10 ? peer_forward_line_r[95:64] :
+                                                                         peer_forward_line_r[127:96];
+                        data_write_strb   <= 4'b1111;
+                        stat_c2c_fill_cycles <= stat_c2c_fill_cycles + 1;
+
+                        if (c2c_fill_done) begin
+                            tag_update_valid      <= 1'b1;
+                            tag_update_index      <= refill_index_r;
+                            tag_update_tag        <= refill_tag_r;
+                            peer_forward_pending_r<= 1'b0;
+                            stat_c2c_forwards     <= stat_c2c_forwards + 1;
+                        end else begin
+                            peer_fill_word_r <= peer_fill_word_r + 1'b1;
                         end
                     end
 

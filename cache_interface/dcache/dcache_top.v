@@ -106,7 +106,12 @@ module dcache_top #(
     // ========================================================================
     output wire [31:0] stat_hits,
     output wire [31:0] stat_misses,
-    output wire [31:0] stat_writes
+    output wire [31:0] stat_writes,
+    output wire [31:0] stat_peer_snoop_reqs,
+    output wire [31:0] stat_peer_snoop_hits,
+    output wire [31:0] stat_c2c_forwards,
+    output wire [31:0] stat_c2c_fill_cycles,
+    output wire [31:0] stat_mem_refills
 );
 
     // ========================================================================
@@ -363,7 +368,12 @@ module dcache_top #(
 
         .stat_hits          (stat_hits),
         .stat_misses        (stat_misses),
-        .stat_writes        (stat_writes)
+        .stat_writes        (stat_writes),
+        .stat_peer_snoop_reqs(stat_peer_snoop_reqs),
+        .stat_peer_snoop_hits(stat_peer_snoop_hits),
+        .stat_c2c_forwards (stat_c2c_forwards),
+        .stat_c2c_fill_cycles(stat_c2c_fill_cycles),
+        .stat_mem_refills  (stat_mem_refills)
     );
 
 endmodule

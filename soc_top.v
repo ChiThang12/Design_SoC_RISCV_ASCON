@@ -469,9 +469,19 @@ wire [31:0] icache1_stat_misses;
 wire [31:0] dcache0_stat_hits;
 wire [31:0] dcache0_stat_misses;
 wire [31:0] dcache0_stat_writes;
+wire [31:0] dcache0_stat_peer_snoop_reqs;
+wire [31:0] dcache0_stat_peer_snoop_hits;
+wire [31:0] dcache0_stat_c2c_forwards;
+wire [31:0] dcache0_stat_c2c_fill_cycles;
+wire [31:0] dcache0_stat_mem_refills;
 wire [31:0] dcache1_stat_hits;
 wire [31:0] dcache1_stat_misses;
 wire [31:0] dcache1_stat_writes;
+wire [31:0] dcache1_stat_peer_snoop_reqs;
+wire [31:0] dcache1_stat_peer_snoop_hits;
+wire [31:0] dcache1_stat_c2c_forwards;
+wire [31:0] dcache1_stat_c2c_fill_cycles;
+wire [31:0] dcache1_stat_mem_refills;
 
 wire cpu0_wfi;
 wire cpu1_wfi;
@@ -1267,7 +1277,12 @@ dcache_top u_dcache (
 
     .stat_hits   (dcache0_stat_hits),
     .stat_misses (dcache0_stat_misses),
-    .stat_writes (dcache0_stat_writes)
+    .stat_writes (dcache0_stat_writes),
+    .stat_peer_snoop_reqs(dcache0_stat_peer_snoop_reqs),
+    .stat_peer_snoop_hits(dcache0_stat_peer_snoop_hits),
+    .stat_c2c_forwards(dcache0_stat_c2c_forwards),
+    .stat_c2c_fill_cycles(dcache0_stat_c2c_fill_cycles),
+    .stat_mem_refills(dcache0_stat_mem_refills)
 );
 
 dcache_top u_dcache1 (
@@ -1322,7 +1337,12 @@ dcache_top u_dcache1 (
 
     .stat_hits   (dcache1_stat_hits),
     .stat_misses (dcache1_stat_misses),
-    .stat_writes (dcache1_stat_writes)
+    .stat_writes (dcache1_stat_writes),
+    .stat_peer_snoop_reqs(dcache1_stat_peer_snoop_reqs),
+    .stat_peer_snoop_hits(dcache1_stat_peer_snoop_hits),
+    .stat_c2c_forwards(dcache1_stat_c2c_forwards),
+    .stat_c2c_fill_cycles(dcache1_stat_c2c_fill_cycles),
+    .stat_mem_refills(dcache1_stat_mem_refills)
 );
 
 axi4_master_mux_2m #(

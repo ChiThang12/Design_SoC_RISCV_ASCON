@@ -264,6 +264,9 @@ _start:
     # cần frame riêng. main() tự push frame của nó từ 0x10002000 xuống.
     # First push của main(): sp-32 = 0x10001FE0, sw ra,28 = 0x10001FFC. OK.
     la   sp, __stack_top
+    csrr t0, mhartid
+    slli t0, t0, 11
+    sub  sp, sp, t0
     nop
     nop
 
@@ -283,7 +286,7 @@ trap_handler:
 .end
 STARTUP_EOF
     echo -e "${GREEN}✓ Bare-metal startup (no .bss clear, no .data copy)${NC}"
-    echo -e "${GREEN}  sp = __stack_top = 0x10001FF0 (FIX-STACK v2.7: no -16 offset)${NC}"
+    echo -e "${GREEN}  sp = __stack_top - mhartid*0x800 (dual-core private stacks)${NC}"
 
 else
     # Full crt0: copy .data từ ROM sang RAM, clear .bss
@@ -298,6 +301,9 @@ _start:
     # cần frame riêng. main() tự push frame của nó từ 0x10002000 xuống.
     # First push của main(): sp-32 = 0x10001FE0, sw ra,28 = 0x10001FFC. OK.
     la   sp, __stack_top
+    csrr t0, mhartid
+    slli t0, t0, 11
+    sub  sp, sp, t0
     nop
     nop
 
@@ -342,7 +348,7 @@ trap_handler:
 .end
 STARTUP_EOF
     echo -e "${GREEN}✓ Full crt0 startup (.data copy + .bss clear + _halt)${NC}"
-    echo -e "${GREEN}  sp = __stack_top = 0x10001FF0 (FIX-STACK v2.7: no -16 offset)${NC}"
+    echo -e "${GREEN}  sp = __stack_top - mhartid*0x800 (dual-core private stacks)${NC}"
     echo -e "${GREEN}  .bss clear range: __bss_start .. __bss_end (max 0x10000800)${NC}"
 fi
 

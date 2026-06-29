@@ -81,6 +81,8 @@ module tb_dcache_dualcore_protocol;
 
     wire [31:0] stat0_hits, stat0_misses, stat0_writes;
     wire [31:0] stat1_hits, stat1_misses, stat1_writes;
+    wire [31:0] stat0_peer_snoop_reqs, stat0_peer_snoop_hits, stat0_c2c_forwards, stat0_c2c_fill_cycles, stat0_mem_refills;
+    wire [31:0] stat1_peer_snoop_reqs, stat1_peer_snoop_hits, stat1_c2c_forwards, stat1_c2c_fill_cycles, stat1_mem_refills;
 
     reg [31:0] mem [0:1023];
     integer pass_count, fail_count;
@@ -252,7 +254,10 @@ module tb_dcache_dualcore_protocol;
         .miss_snoop_addr(), .miss_snoop_cmd(), .miss_snoop_req_valid(),
         .miss_snoop_req_ready(1'b0), .miss_snoop_resp_valid(1'b0),
         .miss_snoop_resp_hit(1'b0), .miss_snoop_resp_data(128'h0),
-        .stat_hits(stat0_hits), .stat_misses(stat0_misses), .stat_writes(stat0_writes)
+        .stat_hits(stat0_hits), .stat_misses(stat0_misses), .stat_writes(stat0_writes),
+        .stat_peer_snoop_reqs(stat0_peer_snoop_reqs), .stat_peer_snoop_hits(stat0_peer_snoop_hits),
+        .stat_c2c_forwards(stat0_c2c_forwards), .stat_c2c_fill_cycles(stat0_c2c_fill_cycles),
+        .stat_mem_refills(stat0_mem_refills)
     );
 
     dcache_top #(.ID_WIDTH(4)) dcache1 (
@@ -284,7 +289,10 @@ module tb_dcache_dualcore_protocol;
         .miss_snoop_resp_valid(cpu1_miss_snoop_resp_valid),
         .miss_snoop_resp_hit(cpu1_miss_snoop_resp_hit),
         .miss_snoop_resp_data(cpu1_miss_snoop_resp_data),
-        .stat_hits(stat1_hits), .stat_misses(stat1_misses), .stat_writes(stat1_writes)
+        .stat_hits(stat1_hits), .stat_misses(stat1_misses), .stat_writes(stat1_writes),
+        .stat_peer_snoop_reqs(stat1_peer_snoop_reqs), .stat_peer_snoop_hits(stat1_peer_snoop_hits),
+        .stat_c2c_forwards(stat1_c2c_forwards), .stat_c2c_fill_cycles(stat1_c2c_fill_cycles),
+        .stat_mem_refills(stat1_mem_refills)
     );
 
     dcache_snoop_arb_3to1 snoop_arb (
@@ -430,6 +438,10 @@ module tb_dcache_dualcore_protocol;
         check(dcache0.tag_array_inst.states[8] == STATE_I, "CPU0 line invalidates after CPU1 miss-snoop");
         check(rd1 == 32'haaaa_0001, "CPU1 observe sees CPU0 latest data");
         check(dcache1.tag_array_inst.states[8] == STATE_E, "CPU1 refill installs latest line after auto-snoop");
+        check(stat1_peer_snoop_reqs == 1 && stat1_peer_snoop_hits == 1,
+              "CPU1 records one peer snoop request and one hit");
+        check(stat1_c2c_forwards == 1, "CPU1 read miss completes through direct cache-to-cache forwarding");
+        check(stat1_mem_refills == 0, "CPU1 avoids memory refill on peer-forwarded miss");
         check(stat0_writes != 0 && stat1_misses != 0, "both caches participated in protocol flow");
 
         cpu1_write(LINE_ADDR + 32'h8, 32'hcccc_0003);

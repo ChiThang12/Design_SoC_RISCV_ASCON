@@ -1,0 +1,5 @@
+payload_bytes,h3_dma_fair_cycles,h3_context_select_cycles,h3_total_cycles,h3_fair_throughput_mbps,no_crf_reload_lower_bound_cycles,no_crf_total_cycles,no_crf_throughput_mbps,h3_speedup_vs_reload
+128,92,36,128,800.00,432,524,195.42,4.09
+256,160,36,196,1044.90,432,592,345.95,3.02
+512,312,36,348,1177.01,432,744,550.54,2.14
+1024,584,36,620,1321.29,432,1016,806.30,1.64

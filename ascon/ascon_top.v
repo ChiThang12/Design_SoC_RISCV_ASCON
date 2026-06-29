@@ -223,6 +223,7 @@ module ascon_ip_top #(
     wire         dma_busy_w;
     wire         dma_done_w;
     wire         dma_error_w;
+    wire [0:0]   dma_context_id_active_w;
 
     // =========================================================================
     // Internal wires: DMA → CORE
@@ -248,6 +249,7 @@ module ascon_ip_top #(
     wire [31:0]  slave_tag_in_0, slave_tag_in_1;
     wire [31:0]  slave_tag_in_2, slave_tag_in_3;
     wire [31:0]  slave_ad_addr,  slave_ad_len;
+    wire [0:0]   slave_context_id;
     // P1 FIX: AD payload data registers from slave (up to 128-bit)
     wire [31:0]  slave_ad_data_0, slave_ad_data_1;
     wire [31:0]  slave_ad_data_2, slave_ad_data_3;
@@ -289,19 +291,21 @@ module ascon_ip_top #(
     end
     wire slave_core_start_pulse = slave_core_start & ~slave_core_start_d;
 
-    wire core_start_mux = slave_dma_en
+    wire dma_mode_active = slave_dma_en | slave_dma_start;
+
+    wire core_start_mux = dma_mode_active
         ? dma_core_start
         : slave_core_start_pulse;
 
     // DMA cung cấp 2x32-bit word (ptext_0=upper, ptext_1=lower) → ghép 64-bit
     // Đặt vào upper 64-bit của 128-bit data_in, lower 64-bit zero-pad
     // DATAPATH sẽ dùng data_len để biết chỉ lấy bao nhiêu byte thực tế
-    wire [127:0] core_data_in_mux = slave_dma_en
+    wire [127:0] core_data_in_mux = dma_mode_active
         ? {dma_core_ptext_0, dma_core_ptext_1, 64'h0}
         : slave_core_data_in;
 
-    wire core_data_last = slave_dma_en ? dma_core_data_last : 1'b1;
-    wire core_data_valid = slave_dma_en ? dma_core_data_valid : 1'b1;
+    wire core_data_last = dma_mode_active ? dma_core_data_last : 1'b1;
+    wire core_data_valid = dma_mode_active ? dma_core_data_valid : 1'b1;
 
     // =========================================================================
     // AD input mux:
@@ -314,16 +318,16 @@ module ascon_ip_top #(
     wire         dma_ad_valid_w;
     wire         dma_ad_last_w;
 
-    wire [127:0] core_ad_in    = slave_dma_en ? dma_ad_in_w
+    wire [127:0] core_ad_in    = dma_mode_active ? dma_ad_in_w
                                               : {slave_ad_data_0, slave_ad_data_1,
                                                  slave_ad_data_2, slave_ad_data_3};
-    wire         core_ad_valid = slave_dma_en ? dma_ad_valid_w
+    wire         core_ad_valid = dma_mode_active ? dma_ad_valid_w
                                               : (slave_ad_len != 32'h0);
     // core_ad_last semantics:
     //   last=1, valid=0 → "no AD at all" → CONTROLLER skips to DOM_SEP
     //   last=1, valid=1 → last AD block
     //   last=0, valid=0 → AD expected but not ready yet → CONTROLLER holds in S_AD_LOAD
-    wire         core_ad_last  = slave_dma_en
+    wire         core_ad_last  = dma_mode_active
                                     ? ((slave_ad_len == 32'h0) ? 1'b1 : dma_ad_last_w)
                                     : ((slave_ad_len == 32'h0) ? 1'b1 : core_ad_valid);
 
@@ -441,6 +445,7 @@ module ascon_ip_top #(
         .ad_data_o_1        (slave_ad_data_1),
         .ad_data_o_2        (slave_ad_data_2),
         .ad_data_o_3        (slave_ad_data_3),
+        .context_id_o       (slave_context_id),
 
         // Watchdog outputs
         .wdt_cfg_o          (slave_wdt_cfg),
@@ -535,6 +540,7 @@ module ascon_ip_top #(
         .atu_base             (slave_atu_base),
         .atu_window           (slave_atu_window),
         .coh_ctrl             (slave_dma_coh_ctrl),
+        .context_id           (slave_context_id),
 
         .dma_start            (slave_dma_start),
         .dma_soft_rst         (slave_dma_soft_rst),
@@ -542,6 +548,7 @@ module ascon_ip_top #(
         .dma_busy             (dma_busy_w),
         .dma_done             (dma_done_w),
         .dma_error            (dma_error_w),
+        .context_id_active    (dma_context_id_active_w),
 
         // DMA granular errors (v7 P3) — kết nối đầy đủ thay vì bỏ trống
         .status_rd_done       (),

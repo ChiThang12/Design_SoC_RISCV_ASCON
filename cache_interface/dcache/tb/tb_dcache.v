@@ -107,7 +107,9 @@ dcache_top #(.ID_WIDTH(4)) dut (
     .miss_snoop_addr(), .miss_snoop_cmd(), .miss_snoop_req_valid(),
     .miss_snoop_req_ready(1'b0), .miss_snoop_resp_valid(1'b0),
     .miss_snoop_resp_hit(1'b0), .miss_snoop_resp_data(128'h0),
-    .stat_hits(stat_hits),   .stat_misses(stat_misses), .stat_writes(stat_writes)
+    .stat_hits(stat_hits),   .stat_misses(stat_misses), .stat_writes(stat_writes),
+    .stat_peer_snoop_reqs(), .stat_peer_snoop_hits(), .stat_c2c_forwards(),
+    .stat_c2c_fill_cycles(), .stat_mem_refills()
 );
 
 // ============================================================================

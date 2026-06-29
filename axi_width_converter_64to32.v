@@ -154,7 +154,9 @@ always @(posedge clk or negedge rst_n) begin
                     s_wlast_r  <= 1'b0;
                     s_wvalid_r <= 1'b1;
                     ws_state   <= WS_LOW;
-                    $display("  [DBG CONV WS_IDLE] WDATA=%016h → latch ws_data=%016h, s_wdata_r(LOW)=%08h", M_AXI_WDATA, M_AXI_WDATA, M_AXI_WDATA[31:0]);
+`ifdef DEBUG_AXI_WIDTH_CONV
+                    $display("  [DBG CONV WS_IDLE] WDATA=%016h -> latch ws_data=%016h, s_wdata_r(LOW)=%08h", M_AXI_WDATA, M_AXI_WDATA, M_AXI_WDATA[31:0]);
+`endif
                 end
             end
             WS_LOW: begin
@@ -164,7 +166,9 @@ always @(posedge clk or negedge rst_n) begin
                     s_wlast_r  <= ws_last;
                     s_wvalid_r <= 1'b1;
                     ws_state   <= WS_HIGH;
-                    $display("  [DBG CONV WS_LOW] ws_data=%016h → s_wdata_r(HIGH)=%08h", ws_data, ws_data[63:32]);
+`ifdef DEBUG_AXI_WIDTH_CONV
+                    $display("  [DBG CONV WS_LOW] ws_data=%016h -> s_wdata_r(HIGH)=%08h", ws_data, ws_data[63:32]);
+`endif
                 end
             end
             WS_HIGH: begin
@@ -172,7 +176,9 @@ always @(posedge clk or negedge rst_n) begin
                     s_wvalid_r <= 1'b0;
                     s_wlast_r  <= 1'b0;
                     ws_state   <= WS_IDLE;
+`ifdef DEBUG_AXI_WIDTH_CONV
                     $display("  [DBG CONV WS_HIGH] done, back to IDLE");
+`endif
                 end
             end
             default: ws_state <= WS_IDLE;

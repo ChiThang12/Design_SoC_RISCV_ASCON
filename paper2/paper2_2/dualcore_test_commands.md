@@ -1,37 +1,37 @@
-# Dual-Core Test Commands
+# Lệnh Test Dual-Core
 
-Workspace root:
+Thư mục gốc workspace:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
 ```
 
-## 1. Build a single firmware image
+## 1. Build một firmware image
 
-Example for `test_dualcore_basic`:
+Ví dụ cho `test_dualcore_basic`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_basic.c -o tests_dualcore/test_dualcore_basic.hex -c
 ```
 
-Example for `test_dualcore_cache_sweep`:
+Ví dụ cho `test_dualcore_cache_sweep`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_cache_sweep.c -o tests_dualcore/test_dualcore_cache_sweep.hex -c
 ```
 
-Example for `test_dualcore_fence_flush`:
+Ví dụ cho `test_dualcore_fence_flush`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_fence_flush.c -o tests_dualcore/test_dualcore_fence_flush.hex -c
 ```
 
-## 2. Run one SoC dual-core scenario
+## 2. Chạy một kịch bản SoC dual-core
 
-Example for `test_dualcore_basic`:
+Ví dụ cho `test_dualcore_basic`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -46,7 +46,7 @@ iverilog -g2005 -I. \
 vvp /tmp/test_dualcore_basic.out
 ```
 
-Example for `test_dualcore_cache_sweep`:
+Ví dụ cho `test_dualcore_cache_sweep`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -61,7 +61,7 @@ iverilog -g2005 -I. \
 vvp /tmp/test_dualcore_cache_sweep.out
 ```
 
-Example for `test_dualcore_fence_flush`:
+Ví dụ cho `test_dualcore_fence_flush`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -76,7 +76,7 @@ iverilog -g2005 -I. \
 vvp /tmp/test_dualcore_fence_flush.out
 ```
 
-Example for `test_dualcore_peer_snoop`:
+Ví dụ cho `test_dualcore_peer_snoop`:
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -95,14 +95,14 @@ iverilog -g2005 -I. \
 vvp /tmp/test_dualcore_peer_snoop.out
 ```
 
-## 3. Run the whole SoC dual-core suite
+## 3. Chạy toàn bộ SoC dual-core suite
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
 bash run_dualcore_suite.sh
 ```
 
-## 3a. Run the experimental ASCON dual-core coherency attempt
+## 3a. Chạy proof ASCON dual-core DMA coherency ổn định
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
@@ -116,23 +116,37 @@ iverilog -g2005 -I. \
   -DSCENARIO_NAME='"test_dualcore_ascon_dma_coherent"' \
   -DEXPECT_SIG0=32'hA5C0_2301 \
   -DEXPECT_SIG1=32'hD24A_6003 \
-  -DHEARTBEAT_MIN=0 \
+  -DHEARTBEAT_MIN=4 \
   -DDC_REQ_MIN=8 \
+  -DAUX0_CHECK_ENABLE=1 \
+  -DEXPECT_AUX0=32'hAC03_D003 \
   -DGPIO_CHECK_ENABLE=1 \
   -DEXPECT_GPIO=32'hAC03_D003 \
-  -DTIMEOUT_CYCLES=300000 \
+  -DTIMEOUT_CYCLES=260000 \
   -o /tmp/test_dualcore_ascon_dma_coherent.out tb_soc/tb_soc_dualcore_suite.v
 vvp /tmp/test_dualcore_ascon_dma_coherent.out
 ```
 
-Expected current status:
+Trạng thái kỳ vọng hiện tại:
 - build PASS
-- SoC-level run still TIMEOUT
+- SoC-level run PASS
+- Snapshot PASS kỳ vọng:
+  - `heartbeat=4`
+  - `shared_count=1`
+  - `aux0=ac03d003`
+  - `aux1=00000000`
+  - `core0_dc_req_count=12437`
+  - `core1_dc_req_count=12527`
+  - `dcache0 writes=4191 hits=12398`
+  - `dcache1 writes=4183 hits=12522`
+  - `dcache0 peer_snp_reqs=1 peer_snp_hits=0 c2c_fwds=0 c2c_fill_cycles=0 mem_refills=11`
+  - `dcache1 peer_snp_reqs=0 peer_snp_hits=0 c2c_fwds=0 c2c_fill_cycles=0 mem_refills=5`
 
-## 4. Run the coherency-protocol TB
+## 4. Chạy coherency-protocol TB
 
-This is the smallest targeted check for:
+Đây là kiểm tra nhỏ nhất, tập trung vào:
 - `CPU0 write dirty line -> CPU1 read miss -> automatic peer snoop -> CPU1 observe latest data`
+- direct cache-to-cache forwarding on peer-snoop hit without requester memory refill
 - DMA-style coherent read from latest cache owner
 - DMA-style coherent invalidate forcing dirty writeback and invalidation
 
@@ -144,7 +158,7 @@ iverilog -g2005 -I. \
 vvp /tmp/tb_dcache_dualcore_protocol.out
 ```
 
-## 5. Run the standalone DCache regressions
+## 5. Chạy standalone DCache regressions
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -164,9 +178,9 @@ iverilog -g2005 -I. -o /tmp/tb_dcache_mesi.out cache_interface/dcache/tb/tb_dcac
 vvp /tmp/tb_dcache_mesi.out
 ```
 
-## 6. Run the standalone ASCON DMA regression
+## 6. Chạy standalone ASCON DMA regression
 
-This verifies the DMA engine's coherent primitive path, including:
+Phần này kiểm tra primitive path coherent của DMA engine, gồm:
 - coherent read snoop hit through `coh_ctrl=2'b11`
 - coherent write invalidate before AXI writeback
 - error handling and AXI backpressure behavior after snoop-arbiter updates
@@ -177,7 +191,7 @@ iverilog -g2005 -I. -o /tmp/tb_ascon_dma.out ascon/dma/tb/tb_ascon_dma.v
 vvp /tmp/tb_ascon_dma.out
 ```
 
-## 7. Suggested execution order when validating dual-core
+## 7. Thứ tự chạy đề xuất khi xác thực dual-core
 
 ```bash
 cd /home/chithang/Project/Design_SoC_RISCV_ASCON
@@ -194,13 +208,24 @@ vvp /tmp/tb_ascon_dma.out
 bash run_dualcore_suite.sh
 ```
 
-## 8. Current gaps before claiming a complete dual-core coherency flow
+## 8. Khoảng trống hiện tại trước H1/H3
 
-- `tb_dcache_dualcore_protocol.v` now proves automatic CPU read-miss peer snoop at DCache/snoop-bus level.
-- `tb_ascon_dma.v` now proves the standalone ASCON DMA coherent primitive path.
-- `soc_top.v` now wires both DCache miss-snoop initiators through the snoop arbiter.
-- The stable firmware suite now also includes `test_dualcore_peer_snoop.c`, proving `CPU0 dirty write -> CPU1 read same line` at top-level firmware level.
-- The snoop arbiters and snoop bus were refreshed and re-verified to reduce starvation risk and improve response robustness.
-- The CPU miss path currently uses peer invalidate/writeback followed by refill; direct cache-to-cache data forwarding is not implemented.
-- DMA-style snoop protocol is proven in the DCache protocol TB, but full ASCON DMA engine end-to-end coherency remains pending.
+- `tb_dcache_dualcore_protocol.v` hiện chứng minh automatic CPU read-miss peer snoop at DCache/snoop-bus level.
+- `tb_dcache_dualcore_protocol.v` hiện cũng chứng minh direct cache-to-cache forwarding with:
+  - `peer_snoop_reqs`
+  - `peer_snoop_hits`
+  - `c2c_fwds`
+  - `c2c_fill_cycles`
+  - `mem_refills`
+- `tb_ascon_dma.v` hiện chứng minh standalone ASCON DMA coherent primitive path.
+- `soc_top.v` hiện nối cả hai DCache miss-snoop initiator qua snoop arbiter.
+- Bộ firmware ổn định hiện cũng có `test_dualcore_peer_snoop.c`, chứng minh `CPU0 dirty write -> CPU1 read same line` at top-level firmware level.
+- `test_dualcore_ascon_dma_coherent.c` hiện chứng minh full ASCON DMA engine end-to-end coherency at SoC dual-core level.
+- Các snoop arbiter và snoop bus đã được cập nhật và verify lại to reduce starvation risk and improve response robustness.
+- Đường CPU miss hiện hỗ trợ direct cache-to-cache forwarding when peer snoop returns a hit.
 - `CPU1` now has `mhartid = 1` and shared IRQ/debug request wiring, but separate per-hart interrupt routing and debug path are still partial.
+- Phần còn lại trước khi có gói paper H1/H3 hoàn chỉnh là:
+  - H3 context plumbing and context-switch benchmarks
+  - H1 compute-in-cache metadata and latency/throughput benchmarks
+  - throughput contention khi CPU và DMA cùng hoạt động
+  - báo cáo cache miss/hit theo từng core

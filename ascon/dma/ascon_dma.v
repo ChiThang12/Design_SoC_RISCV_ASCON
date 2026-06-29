@@ -87,6 +87,7 @@ module ascon_dma #(
     input  wire [ADDR_WIDTH-1:0]  atu_base,      // ATU physical base
     input  wire [ADDR_WIDTH-1:0]  atu_window,    // ATU window size / enable range
     input  wire [1:0]             coh_ctrl,      // [0]=read snoop, [1]=write invalidate
+    input  wire [0:0]             context_id,    // H3 context sideband from register bank
 
     input  wire                   dma_start,     // from DMA_CTRL[0] pulse
     input  wire                   dma_soft_rst,  // from DMA_CTRL[1] pulse
@@ -101,6 +102,7 @@ module ascon_dma #(
     output wire                   status_rd_error,
     output wire                   status_wr_error,
     output wire                   status_fifo_overflow,
+    output wire [0:0]             context_id_active,
 
     // DMA_ERR_ADDR (0x118) — address that caused AXI error
     output wire [ADDR_WIDTH-1:0]  dma_err_addr,
@@ -234,6 +236,7 @@ module ascon_dma #(
 
     // [FIX-RTL-1] dma_ctrl_fsm의 dma_error output을 캡처할 wire
     wire        dma_error_fsm_w;   // FSM internal error flag
+    wire [0:0]  context_id_active_w;
 
     // ATU-translated addresses
     wire [ADDR_WIDTH-1:0] src_addr_atu;
@@ -384,6 +387,7 @@ module ascon_dma #(
         // AD parameters (v2.0)
         .ad_src_addr         (ad_src_addr_atu),
         .ad_len              (ad_len),
+        .context_id          (context_id),
         // Status
         .dma_busy            (dma_busy),
         .dma_done            (dma_done),
@@ -437,8 +441,11 @@ module ascon_dma #(
         // Status bits
         .status_rd_done      (status_rd_done),
         .status_wr_done      (status_wr_done),
-        .status_fifo_overflow(status_fifo_overflow)
+        .status_fifo_overflow(status_fifo_overflow),
+        .context_id_active   (context_id_active_w)
     );
+
+    assign context_id_active = context_id_active_w;
 
     // =========================================================================
     // DMA Read Engine

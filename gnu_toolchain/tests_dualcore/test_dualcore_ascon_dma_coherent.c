@@ -44,17 +44,17 @@
 #define OUT1_STALE4    0x13579BDFu
 #define OUT1_STALE5    0x2468ACE0u
 
-#define EXPECT_CT0     0xDAD6AAB5u
-#define EXPECT_CT1     0x9AF53D3Du
-#define EXPECT_TAG0    0xF46F7363u
-#define EXPECT_TAG1    0xEAF31505u
-#define EXPECT_TAG2    0x9AFD1BFBu
-#define EXPECT_TAG3    0xE221CC7Fu
+#define EXPECT_CT0     0xD8E2DDDAu
+#define EXPECT_CT1     0xFF48E2DEu
+#define EXPECT_TAG0    0xC0DBC4C1u
+#define EXPECT_TAG1    0xDBC70A04u
+#define EXPECT_TAG2    0x2597A16Eu
+#define EXPECT_TAG3    0x5AC00D8Eu
 
-#define CPU1_BOOT_DELAY    4096u
-#define CPU0_DMA_DELAY     32768u
-#define CPU1_DMA_WAIT      98304u
-#define CPU0_FINISH_DELAY  131072u
+#define CPU1_BOOT_DELAY    512u
+#define CPU0_DMA_DELAY     4096u
+#define CPU1_DMA_WAIT      32768u
+#define CPU0_FINISH_DELAY  0u
 
 #define GPIO_PASS_VALUE 0xAC03D003u
 
@@ -178,6 +178,9 @@ int main(void)
 
         dirty_source_latest_without_fence();
         status = start_dma_and_wait();
+        DMEM32(HEARTBEAT_ADDR) = 3u;
+        DMEM32(AUX0_ADDR) = status;
+        __asm__ volatile ("fence w,w" ::: "memory");
         if ((status & (ASCON_ST_DMA_ERR | ASCON_ST_CORE_ERR)) != 0u) {
             fail_with_capture(0xFFFF0002u, status);
         }
@@ -192,6 +195,10 @@ int main(void)
         }
 
         spin_delay(CPU0_FINISH_DELAY);
+        DMEM32(SHARED_COUNT_ADDR) = 1u;
+        DMEM32(HEARTBEAT_ADDR) = 4u;
+        DMEM32(AUX0_ADDR) = GPIO_PASS_VALUE;
+        __asm__ volatile ("fence w,w" ::: "memory");
         gpio_write(GPIO_PASS_VALUE, 0xFFFFFFFFu);
 
         while (1) {
@@ -211,6 +218,11 @@ int main(void)
     if ((ct[4] == OUT1_STALE4) && (ct[5] == OUT1_STALE5)) {
         fail_with_capture(0xFFFF0003u, ct[5]);
     }
+
+    DMEM32(SHARED_COUNT_ADDR) = 2u;
+    DMEM32(HEARTBEAT_ADDR) = 5u;
+    DMEM32(AUX1_ADDR) = ct[4];
+    __asm__ volatile ("fence w,w" ::: "memory");
 
     while (1) {
         dualcore_check_signatures(SIG0_VALUE, SIG1_VALUE);

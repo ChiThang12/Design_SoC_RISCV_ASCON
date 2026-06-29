@@ -1,6 +1,6 @@
 /* ============================================================================
  * ascon.h — ASCON Crypto Accelerator Library (CPU-Direct & DMA Mode)
- * Version : 2.7
+ * Version : 2.8
  *
  * Sử dụng Inline Assembly để truy cập phần cứng an toàn tuyệt đối,
  * tránh mọi can thiệp của compiler optimization (không bị reorder, duplicate).
@@ -18,6 +18,11 @@
  * [P2] STATUS[6] TAG_MISMATCH chỉ được set trong decrypt mode (reg_mode[1]=1).
  *      Trước đây bị set nhầm trong encrypt mode → firmware không cần
  *      workaround nữa.
+ *
+ * ── H3 context banking ────────────────────────────────────────────────────
+ * [H3] CONTEXT_SEL (0x008) chọn một trong hai context bank cho core-facing
+ *      state. Firmware có thể giữ 2 session độc lập và chuyển qua lại mà
+ *      không ghi đè lẫn nhau.
  *
  * ── Fix v2.6: FIX-BUG-TOP9 — kết nối TAG_IN và AD registers ────────────────
  * Trong decrypt mode, CPU phải ghi tag cần verify vào TAG_IN_0..3
@@ -57,6 +62,7 @@
 /* ── Register Offsets (từ ascon_axi_slave.v) ───────────────────────────── */
 #define ASCON_OFS_MODE      0x000
 #define ASCON_OFS_STATUS    0x004
+#define ASCON_OFS_CONTEXT_SEL 0x008
 #define ASCON_OFS_IRQ_EN    0x00C
 #define ASCON_OFS_KEY_0     0x010
 #define ASCON_OFS_KEY_1     0x014
@@ -194,6 +200,11 @@ static inline void ascon_soft_reset(void) {
  */
 static inline void ascon_set_mode(uint32_t mode_val) {
     ASCON_WRITE(ASCON_OFS_MODE, mode_val);
+}
+
+/* 2b. Chọn context bank H3 (0 hoặc 1) */
+static inline void ascon_select_context(uint32_t context_id) {
+    ASCON_WRITE(ASCON_OFS_CONTEXT_SEL, context_id & 1u);
 }
 
 /* 3. Nạp Key (128-bit, 4 × 32-bit word, big-endian: k0 = word cao nhất) */

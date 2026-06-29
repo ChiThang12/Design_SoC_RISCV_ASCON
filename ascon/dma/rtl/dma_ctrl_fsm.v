@@ -35,6 +35,7 @@ module dma_ctrl_fsm #(
     input  wire         dma_soft_rst,
     input  wire [31:0]  byte_len,          // plaintext byte length
     input  wire [7:0]   burst_len,
+    input  wire [0:0]   context_id,        // H3 context select from register bank
 
     // ── AD parameters (v4.0) ─────────────────────────────────────────────────
     input  wire [31:0]  ad_src_addr,       // AD source address in memory
@@ -111,7 +112,8 @@ module dma_ctrl_fsm #(
     // ── Status bits ───────────────────────────────────────────────────────────
     output reg          status_rd_done,
     output reg          status_wr_done,
-    output reg          status_fifo_overflow
+    output reg          status_fifo_overflow,
+    output reg  [0:0]   context_id_active
 );
 
     // =========================================================================
@@ -172,6 +174,7 @@ module dma_ctrl_fsm #(
             rd_blocks_sent   <= 29'd0;
             dma_phase        <= DMA_PHASE_AD;
             status_rd_done   <= 1'b0;
+            context_id_active <= 1'b0;
         end else if (dma_soft_rst) begin
             rd_start         <= 1'b0;
             rd_override_addr <= 32'h0;
@@ -179,12 +182,14 @@ module dma_ctrl_fsm #(
             rd_blocks_sent   <= 29'd0;
             dma_phase        <= DMA_PHASE_AD;
             status_rd_done   <= 1'b0;
+            context_id_active <= 1'b0;
         end else begin
             rd_start <= 1'b0; // default pulse
 
             if (dma_start) begin
                 rd_blocks_sent   <= 29'd0;
                 status_rd_done   <= 1'b0;
+                context_id_active <= context_id;
                 if (has_ad) begin
                     dma_phase        <= DMA_PHASE_AD;
                     rd_override_addr <= ad_src_addr;
@@ -356,13 +361,13 @@ module dma_ctrl_fsm #(
                 pump_state      <= PUMP_IDLE;
                 core_blocks_fed <= 29'd0;
                 core_data_valid <= 1'b0;
-                core_start      <= 1'b1;  // Kick CONTROLLER INIT immediately at DMA start
+                core_start      <= 1'b1;
             end
 
             case (pump_state)
                 PUMP_IDLE: begin
                     // Only run payload pump during payload phase and AD pump done
-                    if (rd_fifo_fwft_valid && dma_busy &&
+                    if (rd_fifo_fwft_valid &&
                         dma_phase == DMA_PHASE_PAYLOAD &&
                         ad_pump_state == AD_PMP_DONE &&
                         core_blocks_fed < total_blocks)
@@ -377,7 +382,8 @@ module dma_ctrl_fsm #(
                     end
                 end
                 PUMP_START: begin
-                    // core_start was already fired at dma_start; just proceed.
+                    // core_start fired at dma_start; keep data_valid asserted until
+                    // the controller reaches S_DATA_LOAD and produces data_out_valid.
                     // core_data_ready guard is removed: we must enter PUMP_WAIT_CORE
                     // BEFORE the CONTROLLER reaches S_DATA_LOAD (so we don't miss
                     // the 1-cycle data_out_valid pulse).
