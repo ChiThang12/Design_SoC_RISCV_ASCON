@@ -42,6 +42,7 @@ NO_CRT0=0
 OPTIMIZE=""
 MEM_SIZE=2048
 KEEP_TEMP=0
+EXTRA_CFLAGS_ARR=()
 
 # FIX-B + FIX-E: Stack top đúng = cuối DMEM_STACK = 0x10002000
 STACK_TOP=0x10001FF0
@@ -104,6 +105,11 @@ if ! command -v riscv64-unknown-elf-gcc &> /dev/null; then
     echo -e "${RED}Error: RISC-V toolchain not found${NC}"
     echo "Install: sudo apt install gcc-riscv64-unknown-elf"
     exit 1
+fi
+
+if [ -n "${EXTRA_CFLAGS:-}" ]; then
+    # Simulation runners can inject simple defines, e.g. -DSOC_SIM_FAST_UART.
+    read -r -a EXTRA_CFLAGS_ARR <<< "$EXTRA_CFLAGS"
 fi
 
 EXT="${INPUT_FILE##*.}"
@@ -368,6 +374,7 @@ COMMON_FLAGS=(
     -nostdlib
     -nostartfiles
     -I include/
+    "${EXTRA_CFLAGS_ARR[@]}"
     -fomit-frame-pointer
     -fno-strict-volatile-bitfields
     -fno-schedule-insns

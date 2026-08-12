@@ -1,0 +1,141 @@
+
+<div style="padding: 1rem 0;">
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 1.5rem;">
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem;">
+    <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">ref 128</p>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">380 <span style="font-size:11px;font-weight:400;">MB/s</span></p>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem;">
+    <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">opt64 128</p>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">520 <span style="font-size:11px;font-weight:400;">MB/s</span></p>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem;">
+    <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">avx512 128</p>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">249 <span style="font-size:11px;font-weight:400;">MB/s</span></p>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem;">
+    <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">ref 128a</p>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">452 <span style="font-size:11px;font-weight:400;">MB/s</span></p>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem;">
+    <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">HW in SoC</p>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">1,000 <span style="font-size:11px;font-weight:400;">MB/s</span></p>
+  </div>
+  <div style="background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 0.75rem;">
+    <p style="font-size: 11px; color: var(--color-text-secondary); margin: 0 0 4px;">HW standalone</p>
+    <p style="font-size: 18px; font-weight: 500; margin: 0;">2,000 <span style="font-size:11px;font-weight:400;">MB/s</span></p>
+  </div>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 8px; font-size: 12px; color: var(--color-text-secondary);">
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #5DCAA5;"></span>Encrypt</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #85B7EB;"></span>Decrypt</span>
+  <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #EF9F27;"></span>Hardware</span>
+</div>
+
+<div style="position: relative; width: 100%; height: 340px; margin-bottom: 2rem;">
+  <canvas id="mainChart" role="img" aria-label="Bar chart so sánh throughput ASCON các variant SW và HW">SW ref 128: 380 enc 393 dec. SW opt64 128: 520 enc 533 dec. SW avx512 128: 249 enc 253 dec. SW ref 128a: 452 enc 508 dec. HW SoC: 1000. HW standalone: 2000.</canvas>
+</div>
+
+<div style="border-top: 0.5px solid var(--color-border-tertiary); padding-top: 1.25rem; margin-bottom: 1.25rem;">
+  <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 8px;">Throughput theo kích thước message — SW opt64 128 vs HW</p>
+  <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; font-size: 12px; color: var(--color-text-secondary);">
+    <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #5DCAA5;"></span>SW opt64 128 enc</span>
+    <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; border-radius: 2px; background: #AFA9EC;"></span>SW ref 128a enc</span>
+    <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 22px; height: 2px; background: #EF9F27; display: inline-block; vertical-align: middle;"></span>HW SoC (1 Gbps)</span>
+    <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 22px; height: 2px; background: #BA7517; border-top: 2px dashed #BA7517; display: inline-block; vertical-align: middle;"></span>HW standalone (2 Gbps)</span>
+  </div>
+  <div style="position: relative; width: 100%; height: 260px;">
+    <canvas id="lineChart" role="img" aria-label="Line chart throughput theo message size">opt64 128 tăng từ 111 MB/s ở 16B lên 697 MB/s ở 64KB.</canvas>
+  </div>
+</div>
+
+<div style="border-top: 0.5px solid var(--color-border-tertiary); padding-top: 1.25rem;">
+  <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 8px;">Speedup so với SW ref 128 (baseline = 1×)</p>
+  <div style="position: relative; width: 100%; height: 200px;">
+    <canvas id="speedupChart" role="img" aria-label="Speedup chart">HW standalone đạt 5.3x speedup.</canvas>
+  </div>
+</div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const barLabels = ['SW ref\n128', 'SW opt64\n128', 'SW avx512\n128', 'SW ref\n128a', 'HW\nSoC', 'HW\nstandalone'];
+const encVals =   [380, 520, 249, 452, 1000, 2000];
+const decVals =   [393, 533, 253, 508, 1000, 2000];
+const barColors = ['#5DCAA5','#5DCAA5','#5DCAA5','#5DCAA5','#EF9F27','#EF9F27'];
+const barColorsD= ['#85B7EB','#85B7EB','#85B7EB','#85B7EB','#FAC775','#FAC775'];
+
+new Chart(document.getElementById('mainChart'), {
+  type: 'bar',
+  data: {
+    labels: barLabels,
+    datasets: [
+      { label: 'Encrypt (MB/s)', data: encVals, backgroundColor: barColors, borderWidth: 0 },
+      { label: 'Decrypt (MB/s)', data: decVals, backgroundColor: barColorsD, borderWidth: 0 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString() + ' MB/s' } },
+      annotation: {}
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => v >= 1000 ? (v/1000)+'G' : v+'M' } },
+      x: { ticks: { font: { size: 11 } } }
+    }
+  }
+});
+
+const sizes = ['16B','64B','256B','1KB','4KB','16KB','64KB'];
+const opt64enc  = [111, 299, 518, 642, 682, 692, 697];
+const ref128aenc= [104, 288, 501, 307, 645, 661, 660];
+
+new Chart(document.getElementById('lineChart'), {
+  type: 'line',
+  data: {
+    labels: sizes,
+    datasets: [
+      { label: 'SW opt64 128 enc', data: opt64enc, borderColor: '#1D9E75', backgroundColor: 'rgba(29,158,117,0.1)', tension: 0.3, fill: true, pointRadius: 3 },
+      { label: 'SW ref 128a enc',  data: ref128aenc, borderColor: '#7F77DD', backgroundColor: 'rgba(127,119,221,0.08)', tension: 0.3, fill: false, pointRadius: 3, borderDash: [] },
+      { label: 'HW SoC',      data: Array(7).fill(1000), borderColor: '#EF9F27', borderWidth: 2, pointRadius: 0, borderDash: [] },
+      { label: 'HW standalone',data: Array(7).fill(2000), borderColor: '#BA7517', borderWidth: 2, pointRadius: 0, borderDash: [6,3] }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + Math.round(ctx.parsed.y) + ' MB/s' } } },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => v >= 1000 ? (v/1000)+'G' : v+'M' } }
+    }
+  }
+});
+
+const baseline = 380;
+const labels2  = ['SW ref 128','SW opt64 128','SW avx512 128','SW ref 128a','HW SoC','HW standalone'];
+const speedups = [380,520,249,452,1000,2000].map(v => parseFloat((v/baseline).toFixed(2)));
+const spColors = speedups.map(v => v >= 4 ? '#EF9F27' : v >= 2 ? '#5DCAA5' : v < 1 ? '#F09595' : '#B4B2A9');
+
+new Chart(document.getElementById('speedupChart'), {
+  type: 'bar',
+  data: {
+    labels: labels2,
+    datasets: [{ data: speedups, backgroundColor: spColors, borderWidth: 0 }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: { callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + '×' } }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { callback: v => v + '×' } },
+      x: { ticks: { font: { size: 11 } } }
+    }
+  }
+});
+</script>

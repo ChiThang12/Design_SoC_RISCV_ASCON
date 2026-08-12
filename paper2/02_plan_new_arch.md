@@ -220,7 +220,7 @@ Selective coherent no-fence 128B (COH_CTRL=1):
 Chạy từ root repo:
 
 ```sh
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 ```
 
 Build firmware no-fence:

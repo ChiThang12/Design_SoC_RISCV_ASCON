@@ -34,10 +34,10 @@ Nguyên tắc quan trọng:
 
 Nhánh H1 nên làm việc trên:
 
-- [dcache_ascon README](/home/chithang/Project/Design_SoC_RISCV_ASCON/cache_interface/dcache_ascon/README.md)
-- [dcache_top.v](/home/chithang/Project/Design_SoC_RISCV_ASCON/cache_interface/dcache_ascon/dcache_top.v)
-- [dcache_controller.v](/home/chithang/Project/Design_SoC_RISCV_ASCON/cache_interface/dcache_ascon/dcache_controller.v)
-- [dcache_tag_array.v](/home/chithang/Project/Design_SoC_RISCV_ASCON/cache_interface/dcache_ascon/dcache_tag_array.v)
+- [dcache_ascon README](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/cache_interface/dcache_ascon/README.md>)
+- [dcache_top.v](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/cache_interface/dcache_ascon/dcache_top.v>)
+- [dcache_controller.v](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/cache_interface/dcache_ascon/dcache_controller.v>)
+- [dcache_tag_array.v](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/cache_interface/dcache_ascon/dcache_tag_array.v>)
 
 ## Cần sửa gì để H1 hoàn thiện RTL
 

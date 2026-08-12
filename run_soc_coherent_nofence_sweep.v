@@ -75,6 +75,42 @@ module run_soc_coherent_nofence_sweep;
     wire cpu_rst_n_w    = chip.u_soc_top.cpu_rst_n;
     wire [31:0] pc_if   = chip.u_soc_top.u_cpu.pc_if;
 
+`ifdef COH_REG_TRACE
+    always @(posedge clk) begin
+        if (chip.u_soc_top.s2_awvalid && chip.u_soc_top.s2_awready) begin
+            if ((chip.u_soc_top.s2_awaddr[11:0] >= 12'h150 && chip.u_soc_top.s2_awaddr[11:0] <= 12'h158) ||
+                chip.u_soc_top.s2_awaddr[11:0] == 12'h020) begin
+                $display("[COH-REG] cycle=%0d AW addr=%08x", cycle_count, chip.u_soc_top.s2_awaddr);
+            end
+        end
+        if (chip.u_soc_top.s2_wvalid && chip.u_soc_top.s2_wready) begin
+            if ((chip.u_soc_top.u_ascon.u_slave.wr_addr_lat >= 12'h150 &&
+                 chip.u_soc_top.u_ascon.u_slave.wr_addr_lat <= 12'h158) ||
+                chip.u_soc_top.u_ascon.u_slave.wr_addr_lat == 12'h020) begin
+                $display("[COH-REG] cycle=%0d W addr_lat=%03x data=%08x strb=%0h last=%0b reg_dma_coh_ctrl=%0d",
+                         cycle_count,
+                         chip.u_soc_top.u_ascon.u_slave.wr_addr_lat,
+                         chip.u_soc_top.s2_wdata,
+                         chip.u_soc_top.s2_wstrb,
+                         chip.u_soc_top.s2_wlast,
+                         chip.u_soc_top.u_ascon.u_slave.reg_dma_coh_ctrl);
+            end
+        end
+        if (chip.u_soc_top.s2_bvalid && chip.u_soc_top.s2_bready) begin
+            if ((chip.u_soc_top.u_ascon.u_slave.wr_addr_lat >= 12'h150 &&
+                 chip.u_soc_top.u_ascon.u_slave.wr_addr_lat <= 12'h158) ||
+                chip.u_soc_top.u_ascon.u_slave.wr_addr_lat == 12'h020) begin
+                $display("[COH-REG] cycle=%0d B addr_lat=%03x resp=%0b reg_dma_coh_ctrl=%0d dma_start=%0b",
+                         cycle_count,
+                         chip.u_soc_top.u_ascon.u_slave.wr_addr_lat,
+                         chip.u_soc_top.s2_bresp,
+                         chip.u_soc_top.u_ascon.u_slave.reg_dma_coh_ctrl,
+                         chip.u_soc_top.u_ascon.u_slave.dma_start);
+            end
+        end
+    end
+`endif
+
     wire dc_snoop_req_fire  = chip.u_soc_top.dc_snoop_req_valid && chip.u_soc_top.dc_snoop_req_ready;
     wire dc_snoop_resp_fire = chip.u_soc_top.dc_snoop_resp_valid;
     wire [1:0] dc_snoop_cmd = chip.u_soc_top.dc_snoop_cmd;

@@ -71,7 +71,16 @@
 `include "memory/data_mem_axi_slave.v"
 `include "interconnect/axi4_crossbar_5m12s.v"
 `include "interconnect/axi4_master_mux_2m.v"
+// Dot 1 lock: H3 is the default active ASCON tree for the SoC build.
+// Keep the baseline switch for fair comparison, and allow the legacy tree
+// only when it is selected explicitly for debugging.
+`ifdef USE_ASCON_BASELINE
+`include "ascon_baseline/ascon_top.v"
+`elsif USE_ASCON_LEGACY
 `include "ascon/ascon_top.v"
+`else
+`include "ascon_H3/ascon_top.v"
+`endif
 `include "axi_width_converter_64to32.v"
 `include "controller/soc_ctrl_slave.v"
 `include "clint.v"
@@ -109,6 +118,7 @@ module soc_top #(
 
     // ── Boot mode ─────────────────────────────────────────────────────────
     parameter        SIM_MODE    = 0,     // 0=UART boot (HW), 1=fast $readmemh (sim)
+    parameter        ENABLE_CPU1 = 1,     // 0=single-core bring-up/OS tests, 1=dual-core SoC mode
 
     // ── Crossbar slave address map (S0–S11) ───────────────────────────────
     parameter [31:0] S0_BASE  = 32'h0000_0000,  // IMEM      8 KB
@@ -225,6 +235,9 @@ wire [31:0] imem_boot_wdata;
 
 // WHY cpu_rst active-high: riscv_cpu_core dùng "rst" active-high convention
 wire cpu_rst = ~cpu_rst_n;
+wire cpu1_enabled = (ENABLE_CPU1 != 0);
+wire cpu1_rst = cpu_rst | ~cpu1_enabled;
+wire cpu0_clk = clk_core;
 
 clk_reset_ctrl #(
     .POR_CYCLES       (POR_CYCLES),
@@ -236,7 +249,7 @@ clk_reset_ctrl #(
     .soft_rst_pulse(soft_rst_pulse),
     .ndmreset      (jtag_ndmreset), // JTAG DM → reset CPU+periph không reset fabric
     .boot_done     (boot_done),     // boot_ctrl → giữ cpu_rst_n cho đến khi IMEM loaded
-    .test_en       (1'b0),
+    .test_en       (~cpu1_enabled),
     .core_clk_en   (1'b1),
     .periph_clk_en (1'b1),
     .cpu_wfi       (cpu_wfi),
@@ -322,6 +335,7 @@ wire        cpu_dcache_req;
 wire        cpu_dcache_we;
 wire [31:0] dcache_cpu_rdata;
 wire        dcache_cpu_ready;
+wire        cpu_dcache_fence_busy;
 wire [1:0]  cpu_dcache_fence_type;
 wire [31:0] cpu1_dcache_addr;
 wire [31:0] cpu1_dcache_wdata;
@@ -330,6 +344,7 @@ wire        cpu1_dcache_req;
 wire        cpu1_dcache_we;
 wire [31:0] dcache1_cpu_rdata;
 wire        dcache1_cpu_ready;
+wire        cpu1_dcache_fence_busy;
 wire [1:0]  cpu1_dcache_fence_type;
 
 wire [31:0] dc_snoop_addr;
@@ -339,6 +354,11 @@ wire        dc_snoop_req_ready;
 wire        dc_snoop_resp_valid;
 wire        dc_snoop_resp_hit;
 wire [127:0] dc_snoop_resp_data;
+wire [1:0]  dc_bus_snoop_mask;
+// Performance-mode read snoops target the primary CPU cache to avoid
+// unrelated dcache1 backpressure; invalidate snoops must still broadcast.
+wire [1:0]  active_core_mask = cpu1_enabled ? 2'b11 : 2'b01;
+wire [1:0]  dma_snoop_mask = ((dc_snoop_cmd == 2'b01) ? 2'b01 : 2'b11) & active_core_mask;
 wire [31:0] dc0_snoop_addr;
 wire [1:0]  dc0_snoop_cmd;
 wire        dc0_snoop_req_valid;
@@ -490,15 +510,15 @@ wire cpu1_perf_stall;
 wire cpu0_perf_instr_ret;
 wire cpu1_perf_instr_ret;
 
-assign cpu_wfi            = cpu0_wfi & cpu1_wfi;
-assign cpu_perf_stall     = cpu0_perf_stall | cpu1_perf_stall;
-assign cpu_perf_instr_ret = cpu0_perf_instr_ret | cpu1_perf_instr_ret;
+assign cpu_wfi            = cpu1_enabled ? (cpu0_wfi & cpu1_wfi) : 1'b0;
+assign cpu_perf_stall     = cpu0_perf_stall | (cpu1_enabled ? cpu1_perf_stall : 1'b0);
+assign cpu_perf_instr_ret = cpu0_perf_instr_ret | (cpu1_enabled ? cpu1_perf_instr_ret : 1'b0);
 
-assign icache_stat_hits   = icache0_stat_hits + icache1_stat_hits;
-assign icache_stat_misses = icache0_stat_misses + icache1_stat_misses;
-assign dcache_stat_hits   = dcache0_stat_hits + dcache1_stat_hits;
-assign dcache_stat_misses = dcache0_stat_misses + dcache1_stat_misses;
-assign dcache_stat_writes = dcache0_stat_writes + dcache1_stat_writes;
+assign icache_stat_hits   = icache0_stat_hits + (cpu1_enabled ? icache1_stat_hits : 32'd0);
+assign icache_stat_misses = icache0_stat_misses + (cpu1_enabled ? icache1_stat_misses : 32'd0);
+assign dcache_stat_hits   = dcache0_stat_hits + (cpu1_enabled ? dcache1_stat_hits : 32'd0);
+assign dcache_stat_misses = dcache0_stat_misses + (cpu1_enabled ? dcache1_stat_misses : 32'd0);
+assign dcache_stat_writes = dcache0_stat_writes + (cpu1_enabled ? dcache1_stat_writes : 32'd0);
 
 // ============================================================================
 // SECTION 8: AXI4 Master wires (M0–M4)
@@ -1035,7 +1055,7 @@ otp_stub_slave #(
 riscv_cpu_core #(
     .HART_ID(32'd0)
 ) u_cpu (
-    .clk             (clk_core),
+    .clk             (cpu0_clk),
     .rst             (cpu_rst),
 
     .imem_addr       (cpu_imem_addr),
@@ -1050,6 +1070,7 @@ riscv_cpu_core #(
     .dcache_we       (cpu_dcache_we),
     .dcache_rdata    (dcache_cpu_rdata),
     .dcache_ready    (dcache_cpu_ready),
+    .dcache_fence_busy(cpu_dcache_fence_busy),
     .dcache_fence_type(cpu_dcache_fence_type),
 
     .external_irq    (external_irq),   // ← từ PLIC.meip
@@ -1071,7 +1092,7 @@ riscv_cpu_core #(
     .HART_ID(32'd1)
 ) u_cpu1 (
     .clk             (clk_core),
-    .rst             (cpu_rst),
+    .rst             (cpu1_rst),
 
     .imem_addr       (cpu1_imem_addr),
     .imem_valid      (cpu1_imem_valid),
@@ -1085,6 +1106,7 @@ riscv_cpu_core #(
     .dcache_we       (cpu1_dcache_we),
     .dcache_rdata    (dcache1_cpu_rdata),
     .dcache_ready    (dcache1_cpu_ready),
+    .dcache_fence_busy(cpu1_dcache_fence_busy),
     .dcache_fence_type(cpu1_dcache_fence_type),
 
     .external_irq    (external_irq),
@@ -1139,7 +1161,7 @@ icache_top u_icache1 (
     .rst_n       (cpu_rst_n),
 
     .cpu_addr    (cpu1_imem_addr),
-    .cpu_req     (cpu1_imem_valid),
+    .cpu_req     (cpu1_enabled ? cpu1_imem_valid : 1'b0),
     .cpu_rdata   (icache1_imem_rdata),
     .cpu_ready   (icache1_imem_ready),
     .flush       (1'b0),
@@ -1191,16 +1213,16 @@ axi4_master_mux_2m #(
     .m1_arid    (i1_arid),   .m1_araddr  (i1_araddr),
     .m1_arlen   (i1_arlen),  .m1_arsize  (i1_arsize),
     .m1_arburst (i1_arburst),.m1_arprot  (i1_arprot),
-    .m1_arvalid (i1_arvalid),.m1_arready (i1_arready),
+    .m1_arvalid (cpu1_enabled ? i1_arvalid : 1'b0),.m1_arready (i1_arready),
     .m1_rid     (i1_rid),    .m1_rdata   (i1_rdata),
     .m1_rresp   (i1_rresp),  .m1_rlast   (i1_rlast),
     .m1_rvalid  (i1_rvalid), .m1_rready  (i1_rready),
     .m1_awid    (i1_awid),   .m1_awaddr  (i1_awaddr),
     .m1_awlen   (i1_awlen),  .m1_awsize  (i1_awsize),
     .m1_awburst (i1_awburst),.m1_awprot  (i1_awprot),
-    .m1_awvalid (i1_awvalid),.m1_awready (i1_awready),
+    .m1_awvalid (cpu1_enabled ? i1_awvalid : 1'b0),.m1_awready (i1_awready),
     .m1_wdata   (i1_wdata),  .m1_wstrb   (i1_wstrb),
-    .m1_wlast   (i1_wlast),  .m1_wvalid  (i1_wvalid),
+    .m1_wlast   (i1_wlast),  .m1_wvalid  (cpu1_enabled ? i1_wvalid : 1'b0),
     .m1_wready  (i1_wready),
     .m1_bid     (i1_bid),    .m1_bresp   (i1_bresp),
     .m1_bvalid  (i1_bvalid), .m1_bready  (i1_bready),
@@ -1236,6 +1258,7 @@ dcache_top u_dcache (
     .cpu_we      (cpu_dcache_we),
     .cpu_rdata   (dcache_cpu_rdata),
     .cpu_ready   (dcache_cpu_ready),
+    .fence_busy  (cpu_dcache_fence_busy),
     .fence_type  (cpu_dcache_fence_type),
     .miss_snoop_enable(1'b1),
 
@@ -1292,12 +1315,13 @@ dcache_top u_dcache1 (
     .cpu_addr    (cpu1_dcache_addr),
     .cpu_wdata   (cpu1_dcache_wdata),
     .cpu_wstrb   (cpu1_dcache_wstrb),
-    .cpu_req     (cpu1_dcache_req),
+    .cpu_req     (cpu1_enabled ? cpu1_dcache_req : 1'b0),
     .cpu_we      (cpu1_dcache_we),
     .cpu_rdata   (dcache1_cpu_rdata),
     .cpu_ready   (dcache1_cpu_ready),
+    .fence_busy  (cpu1_dcache_fence_busy),
     .fence_type  (cpu1_dcache_fence_type),
-    .miss_snoop_enable(1'b1),
+    .miss_snoop_enable(cpu1_enabled),
 
     .current_addr (),
     .current_data (),
@@ -1371,16 +1395,16 @@ axi4_master_mux_2m #(
     .m1_arid    (d1_arid),   .m1_araddr  (d1_araddr),
     .m1_arlen   (d1_arlen),  .m1_arsize  (d1_arsize),
     .m1_arburst (d1_arburst),.m1_arprot  (d1_arprot),
-    .m1_arvalid (d1_arvalid),.m1_arready (d1_arready),
+    .m1_arvalid (cpu1_enabled ? d1_arvalid : 1'b0),.m1_arready (d1_arready),
     .m1_rid     (d1_rid),    .m1_rdata   (d1_rdata),
     .m1_rresp   (d1_rresp),  .m1_rlast   (d1_rlast),
     .m1_rvalid  (d1_rvalid), .m1_rready  (d1_rready),
     .m1_awid    (d1_awid),   .m1_awaddr  (d1_awaddr),
     .m1_awlen   (d1_awlen),  .m1_awsize  (d1_awsize),
     .m1_awburst (d1_awburst),.m1_awprot  (d1_awprot),
-    .m1_awvalid (d1_awvalid),.m1_awready (d1_awready),
+    .m1_awvalid (cpu1_enabled ? d1_awvalid : 1'b0),.m1_awready (d1_awready),
     .m1_wdata   (d1_wdata),  .m1_wstrb   (d1_wstrb),
-    .m1_wlast   (d1_wlast),  .m1_wvalid  (d1_wvalid),
+    .m1_wlast   (d1_wlast),  .m1_wvalid  (cpu1_enabled ? d1_wvalid : 1'b0),
     .m1_wready  (d1_wready),
     .m1_bid     (d1_bid),    .m1_bresp   (d1_bresp),
     .m1_bvalid  (d1_bvalid), .m1_bready  (d1_bready),
@@ -1410,6 +1434,7 @@ dcache_snoop_arb_3to1 #(
     .rst_n           (fabric_rst_n),
     .req0_addr       (cpu0_miss_snoop_addr),
     .req0_cmd        (cpu0_miss_snoop_cmd),
+    .req0_mask       (active_core_mask),
     .req0_valid      (cpu0_miss_snoop_req_valid),
     .req0_ready      (cpu0_miss_snoop_req_ready),
     .req0_resp_valid (cpu0_miss_snoop_resp_valid),
@@ -1417,13 +1442,15 @@ dcache_snoop_arb_3to1 #(
     .req0_resp_data  (cpu0_miss_snoop_resp_data),
     .req1_addr       (cpu1_miss_snoop_addr),
     .req1_cmd        (cpu1_miss_snoop_cmd),
-    .req1_valid      (cpu1_miss_snoop_req_valid),
+    .req1_mask       (active_core_mask),
+    .req1_valid      (cpu1_enabled ? cpu1_miss_snoop_req_valid : 1'b0),
     .req1_ready      (cpu1_miss_snoop_req_ready),
     .req1_resp_valid (cpu1_miss_snoop_resp_valid),
     .req1_resp_hit   (cpu1_miss_snoop_resp_hit),
     .req1_resp_data  (cpu1_miss_snoop_resp_data),
     .req2_addr       (dc_snoop_addr),
     .req2_cmd        (dc_snoop_cmd),
+    .req2_mask       (dma_snoop_mask),
     .req2_valid      (dc_snoop_req_valid),
     .req2_ready      (dc_snoop_req_ready),
     .req2_resp_valid (dc_snoop_resp_valid),
@@ -1431,6 +1458,7 @@ dcache_snoop_arb_3to1 #(
     .req2_resp_data  (dc_snoop_resp_data),
     .up_addr         (dc_bus_snoop_addr),
     .up_cmd          (dc_bus_snoop_cmd),
+    .up_mask         (dc_bus_snoop_mask),
     .up_valid        (dc_bus_snoop_req_valid),
     .up_ready        (dc_bus_snoop_req_ready),
     .up_resp_valid   (dc_bus_snoop_resp_valid),
@@ -1446,6 +1474,7 @@ dcache_snoop_bus_2way #(
     .rst_n             (fabric_rst_n),
     .up_snoop_addr     (dc_bus_snoop_addr),
     .up_snoop_cmd      (dc_bus_snoop_cmd),
+    .up_snoop_mask     (dc_bus_snoop_mask),
     .up_snoop_req_valid(dc_bus_snoop_req_valid),
     .up_snoop_req_ready(dc_bus_snoop_req_ready),
     .up_snoop_resp_valid(dc_bus_snoop_resp_valid),

@@ -1,4 +1,4 @@
-# Benchmark Throughput và Context-Switch H3
+# Benchmark Reference: H3 Control-Plane và DMA Comparison
 
 Ngày chạy: 2026-06-29
 
@@ -10,11 +10,18 @@ Functional proof `test_dualcore_h3_context` chứng minh isolation, nhưng khôn
 - Context-switch latency: các lần ghi `CONTEXT_SEL` liên tiếp
 - End-to-end cycles: setup + switch loop + 2 context operations + verify
 
-Quan trọng: H3 là có che multi-context/CRF, không phải một datapath ASCON mới. Vi vay benchmark công bằng phải so:
+Quan trọng: H3 là control-plane reference, không phải một datapath ASCON mới. Với title của đề tài, benchmark công bằng phải so:
 
 - Bulk payload throughput bảng cùng DMA fair metric `DMA_START -> last M2_B`.
 - Context switch overhead riêng: H3 `CONTEXT_SEL` vs baseline/no-CRF reload key/nonce/state qua MMIO.
 - Functional proof/end-to-end 2-context chỉ dùng để chứng minh isolation, không dùng làm throughput chính.
+
+DMA-first revision nên lấy mục tiêu là:
+
+- tăng lượng data phục vụ mỗi burst
+- giảm idle giữa các beat
+- giữ pipeline ASCON luôn có dữ liệu
+- duy trì coherency để tránh trả về path chậm
 
 ## Lệnh chạy
 
@@ -95,7 +102,7 @@ Lower-bound `12 MMIO writes` chỉ gồm state context tối thiểu cho benchma
 
 ## Phương pháp so sánh công bằng
 
-H3 bulk datapath dùng lại selective coherent DMA (`COH_CTRL=1`), nên fair payload cycles lay từ sweep đã có:
+H3 bulk datapath dùng lại selective coherent DMA (`COH_CTRL=1`), nên fair payload cycles lấy từ sweep đã có:
 
 | Payload | Selective coherent DMA fair cycles | Throughput |
 | ---: | ---: | ---: |
@@ -145,3 +152,4 @@ Trong đó:
 
 Với workload ASCON multi-context, H3 giảm overhead điều khiển context switch từ lower-bound reload `432 cycles` xuống một lần ghi `CONTEXT_SEL` `36 cycles`. Khi kết hợp với cùng cửa sổ selective coherent DMA fair, H3 cải thiện throughput multi-context theo từng message `4.09x` ở 128B và vẫn nhanh hơn trên sweep 128B-1024B.
 
+Trong paper mới, claim này chỉ là reference control-plane result. Headline chính cần chuyển sang DMA bulk throughput và pipeline efficiency.

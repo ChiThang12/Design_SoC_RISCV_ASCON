@@ -54,10 +54,9 @@ static int run_timer_test(void)
     irq_enable_external();
     uart_puts("[DBG] B wait\r\n");
     irq_enable_global();
-    timer0_autoreload(50000u, 1u);      /* IRQ sparse enough to avoid UART/debug overlap */
+    timer0_autoreload(20000u, 1u);      /* Fast enough for high-throughput CPU regression. */
 
-    /* 0x10000 iterations × ~4 cycles ≈ 262K cycles < 800K watchdog */
-    timeout = 0x10000u;
+    timeout = 0x80000u;
     while (timer_irq_count < 3u) {
         if (--timeout == 0u) {
             irq_disable_global();

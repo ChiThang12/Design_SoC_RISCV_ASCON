@@ -42,14 +42,14 @@ module dma_ctrl_fsm #(
     input  wire [31:0]  ad_len,            // AD byte length (0 = no AD)
 
     // ── Status outputs ────────────────────────────────────────────────────────
-    output reg          dma_busy,
-    output reg          dma_done,
-    output reg          dma_error,
+    output wire         dma_busy,
+    output wire         dma_done,
+    output wire         dma_error,
 
     // ── Read engine ───────────────────────────────────────────────────────────
-    output reg          rd_start,
-    output reg  [31:0]  rd_override_addr,  // NEW: override src_addr for AD fetch
-    output reg          rd_use_override,   // NEW: 1=use rd_override_addr, 0=use default src_addr
+    output wire         rd_start,
+    output wire [31:0]  rd_override_addr,  // NEW: override src_addr for AD fetch
+    output wire         rd_use_override,   // NEW: 1=use rd_override_addr, 0=use default src_addr
     output wire [7:0]   rd_burst_len,      // [FIX-AD-BURST] per-phase ARLEN to read engine
     /* verilator lint_off UNUSEDSIGNAL */
     input  wire         rd_busy,
@@ -65,18 +65,26 @@ module dma_ctrl_fsm #(
     /* verilator lint_off UNUSEDSIGNAL */
     input  wire         rd_fifo_empty,
     /* verilator lint_on UNUSEDSIGNAL */
+    input  wire         rd_fifo_full,
+    input  wire [$clog2(RD_FIFO_DEPTH):0] rd_fifo_count,
+    input  wire [$clog2(RD_FIFO_DEPTH):0] rd_fifo_fill_count,
+    input  wire [$clog2(RD_FIFO_DEPTH):0] rd_fifo_drain_count,
+    input  wire         rd_buf_active_bank,
+    input  wire         rd_buf_fill_bank,
+    input  wire         rd_buf_drain_ready,
+    input  wire         rd_buf_fill_ready,
 
     // ── RD FIFO (FWFT — combinational, zero-latency) ─────────────────────────
     input  wire [63:0]  rd_fifo_fwft_dout,
     input  wire         rd_fifo_fwft_valid,
 
     // ── ascon_CORE — Payload (PT/CT) interface ────────────────────────────────
-    output reg  [31:0]  core_ptext_0,
-    output reg  [31:0]  core_ptext_1,
-    output reg          core_data_valid,
+    output wire [31:0]  core_ptext_0,
+    output wire [31:0]  core_ptext_1,
+    output wire         core_data_valid,
     input  wire         core_data_ready,
-    output reg          core_start,
-    output reg          core_data_last,
+    output wire         core_start,
+    output wire         core_data_last,
     /* verilator lint_off UNUSEDSIGNAL */
     input  wire         core_busy,
     input  wire         core_done,
@@ -110,10 +118,12 @@ module dma_ctrl_fsm #(
     input  wire         wr_error,
 
     // ── Status bits ───────────────────────────────────────────────────────────
-    output reg          status_rd_done,
-    output reg          status_wr_done,
-    output reg          status_fifo_overflow,
-    output reg  [0:0]   context_id_active
+    output wire         status_rd_done,
+    output wire         status_wr_done,
+    output wire         status_fifo_overflow,
+    output wire [0:0]   context_id_active,
+    output wire         payload_feed_pulse,
+    output wire         payload_chain_pulse
 );
 
     // =========================================================================
@@ -146,90 +156,50 @@ module dma_ctrl_fsm #(
         DMA_PHASE_PAYLOAD = 2'd1,
         DMA_PHASE_DONE    = 2'd2;
 
-    reg [1:0] dma_phase;
-
-    // [FIX-AD-BURST] Burst length latched by read engine at rd_start, selected by
-    // current phase. blocks_per_read accounting MUST use the same value so AD/payload
-    // block counters advance consistently with what the read engine actually fetches.
-    wire [7:0]  cur_burst_len   = (dma_phase == DMA_PHASE_AD) ? ad_burst_len : burst_len;
-    assign      rd_burst_len    = cur_burst_len;
-    wire [28:0] blocks_per_read = {21'd0, cur_burst_len} + 29'd1;
+    wire [1:0] dma_phase;
 
     // =========================================================================
     // Block counters
     // =========================================================================
-    reg [28:0] rd_blocks_sent;      // blocks issued to read engine in current phase
-    reg [28:0] core_blocks_fed;     // blocks fed to core (payload pump)
+    wire [28:0] core_blocks_fed;    // blocks fed to core (payload pump)
     reg [28:0] ad_blocks_pumped;    // AD blocks pumped to core AD interface
-    reg [28:0] wr_beats_done;
+    wire [28:0] wr_beats_done;
+
+    wire push_busy = (push_state != 3'd0);
 
     // =========================================================================
-    // BLOCK 1: rd_ctrl — issue rd_start for AD phase then payload phase
+    // BLOCK 1: read scheduler — submodule
     // =========================================================================
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            rd_start         <= 1'b0;
-            rd_override_addr <= 32'h0;
-            rd_use_override  <= 1'b0;
-            rd_blocks_sent   <= 29'd0;
-            dma_phase        <= DMA_PHASE_AD;
-            status_rd_done   <= 1'b0;
-            context_id_active <= 1'b0;
-        end else if (dma_soft_rst) begin
-            rd_start         <= 1'b0;
-            rd_override_addr <= 32'h0;
-            rd_use_override  <= 1'b0;
-            rd_blocks_sent   <= 29'd0;
-            dma_phase        <= DMA_PHASE_AD;
-            status_rd_done   <= 1'b0;
-            context_id_active <= 1'b0;
-        end else begin
-            rd_start <= 1'b0; // default pulse
-
-            if (dma_start) begin
-                rd_blocks_sent   <= 29'd0;
-                status_rd_done   <= 1'b0;
-                context_id_active <= context_id;
-                if (has_ad) begin
-                    dma_phase        <= DMA_PHASE_AD;
-                    rd_override_addr <= ad_src_addr;
-                    rd_use_override  <= 1'b1;
-                    rd_start         <= 1'b1;
-                end else begin
-                    dma_phase        <= DMA_PHASE_PAYLOAD;
-                    rd_use_override  <= 1'b0;
-                    if (total_blocks > 0)
-                        rd_start     <= 1'b1;
-                end
-            end else if (rd_done) begin
-                case (dma_phase)
-                    DMA_PHASE_AD: begin
-                        if (rd_blocks_sent + blocks_per_read < ad_total_blocks) begin
-                            // More AD to fetch
-                            rd_start       <= 1'b1;
-                            rd_blocks_sent <= rd_blocks_sent + blocks_per_read;
-                        end else begin
-                            // All AD blocks fetched → switch to payload phase
-                            rd_blocks_sent   <= 29'd0;
-                            dma_phase        <= DMA_PHASE_PAYLOAD;
-                            rd_use_override  <= 1'b0;
-                            if (total_blocks > 0)
-                                rd_start     <= 1'b1;
-                        end
-                    end
-                    DMA_PHASE_PAYLOAD: begin
-                        if (rd_blocks_sent + blocks_per_read < total_blocks) begin
-                            rd_start       <= 1'b1;
-                            rd_blocks_sent <= rd_blocks_sent + blocks_per_read;
-                        end else begin
-                            status_rd_done <= 1'b1;
-                        end
-                    end
-                    default: ;
-                endcase
-            end
-        end
-    end
+    dma_read_scheduler #(
+        .RD_FIFO_DEPTH (RD_FIFO_DEPTH)
+    ) u_read_scheduler (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .dma_start         (dma_start),
+        .dma_soft_rst      (dma_soft_rst),
+        .context_id        (context_id),
+        .ad_src_addr       (ad_src_addr),
+        .ad_total_blocks   (ad_total_blocks),
+        .ad_burst_len      (ad_burst_len),
+        .total_blocks      (total_blocks),
+        .burst_len         (burst_len),
+        .rd_busy            (rd_busy),
+        .rd_done            (rd_done),
+        .rd_fifo_full       (rd_fifo_full),
+        .rd_fifo_fill_count (rd_fifo_fill_count),
+        .rd_fifo_drain_count(rd_fifo_drain_count),
+        .rd_buf_active_bank (rd_buf_active_bank),
+        .rd_buf_fill_bank   (rd_buf_fill_bank),
+        .rd_buf_drain_ready (rd_buf_drain_ready),
+        .rd_buf_fill_ready  (rd_buf_fill_ready),
+        .rd_start           (rd_start),
+        .rd_override_addr   (rd_override_addr),
+        .rd_use_override    (rd_use_override),
+        .rd_burst_len       (rd_burst_len),
+        .status_rd_done     (status_rd_done),
+        .context_id_active  (context_id_active),
+        .dma_phase          (dma_phase)
+    );
 
     // =========================================================================
     // BLOCK 2: AD pump — feed AD blocks from RD FIFO to core_ad_in
@@ -322,83 +292,37 @@ module dma_ctrl_fsm #(
     // =========================================================================
     // BLOCK 3: core_pump (Payload) — FWFT v3.0
     // =========================================================================
-    localparam [1:0]
-        PUMP_IDLE      = 2'd0,
-        PUMP_START     = 2'd1,
-        PUMP_WAIT_CORE = 2'd2;
-
-    reg [1:0] pump_state;
     reg       rd_fifo_pop_ad;      // pop from AD pump block
-    reg       rd_fifo_pop_payload; // pop from payload pump block
+    wire      rd_fifo_pop_payload; // pop from payload pump block
 
     assign rd_fifo_pop = rd_fifo_pop_ad | rd_fifo_pop_payload;
 
-    // ── Payload pump ──────────────────────────────────────────────────────────
-    always @(posedge clk or negedge rst_n) begin
-        if (!rst_n) begin
-            pump_state           <= PUMP_IDLE;
-            rd_fifo_pop_payload  <= 1'b0;
-            core_ptext_0         <= 32'h0;
-            core_ptext_1         <= 32'h0;
-            core_data_valid      <= 1'b0;
-            core_start           <= 1'b0;
-            core_data_last       <= 1'b0;
-            core_blocks_fed      <= 29'd0;
-        end else if (dma_soft_rst) begin
-            pump_state           <= PUMP_IDLE;
-            rd_fifo_pop_payload  <= 1'b0;
-            core_ptext_0         <= 32'h0;
-            core_ptext_1         <= 32'h0;
-            core_data_valid      <= 1'b0;
-            core_start           <= 1'b0;
-            core_data_last       <= 1'b0;
-            core_blocks_fed      <= 29'd0;
-        end else begin
-            rd_fifo_pop_payload <= 1'b0;
-            core_start          <= 1'b0;
-
-            if (dma_start) begin
-                pump_state      <= PUMP_IDLE;
-                core_blocks_fed <= 29'd0;
-                core_data_valid <= 1'b0;
-                core_start      <= 1'b1;
-            end
-
-            case (pump_state)
-                PUMP_IDLE: begin
-                    // Only run payload pump during payload phase and AD pump done
-                    if (rd_fifo_fwft_valid &&
-                        dma_phase == DMA_PHASE_PAYLOAD &&
-                        ad_pump_state == AD_PMP_DONE &&
-                        core_blocks_fed < total_blocks)
-                    begin
-                        core_ptext_0        <= rd_fifo_fwft_dout[31:0];
-                        core_ptext_1        <= rd_fifo_fwft_dout[63:32];
-                        core_data_valid     <= 1'b1;
-                        core_data_last      <= (core_blocks_fed + 1 >= total_blocks);
-                        core_blocks_fed     <= core_blocks_fed + 1;
-                        rd_fifo_pop_payload <= 1'b1;
-                        pump_state          <= PUMP_START;
-                    end
-                end
-                PUMP_START: begin
-                    // core_start fired at dma_start; keep data_valid asserted until
-                    // the controller reaches S_DATA_LOAD and produces data_out_valid.
-                    // core_data_ready guard is removed: we must enter PUMP_WAIT_CORE
-                    // BEFORE the CONTROLLER reaches S_DATA_LOAD (so we don't miss
-                    // the 1-cycle data_out_valid pulse).
-                    pump_state <= PUMP_WAIT_CORE;
-                end
-                PUMP_WAIT_CORE: begin
-                    if (core_data_out_valid) begin
-                        core_data_valid <= 1'b0;
-                        pump_state      <= PUMP_IDLE;
-                    end
-                end
-                default: pump_state <= PUMP_IDLE;
-            endcase
-        end
-    end
+    dma_payload_feeder #(
+        .RD_FIFO_DEPTH (RD_FIFO_DEPTH)
+    ) u_payload_feeder (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .dma_start         (dma_start),
+        .dma_soft_rst      (dma_soft_rst),
+        .dma_phase_payload (dma_phase == DMA_PHASE_PAYLOAD),
+        .ad_pump_done      (ad_pump_state == AD_PMP_DONE),
+        .rd_fifo_fwft_dout (rd_fifo_fwft_dout),
+        .rd_fifo_fwft_valid(rd_fifo_fwft_valid),
+        .rd_fifo_drain_count(rd_fifo_drain_count),
+        .rd_buf_drain_ready(rd_buf_drain_ready),
+        .rd_buf_fill_ready (rd_buf_fill_ready),
+        .total_blocks      (total_blocks),
+        .core_data_out_valid(core_data_out_valid),
+        .core_ptext_0      (core_ptext_0),
+        .core_ptext_1      (core_ptext_1),
+        .core_data_valid   (core_data_valid),
+        .core_start        (core_start),
+        .core_data_last    (core_data_last),
+        .rd_fifo_pop       (rd_fifo_pop_payload),
+        .core_blocks_fed   (core_blocks_fed),
+        .feed_pulse        (payload_feed_pulse),
+        .chain_pulse       (payload_chain_pulse)
+    );
 
     // ── AD pump pop (separate reg to avoid multi-driver) ──────────────────────
     always @(posedge clk or negedge rst_n) begin
@@ -414,7 +338,7 @@ module dma_ctrl_fsm #(
     end
 
     // =========================================================================
-    // BLOCK 4: wr_push (CT/Tag → WR FIFO) & Overall DMA Status
+    // BLOCK 4: wr_push (CT/Tag → WR FIFO)
     // =========================================================================
     reg [2:0]  push_state;
     reg [31:0] latch_ctext_1;
@@ -426,12 +350,6 @@ module dma_ctrl_fsm #(
             wr_fifo_push         <= 1'b0;
             wr_fifo_din          <= 32'h0;
             push_state           <= 3'd0;
-            wr_beats_done        <= 29'd0;
-            status_wr_done       <= 1'b0;
-            status_fifo_overflow <= 1'b0;
-            dma_busy             <= 1'b0;
-            dma_done             <= 1'b0;
-            dma_error            <= 1'b0;
             latch_ctext_1        <= 32'h0;
             latch_tag_0          <= 32'h0;
             latch_tag_1          <= 32'h0;
@@ -442,31 +360,16 @@ module dma_ctrl_fsm #(
             wr_fifo_push         <= 1'b0;
             wr_fifo_din          <= 32'h0;
             push_state           <= 3'd0;
-            wr_beats_done        <= 29'd0;
-            status_wr_done       <= 1'b0;
-            status_fifo_overflow <= 1'b0;
-            dma_busy             <= 1'b0;
-            dma_done             <= 1'b0;
-            dma_error            <= 1'b0;
             tag_latch_pending    <= 1'b0;
         end else begin
             wr_fifo_push <= 1'b0;
-            dma_done     <= 1'b0;
 
             if (dma_start) begin
-                dma_busy       <= 1'b1;
-                dma_error      <= 1'b0;
-                status_wr_done <= 1'b0;
-                wr_beats_done  <= 29'd0;
                 push_state     <= 3'd0;
             end
 
-            if (rd_error || wr_error)
-                dma_error <= 1'b1;
-
             if (wr_fifo_full && (core_data_out_valid || core_tag_valid || push_state != 0 || tag_latch_pending)) begin
-                status_fifo_overflow <= 1'b1;
-                dma_error            <= 1'b1;
+                // Overflow/error bookkeeping moved to completion scoreboard.
             end else begin
                 case (push_state)
                     3'd0: begin
@@ -527,16 +430,32 @@ module dma_ctrl_fsm #(
                     default: push_state <= 3'd0;
                 endcase
             end
-
-            if (wr_done) begin
-                wr_beats_done <= wr_beats_done + 1'b1;
-                if (wr_beats_done + 1'b1 == expected_wr_beats) begin
-                    status_wr_done <= 1'b1;
-                    dma_busy       <= 1'b0;
-                    dma_done       <= 1'b1;
-                end
-            end
         end
     end
+
+    // =========================================================================
+    // BLOCK 5: completion scoreboard — submodule
+    // =========================================================================
+    dma_completion_scoreboard u_completion_scoreboard (
+        .clk                 (clk),
+        .rst_n               (rst_n),
+        .dma_start           (dma_start),
+        .dma_soft_rst        (dma_soft_rst),
+        .expected_wr_beats   (expected_wr_beats),
+        .wr_done             (wr_done),
+        .rd_error            (rd_error),
+        .wr_error            (wr_error),
+        .wr_fifo_full        (wr_fifo_full),
+        .core_data_out_valid (core_data_out_valid),
+        .core_tag_valid      (core_tag_valid),
+        .push_busy           (push_busy),
+        .tag_latch_pending   (tag_latch_pending),
+        .wr_beats_done       (wr_beats_done),
+        .status_wr_done      (status_wr_done),
+        .status_fifo_overflow(status_fifo_overflow),
+        .dma_busy            (dma_busy),
+        .dma_done            (dma_done),
+        .dma_error           (dma_error)
+    );
 
 endmodule

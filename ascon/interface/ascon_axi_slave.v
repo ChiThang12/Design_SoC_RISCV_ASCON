@@ -317,8 +317,13 @@ module ascon_axi_slave #(
     reg        status_rd_error;     // v2.5: DMA read error sticky
     reg        status_wr_error;     // v2.5: DMA write error sticky
     reg        status_fifo_ov;      // v2.5: DMA FIFO overflow sticky
-    wire       core_context_sel = (core_busy || dma_busy) ? reg_context_active
-                                                          : reg_context_sel;
+    // Keep using the latched active context for the whole in-flight operation,
+    // including the start pulse and the done/data-valid completion edge.
+    wire       core_context_sel = (core_start || dma_start ||
+                                   core_busy || dma_busy ||
+                                   core_done || core_data_out_valid || core_tag_valid)
+                                  ? reg_context_active
+                                  : reg_context_sel;
 
     // =========================================================================
     // Byte-enable helper
@@ -730,6 +735,11 @@ module ascon_axi_slave #(
                 status_wr_error    <= 1'b0;  // v2.5
                 status_fifo_ov     <= 1'b0;  // v2.5
             end else begin
+                if (core_start)
+                    status_done <= 1'b0;
+                if (dma_start)
+                    status_dma_done <= 1'b0;
+
                 // Latch dữ liệu CT/Tag
                 if (core_data_out_valid) begin
                     reg_ctext_0[core_context_sel] <= core_data_out[127:96];
@@ -764,6 +774,40 @@ module ascon_axi_slave #(
             end
         end
     end
+
+`ifdef DEBUG_ASCON_CONTEXT_TRACE
+    always @(posedge clk) begin
+        if (rst_n) begin
+            if (core_start || dma_start) begin
+                $display("[%0t] [ASCON-CTX] start core=%0b dma=%0b sel=%0b active=%0b mux=%0b key0=%08h p0=%08h p1=%08h len=%0d",
+                         $time, core_start, dma_start, reg_context_sel,
+                         reg_context_active, core_context_sel,
+                         reg_key_0[core_context_sel],
+                         reg_ptext_0[core_context_sel],
+                         reg_ptext_1[core_context_sel],
+                         reg_data_len[core_context_sel]);
+            end
+            if (core_data_out_valid) begin
+                $display("[%0t] [ASCON-CTX] data_out sel=%0b active=%0b mux=%0b data=%032h",
+                         $time, reg_context_sel, reg_context_active,
+                         core_context_sel, core_data_out);
+            end
+            if (core_tag_valid) begin
+                $display("[%0t] [ASCON-CTX] tag_out sel=%0b active=%0b mux=%0b tag=%032h",
+                         $time, reg_context_sel, reg_context_active,
+                         core_context_sel, core_tag_out);
+            end
+            if (core_done) begin
+                $display("[%0t] [ASCON-CTX] done sel=%0b active=%0b mux=%0b c0=%08h c1=%08h t0=%08h",
+                         $time, reg_context_sel, reg_context_active,
+                         core_context_sel,
+                         reg_ctext_0[core_context_sel],
+                         reg_ctext_1[core_context_sel],
+                         reg_tag_0[core_context_sel]);
+            end
+        end
+    end
+`endif
 
     // =========================================================================
     // READ CHANNEL FSM  (FIX-BUG1: AXI4-Full burst support)

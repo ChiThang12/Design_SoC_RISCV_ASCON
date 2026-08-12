@@ -4,8 +4,9 @@ Ngày cập nhật: 2026-06-29
 
 ## Trạng thái tổng quan
 
-H3 đã đủ điều kiện chốt phase nếu mục tiêu là:
+H3 hiện là reference design cho phần ASCON của đề tài. Nó đủ để chốt phase nếu mục tiêu là:
 
+- có một mốc so sánh rõ cho kiến trúc DMA-first mới
 - thêm `CONTEXT_SEL`/CRF 2 context vào ASCON register file
 - chứng minh 2 context độc lập trên dual-core firmware
 - đo context-switch latency
@@ -24,7 +25,7 @@ H3 đã đủ điều kiện chốt phase nếu mục tiêu là:
 | Fair comparison table | Done | `h3_benchmark.md`, `h3_fair_comparison.csv` |
 | H3 documentation | Done | README, register map, results, benchmark, commands |
 
-## Kết quả nên đưa vào paper
+## Kết quả nên đưa vào paper như reference
 
 | Metric | Value | Ghi chú |
 | --- | ---: | --- |
@@ -35,6 +36,12 @@ H3 đã đủ điều kiện chốt phase nếu mục tiêu là:
 | H3 128B fair multi-context | 128 cycles / 800.00 Mbps | DMA fair 92 + context 36 |
 | No-CRF 128B lower-bound | 524 cycles / 195.42 Mbps | DMA fair 92 + reload 432 |
 | H3 speedup vs reload, 128B | 4.09x | multi-context control-overhead benefit |
+
+## Ý nghĩa trong paper mới
+
+- H3 không còn là headline chính.
+- H3 là reference để chứng minh DMA-first revision thật sự cải thiện end-to-end throughput chứ không chỉ đổi câu chữ.
+- Nếu reviewer hỏi vì sao còn giữ H3, câu trả lời là: H3 cho thấy control-plane multi-context là có ích, nhưng paper mới tập trung vào data-plane DMA/pipeline để đẩy throughput cao hơn.
 
 ## Điểm cần nói rõ để tránh bị bắt bẻ
 
@@ -62,9 +69,9 @@ DMA đã nhận và latch `context_id_active`, nhưng H3 chưa có hardware sche
 
 | Ưu tiên | Hạng mục | Lý do |
 | ---: | --- | --- |
-| P1 | Thêm TB đọc lại `CONTEXT_SEL` và banked registers | Tăng bằng chứng register-map/isolation ở mức MMIO |
-| P1 | Thêm waveform/log cho `reg_context_active` | Chứng minh đổi `CONTEXT_SEL` khi busy không làm sai output |
-| P2 | Chạy lại `run_coherent_sweep.sh` và lưu log vào H3 | Làm bảng chung fair-table từ log local mới nhất |
+| P1 | Thêm benchmark DMA burst/pipeline | Chứng minh throughput cao là do data path, không phải chỉ control path |
+| P1 | Thêm waveform/log cho `reg_context_active` | Giữ H3 reference sạch và dễ kiểm chứng |
+| P2 | Chạy lại `run_coherent_sweep.sh` và lưu log vào H3 | Làm bảng tham chiếu cho DMA-first comparison |
 | P2 | Thêm H3 DMA-context smoke test | Chứng minh `context_id_active` latched khi DMA start |
 | P3 | Mở rộng lên 4 context | Nếu cần claim "multi-context" mạnh hơn 2-bank prototype |
 | P3 | Hardware queue/scheduler cho DMA context | Nếu muốn claim multi-tenant DMA thật sự |
@@ -73,5 +80,4 @@ DMA đã nhận và latch `context_id_active`, nhưng H3 chưa có hardware sche
 
 H3 hiện tại có thể đóng gói là:
 
-> A two-context ASCON Context Register File with firmware-visible `CONTEXT_SEL`, verified on a dual-core coherent SoC. It preserves per-context state across switches and reduces context-switch control overhead from a no-CRF reload lower-bound of 432 cycles to a 36-cycle MMIO context select, with a 1-cycle RTL bank-select latency.
-
+> A two-context ASCON Context Register File with firmware-visible `CONTEXT_SEL`, verified on a dual-core coherent SoC. It preserves per-context state across switches and reduces context-switch control overhead from a no-CRF reload lower-bound of 432 cycles to a 36-cycle MMIO context select, with a 1-cycle RTL bank-select latency. In the DMA-first paper story, this design is the reference point, not the headline.

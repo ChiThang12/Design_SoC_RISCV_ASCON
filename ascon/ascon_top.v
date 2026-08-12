@@ -171,6 +171,7 @@ module ascon_ip_top #(
     input  wire                         DC_SNOOP_RESP_VALID,
     input  wire                         DC_SNOOP_RESP_HIT,
     input  wire [127:0]                 DC_SNOOP_RESP_DATA,
+    output wire [0:0]                   DMA_CONTEXT_ID_ACTIVE,
 
     // Tag output (parallel)
     output wire [127:0]               o_tag,
@@ -194,8 +195,9 @@ module ascon_ip_top #(
     wire [1:0]   slave_core_mode;
     wire         slave_core_start;
     /* verilator lint_off UNUSEDSIGNAL */
-    wire         slave_core_soft_rst;  // output of slave, not forwarded
-    /* verilator lint_on UNUSEDSIGNAL */  // connected to slave but not forwarded (intentional)
+    wire         slave_core_soft_rst;  // soft reset also resets the core engine
+    /* verilator lint_on UNUSEDSIGNAL */
+    wire         core_rst_n = rst_n & ~slave_core_soft_rst;
 
     wire         core_busy_w;
     wire         core_done_w;
@@ -491,7 +493,7 @@ module ascon_ip_top #(
         .G_AXI_DATA_W   (G_AXI_DATA_W)
     ) u_core_cpu (
         .clk          (clk),
-        .rst_n        (rst_n),
+        .rst_n        (core_rst_n),
         .start        (core_start_mux),
         .mode         (slave_core_mode),     // mode[0]: 0=128, 1=128a
         .enc_dec      (slave_core_enc_dec),
@@ -647,5 +649,6 @@ module ascon_ip_top #(
     assign o_tag       = core_tag_out_w;
     assign o_tag_valid = core_tag_valid_w;
     assign o_busy      = core_busy_w | dma_busy_w;  // phản ánh trạng thái cả Core và DMA
+    assign DMA_CONTEXT_ID_ACTIVE = dma_context_id_active_w;
 
 endmodule

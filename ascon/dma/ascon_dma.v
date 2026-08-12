@@ -57,7 +57,19 @@
 
 `include "ascon/dma/rtl/sync_fifo.v"
 `include "ascon/dma/rtl/dma_read_engine.v"
+`include "ascon/dma/rtl/dma_write_inval_range.v"
 `include "ascon/dma/rtl/dma_write_engine.v"
+`include "ascon/dma/rtl/dma_pingpong_bank_state.v"
+`include "ascon/dma/rtl/dma_read_refill_policy.v"
+`include "ascon/dma/rtl/dma_write_drain_policy.v"
+`include "ascon/dma/rtl/dma_read_bank_credit_planner.v"
+`include "ascon/dma/rtl/dma_write_bank_credit_planner.v"
+`include "ascon/dma/rtl/dma_payload_feeder.v"
+`include "ascon/dma/rtl/dma_runtime_counters.v"
+`include "ascon/dma/rtl/dma_read_scheduler.v"
+`include "ascon/dma/rtl/dma_completion_scoreboard.v"
+`include "ascon/dma/rtl/dma_ingress_buffer_mgr.v"
+`include "ascon/dma/rtl/dma_egress_buffer_mgr.v"
 `include "ascon/dma/rtl/dma_ctrl_fsm.v"
 `include "ascon/dma/rtl/dma_atu.v"
 `include "ascon/dma/rtl/dma_snoop_arb.v"
@@ -67,7 +79,7 @@ module ascon_dma #(
     parameter ADDR_WIDTH     = 32,
     parameter AXI_DATA_WIDTH = 64,   // AXI4 Master data bus width
     parameter AXI_ID_WIDTH   = 4,
-    parameter RD_FIFO_DEPTH  = 4,    // entries (64-bit each)
+    parameter RD_FIFO_DEPTH  = 8,    // entries per ping-pong bank (64-bit each)
     parameter WR_FIFO_DEPTH  = 512   // entries (32-bit each); supports coherent sweep up to 1KB payload
 ) (
     input  wire  clk,
@@ -203,6 +215,11 @@ module ascon_dma #(
     wire [63:0] rd_fifo_dout;
     wire        rd_fifo_pop;
     wire        rd_fifo_empty;
+    wire        rd_buf_active_bank;
+    wire        rd_buf_fill_bank;
+    wire        rd_buf_drain_ready;
+    wire        rd_buf_fill_ready;
+    wire        rd_buf_swap_pulse;
 
     wire [31:0] wr_fifo_din;
     wire        wr_fifo_push;
@@ -210,7 +227,17 @@ module ascon_dma #(
     wire [31:0] wr_fifo_dout;
     wire        wr_fifo_pop;
     wire        wr_fifo_empty;
+    wire        wr_buf_active_bank;
+    wire        wr_buf_fill_bank;
+    wire        wr_buf_drain_ready;
+    wire        wr_buf_fill_ready;
+    wire        wr_buf_swap_pulse;
+    wire [$clog2(RD_FIFO_DEPTH):0] rd_fifo_count;
+    wire [$clog2(RD_FIFO_DEPTH):0] rd_fifo_drain_count;
+    wire [$clog2(RD_FIFO_DEPTH):0] rd_fifo_fill_count;
     wire [$clog2(WR_FIFO_DEPTH):0] wr_fifo_count;
+    wire [$clog2(WR_FIFO_DEPTH):0] wr_fifo_drain_count;
+    wire [$clog2(WR_FIFO_DEPTH):0] wr_fifo_fill_count;
 
     // FWFT (combinational) outputs for zero-latency reads
     wire [63:0] rd_fifo_fwft_dout;
@@ -237,6 +264,19 @@ module ascon_dma #(
     // [FIX-RTL-1] dma_ctrl_fsm의 dma_error output을 캡처할 wire
     wire        dma_error_fsm_w;   // FSM internal error flag
     wire [0:0]  context_id_active_w;
+    wire        payload_feed_pulse_w;
+    wire        payload_chain_pulse_w;
+    wire        write_chain_pulse_w;
+    wire [31:0] dbg_cnt_rd_issue_w;
+    wire [31:0] dbg_cnt_rd_done_w;
+    wire [31:0] dbg_cnt_wr_done_w;
+    wire [31:0] dbg_cnt_payload_feed_w;
+    wire [31:0] dbg_cnt_payload_chain_w;
+    wire [31:0] dbg_cnt_write_chain_w;
+    wire [31:0] dbg_cnt_ingress_swap_w;
+    wire [31:0] dbg_cnt_egress_swap_w;
+    wire [31:0] dbg_cnt_busy_cycles_w;
+    wire [31:0] dbg_cnt_core_wait_cycles_w;
 
     // ATU-translated addresses
     wire [ADDR_WIDTH-1:0] src_addr_atu;
@@ -327,49 +367,56 @@ module ascon_dma #(
         .ad_src_addr_atu(ad_src_addr_atu)
     );
 
-    // =========================================================================
-    // Soft-reset: combined rst_n for FIFOs includes dma_soft_rst
-    // =========================================================================
-    wire fifo_rst_n = rst_n & ~dma_soft_rst;
-
-    // =========================================================================
-    // RD FIFO — 64-bit × 4 deep
-    // =========================================================================
-    sync_fifo #(
+    dma_ingress_buffer_mgr #(
         .WIDTH (64),
         .DEPTH (RD_FIFO_DEPTH)
-    ) u_rd_fifo (
-        .clk        (clk),
-        .rst_n      (fifo_rst_n),
-        .din        (rd_fifo_din),
-        .push       (rd_fifo_push),
-        .full       (rd_fifo_full),
-        .dout       (rd_fifo_dout),
-        .pop        (rd_fifo_pop),
-        .empty      (rd_fifo_empty),
-        .fwft_dout  (rd_fifo_fwft_dout),
-        .fwft_valid (rd_fifo_fwft_valid),
-        .count      ()
+    ) u_ingress_buffer_mgr (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .dma_start    (dma_start),
+        .dma_soft_rst (dma_soft_rst),
+        .push_data    (rd_fifo_din),
+        .push_valid   (rd_fifo_push),
+        .pop_ready    (rd_fifo_pop),
+        .pop_data     (rd_fifo_fwft_dout),
+        .pop_valid    (rd_fifo_fwft_valid),
+        .pop_data_reg (rd_fifo_dout),
+        .full         (rd_fifo_full),
+        .empty        (rd_fifo_empty),
+        .count        (rd_fifo_count),
+        .drain_count  (rd_fifo_drain_count),
+        .fill_count   (rd_fifo_fill_count),
+        .drain_bank_ready(rd_buf_drain_ready),
+        .fill_bank_ready (rd_buf_fill_ready),
+        .swap_pulse   (rd_buf_swap_pulse),
+        .active_bank  (rd_buf_active_bank),
+        .fill_bank_sel(rd_buf_fill_bank)
     );
 
-    // =========================================================================
-    // WR FIFO — 32-bit × 8 deep
-    // =========================================================================
-    sync_fifo #(
+    dma_egress_buffer_mgr #(
         .WIDTH (32),
         .DEPTH (WR_FIFO_DEPTH)
-    ) u_wr_fifo (
-        .clk        (clk),
-        .rst_n      (fifo_rst_n),
-        .din        (wr_fifo_din),
-        .push       (wr_fifo_push),
-        .full       (wr_fifo_full),
-        .dout       (wr_fifo_dout),
-        .pop        (wr_fifo_pop),
-        .empty      (wr_fifo_empty),
-        .fwft_dout  (wr_fifo_fwft_dout),
-        .fwft_valid (wr_fifo_fwft_valid),
-        .count      (wr_fifo_count)
+    ) u_egress_buffer_mgr (
+        .clk          (clk),
+        .rst_n        (rst_n),
+        .dma_start    (dma_start),
+        .dma_soft_rst (dma_soft_rst),
+        .push_data    (wr_fifo_din),
+        .push_valid   (wr_fifo_push),
+        .pop_ready    (wr_fifo_pop),
+        .pop_data     (wr_fifo_fwft_dout),
+        .pop_valid    (wr_fifo_fwft_valid),
+        .pop_data_reg (wr_fifo_dout),
+        .full         (wr_fifo_full),
+        .empty        (wr_fifo_empty),
+        .count        (wr_fifo_count),
+        .drain_count  (wr_fifo_drain_count),
+        .fill_count   (wr_fifo_fill_count),
+        .drain_bank_ready(wr_buf_drain_ready),
+        .fill_bank_ready (wr_buf_fill_ready),
+        .swap_pulse   (wr_buf_swap_pulse),
+        .active_bank  (wr_buf_active_bank),
+        .fill_bank_sel(wr_buf_fill_bank)
     );
 
     // =========================================================================
@@ -404,6 +451,14 @@ module ascon_dma #(
         .rd_fifo_dout        (rd_fifo_dout),
         .rd_fifo_pop         (rd_fifo_pop),
         .rd_fifo_empty       (rd_fifo_empty),
+        .rd_fifo_full        (rd_fifo_full),
+        .rd_fifo_count       (rd_fifo_count),
+        .rd_fifo_fill_count  (rd_fifo_fill_count),
+        .rd_fifo_drain_count (rd_fifo_drain_count),
+        .rd_buf_active_bank  (rd_buf_active_bank),
+        .rd_buf_fill_bank    (rd_buf_fill_bank),
+        .rd_buf_drain_ready  (rd_buf_drain_ready),
+        .rd_buf_fill_ready   (rd_buf_fill_ready),
         // RD FIFO (FWFT path)
         .rd_fifo_fwft_dout   (rd_fifo_fwft_dout),
         .rd_fifo_fwft_valid  (rd_fifo_fwft_valid),
@@ -442,7 +497,9 @@ module ascon_dma #(
         .status_rd_done      (status_rd_done),
         .status_wr_done      (status_wr_done),
         .status_fifo_overflow(status_fifo_overflow),
-        .context_id_active   (context_id_active_w)
+        .context_id_active   (context_id_active_w),
+        .payload_feed_pulse  (payload_feed_pulse_w),
+        .payload_chain_pulse (payload_chain_pulse_w)
     );
 
     assign context_id_active = context_id_active_w;
@@ -457,7 +514,8 @@ module ascon_dma #(
         .ADDR_WIDTH       (ADDR_WIDTH),
         .AXI_DATA_WIDTH   (AXI_DATA_WIDTH),
         .AXI_ID_WIDTH     (AXI_ID_WIDTH),
-        .SNOOP_DATA_WIDTH (128)
+        .SNOOP_DATA_WIDTH (128),
+        .RD_FIFO_DEPTH    (RD_FIFO_DEPTH)
     ) u_rd_engine (
         .clk            (clk),
         .rst_n          (rst_n),
@@ -482,6 +540,7 @@ module ascon_dma #(
         .fifo_din       (rd_fifo_din),
         .fifo_push      (rd_fifo_push),
         .fifo_full      (rd_fifo_full),
+        .fifo_fill_count(rd_fifo_fill_count),
         // AXI4 AR channel
         .M_AXI_ARID     (M_AXI_ARID),
         .M_AXI_ARADDR   (M_AXI_ARADDR),
@@ -532,6 +591,13 @@ module ascon_dma #(
         .fifo_dout      (wr_fifo_dout),
         .fifo_pop       (wr_fifo_pop),
         .fifo_count     (wr_fifo_count),
+        .fifo_drain_count(wr_fifo_drain_count),
+        .fifo_fill_count (wr_fifo_fill_count),
+        .fifo_active_bank(wr_buf_active_bank),
+        .fifo_fill_bank_sel(wr_buf_fill_bank),
+        .fifo_drain_bank_ready(wr_buf_drain_ready),
+        .fifo_fill_bank_ready (wr_buf_fill_ready),
+        .bench_chain_pulse(write_chain_pulse_w),
         // WR FIFO FWFT (combinational path)
         .fifo_fwft_dout (wr_fifo_fwft_dout),
         .fifo_fwft_valid(wr_fifo_fwft_valid),
@@ -556,6 +622,34 @@ module ascon_dma #(
         .M_AXI_BRESP    (M_AXI_BRESP),
         .M_AXI_BVALID   (M_AXI_BVALID),
         .M_AXI_BREADY   (M_AXI_BREADY)
+    );
+
+    dma_runtime_counters u_runtime_counters (
+        .clk                 (clk),
+        .rst_n               (rst_n),
+        .dma_start           (dma_start),
+        .dma_soft_rst        (dma_soft_rst),
+        .dma_busy            (dma_busy),
+        .rd_start_pulse      (rd_start_w),
+        .rd_done_pulse       (rd_done_w),
+        .wr_done_pulse       (wr_done_w),
+        .payload_feed_pulse  (payload_feed_pulse_w),
+        .payload_chain_pulse (payload_chain_pulse_w),
+        .write_chain_pulse   (write_chain_pulse_w),
+        .ingress_swap_pulse  (rd_buf_swap_pulse),
+        .egress_swap_pulse   (wr_buf_swap_pulse),
+        .core_data_valid     (core_data_valid),
+        .core_data_out_valid (core_data_out_valid),
+        .cnt_rd_issue        (dbg_cnt_rd_issue_w),
+        .cnt_rd_done         (dbg_cnt_rd_done_w),
+        .cnt_wr_done         (dbg_cnt_wr_done_w),
+        .cnt_payload_feed    (dbg_cnt_payload_feed_w),
+        .cnt_payload_chain   (dbg_cnt_payload_chain_w),
+        .cnt_write_chain     (dbg_cnt_write_chain_w),
+        .cnt_ingress_swap    (dbg_cnt_ingress_swap_w),
+        .cnt_egress_swap     (dbg_cnt_egress_swap_w),
+        .cnt_busy_cycles     (dbg_cnt_busy_cycles_w),
+        .cnt_core_wait_cycles(dbg_cnt_core_wait_cycles_w)
     );
 
 endmodule

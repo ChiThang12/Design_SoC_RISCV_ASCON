@@ -86,6 +86,7 @@
 #define ASCON_OFS_DMA_DST   0x104
 #define ASCON_OFS_DMA_LEN   0x108
 #define ASCON_OFS_DMA_BURST 0x114
+#define ASCON_OFS_DMA_COH_CTRL 0x158
 /* AEAD registers — Added in v2.6 (FIX-BUG-TOP9) */
 #define ASCON_OFS_AD_ADDR   0x120   /* DMA source address for Associated Data     */
 #define ASCON_OFS_AD_LEN    0x124   /* Byte length of Associated Data             */
@@ -256,6 +257,22 @@ static inline void ascon_dma_config(uint32_t src_addr, uint32_t dst_addr, uint32
     ASCON_WRITE(ASCON_OFS_DMA_SRC, src_addr);
     ASCON_WRITE(ASCON_OFS_DMA_DST, dst_addr);
     ASCON_WRITE(ASCON_OFS_DMA_LEN, byte_len);
+}
+
+/* Cấu hình coherence policy cho DMA datapath.
+ * Readback kèm retry ngắn để tránh rơi mất write khi MMIO phát các store
+ * liên tiếp quanh dải 0x150..0x158 trong một số bài streaming. */
+static inline void ascon_set_dma_coh_ctrl(uint32_t coh_ctrl_val) {
+    uint32_t rdback;
+    uint32_t tries;
+    uint32_t expect = coh_ctrl_val & 0x3u;
+
+    for (tries = 0; tries < 8u; tries++) {
+        ASCON_WRITE(ASCON_OFS_DMA_COH_CTRL, expect);
+        ASCON_READ(ASCON_OFS_DMA_COH_CTRL, rdback);
+        if ((rdback & 0x3u) == expect)
+            break;
+    }
 }
 
 /* Bật DMA_EN + CORE_START đồng thời trong cùng 1 write (= 0x5)

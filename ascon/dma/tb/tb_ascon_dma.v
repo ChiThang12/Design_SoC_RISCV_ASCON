@@ -61,6 +61,8 @@ module tb_ascon_dma;
     parameter CLK_PERIOD     = 10;
     parameter CORE_LATENCY   = 8;
     parameter MEM_SIZE       = 256;  // 256 × 64-bit, indexed bằng addr[10:3]
+    parameter TB_AR_Q_DEPTH  = 4;
+    parameter TB_AW_Q_DEPTH  = 4;
 
     // =========================================================================
     // Clock / Reset
@@ -77,6 +79,7 @@ module tb_ascon_dma;
     reg  [7:0]             burst_len;
     reg  [ADDR_WIDTH-1:0]  atu_base, atu_window;
     reg  [1:0]             coh_ctrl;
+    reg  [0:0]             context_id;
     reg                    dma_start, dma_soft_rst;
 
     wire                   dma_busy, dma_done, dma_error;
@@ -157,6 +160,7 @@ module tb_ascon_dma;
         .ad_src_addr(32'h0), .ad_len(32'h0),
         .atu_base(atu_base), .atu_window(atu_window),
         .coh_ctrl(coh_ctrl),
+        .context_id(context_id),
         .dma_start(dma_start), .dma_soft_rst(dma_soft_rst),
         .dma_busy(dma_busy), .dma_done(dma_done), .dma_error(dma_error),
         .status_rd_done(status_rd_done), .status_wr_done(status_wr_done),
@@ -209,63 +213,100 @@ module tb_ascon_dma;
     endfunction
 
     // =========================================================================
-    // AXI READ SLAVE — FSM
-    //   RS_IDLE : đợi ARVALID, sau delay → ARREADY, chuyển RS_DATA
-    //   RS_DATA : giữ RVALID=1 đến khi RREADY, xử lý multi-beat nếu ARLEN>0
+    // AXI READ SLAVE — queued model with small outstanding window
     // =========================================================================
-    localparam RS_IDLE=1'b0, RS_DATA=1'b1;
-    reg        rd_state;
+    localparam RDQ_W = $clog2(TB_AR_Q_DEPTH);
     reg [3:0]  rd_dly_cnt;
     reg [3:0]  axi_rd_delay;
     reg        force_rd_error;
+    reg        rd_stream_active;
     reg [ADDR_WIDTH-1:0] rd_addr_lat;
     reg [7:0]  rd_beats_rem;
+    reg [AXI_ID_WIDTH-1:0] rd_id_lat;
+    reg [ADDR_WIDTH-1:0] rdq_addr [0:TB_AR_Q_DEPTH-1];
+    reg [7:0]  rdq_len [0:TB_AR_Q_DEPTH-1];
+    reg [AXI_ID_WIDTH-1:0] rdq_id [0:TB_AR_Q_DEPTH-1];
+    reg [RDQ_W:0] rdq_count;
+    reg [RDQ_W-1:0] rdq_head, rdq_tail;
+    integer rd_outstanding_cur;
+    integer rd_outstanding_max;
+    integer wr_pending_bresp_cur;
+    integer wr_pending_bresp_max;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            rd_state <= RS_IDLE;
-            M_AXI_ARREADY <= 0; M_AXI_RVALID <= 0;
-            M_AXI_RDATA <= 0; M_AXI_RRESP <= 0;
-            M_AXI_RLAST <= 0; M_AXI_RID <= 0;
-            rd_dly_cnt <= 0; rd_beats_rem <= 0;
+            rd_stream_active   <= 1'b0;
+            M_AXI_ARREADY      <= 1'b0;
+            M_AXI_RVALID       <= 1'b0;
+            M_AXI_RDATA        <= 0;
+            M_AXI_RRESP        <= 0;
+            M_AXI_RLAST        <= 0;
+            M_AXI_RID          <= 0;
+            rd_dly_cnt         <= 0;
+            rd_beats_rem       <= 0;
+            rd_id_lat          <= 0;
+            rdq_count          <= 0;
+            rdq_head           <= 0;
+            rdq_tail           <= 0;
+            rd_outstanding_cur <= 0;
+            rd_outstanding_max <= 0;
         end else begin
             M_AXI_ARREADY <= 0;
-            case (rd_state)
-                RS_IDLE: begin
-                    M_AXI_RVALID <= 0;
-                    if (M_AXI_ARVALID) begin
-                        if (rd_dly_cnt < axi_rd_delay) begin
-                            rd_dly_cnt <= rd_dly_cnt + 1;
-                        end else begin
-                            M_AXI_ARREADY <= 1;
-                            rd_addr_lat   <= M_AXI_ARADDR;
-                            rd_beats_rem  <= M_AXI_ARLEN;
-                            rd_dly_cnt    <= 0;
-                            rd_state      <= RS_DATA;
-                        end
+
+            if (M_AXI_ARVALID && (rdq_count < TB_AR_Q_DEPTH)) begin
+                if (rd_dly_cnt < axi_rd_delay) begin
+                    rd_dly_cnt <= rd_dly_cnt + 1'b1;
+                end else begin
+                    M_AXI_ARREADY      <= 1'b1;
+                    rdq_addr[rdq_tail] <= M_AXI_ARADDR;
+                    rdq_len[rdq_tail]  <= M_AXI_ARLEN;
+                    rdq_id[rdq_tail]   <= M_AXI_ARID;
+                    rdq_tail           <= rdq_tail + 1'b1;
+                    rdq_count          <= rdq_count + 1'b1;
+                    rd_dly_cnt         <= 0;
+                    rd_outstanding_cur <= rd_outstanding_cur + 1;
+                    if (rd_outstanding_cur + 1 > rd_outstanding_max)
+                        rd_outstanding_max <= rd_outstanding_cur + 1;
+                end
+            end else begin
+                rd_dly_cnt <= 0;
+            end
+
+            if (!rd_stream_active && (rdq_count != 0)) begin
+                rd_stream_active <= 1'b1;
+                rd_addr_lat      <= rdq_addr[rdq_head];
+                rd_beats_rem     <= rdq_len[rdq_head];
+                rd_id_lat        <= rdq_id[rdq_head];
+                rdq_head         <= rdq_head + 1'b1;
+                rdq_count        <= rdq_count - 1'b1;
+                M_AXI_RVALID     <= 1'b1;
+                M_AXI_RID        <= rdq_id[rdq_head];
+                M_AXI_RRESP      <= force_rd_error ? 2'b10 : 2'b00;
+                M_AXI_RDATA      <= mem[addr2idx(rdq_addr[rdq_head])];
+                M_AXI_RLAST      <= (rdq_len[rdq_head] == 0);
+            end else if (rd_stream_active) begin
+                M_AXI_RVALID <= 1'b1;
+                M_AXI_RID    <= rd_id_lat;
+                M_AXI_RRESP  <= force_rd_error ? 2'b10 : 2'b00;
+                M_AXI_RDATA  <= mem[addr2idx(rd_addr_lat)];
+                M_AXI_RLAST  <= (rd_beats_rem == 0);
+                if (M_AXI_RVALID && M_AXI_RREADY) begin
+                    if (rd_beats_rem == 0) begin
+                        rd_stream_active   <= 1'b0;
+                        M_AXI_RVALID       <= 1'b0;
+                        M_AXI_RLAST        <= 1'b0;
+                        rd_outstanding_cur <= rd_outstanding_cur - 1;
+                    end else begin
+                        rd_addr_lat  <= rd_addr_lat + 8;
+                        rd_beats_rem <= rd_beats_rem - 1'b1;
+                        M_AXI_RDATA  <= mem[addr2idx(rd_addr_lat + 8)];
+                        M_AXI_RLAST  <= (rd_beats_rem == 1);
                     end
                 end
-                RS_DATA: begin
-                    // Present data — giữ cho đến khi accept
-                    M_AXI_RVALID <= 1;
-                    M_AXI_RID    <= M_AXI_ARID;
-                    M_AXI_RRESP  <= force_rd_error ? 2'b10 : 2'b00;
-                    M_AXI_RDATA  <= mem[addr2idx(rd_addr_lat)];
-                    M_AXI_RLAST  <= (rd_beats_rem == 0);
-                    if (M_AXI_RVALID && M_AXI_RREADY) begin
-                        if (rd_beats_rem == 0) begin
-                            M_AXI_RVALID <= 0;
-                            M_AXI_RLAST  <= 0;
-                            rd_state     <= RS_IDLE;
-                        end else begin
-                            rd_addr_lat  <= rd_addr_lat + 8;
-                            rd_beats_rem <= rd_beats_rem - 1;
-                            M_AXI_RDATA  <= mem[addr2idx(rd_addr_lat + 8)];
-                            M_AXI_RLAST  <= (rd_beats_rem == 1);
-                        end
-                    end
-                end
-            endcase
+            end else begin
+                M_AXI_RVALID <= 1'b0;
+                M_AXI_RLAST  <= 1'b0;
+            end
         end
     end
 
@@ -296,109 +337,110 @@ module tb_ascon_dma;
     end
 
     // =========================================================================
-    // AXI WRITE SLAVE — FSM
-    //
-    // FIX KQUAN TRỌNG:
-    //   dma_write_engine có logic nonblocking trong WR_DATA:
-    //     if (!WVALID)  → set WDATA, WVALID=1, WLAST, word_half=0  [nhánh A]
-    //     if (WVALID && WREADY) → clear WVALID, advance beat  [nhánh B]
-    //   Nếu WREADY=1 từ trước (pre-asserted), cycle mà WVALID vừa set:
-    //     nonblocking: WVALID_old=0 → nhánh A chạy (WVALID<=1)
-    //                  WVALID_old=0 → nhánh B KHÔNG chạy (0 && 1 = 0)
-    //   Nhưng vấn đề là word_half bị clear về 0 trong nhánh A (line 179),
-    //   cycle tiếp theo word_half=0, WVALID=1, WREADY=1 → nhánh B chạy OK.
-    //   Vậy RTL đúng nếu WREADY được giữ =1 liên tục.
-    //
-    //   Thực sự bug là slave của TB: sau WLAST, slave clear WREADY ngay,
-    //   nhưng chưa gửi BVALID. DMA engine chuyển WR_RESP, assert BREADY,
-    //   nhưng BVALID=0 → kẹt mãi.
-    //   Slave cần chắc chắn: khi WLAST accept, BÁO BVALID trong cycle tiếp.
-    //
-    //   States: WS_IDLE → WS_ADDR → WS_DATA → WS_RESP
-    //   WS_RESP: giữ BVALID=1 cho đến khi BREADY (từ DMA engine).
+    // AXI WRITE SLAVE — queued AW / delayed B model
     // =========================================================================
-    localparam WS_IDLE=2'd0, WS_ADDR=2'd1, WS_DATA=2'd2, WS_RESP=2'd3;
-    reg [1:0]  wr_state;
+    localparam AWQ_W = $clog2(TB_AW_Q_DEPTH);
     reg [3:0]  wr_dly_cnt;
     reg [3:0]  axi_wr_delay;
+    reg [3:0]  axi_b_delay;
     reg        force_wr_error;
     reg [ADDR_WIDTH-1:0] wr_addr_lat;
     reg [2:0]  wr_beat_idx;   // 0..2
+    reg        wr_stream_active;
+    reg [ADDR_WIDTH-1:0] awq_addr [0:TB_AW_Q_DEPTH-1];
+    reg [AXI_ID_WIDTH-1:0] awq_id [0:TB_AW_Q_DEPTH-1];
+    reg [AWQ_W:0] awq_count;
+    reg [AWQ_W-1:0] awq_head, awq_tail;
+    reg [AXI_ID_WIDTH-1:0] bid_q [0:TB_AW_Q_DEPTH-1];
+    reg [AWQ_W:0] bq_count;
+    reg [AWQ_W-1:0] bq_head, bq_tail;
+    reg [3:0] b_dly_cnt;
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            wr_state <= WS_IDLE;
-            M_AXI_AWREADY <= 0; M_AXI_WREADY <= 0;
-            M_AXI_BVALID  <= 0; M_AXI_BRESP  <= 0; M_AXI_BID <= 0;
-            wr_dly_cnt <= 0; wr_beat_idx <= 0;
+            M_AXI_AWREADY <= 0;
+            M_AXI_WREADY  <= 0;
+            M_AXI_BVALID  <= 0;
+            M_AXI_BRESP   <= 0;
+            M_AXI_BID     <= 0;
+            wr_dly_cnt    <= 0;
+            wr_beat_idx   <= 0;
+            wr_stream_active <= 1'b0;
+            awq_count     <= 0;
+            awq_head      <= 0;
+            awq_tail      <= 0;
+            bq_count      <= 0;
+            bq_head       <= 0;
+            bq_tail       <= 0;
+            b_dly_cnt     <= 0;
+            wr_pending_bresp_cur <= 0;
+            wr_pending_bresp_max <= 0;
         end else begin
-            M_AXI_AWREADY <= 0;   // default: 1-cycle pulse only
+            M_AXI_AWREADY <= 0;
 
-            case (wr_state)
-
-                // ── Đợi AWVALID, apply delay ──────────────────────────────────
-                WS_IDLE: begin
-                    M_AXI_WREADY <= 0;
-                    M_AXI_BVALID <= 0;
-                    if (M_AXI_AWVALID) begin
-                        if (wr_dly_cnt < axi_wr_delay) begin
-                            wr_dly_cnt <= wr_dly_cnt + 1;
-                        end else begin
-                            // Accept AW
-                            M_AXI_AWREADY <= 1;
-                            wr_addr_lat   <= M_AXI_AWADDR;
-                            wr_beat_idx   <= 0;
-                            wr_dly_cnt    <= 0;
-                            wr_state      <= WS_ADDR;
-                        end
-                    end
+            if (M_AXI_AWVALID && (awq_count < TB_AW_Q_DEPTH)) begin
+                if (wr_dly_cnt < axi_wr_delay) begin
+                    wr_dly_cnt <= wr_dly_cnt + 1'b1;
+                end else begin
+                    M_AXI_AWREADY      <= 1'b1;
+                    awq_addr[awq_tail] <= M_AXI_AWADDR;
+                    awq_id[awq_tail]   <= M_AXI_AWID;
+                    awq_tail           <= awq_tail + 1'b1;
+                    awq_count          <= awq_count + 1'b1;
+                    wr_dly_cnt         <= 0;
                 end
+            end else begin
+                wr_dly_cnt <= 0;
+            end
 
-                // ── 1-cycle gap sau AWREADY ───────────────────────────────────
-                // Đợi DMA engine chuyển sang WR_DATA trước khi assert WREADY.
-                // Điều này tránh WREADY=1 trước khi WVALID đến.
-                WS_ADDR: begin
-                    M_AXI_AWREADY <= 0;
-                    // Không assert WREADY vội — đợi WVALID trước
-                    wr_state <= WS_DATA;
+            if (!wr_stream_active && (awq_count != 0)) begin
+                wr_stream_active <= 1'b1;
+                wr_addr_lat      <= awq_addr[awq_head];
+                M_AXI_BID        <= awq_id[awq_head];
+                awq_head         <= awq_head + 1'b1;
+                awq_count        <= awq_count - 1'b1;
+                wr_beat_idx      <= 0;
+            end
+
+            M_AXI_WREADY <= wr_stream_active && M_AXI_WVALID;
+            if (wr_stream_active && M_AXI_WVALID && M_AXI_WREADY) begin
+                mem[addr2idx(wr_addr_lat) + {{5{1'b0}}, wr_beat_idx}] <= M_AXI_WDATA;
+                $display("[MEM-WR @%0t] beat%0d addr=%08h[%0d] data=%016h last=%b",
+                         $time, wr_beat_idx,
+                         wr_addr_lat, addr2idx(wr_addr_lat)+wr_beat_idx,
+                         M_AXI_WDATA, M_AXI_WLAST);
+
+                if (M_AXI_WLAST) begin
+                    wr_stream_active     <= 1'b0;
+                    bid_q[bq_tail]       <= M_AXI_BID;
+                    bq_tail              <= bq_tail + 1'b1;
+                    bq_count             <= bq_count + 1'b1;
+                    wr_pending_bresp_cur <= wr_pending_bresp_cur + 1;
+                    if (wr_pending_bresp_cur + 1 > wr_pending_bresp_max)
+                        wr_pending_bresp_max <= wr_pending_bresp_cur + 1;
+                end else begin
+                    wr_beat_idx <= wr_beat_idx + 1'b1;
                 end
+            end
 
-                // ── Accept write data beats ───────────────────────────────────
-                // QUAN TRỌNG: WREADY chỉ assert khi thấy WVALID=1
-                // Tránh pre-asserted WREADY gây conflict với RTL logic
-                WS_DATA: begin
-                    // Assert WREADY chỉ khi có data để accept
-                    M_AXI_WREADY <= M_AXI_WVALID;  // mirror WVALID với 1-cycle
-
-                    if (M_AXI_WVALID && M_AXI_WREADY) begin
-                        // Ghi vào memory
-                        mem[addr2idx(wr_addr_lat) + {{5{1'b0}}, wr_beat_idx}] <= M_AXI_WDATA;
-                        $display("[MEM-WR @%0t] beat%0d addr=%08h[%0d] data=%016h last=%b",
-                                 $time, wr_beat_idx,
-                                 wr_addr_lat, addr2idx(wr_addr_lat)+wr_beat_idx,
-                                 M_AXI_WDATA, M_AXI_WLAST);
-
-                        if (M_AXI_WLAST) begin
-                            M_AXI_WREADY <= 0;
-                            wr_state     <= WS_RESP;
-                        end else begin
-                            wr_beat_idx <= wr_beat_idx + 1;
-                        end
-                    end
-                end
-
-                // ── Gửi BRESP, đợi DMA accept ────────────────────────────────
-                WS_RESP: begin
-                    M_AXI_BVALID <= 1;
+            if (!M_AXI_BVALID && (bq_count != 0)) begin
+                if (b_dly_cnt < axi_b_delay) begin
+                    b_dly_cnt <= b_dly_cnt + 1'b1;
+                end else begin
+                    M_AXI_BVALID <= 1'b1;
                     M_AXI_BRESP  <= force_wr_error ? 2'b10 : 2'b00;
-                    M_AXI_BID    <= M_AXI_AWID;
-                    if (M_AXI_BVALID && M_AXI_BREADY) begin
-                        M_AXI_BVALID <= 0;
-                        wr_state     <= WS_IDLE;
-                    end
+                    M_AXI_BID    <= bid_q[bq_head];
+                    bq_head      <= bq_head + 1'b1;
+                    bq_count     <= bq_count - 1'b1;
+                    b_dly_cnt    <= 0;
                 end
-
-            endcase
+            end else if (M_AXI_BVALID && M_AXI_BREADY) begin
+                M_AXI_BVALID         <= 1'b0;
+                wr_pending_bresp_cur <= wr_pending_bresp_cur - 1;
+                b_dly_cnt            <= 0;
+            end else if (bq_count == 0) begin
+                b_dly_cnt <= 0;
+            end
         end
     end
 
@@ -523,14 +565,17 @@ module tb_ascon_dma;
             src_addr = 0; dst_addr = 0; byte_len = 8; burst_len = 0;
             atu_base = 32'h3000_0000; atu_window = 32'h0000_1000;
             coh_ctrl = 2'b00;
+            context_id = 1'b0;
             dc_snoop_req_ready = 1'b1;
             dc_snoop_resp_valid = 1'b0;
             dc_snoop_resp_hit = 1'b0;
             dc_snoop_resp_data = 128'h0;
             force_rd_error = 0; force_wr_error = 0;
             force_snoop_hit = 0; snoop_hit_data = 128'h0;
-            axi_rd_delay = 0; axi_wr_delay = 0;
+            axi_rd_delay = 0; axi_wr_delay = 0; axi_b_delay = 0;
             done_seen = 0; error_seen = 0;
+            rd_outstanding_cur = 0; rd_outstanding_max = 0;
+            wr_pending_bresp_cur = 0; wr_pending_bresp_max = 0;
             for (i=0; i<MEM_SIZE; i=i+1) mem[i] = 64'h0;
             repeat(6) @(posedge clk);
             #1 rst_n = 1;
@@ -819,6 +864,12 @@ module tb_ascon_dma;
                      $time, M_AXI_WDATA, M_AXI_WLAST, M_AXI_WSTRB);
         if (M_AXI_BVALID && M_AXI_BREADY)
             $display("[AXI @%0t] B   resp=%0d (bid=%0d)", $time, M_AXI_BRESP, M_AXI_BID);
+        if (M_AXI_ARVALID && M_AXI_ARREADY)
+            $display("[TB-OBS @%0t] rd_outstanding cur/max = %0d/%0d",
+                     $time, rd_outstanding_cur, rd_outstanding_max);
+        if (M_AXI_BVALID && M_AXI_BREADY)
+            $display("[TB-OBS @%0t] pending_bresp cur/max = %0d/%0d",
+                     $time, wr_pending_bresp_cur, wr_pending_bresp_max);
         if (dc_snoop_req_valid && dc_snoop_req_ready)
             $display("[SNOOP @%0t] REQ cmd=%b addr=%08h", $time, dc_snoop_cmd, dc_snoop_addr);
         if (dc_snoop_resp_valid)

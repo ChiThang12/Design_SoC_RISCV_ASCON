@@ -33,6 +33,7 @@ module riscv_cpu_core #(
     output wire        dcache_we,
     input  wire [31:0] dcache_rdata,
     input  wire        dcache_ready,
+    input  wire        dcache_fence_busy,
     output wire [1:0]  dcache_fence_type,
 
     input  wire external_irq,
@@ -96,7 +97,6 @@ module riscv_cpu_core #(
     wire irq_take_req = csr_mstatus_r[3] && irq_source_pending;
 
     reg irq_pending_lat;
-    reg [1:0] irq_flush_cnt_r;
     always @(posedge clk or posedge rst) begin
         if (rst)
             irq_pending_lat <= 1'b0;
@@ -106,17 +106,9 @@ module riscv_cpu_core #(
             irq_pending_lat <= 1'b1;
     end
 
-    always @(posedge clk or posedge rst) begin
-        if (rst) begin
-            irq_flush_cnt_r <= 2'b00;
-        end else if ((irq_flush_cnt_r == 2'b00) && irq_take) begin
-            irq_flush_cnt_r <= 2'b11;
-        end else if (irq_flush_cnt_r != 2'b00) begin
-            irq_flush_cnt_r <= {1'b0, irq_flush_cnt_r[1]};
-        end
-    end
-    wire irq_flush_done = (irq_flush_cnt_r == 2'b01);
-    wire irq_flush = (irq_flush_cnt_r != 2'b00);
+    // irq_take is the precise one-cycle trap flush. Extending this flush after
+    // redirect can squash the first instruction at mtvec (observed ISR sp frame loss).
+    wire irq_flush = 1'b0;
 
     // =========================================================================
     // DEBUG MODE FSM
@@ -242,11 +234,43 @@ module riscv_cpu_core #(
     wire fence_pred_i    = instr_id[27];  // I — input device
     wire       fence_is_fencei = funct3_id[0];
 
-    wire fence_active = fence_id && !fence_stall;
-    assign dcache_fence_type[0] = fence_active && (fence_is_fencei | fence_pred_w | fence_pred_i);
-    assign dcache_fence_type[1] = fence_active && (fence_is_fencei | fence_pred_r | fence_pred_i);
+    reg fence_wait_r;
+    reg fence_wait_seen_busy_r;
+    wire fence_launch = fence_id && !fence_stall && !fence_wait_r;
+    wire fence_wait_done = fence_wait_r && fence_wait_seen_busy_r && !dcache_fence_busy;
+    wire fence_wait_stall = fence_wait_r && !fence_wait_done;
+
+    always @(posedge clk or posedge rst) begin
+        if (rst) begin
+            fence_wait_r           <= 1'b0;
+            fence_wait_seen_busy_r <= 1'b0;
+        end else if (fence_wait_done) begin
+            fence_wait_r           <= 1'b0;
+            fence_wait_seen_busy_r <= 1'b0;
+        end else if (fence_launch) begin
+            fence_wait_r           <= 1'b1;
+            fence_wait_seen_busy_r <= dcache_fence_busy;
+        end else if (fence_wait_r && dcache_fence_busy) begin
+            fence_wait_seen_busy_r <= 1'b1;
+        end
+    end
+
+    assign dcache_fence_type[0] = fence_launch && (fence_is_fencei | fence_pred_w | fence_pred_i);
+    assign dcache_fence_type[1] = fence_launch && (fence_is_fencei | fence_pred_r | fence_pred_i);
+
+`ifdef DEBUG_FENCE_TRACE
+    always @(posedge clk) begin
+        if (!rst && (fence_launch || fence_wait_r || dcache_fence_busy)) begin
+            $display("[FENCE t=%0t] pc_id=%h instr_id=%h launch=%b wait=%b seen=%b busy=%b done=%b type=%02b stall_any=%b",
+                     $time, pc_id, instr_id, fence_launch, fence_wait_r,
+                     fence_wait_seen_busy_r, dcache_fence_busy, fence_wait_done,
+                     dcache_fence_type, stall_any);
+        end
+    end
+`endif
 
     wire [31:0] read_data1_id, read_data2_id, imm_id;
+    wire [31:0] read_data1_rf, read_data2_rf;
 
     // =========================================================================
     // REGISTER SOURCE DEPENDENCY DECODE (ID STAGE)
@@ -301,6 +325,7 @@ module riscv_cpu_core #(
     wire [31:0] lsu_result_data;
     wire [4:0]  lsu_result_rd;
     wire        lsu_result_ack;
+    wire        lsu_result_commit;
     wire [31:0] lsu_scoreboard;
     wire        lsu_idle;
 
@@ -330,8 +355,15 @@ module riscv_cpu_core #(
     // handshake xong. Nếu không, MEM instruction hiện tại bị overwrite bởi
     // younger instruction và store/load request bị rơi.
     wire mem_stage_wait;
-    // stall_any includes debug_mode, WFI idle state, and LSU backpressure.
-    assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r | mem_stage_wait;
+    // When an enabled IRQ is pending but the core is not yet at a precise
+    // trap point, stop admitting younger work so LSU/store-buffer can drain.
+    // Assigned after irq_control_busy is known; do not freeze a branch/jump in
+    // EX before it resolves, or the core can deadlock on a tight task loop.
+    wire irq_drain_stall;
+
+    // stall_any includes debug_mode, WFI idle state, LSU backpressure, and IRQ drain.
+    assign stall_any = stall | stall_if | debug_mode | cpu_wfi_r |
+                       mem_stage_wait | irq_drain_stall | fence_wait_stall;
 
     wire is_wfi_id = (opcode_id == OP_SYSTEM) &&
                      (funct3_id == 3'b000) &&
@@ -402,13 +434,48 @@ module riscv_cpu_core #(
     // IFU redirect priority: mispredict recovery > actual branch/jump > WFI consume > prediction
     wire [31:0] wfi_resume_pc = pc_id + 32'd4;
 
+    wire is_system_ex = (opcode_ex == OP_SYSTEM);
+    wire is_csr_ex = is_system_ex && (funct3_ex != 3'b000);
+    wire is_mret_ex = is_system_ex && (funct3_ex == 3'b000) && (imm_ex[11:0] == 12'h302);
+    wire is_ecall_ex = is_system_ex && (funct3_ex == 3'b000) && (imm_ex[11:0] == 12'h000);
+
+    // EX can temporarily hold stale/wrong-path work while branch redirects are
+    // flushing younger stages. Take IRQ only at a precise, non-control-flow EX point.
+    wire ex_valid_for_irq = (opcode_ex != 7'b0000000) && (pc_ex[31:2] != 30'h0);
+    wire id_valid_for_irq = (opcode_id != 7'b0000000) && (pc_id[31:2] != 30'h0);
+    // A resolved branch is a precise commit point for interrupts as long as
+    // mepc is the resolved next PC. Blocking all branch_ex cycles starves IRQs
+    // in tight polling loops (for example while(timer_irq_count < N)).
+    wire irq_control_busy = jump_ex || is_mret_ex || is_ecall_ex ||
+                            predict_taken_id ||
+                            (((pc_src_ex || mispredict_ex || flush_if_id || flush_id_ex) &&
+                              !branch_ex));
     wire irq_eligible = lsu_sb_empty_w && !dcache_req && !debug_mode &&
-                        (opcode_ex != 7'b0000000);
-    wire irq_take = (irq_flush_cnt_r == 2'b00) && irq_pending_lat && irq_eligible;
+                        (ex_valid_for_irq || id_valid_for_irq) && !irq_control_busy;
+    wire irq_take = irq_pending_lat && irq_eligible;
+    assign irq_drain_stall = irq_pending_lat && !irq_take && !debug_mode &&
+                              !irq_control_busy &&
+                              (ex_valid_for_irq || id_valid_for_irq);
+    wire ecall_take = is_ecall_ex && !stall_any && !debug_mode;
+    wire trap_take = ecall_take || irq_take;
+
+`ifdef DEBUG_IRQ_DRAIN
+    always @(posedge clk) begin
+        if (!rst && (ext_irq_s2 || tmr_irq_s2 || sw_irq_s2 ||
+                     irq_take_req || irq_pending_lat || irq_take || irq_drain_stall)) begin
+            $display("[%0t] [IRQ-DRAIN] req=%b lat=%b take=%b drain=%b elig=%b mstatus_mie=%b meie=%b mtie=%b msie=%b ext=%b tmr=%b sw=%b lsu_idle=%b dc_req=%b ctrl=%b ex_valid=%b pc_ex=%h op_ex=%b pc_id=%h",
+                     $time, irq_take_req, irq_pending_lat, irq_take, irq_drain_stall,
+                     irq_eligible, csr_mstatus_r[3], csr_mie_r[11], csr_mie_r[7], csr_mie_r[3],
+                     ext_irq_s2, tmr_irq_s2, sw_irq_s2,
+                     lsu_sb_empty_w, dcache_req, irq_control_busy,
+                     (ex_valid_for_irq || id_valid_for_irq), pc_ex, opcode_ex, pc_id);
+        end
+    end
+`endif
     wire [31:0] irq_target_pc = {csr_mtvec_r[31:2], 2'b00};
 
-    wire        ifu_pc_src    = irq_take || mispredict_ex || pc_src_ex || wfi_enter || predict_taken_id;
-    wire [31:0] ifu_target_pc = irq_take      ? irq_target_pc :
+    wire        ifu_pc_src    = trap_take || mispredict_ex || pc_src_ex || wfi_enter || predict_taken_id;
+    wire [31:0] ifu_target_pc = trap_take     ? irq_target_pc :
                                 mispredict_ex ? pc_plus_4_ex  :
                                 pc_src_ex     ? target_pc_ex  :
                                 wfi_enter     ? wfi_resume_pc :
@@ -417,16 +484,12 @@ module riscv_cpu_core #(
     // Fix 10C: Multiplier stall — don't freeze multiplier during its own extra cycle
     wire mul_hold = stall_any && !mul_ex_stall_wire;
 
-    // stall_ex_mem: freeze EX/MEM on LSU dependency OR when a MEM-stage LSU
-    // request is still waiting for handshake. fence_stall alone must still not
-    // block an older store already sitting in MEM.
-    // [FIX-REPLAY-SP] Also freeze on stall_if (icache miss). Without this, an EX
-    // instruction is held in EX by the ID/EX freeze (stall_any) yet EX/MEM keeps
-    // advancing — so it commits once DURING the miss and again at stall release,
-    // double-writing its destination (observed: addi sp,sp,N retiring twice →
-    // corrupted SP, out-of-DMEM stores, DMA test hang). Freezing EX/MEM together
-    // with the front-end makes the instruction advance exactly once, at release.
-    wire stall_ex_mem = lsu_dep_stall | mem_stage_wait | stall_if;
+    // stall_ex_mem: freeze EX/MEM only when the MEM/LSU side cannot accept work.
+    // Front-end stalls after redirects must not freeze EX/MEM: otherwise the
+    // previous instruction can occupy MEM while a JALR/IRQ/MRET in EX loses its
+    // link/commit. PIPELINE_REG_EX_MEM already pass-once/bubbles duplicate EX
+    // replays during stall_any.
+    wire stall_ex_mem = lsu_dep_stall | mem_stage_wait;
 
     // [FIX-JALR-TARGET] JALR predicted taken đến pc+imm (sai). EX sẽ correct
     // đến rs1+imm. Flush IF/ID tại cycle JALR-in-EX để xóa instruction fetched
@@ -439,8 +502,8 @@ module riscv_cpu_core #(
     // FIX-JAL-FLUSH: Unpredicted JAL/JALR (predict_taken_ex=0) must also flush IF and ID
     // to prevent wrong-path instructions from corrupting register values via forwarding.
     wire jump_unpredicted_ex = jump_ex && !predict_taken_ex;
-    wire flush_if_id_final = flush_if_id | irq_flush | irq_take | wfi_enter | jalr_wrong_target | is_mret_ex | jump_unpredicted_ex;
-    wire flush_id_ex_final = flush_id_ex | irq_flush | wfi_enter | is_mret_ex | jump_unpredicted_ex;
+    wire flush_if_id_final = flush_if_id | irq_flush | trap_take | wfi_enter | jalr_wrong_target | is_mret_ex | jump_unpredicted_ex;
+    wire flush_id_ex_final = flush_id_ex | irq_flush | trap_take | wfi_enter | is_mret_ex | jump_unpredicted_ex;
 
     // =========================================================================
     // STAGE 1: IF
@@ -495,12 +558,20 @@ module riscv_cpu_core #(
         .reset        (rst),
         .read_reg_num1(rs1_id),
         .read_reg_num2(rs2_id),
-        .read_data1   (read_data1_id),
-        .read_data2   (read_data2_id),
+        .read_data1   (read_data1_rf),
+        .read_data2   (read_data2_rf),
         .regwrite     (regwrite_wb),
         .write_reg    (rd_wb),
         .write_data   (write_back_data_wb)
     );
+
+    // LSU completion can occur in the same cycle that ID samples its source
+    // registers. Bypass that result directly so load->JALR/CALL does not
+    // capture the pre-load register value for one cycle.
+    assign read_data1_id = (lsu_result_commit && (lsu_result_rd != 5'd0) &&
+                            (lsu_result_rd == rs1_id)) ? lsu_result_data : read_data1_rf;
+    assign read_data2_id = (lsu_result_commit && (lsu_result_rd != 5'd0) &&
+                            (lsu_result_rd == rs2_id)) ? lsu_result_data : read_data2_rf;
 
     imm_gen immediate_generator (
         .instr(instr_id),
@@ -513,6 +584,10 @@ module riscv_cpu_core #(
     // Pre-compute branch target in ID stage to remove adder from EX critical path.
     // pc_id and imm_id are both available here; result passes through ID/EX register.
     wire [31:0] branch_target_id = pc_id + imm_id;
+    wire fwd_a_lsu = lsu_result_commit && (lsu_result_rd != 5'd0) &&
+                     (lsu_result_rd == rs1_ex);
+    wire fwd_b_lsu = lsu_result_commit && (lsu_result_rd != 5'd0) &&
+                     (lsu_result_rd == rs2_ex);
 
     PIPELINE_REG_ID_EX id_ex_reg (
         .clock           (clk),
@@ -524,6 +599,11 @@ module riscv_cpu_core #(
         .fwd_b_sel       (forward_b),
         .fwd_a_data      (alu_in1_forwarded),
         .fwd_b_data      (alu_in2_pre_mux),
+        .lsu_fwd_a_valid (fwd_a_lsu),
+        .lsu_fwd_b_valid (fwd_b_lsu),
+        .lsu_fwd_data    (lsu_result_data),
+        .fwd_a_self_replay(fwd_a_mem_self_replay | fwd_a_wb_self_replay),
+        .fwd_b_self_replay(fwd_b_mem_self_replay | fwd_b_wb_self_replay),
         // Control inputs
         .regwrite_in     (regwrite_id_final),
         .alusrc_in       (alusrc_id),
@@ -596,14 +676,40 @@ module riscv_cpu_core #(
     wire fwd_b_mem  = (forward_b == 2'b10);
     wire fwd_b_wb   = (forward_b == 2'b01);
     wire fwd_b_none = (forward_b == 2'b00);
-
+    // During a global stall, the same EX instruction can also be present in a
+    // later pipeline register. If rd==rs*, plain forwarding would feed the
+    // instruction's own replayed result back into itself (e.g. addi a4,a4,28).
+    wire fwd_a_mem_self_replay = fwd_a_mem && regwrite_ex && regwrite_mem &&
+                                 (rd_ex != 5'd0) && (rd_ex == rs1_ex) &&
+                                 (rd_mem == rd_ex) &&
+                                 (pc_plus_4_mem == pc_plus_4_ex);
+    wire fwd_b_mem_self_replay = fwd_b_mem && regwrite_ex && regwrite_mem &&
+                                 (rd_ex != 5'd0) && (rd_ex == rs2_ex) &&
+                                 (rd_mem == rd_ex) &&
+                                 (pc_plus_4_mem == pc_plus_4_ex);
+    wire fwd_a_wb_self_replay  = fwd_a_wb && regwrite_ex && regwrite_wb &&
+                                 (rd_ex != 5'd0) && (rd_ex == rs1_ex) &&
+                                 (rd_wb == rd_ex) &&
+                                 (pc_plus_4_wb == pc_plus_4_ex);
+    wire fwd_b_wb_self_replay  = fwd_b_wb && regwrite_ex && regwrite_wb &&
+                                 (rd_ex != 5'd0) && (rd_ex == rs2_ex) &&
+                                 (rd_wb == rd_ex) &&
+                                 (pc_plus_4_wb == pc_plus_4_ex);
+    wire fwd_a_mem_eff  = fwd_a_mem && !fwd_a_mem_self_replay && !is_mul_mem;
+    wire fwd_b_mem_eff  = fwd_b_mem && !fwd_b_mem_self_replay && !is_mul_mem;
+    wire fwd_a_wb_eff   = fwd_a_wb  && !fwd_a_wb_self_replay;
+    wire fwd_b_wb_eff   = fwd_b_wb  && !fwd_b_wb_self_replay;
+    wire fwd_a_none_eff = fwd_a_none || fwd_a_mem_self_replay || fwd_a_wb_self_replay;
+    wire fwd_b_none_eff = fwd_b_none || fwd_b_mem_self_replay || fwd_b_wb_self_replay;
     // Kept for multiplier operands, store data, and ID/EX forwarding-capture port
-    assign alu_in1_forwarded = ({32{fwd_a_mem}}  & alu_result_mem)    |
-                               ({32{fwd_a_wb}}   & write_back_data_wb) |
-                               ({32{fwd_a_none}} & read_data1_ex);
-    assign alu_in2_pre_mux   = ({32{fwd_b_mem}}  & alu_result_mem)    |
-                               ({32{fwd_b_wb}}   & write_back_data_wb) |
-                               ({32{fwd_b_none}} & read_data2_ex);
+    assign alu_in1_forwarded = fwd_a_lsu ? lsu_result_data :
+                               (({32{fwd_a_mem_eff}}  & alu_result_mem)    |
+                                ({32{fwd_a_wb_eff}}   & write_back_data_wb) |
+                                ({32{fwd_a_none_eff}} & read_data1_ex));
+    assign alu_in2_pre_mux   = fwd_b_lsu ? lsu_result_data :
+                               (({32{fwd_b_mem_eff}}  & alu_result_mem)    |
+                                ({32{fwd_b_wb_eff}}   & write_back_data_wb) |
+                                ({32{fwd_b_none_eff}} & read_data2_ex));
 
     wire is_lui_ex      = (opcode_ex == 7'b0110111);
     wire is_auipc_ex    = (opcode_ex == 7'b0010111);
@@ -618,15 +724,17 @@ module riscv_cpu_core #(
     // alu_in1: 8 mutually exclusive cases (LUI / AUIPC / MEM-fwd / WB×4 / RF)
     wire alu1_lui      = is_lui_ex;
     wire alu1_auipc    = is_auipc_ex;
-    wire alu1_fwdmem   = not_lui_auipc && fwd_a_mem;
-    wire alu1_wb_jump  = not_lui_auipc && fwd_a_wb && wb_sel_jump;
-    wire alu1_wb_mul   = not_lui_auipc && fwd_a_wb && wb_sel_mul;
-    wire alu1_wb_load  = not_lui_auipc && fwd_a_wb && wb_sel_load;
-    wire alu1_wb_alu   = not_lui_auipc && fwd_a_wb && wb_sel_alu;
-    wire alu1_rf       = not_lui_auipc && !fwd_a_mem && !fwd_a_wb;
+    wire alu1_lsu      = not_lui_auipc && fwd_a_lsu;
+    wire alu1_fwdmem   = not_lui_auipc && !fwd_a_lsu && fwd_a_mem_eff;
+    wire alu1_wb_jump  = not_lui_auipc && !fwd_a_lsu && fwd_a_wb_eff && wb_sel_jump;
+    wire alu1_wb_mul   = not_lui_auipc && !fwd_a_lsu && fwd_a_wb_eff && wb_sel_mul;
+    wire alu1_wb_load  = not_lui_auipc && !fwd_a_lsu && fwd_a_wb_eff && wb_sel_load;
+    wire alu1_wb_alu   = not_lui_auipc && !fwd_a_lsu && fwd_a_wb_eff && wb_sel_alu;
+    wire alu1_rf       = not_lui_auipc && !fwd_a_lsu && fwd_a_none_eff;
 
     assign alu_in1 = ({32{alu1_lui}}     & 32'h0)            |
                      ({32{alu1_auipc}}   & pc_ex)             |
+                     ({32{alu1_lsu}}     & lsu_result_data)   |
                      ({32{alu1_fwdmem}}  & alu_result_mem)    |
                      ({32{alu1_wb_jump}} & pc_plus_4_wb)      |
                      ({32{alu1_wb_mul}}  & mul_result_direct) |
@@ -636,14 +744,16 @@ module riscv_cpu_core #(
 
     // alu_in2: 7 mutually exclusive cases (IMM / MEM-fwd / WB×4 / RF)
     wire alu2_imm      = alusrc_ex;
-    wire alu2_fwdmem   = !alusrc_ex && fwd_b_mem;
-    wire alu2_wb_jump  = !alusrc_ex && fwd_b_wb && wb_sel_jump;
-    wire alu2_wb_mul   = !alusrc_ex && fwd_b_wb && wb_sel_mul;
-    wire alu2_wb_load  = !alusrc_ex && fwd_b_wb && wb_sel_load;
-    wire alu2_wb_alu   = !alusrc_ex && fwd_b_wb && wb_sel_alu;
-    wire alu2_rf       = !alusrc_ex && !fwd_b_mem && !fwd_b_wb;
+    wire alu2_lsu      = !alusrc_ex && fwd_b_lsu;
+    wire alu2_fwdmem   = !alusrc_ex && !fwd_b_lsu && fwd_b_mem_eff;
+    wire alu2_wb_jump  = !alusrc_ex && !fwd_b_lsu && fwd_b_wb_eff && wb_sel_jump;
+    wire alu2_wb_mul   = !alusrc_ex && !fwd_b_lsu && fwd_b_wb_eff && wb_sel_mul;
+    wire alu2_wb_load  = !alusrc_ex && !fwd_b_lsu && fwd_b_wb_eff && wb_sel_load;
+    wire alu2_wb_alu   = !alusrc_ex && !fwd_b_lsu && fwd_b_wb_eff && wb_sel_alu;
+    wire alu2_rf       = !alusrc_ex && !fwd_b_lsu && fwd_b_none_eff;
 
     assign alu_in2 = ({32{alu2_imm}}     & imm_ex)            |
+                     ({32{alu2_lsu}}     & lsu_result_data)   |
                      ({32{alu2_fwdmem}}  & alu_result_mem)    |
                      ({32{alu2_wb_jump}} & pc_plus_4_wb)      |
                      ({32{alu2_wb_mul}}  & mul_result_direct) |
@@ -703,9 +813,6 @@ module riscv_cpu_core #(
     // Determines if the branch is actually taken to control the PC source.
     // =========================================================================
     wire [31:0] jalr_target;
-    wire is_system_ex = (opcode_ex == OP_SYSTEM);
-    wire is_csr_ex = is_system_ex && (funct3_ex != 3'b000);
-    wire is_mret_ex = is_system_ex && (funct3_ex == 3'b000) && (imm_ex[11:0] == 12'h302);
     wire [11:0] csr_addr_ex = imm_ex[11:0];
     wire [31:0] csr_src_ex = funct3_ex[2] ? {27'b0, rs1_ex} : alu_in1_forwarded;
 
@@ -724,6 +831,8 @@ module riscv_cpu_core #(
 
     reg        csr_write_req_ex;
     reg [31:0] csr_write_data_ex;
+    wire       csr_rs1_nonzero_ex = (rs1_ex != 5'd0);
+    wire       csr_uimm_nonzero_ex = (rs1_ex != 5'd0);
     always @(*) begin
         csr_write_req_ex  = 1'b0;
         csr_write_data_ex = csr_read_data_ex;
@@ -732,12 +841,20 @@ module riscv_cpu_core #(
                 csr_write_req_ex  = 1'b1;
                 csr_write_data_ex = csr_src_ex;
             end
-            3'b010, 3'b110: begin
-                csr_write_req_ex  = (csr_src_ex != 32'h00000000);
+            3'b010: begin
+                csr_write_req_ex  = csr_rs1_nonzero_ex;
                 csr_write_data_ex = csr_read_data_ex | csr_src_ex;
             end
-            3'b011, 3'b111: begin
-                csr_write_req_ex  = (csr_src_ex != 32'h00000000);
+            3'b110: begin
+                csr_write_req_ex  = csr_uimm_nonzero_ex;
+                csr_write_data_ex = csr_read_data_ex | csr_src_ex;
+            end
+            3'b011: begin
+                csr_write_req_ex  = csr_rs1_nonzero_ex;
+                csr_write_data_ex = csr_read_data_ex & ~csr_src_ex;
+            end
+            3'b111: begin
+                csr_write_req_ex  = csr_uimm_nonzero_ex;
                 csr_write_data_ex = csr_read_data_ex & ~csr_src_ex;
             end
             default: begin
@@ -748,7 +865,7 @@ module riscv_cpu_core #(
     end
 
     wire [31:0] alu_result_ex_final = is_csr_ex ? csr_read_data_ex : alu_result_ex;
-    assign jalr_target  = (alu_in1 + imm_ex) & 32'hFFFFFFFE;
+    assign jalr_target  = (alu_in1_forwarded + imm_ex) & 32'hFFFFFFFE;
     // branch_target_ex = pc_id + imm_id, pre-computed in ID stage to remove
     // this adder from the EX stage critical path.
     assign target_pc_ex = is_mret_ex              ? {csr_mepc_r[31:2], 2'b00} :
@@ -756,7 +873,7 @@ module riscv_cpu_core #(
                                                     branch_target_ex;
     assign pc_src_ex    = (branch_ex & branch_taken_ex) | jump_ex | is_mret_ex;
 
-    wire csr_commit_ex  = is_csr_ex && !stall_any;
+    wire csr_commit_ex  = is_csr_ex && csr_write_req_ex && !stall_any;
     wire mret_commit_ex = is_mret_ex && !stall_any;
 
     // =========================================================================
@@ -768,11 +885,73 @@ module riscv_cpu_core #(
             if (irq_take)
                 $display("[%0t] [IRQ-TAKE] mepc<=%h mtvec=%h pc_ex=%h pc_id=%h pc_if=%h opcode=%b",
                     $time, irq_resume_pc, csr_mtvec_r, pc_ex, pc_id, pc_if, opcode_ex);
+            if (ecall_take)
+                $display("[%0t] [ECALL-TAKE] mepc<=%h mtvec=%h pc_id=%h pc_if=%h",
+                    $time, pc_ex, csr_mtvec_r, pc_id, pc_if);
             if (mret_commit_ex)
-                $display("[%0t] [MRET-EX] ret->%h flush_if=%b flush_id=%b pc_id=%h pc_if=%h",
-                    $time, {csr_mepc_r[31:2],2'b00}, flush_if_id_final, flush_id_ex_final, pc_id, pc_if);
+                $display("[%0t] [MRET-EX] ret->%h flush_if=%b flush_id=%b pc_id=%h pc_if=%h mstatus=%h",
+                    $time, {csr_mepc_r[31:2],2'b00}, flush_if_id_final, flush_id_ex_final, pc_id, pc_if, csr_mstatus_r);
+`ifdef DEBUG_CSR_TRACE
+            if (csr_commit_ex)
+                $display("[%0t] [CSR-WR] pc=%h csr=%h data=%h old_mstatus=%h old_mie=%h old_mepc=%h",
+                    $time, pc_ex, csr_addr_ex, csr_write_data_ex, csr_mstatus_r, csr_mie_r, csr_mepc_r);
+`endif
+`ifdef DEBUG_RA_TRACE
             if (regwrite_wb && (rd_wb == 5'd1))
                 $display("[%0t] [WB-RA] ra <= %h", $time, write_back_data_wb);
+`endif
+`ifdef DEBUG_SP_TRACE
+            if (regwrite_wb && (rd_wb == 5'd2))
+                $display("[%0t] [WB-SP] sp <= %h pc4_wb=%h", $time, write_back_data_wb, pc_plus_4_wb);
+`endif
+`ifdef DEBUG_RESTORE_TRACE
+            if (((pc_ex >= 32'h000005f0) && (pc_ex <= 32'h000006f0)) ||
+                ((pc_plus_4_wb >= 32'h000005f0) && (pc_plus_4_wb <= 32'h000006f4))) begin
+                $display("[%0t] [RESTORE-TRACE] pc_ex=%h op_ex=%b rd_ex=%0d alu=%h | wb_rw=%b rd_wb=%0d wb_data=%h pc4_wb=%h mepc=%h mstatus=%h",
+                    $time, pc_ex, opcode_ex, rd_ex, alu_result_ex,
+                    regwrite_wb, rd_wb, write_back_data_wb, pc_plus_4_wb,
+                    csr_mepc_r, csr_mstatus_r);
+            end
+`endif
+`ifdef DEBUG_BRANCH_TRACE
+            if (branch_ex)
+                $display("[%0t] [BR-EX] pc=%h taken=%b pred=%b a=%h b=%h funct3=%b target=%h",
+                    $time, pc_ex, branch_taken_ex, predict_taken_ex,
+                    alu_in1_forwarded, alu_in2_pre_mux, funct3_ex, branch_target_ex);
+            if (jump_ex)
+                $display("[%0t] [JMP-EX] pc=%h opcode=%b rd=%0d rs1=%0d a_raw=%h a_fwd=%h imm=%h target=%h pc4=%h",
+                    $time, pc_ex, opcode_ex, rd_ex, rs1_ex, alu_in1,
+                    alu_in1_forwarded, imm_ex, target_pc_ex, pc_plus_4_ex);
+`endif
+`ifdef DEBUG_ALU_TRACE
+            if (regwrite_ex && ((rd_ex == 5'd15 || rd_ex == 5'd14 || rd_ex == 5'd12) ||
+                                (pc_ex >= 32'h00000340 && pc_ex < 32'h00000390) ||
+                                (pc_ex >= 32'h00000bdc && pc_ex < 32'h00000c00)))
+                $display("[%0t] [ALU-EX] pc=%h opcode=%b rd=%0d alu=%h mem_rw=%b mem_rd=%0d wb_rw=%b wb_rd=%0d fwd_a=%b fwd_b=%b",
+                    $time, pc_ex, opcode_ex, rd_ex, alu_result_ex,
+                    regwrite_mem, rd_mem, regwrite_wb, rd_wb, forward_a, forward_b);
+`endif
+`ifdef DEBUG_STORE_TRACE
+            if (memwrite_mem)
+                $display("[%0t] [STORE-MEM] pc=%h addr=%h data=%h rd=%0d funct3=%b pc_ex=%h op_ex=%b",
+                    $time, pc_plus_4_mem - 32'd4, alu_result_mem, wdata_shifted,
+                    rd_mem, funct3_mem, pc_ex, opcode_ex);
+`endif
+`ifdef DEBUG_PHASE4_TRACE
+            if (((pc_ex >= 32'h000009e0) && (pc_ex <= 32'h00000a04)) ||
+                ((pc_plus_4_mem >= 32'h000009e0) && (pc_plus_4_mem <= 32'h00000a04)) ||
+                ((pc_ex >= 32'h00000da4) && (pc_ex <= 32'h00000e30)) ||
+                ((pc_plus_4_mem >= 32'h00000da4) && (pc_plus_4_mem <= 32'h00000e30))) begin
+                $display("[%0t] [PH4] stall=%b lsu_dep=%b pc_ex=%h op=%b rd=%0d rs1=%0d rs2=%0d fa=%b fb=%b a=%h af=%h b=%h bf=%h imm=%h alu=%h | mem_pc=%h mr=%b mw=%b mem_rd=%0d addr=%h wdata=%h wstrb=%b | wb_rw=%b wb_rd=%0d wb_data=%h",
+                    $time, stall_any, lsu_dep_stall,
+                    pc_ex, opcode_ex, rd_ex, rs1_ex, rs2_ex, forward_a, forward_b,
+                    alu_in1, alu_in1_forwarded, alu_in2_pre_mux, alu_in2,
+                    imm_ex, alu_result_ex,
+                    pc_plus_4_mem - 32'd4, memread_mem, memwrite_mem, rd_mem,
+                    alu_result_mem, wdata_shifted, lsu_req_wstrb,
+                    regwrite_wb, rd_wb, write_back_data_wb);
+            end
+`endif
 `endif
         end
     end
@@ -909,7 +1088,7 @@ module riscv_cpu_core #(
     // =========================================================================
     reg lsu_committed_r;
     wire wb_passthrough_valid = !stall_ex_mem && !lsu_committed_r && !memread_mem && regwrite_mem && (rd_mem != 5'b0); // [FIX-WB-NOP] NOP (rd=x0) must not block LSU commit
-    wire lsu_result_commit = lsu_result_valid && !wb_passthrough_valid;
+    assign lsu_result_commit = lsu_result_valid && !wb_passthrough_valid;
     always @(posedge clk or posedge rst) begin
         if (rst)
             lsu_committed_r <= 1'b0;
@@ -965,6 +1144,26 @@ module riscv_cpu_core #(
                                 ({32{memtoreg_wb}} & mem_data_wb)       |
                                 ({32{is_alu_wb}}   & alu_result_wb);
 
+`ifdef DEBUG_WB_TRACE
+    always @(posedge clk) begin
+        if (!rst && ((regwrite_mem && rd_mem == 5'd1) || (regwrite_wb && rd_wb == 5'd1))) begin
+            $display("[%0t] [WB-PIPE] mem:rw=%b j=%b rd=%0d alu=%h pc4=%h | wb:rw=%b j=%b rd=%0d alu=%h pc4=%h data=%h",
+                     $time, regwrite_mem, jump_mem, rd_mem, alu_result_mem, pc_plus_4_mem,
+                     regwrite_wb, jump_wb, rd_wb, alu_result_wb, pc_plus_4_wb, write_back_data_wb);
+        end
+    end
+`ifdef DEBUG_REG_TRACE
+    always @(posedge clk) begin
+        if (!rst && ((regwrite_mem && (rd_mem == 5'd15 || rd_mem == 5'd12)) ||
+                     (regwrite_wb && (rd_wb == 5'd15 || rd_wb == 5'd12)))) begin
+            $display("[%0t] [REG-PIPE] mem:rw=%b rd=%0d alu=%h | wb:rw=%b rd=%0d alu=%h data=%h",
+                     $time, regwrite_mem, rd_mem, alu_result_mem,
+                     regwrite_wb, rd_wb, alu_result_wb, write_back_data_wb);
+        end
+    end
+`endif
+`endif
+
     // =========================================================================
     // HAZARD DETECTION UNIT
     // =========================================================================
@@ -986,6 +1185,7 @@ module riscv_cpu_core #(
         .fence_id       (fence_id),
         .lsu_idle       (lsu_idle),
         .mul_in_ex      (is_mul_ex),
+        .mul_in_mem_stage(is_mul_mem),
         .predict_taken_ex(predict_taken_ex),
         .predict_taken_id(predict_taken_id),
         .mispredict_ex  (mispredict_ex),
@@ -1001,10 +1201,11 @@ module riscv_cpu_core #(
     wire [31:0] irq_cause_code = ext_irq_s2 ? 32'h8000000B :
                                  tmr_irq_s2 ? 32'h80000007 :
                                               32'h80000003;
-    wire        ex_valid_for_irq = (opcode_ex != 7'b0000000);
-    wire [31:0] irq_resume_pc = ex_valid_for_irq ? (pc_src_ex ? target_pc_ex : pc_plus_4_ex) :
-                                 (pc_id != 32'h00000000) ? pc_id :
-                                                            pc_if;
+    wire [31:0] irq_resume_pc = ex_valid_for_irq
+                               ? (branch_ex
+                                  ? (branch_taken_ex ? branch_target_ex : pc_plus_4_ex)
+                                  : pc_plus_4_ex)
+                               : pc_id;
 
     always @(posedge clk or posedge rst) begin
         if (rst) begin
@@ -1014,9 +1215,9 @@ module riscv_cpu_core #(
             csr_mepc_r    <= 32'h00000000;
             csr_mcause_r  <= 32'h00000000;
         end else begin
-            if (irq_take) begin
-                csr_mepc_r       <= irq_resume_pc;
-                csr_mcause_r     <= irq_cause_code;
+            if (trap_take) begin
+                csr_mepc_r       <= ecall_take ? pc_ex : irq_resume_pc;
+                csr_mcause_r     <= ecall_take ? 32'h0000000b : irq_cause_code;
                 csr_mstatus_r[7] <= csr_mstatus_r[3];
                 csr_mstatus_r[3] <= 1'b0;
             end else if (mret_commit_ex) begin

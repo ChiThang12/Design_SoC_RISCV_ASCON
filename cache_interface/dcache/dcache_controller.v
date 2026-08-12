@@ -35,6 +35,7 @@ module dcache_controller (
     input wire         cpu_we,
     output wire [31:0] cpu_rdata,
     output wire        cpu_ready,
+    output wire        fence_busy,
     input wire [1:0]   fence_type,
     input wire         miss_snoop_enable,
 
@@ -377,6 +378,8 @@ module dcache_controller (
         .tag_flush_all(tag_flush_all),
         .tag_invalidate_all(tag_invalidate_all)
     );
+
+    assign fence_busy = flush_busy;
 
     dcache_snoop_ctrl u_snoop_ctrl (
         .clk(clk),

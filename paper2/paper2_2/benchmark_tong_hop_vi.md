@@ -274,8 +274,8 @@ Nếu cần chọn số ít để đưa vào paper, ưu tiên các số này:
 
 ## 7. File liên quan
 
-- [dualcore_test_results.md](/home/chithang/Project/Design_SoC_RISCV_ASCON/paper2/paper2_2/dualcore_test_results.md)
-- [dualcore_contention_benchmark.md](/home/chithang/Project/Design_SoC_RISCV_ASCON/paper2/paper2_2/dualcore_contention_benchmark.md)
-- [rtl_coherency_checklist.md](/home/chithang/Project/Design_SoC_RISCV_ASCON/paper2/paper2_2/rtl_coherency_checklist.md)
-- [H1+H3.md](/home/chithang/Project/Design_SoC_RISCV_ASCON/paper2/paper2_2/H1+H3.md)
-- [H3/h3_benchmark.md](/home/chithang/Project/Design_SoC_RISCV_ASCON/paper2/paper2_2/H3/h3_benchmark.md)
+- [dualcore_test_results.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/dualcore_test_results.md>)
+- [dualcore_contention_benchmark.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/dualcore_contention_benchmark.md>)
+- [rtl_coherency_checklist.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/rtl_coherency_checklist.md>)
+- [H1+H3.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/H1+H3.md>)
+- [H3/h3_benchmark.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/H3/h3_benchmark.md>)

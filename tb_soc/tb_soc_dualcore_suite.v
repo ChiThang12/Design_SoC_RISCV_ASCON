@@ -50,6 +50,14 @@
 `define EXPECT_GPIO 32'h0000_0000
 `endif
 
+`ifndef DMA_CONTEXT_CHECK_ENABLE
+`define DMA_CONTEXT_CHECK_ENABLE 0
+`endif
+
+`ifndef EXPECT_DMA_CONTEXT
+`define EXPECT_DMA_CONTEXT 1'b0
+`endif
+
 `ifndef TIMEOUT_CYCLES
 `define TIMEOUT_CYCLES 400000
 `endif
@@ -85,6 +93,8 @@ localparam [31:0] EXPECT_AUX0_VALUE = `EXPECT_AUX0;
 localparam [31:0] EXPECT_AUX1_VALUE = `EXPECT_AUX1;
 localparam integer GPIO_CHECK       = `GPIO_CHECK_ENABLE;
 localparam [31:0] EXPECT_GPIO_VALUE = `EXPECT_GPIO;
+localparam integer DMA_CONTEXT_CHECK = `DMA_CONTEXT_CHECK_ENABLE;
+localparam         EXPECT_DMA_CONTEXT_VALUE = `EXPECT_DMA_CONTEXT;
 
 integer cycles;
 integer core0_dc_req_count;
@@ -92,6 +102,7 @@ integer core1_dc_req_count;
 reg prev_core0_dc_req;
 reg prev_core1_dc_req;
 reg pass_reported;
+reg dma_context_seen;
 
 `ifdef H3_BENCH_TRACE
 localparam [31:0] H3_STAGE_SWITCH_BEGIN = 32'd10;
@@ -209,6 +220,7 @@ initial begin
     prev_core0_dc_req  = 1'b0;
     prev_core1_dc_req  = 1'b0;
     pass_reported      = 1'b0;
+    dma_context_seen    = 1'b0;
 `ifdef H3_BENCH_TRACE
     h3_ctx_change_count = 0;
     h3_ctx_window_count = 0;
@@ -239,6 +251,58 @@ initial begin
     por_n = 1'b1;
 end
 
+`ifdef BASELINE_REG_TRACE
+always @(posedge clk) begin
+    if (chip.u_soc_top.s2_awvalid && chip.u_soc_top.s2_awready) begin
+        $display("[BASE-TRACE] cycle=%0d AW addr=%08x wr_state=%0d awready=%0b wready=%0b",
+                 cycles,
+                 chip.u_soc_top.s2_awaddr,
+                 chip.u_soc_top.u_ascon.u_slave.wr_state,
+                 chip.u_soc_top.s2_awready,
+                 chip.u_soc_top.s2_wready);
+    end
+    if (chip.u_soc_top.s2_wvalid && chip.u_soc_top.s2_wready) begin
+        $display("[BASE-TRACE] cycle=%0d W data=%08x strb=%0h last=%0b wr_state=%0d lat_addr=%03x core_start=%0b core_busy=%0b",
+                 cycles,
+                 chip.u_soc_top.s2_wdata,
+                 chip.u_soc_top.s2_wstrb,
+                 chip.u_soc_top.s2_wlast,
+                 chip.u_soc_top.u_ascon.u_slave.wr_state,
+                 chip.u_soc_top.u_ascon.u_slave.wr_addr_lat,
+                 chip.u_soc_top.u_ascon.u_slave.core_start,
+                 chip.u_soc_top.u_ascon.core_busy_w);
+    end
+    if (chip.u_soc_top.s2_bvalid && chip.u_soc_top.s2_bready) begin
+        $display("[BASE-TRACE] cycle=%0d B resp=%0b wr_state=%0d core_start=%0b core_start_mux=%0b core_busy=%0b core_done=%0b status=%08x",
+                 cycles,
+                 chip.u_soc_top.s2_bresp,
+                 chip.u_soc_top.u_ascon.u_slave.wr_state,
+                 chip.u_soc_top.u_ascon.u_slave.core_start,
+                 chip.u_soc_top.u_ascon.core_start_mux,
+                 chip.u_soc_top.u_ascon.core_busy_w,
+                 chip.u_soc_top.u_ascon.core_done_w,
+                 chip.u_soc_top.u_ascon.u_slave.status_word);
+    end
+    if (chip.u_soc_top.s2_arvalid && chip.u_soc_top.s2_arready) begin
+        $display("[BASE-TRACE] cycle=%0d AR addr=%08x rd_state=%0d status=%08x",
+                 cycles,
+                 chip.u_soc_top.s2_araddr,
+                 chip.u_soc_top.u_ascon.u_slave.rd_state,
+                 chip.u_soc_top.u_ascon.u_slave.status_word);
+    end
+    if (chip.u_soc_top.s2_rvalid && chip.u_soc_top.s2_rready) begin
+        $display("[BASE-TRACE] cycle=%0d R data=%08x last=%0b rd_state=%0d core_busy=%0b core_done=%0b status=%08x",
+                 cycles,
+                 chip.u_soc_top.s2_rdata,
+                 chip.u_soc_top.s2_rlast,
+                 chip.u_soc_top.u_ascon.u_slave.rd_state,
+                 chip.u_soc_top.u_ascon.core_busy_w,
+                 chip.u_soc_top.u_ascon.core_done_w,
+                 chip.u_soc_top.u_ascon.u_slave.status_word);
+    end
+end
+`endif
+
 always @(posedge clk) begin
     cycles <= cycles + 1;
 
@@ -249,6 +313,11 @@ always @(posedge clk) begin
 
     prev_core0_dc_req <= core0_dc_req;
     prev_core1_dc_req <= core1_dc_req;
+
+    if (DMA_CONTEXT_CHECK &&
+        chip.u_soc_top.u_ascon.dma_busy_w &&
+        chip.u_soc_top.u_ascon.dma_context_id_active_w == EXPECT_DMA_CONTEXT_VALUE)
+        dma_context_seen <= 1'b1;
 
 `ifdef H3_BENCH_TRACE
     if (chip.u_soc_top.u_ascon.u_slave.reg_context_sel != h3_prev_context_sel) begin
@@ -340,6 +409,7 @@ always @(posedge clk) begin
         (!AUX0_CHECK || dmem_aux0 == EXPECT_AUX0_VALUE) &&
         (!AUX1_CHECK || dmem_aux1 == EXPECT_AUX1_VALUE) &&
         (!GPIO_CHECK || gpio == EXPECT_GPIO_VALUE) &&
+        (!DMA_CONTEXT_CHECK || dma_context_seen) &&
         core0_dc_req_count >= DC_REQ_TARGET &&
         core1_dc_req_count >= DC_REQ_TARGET &&
         dcache0_writes != 0 &&
@@ -452,6 +522,28 @@ always @(posedge clk) begin
                  chip.u_soc_top.u_dmem.dmem.memory[171],
                  chip.u_soc_top.u_dmem.dmem.memory[172],
                  chip.u_soc_top.u_dmem.dmem.memory[173]);
+`ifdef USE_ASCON_BASELINE
+        $display("  baseline saved s0: ct0=%08x ct1=%08x tag0=%08x tag1=%08x tag2=%08x tag3=%08x",
+                 chip.u_soc_top.u_dmem.dmem.memory[224],
+                 chip.u_soc_top.u_dmem.dmem.memory[225],
+                 chip.u_soc_top.u_dmem.dmem.memory[226],
+                 chip.u_soc_top.u_dmem.dmem.memory[227],
+                 chip.u_soc_top.u_dmem.dmem.memory[228],
+                 chip.u_soc_top.u_dmem.dmem.memory[229]);
+`endif
+`ifdef USE_ASCON_BASELINE
+        $display("  ascon rd/wr engines: rd_state=%0d work=%08x snoop_v/r/resp=%0b/%0b/%0b wr_state=%0d wr_req=%08x snoop_v/r/resp=%0b/%0b/%0b",
+                 chip.u_soc_top.u_ascon.u_dma.u_rd_engine.state,
+                 chip.u_soc_top.u_ascon.u_dma.u_rd_engine.work_addr,
+                 chip.u_soc_top.u_ascon.u_dma.rd_snoop_req_valid,
+                 chip.u_soc_top.u_ascon.u_dma.rd_snoop_req_ready,
+                 chip.u_soc_top.u_ascon.u_dma.rd_snoop_resp_valid,
+                 chip.u_soc_top.u_ascon.u_dma.u_wr_engine.state,
+                 chip.u_soc_top.u_ascon.u_dma.u_wr_engine.snoop_req_addr,
+                 chip.u_soc_top.u_ascon.u_dma.wr_snoop_req_valid,
+                 chip.u_soc_top.u_ascon.u_dma.wr_snoop_req_ready,
+                 chip.u_soc_top.u_ascon.u_dma.wr_snoop_resp_valid);
+`else
         $display("  ascon rd/wr engines: rd_state=%0d work=%08x snoop_v/r/resp=%0b/%0b/%0b wr_state=%0d inv=%08x snoop_v/r/resp=%0b/%0b/%0b",
                  chip.u_soc_top.u_ascon.u_dma.u_rd_engine.state,
                  chip.u_soc_top.u_ascon.u_dma.u_rd_engine.work_addr,
@@ -463,6 +555,7 @@ always @(posedge clk) begin
                  chip.u_soc_top.u_ascon.u_dma.wr_snoop_req_valid,
                  chip.u_soc_top.u_ascon.u_dma.wr_snoop_req_ready,
                  chip.u_soc_top.u_ascon.u_dma.wr_snoop_resp_valid);
+`endif
         $display("  snoop cpu0: state=%0d miss_valid=%0b miss_ready=%0b miss_resp=%0b dc_req_valid=%0b dc_req_ready=%0b dc_resp=%0b",
                  chip.u_soc_top.u_dcache.controller_inst.state,
                  chip.u_soc_top.cpu0_miss_snoop_req_valid,

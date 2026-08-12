@@ -1,20 +1,20 @@
-# Regression Test Suite — Hướng dẫn & Known Bugs
+# Regression Test Suite - Huong Dan & Known Bugs
 
 > Đây là tài liệu cho các session AI tiếp theo. Đọc trước khi bắt đầu debug.
 
 ## 1. Cách chạy regression
 
-### Chạy full 9 tests
+### Chay full tests
 ```bash
 bash regression_full.sh
 ```
 
-### Chạy 1 test
+### Chay 1 test
 ```bash
 bash regression_full.sh test_uart
 ```
 
-### Build hex + chạy (khi sửa firmware)
+### Build hex + chay khi sua firmware
 ```bash
 bash regression_full.sh -b              # build tất cả + chạy
 bash regression_full.sh -b test_ascon   # build + chạy 1 test
@@ -23,13 +23,34 @@ bash regression_full.sh -b test_ascon   # build + chạy 1 test
 ### Output
 - `log/<test_name>.log` — log riêng từng test
 - Summary table cuối console: PASS/TIMEOUT/FAIL + UART output snippet
-- `memory/program.hex` tự động restore từ `memory/program.hex.bak` sau khi xong
+- `memory/program.hex` tu dong restore tu `memory/program.hex.bak` sau khi chay serial legacy.
+- Nen dung mode parallel/define de moi test lay hex rieng, khong tranh nhau `memory/program.hex`.
 
 ### Cách script hoạt động
-1. Copy `gnu_toolchain/tests/<test>.hex` → `memory/program.hex`
-2. Gọi `./workflow/urun_verilog.sh -l <test> run_soc_ascon.v`
-3. iverilog compile + vvp chạy. inst_mem load `memory/program.hex` qua `$readmemh`.
-4. Parse log: tìm `*** PASS` / `*** FAIL` markers từ TB test result block.
+1. Build firmware C thanh `gnu_toolchain/tests/<test>.hex` neu co `-b`.
+2. Parallel mode compile moi VVP voi `-DIMEM_INIT_FILE="<abs test hex>"`.
+3. Testbench `run_soc_ascon.v` truyen `IMEM_INIT_FILE` xuong `soc_hs/soc_top`.
+4. `uart_boot_ctrl` nap image vao IMEM qua boot sideband, roi `boot_done` moi tha reset CPU.
+5. Serial legacy van copy tam `<test>.hex` vao `memory/program.hex`, nhung IMEM van duoc nap qua `uart_boot_ctrl`, khong phai direct init ben trong IMEM SRAM.
+6. Parse log: tim `*** PASS` / `*** FAIL` markers tu TB test result block.
+
+### Firmware load override tu testbench
+
+Khuyen dung mot trong hai cach sau:
+
+```bash
+iverilog -g2005 -DIMEM_INIT_FILE='"gnu_toolchain/tests/test_plic.hex"' -o /tmp/run_soc_ascon.vvp run_soc_ascon.v
+vvp /tmp/run_soc_ascon.vvp
+```
+
+Hoac compile mot lan va override runtime:
+
+```bash
+iverilog -g2005 -o /tmp/run_soc_ascon.vvp run_soc_ascon.v
+vvp /tmp/run_soc_ascon.vvp +IMEM_HEX=gnu_toolchain/tests/test_plic.hex
+```
+
+Contract hien tai: IMEM SRAM production khong tu `$readmemh("program.hex")`; firmware duoc dua tu testbench/boot controller vao IMEM truoc khi CPU fetch.
 
 ## 2. Tests và mục đích
 

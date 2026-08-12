@@ -5,8 +5,9 @@
  *   1. Enable PLIC src=8 (ASCON), threshold=0, priority=1
  *   2. Enable ASCON core-done IRQ (IRQ_EN[0]=1)
  *   3. Configure ASCON CPU-direct: mode + key + nonce + ptext + start CORE
- *   4. ISR: plic_claim() → verify src==8 → plic_complete() → set flag
- *   5. Verify flag set within timeout
+ *   4. ISR: plic_claim() → mask ASCON level IRQ → set flag
+ *   5. Main: disable global IRQ → complete claimed source
+ *   6. Verify flag set within timeout
  */
 #include <stdint.h>
 #include "uart.h"
@@ -23,7 +24,18 @@ __attribute__((interrupt("machine"))) static void plic_isr(void)
     if ((cause & 0xFFu) == 11u) {       /* M-mode external interrupt */
         uint32_t src = plic_claim();
         plic_claimed_src = src;
-        plic_complete(src);
+
+        /*
+         * ASCON irq is level-sensitive:
+         *   irq = status_done & IRQ_EN[0]
+         * Completing PLIC without lowering the device source immediately
+         * re-pends MEIP and can trap-storm before main observes the flag.
+         */
+        if (src == PLIC_SRC_ASCON) {
+            ASCON_WRITE(ASCON_OFS_IRQ_EN, 0u);
+            __asm__ volatile ("fence rw,rw" ::: "memory");
+        }
+
         plic_irq_flag = 1u;
     }
 }
@@ -77,6 +89,17 @@ static int run_plic_test(void)
         }
     }
     irq_disable_global();
+
+    /*
+     * Complete after global IRQ is off and the ASCON level source has been
+     * lowered. This avoids immediate re-pend on SoC paths where MMIO stores
+     * from the ISR can still be draining when mret executes.
+     */
+    if (plic_claimed_src == PLIC_SRC_ASCON) {
+        ASCON_WRITE(ASCON_OFS_IRQ_EN, 0u);
+        __asm__ volatile ("fence rw,rw" ::: "memory");
+        plic_complete(plic_claimed_src);
+    }
 
     /* 6. Verify claimed source was ASCON (src=8) */
     if (plic_claimed_src != PLIC_SRC_ASCON) return -2;

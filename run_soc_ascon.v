@@ -1,8 +1,10 @@
 `timescale 1ns/1ps
 
 `timescale 1ns/1ps
+`ifndef QUIET_TB
 `define DEBUG_WDATA                // C1/C2/C3 WDATA trace (LSU→DCache→AXI)
 `define DEBUG_DCACHE               // FLUSH + NC-WRITE trace in dcache_controller
+`endif
 `include "soc_hs.v"
 
 // ============================================================================
@@ -46,9 +48,11 @@
 `endif
 
 // ── Tuning knobs ──────────────────────────────────────────────────────────────
+`ifndef LOG_LEVEL
 `define LOG_LEVEL       2       // 1=key events, 2=AXI detail, 3=every beat
+`endif
 `ifndef TIMEOUT
-`define TIMEOUT         800000  // 1.5M cycles — UART 115200@100MHz ≈ 9680cy/char, FW needs ~100 chars + DMA
+`define TIMEOUT         1500000 // UART 115200@100MHz ≈ 8680cy/char; verbose FW needs >800k cycles
 `endif
 `define HALT_STABLE     60
 `define DMEM_DUMP_BASE  32'h10000000
@@ -56,7 +60,9 @@
 `define DMEM_ROW_WORDS  4
 `define MATCH2_THRESH   20000
 `define MATCH4_THRESH   20000
+`ifndef BAUD_DIV
 `define BAUD_DIV        868     // 115200 baud @ 100 MHz → 1 bit = 868 cy
+`endif
 // ─────────────────────────────────────────────────────────────────────────────
 
 module run_soc;
@@ -107,7 +113,11 @@ wire wdt_rst_req_w;
 
 assign jtag_tdo_en_w = chip.core_tdo_en; // To preserve the tap
 
-soc_hs #(.SIM_MODE(1), .IMEM_INIT_FILE(`IMEM_INIT_FILE)) chip (
+soc_hs #(
+    .SIM_MODE(1),
+    .IMEM_INIT_FILE(`IMEM_INIT_FILE),
+    .ENABLE_CPU1(0)
+) chip (
     .clk_in      (clk),
     .por_n       (por_n_r),
     .ext_rst_n   (ext_rst_n_r),
@@ -547,12 +557,13 @@ wire [127:0] ascon_ctext_out  = chip.u_soc_top.u_ascon.core_data_out_w;
 wire         ascon_ctext_v    = chip.u_soc_top.u_ascon.core_data_out_valid_w;
 wire [127:0] ascon_tag_out    = chip.u_soc_top.u_ascon.core_tag_out_w;
 wire         ascon_tag_v      = chip.u_soc_top.u_ascon.core_tag_valid_w;
-wire [31:0]  ascon_reg_ctext0 = chip.u_soc_top.u_ascon.u_slave.reg_ctext_0;
-wire [31:0]  ascon_reg_ctext1 = chip.u_soc_top.u_ascon.u_slave.reg_ctext_1;
-wire [31:0]  ascon_reg_tag0   = chip.u_soc_top.u_ascon.u_slave.reg_tag_0;
-wire [31:0]  ascon_reg_tag1   = chip.u_soc_top.u_ascon.u_slave.reg_tag_1;
-wire [31:0]  ascon_reg_tag2   = chip.u_soc_top.u_ascon.u_slave.reg_tag_2;
-wire [31:0]  ascon_reg_tag3   = chip.u_soc_top.u_ascon.u_slave.reg_tag_3;
+wire         ascon_context_active = chip.u_soc_top.u_ascon.u_slave.reg_context_active;
+wire [31:0]  ascon_reg_ctext0 = chip.u_soc_top.u_ascon.u_slave.reg_ctext_0[ascon_context_active];
+wire [31:0]  ascon_reg_ctext1 = chip.u_soc_top.u_ascon.u_slave.reg_ctext_1[ascon_context_active];
+wire [31:0]  ascon_reg_tag0   = chip.u_soc_top.u_ascon.u_slave.reg_tag_0[ascon_context_active];
+wire [31:0]  ascon_reg_tag1   = chip.u_soc_top.u_ascon.u_slave.reg_tag_1[ascon_context_active];
+wire [31:0]  ascon_reg_tag2   = chip.u_soc_top.u_ascon.u_slave.reg_tag_2[ascon_context_active];
+wire [31:0]  ascon_reg_tag3   = chip.u_soc_top.u_ascon.u_slave.reg_tag_3[ascon_context_active];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [P] LSU Store Buffer  (instance: chip.u_soc_top.u_cpu)
@@ -560,6 +571,8 @@ wire [31:0]  ascon_reg_tag3   = chip.u_soc_top.u_ascon.u_slave.reg_tag_3;
 wire        lsu_sb_empty   = chip.u_soc_top.u_cpu.lsu_unit.sb_empty;
 wire [2:0]  lsu_sb_count   = chip.u_soc_top.u_cpu.lsu_unit.sb_count[2:0];
 wire        lsu_drain_idle = (chip.u_soc_top.u_cpu.lsu_unit.drain_state == 0);
+wire        cpu0_busy_for_halt = chip.u_soc_top.cpu0_perf_stall |
+                                 chip.u_soc_top.cpu_dcache_fence_busy;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [Q] C9 Debug monitor — DCache write path for set 0x33 (DMEM 0x10000330-0x1000033F)
@@ -865,6 +878,8 @@ always @(posedge clk) begin
         if (dc_we) begin
             if (!program_done) begin
                 dmem_wr_cnt = dmem_wr_cnt + 1;
+                if (dc_addr[31:16] == 16'h1000)
+                    sb_update(dc_addr, dc_wdata, dc_wstrb);
                 if (`LOG_LEVEL >= 2)
                     $display("[%6d] [ST] addr=0x%08h  data=0x%08h  strb=%b",
                              cycle_count, dc_addr, dc_wdata, dc_wstrb);
@@ -1857,9 +1872,11 @@ always @(posedge clk) begin
     if (!ext_rst_n_r) begin
         halt_cnt <= 0; ring_ptr <= 0;
         match2   <= 0; match4   <= 0;
-    end else if (cycle_count > 30 && cpu_rst_n_w) begin
+    end else if (cycle_count > 10000 && cpu_rst_n_w) begin
 
-        if (pc_if === prev_pc && !dc_req && lsu_sb_empty && !uart_active_w) begin
+        if (pc_if === prev_pc && !dc_req && lsu_sb_empty &&
+            !uart_active_w && !cpu0_busy_for_halt &&
+            (clint_timer_irq_cnt == 0)) begin
             halt_cnt <= halt_cnt + 1;
             if (halt_cnt >= `HALT_STABLE && !program_done) begin
                 program_done = 1;
@@ -1871,7 +1888,9 @@ always @(posedge clk) begin
             halt_cnt <= 0;
         end
 
-        if (pc_if === pc_ring[(ring_ptr + 6) % 8] && lsu_sb_empty && !dc_req && !uart_active_w) begin
+        if (pc_if === pc_ring[(ring_ptr + 6) % 8] && lsu_sb_empty &&
+            !dc_req && !uart_active_w && !cpu0_busy_for_halt &&
+            (clint_timer_irq_cnt == 0)) begin
             match2 = match2 + 1;
             if (match2 >= `MATCH2_THRESH && !program_done) begin
                 program_done = 1;
@@ -1880,7 +1899,9 @@ always @(posedge clk) begin
             end
         end else match2 = 0;
 
-        if (pc_if === pc_ring[(ring_ptr + 4) % 8] && lsu_sb_empty && !dc_req && !uart_active_w) begin
+        if (pc_if === pc_ring[(ring_ptr + 4) % 8] && lsu_sb_empty &&
+            !dc_req && !uart_active_w && !cpu0_busy_for_halt &&
+            (clint_timer_irq_cnt == 0)) begin
             match4 = match4 + 1;
             if (match4 >= `MATCH4_THRESH && !program_done) begin
                 program_done = 1;
@@ -2133,6 +2154,9 @@ endfunction
 task print_report;
     input [255:0] reason;   // 32 chars — "2-CYCLE LOOP DETECTED" = 21 chars needs > 128 bits
     integer j, k, nz, dma_wi;
+    reg [31:0] mini_current_task, mini_tick_count, mini_switch_count;
+    reg [31:0] mini_task0_count, mini_task1_count;
+    reg [31:0] mini_pass_reported, mini_fail_code;
     real    cpi, ipc, eff, ic_rate, dc_rate;
     real    m0_rd_lat_avg, m1_rd_lat_avg, m1_wr_lat_avg, m3_rd_lat_avg, m3_wr_lat_avg;
     integer ic_total, dc_total;
@@ -2374,6 +2398,40 @@ task print_report;
                  lsu_drain_idle ? "YES (OK)" : "NO [!!!]");
         $display("+----------------------------------------------------------------+");
 
+        mini_current_task = 32'h0;
+        mini_tick_count   = 32'h0;
+        mini_switch_count = 32'h0;
+        mini_task0_count  = 32'h0;
+        mini_task1_count  = 32'h0;
+        mini_pass_reported= 32'h0;
+        mini_fail_code    = 32'h0;
+        for (j = 0; j < sb_cnt; j = j + 1) begin
+            if (sb_addr[j] == 32'h10000524) mini_current_task  = sb_data[j];
+            if (sb_addr[j] == 32'h10000528) mini_tick_count    = sb_data[j];
+            if (sb_addr[j] == 32'h1000052c) mini_switch_count  = sb_data[j];
+            if (sb_addr[j] == 32'h10000530) mini_task0_count   = sb_data[j];
+            if (sb_addr[j] == 32'h10000534) mini_task1_count   = sb_data[j];
+            if (sb_addr[j] == 32'h10000538) mini_pass_reported = sb_data[j];
+            if (sb_addr[j] == 32'h1000053c) mini_fail_code     = sb_data[j];
+        end
+        mini_current_task = chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h12, 2'd1}];
+        mini_tick_count   = chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h12, 2'd2}];
+        mini_switch_count = chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h12, 2'd3}];
+        mini_task0_count  = chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h13, 2'd0}];
+        mini_task1_count  = chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h13, 2'd1}];
+        mini_pass_reported= chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h13, 2'd2}];
+        mini_fail_code    = chip.u_soc_top.u_dcache.data_array_inst.data_array[{6'h13, 2'd3}];
+        $display("");
+        $display("+--- (10b) MINI-RTOS COUNTERS -----------------------------------+");
+        $display("|  current_task  : %0d", mini_current_task);
+        $display("|  tick_count    : %0d", mini_tick_count);
+        $display("|  switch_count  : %0d", mini_switch_count);
+        $display("|  task0_count   : %0d", mini_task0_count);
+        $display("|  task1_count   : %0d", mini_task1_count);
+        $display("|  pass_reported : %0d", mini_pass_reported);
+        $display("|  fail_code     : 0x%08h", mini_fail_code);
+        $display("+----------------------------------------------------------------+");
+
         // ── (11) Register File ───────────────────────────────────────────────
         $display("");
         $display("+--- (11) REGISTER FILE -----------------------------------------+");
@@ -2516,6 +2574,12 @@ task parse_uart_line;
             $write("[%6d] [TEST-RESULT] *** PASS #%0d *** : ", cycle_count, uart_pass_cnt);
             for (p = 0; p < uart_line_len; p = p + 1) $write("%s", uart_line_buf[p]);
             $display("");
+`ifdef FINISH_ON_PASS
+            program_done = 1;
+            print_report("PASS from firmware");
+            #(CLK_PERIOD * 4);
+            $finish(0);
+`endif
         end else if (match_fail) begin
             uart_fail_cnt = uart_fail_cnt + 1;
             $write("[%6d] [TEST-RESULT] *** FAIL #%0d *** : ", cycle_count, uart_fail_cnt);
@@ -2584,6 +2648,8 @@ task print_banner;
         $display("+-----------------------------------------------------------------+");
         $display("|   LOG_LEVEL=%0d   TIMEOUT=%0d cyc   HALT_STABLE=%0d cyc         |",
                  `LOG_LEVEL, `TIMEOUT, `HALT_STABLE);
+        $display("|   ENABLE_CPU1=%0d                                               |",
+                 chip.u_soc_top.ENABLE_CPU1);
         $display("+=================================================================+");
         $display("");
     end

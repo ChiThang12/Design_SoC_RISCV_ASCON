@@ -1,17 +1,19 @@
-# H3 - Multi-Context ASCON
+# H3 - Reference Multi-Context ASCON for DMA-First Paper Story
 
 Thư mục này gồm nội dung triển khai, dữ liệu test và benchmark cho H3.
 
 ## Mục tiêu
 
-H3 thêm khả năng lưu nhiều ASCON context trong register file của accelerator. Firmware chọn context bằng `CONTEXT_SEL`, sau đó cấu hình key, nonce, plaintext và start core như luồng cũ. Mục tiêu là chứng minh:
+H3 là mốc reference hiện tại cho phần ASCON của đề tài. Paper mới nên lấy DMA stream/burst và pipelined data path làm headline chính, còn H3 giữ vai trò mốc so sánh về control-plane và multi-session.
+
+Trong H3 hiện tại, accelerator thêm khả năng lưu nhiều ASCON context trong register file. Firmware chọn context bằng `CONTEXT_SEL`, sau đó cấu hình key, nonce, plaintext và start core như luồng cũ. Mục tiêu là chứng minh:
 
 - Context 0 và context 1 độc lập về key, nonce, plaintext, ciphertext và tag.
 - Dual-core có thể chia workload theo context: CPU0 dùng context 0, CPU1 dùng context 1.
 - Sau khi CPU1 chạy context 1, firmware switch về context 0 và đọc lại output cũ, xác nhận context 0 không bị ghi đè.
-- H3 kế thừa nên dual-core MESI/coherent DMA đã có từ Phase 3 và Phase 4.
+- H3 kế thừa nền dual-core MESI/coherent DMA đã có từ Phase 3 và Phase 4, nên có thể dùng làm reference để so với kiến trúc DMA-first mới.
 
-## RTL đã thêm
+## RTL đã thêm trong H3 reference
 
 - `ascon/interface/ascon_axi_slave.v`
   - Thêm register `CONTEXT_SEL` tại offset `0x008`.
@@ -32,7 +34,18 @@ H3 thêm khả năng lưu nhiều ASCON context trong register file của accele
 - `ascon/dma/rtl/dma_ctrl_fsm.v`
   - Latch `context_id_active` khi `dma_start`.
 
-## Firmware/test đã thêm
+## Hướng DMA mà paper mới nên nhắm tới
+
+Để đúng với title `A High-Throughput RISC-V SoC with DMA-Enabled Pipelined ASCON Engine for Efficient Secure Communications`, nhánh DMA nên được định vị là:
+
+- stream/burst-oriented DMA thay vì MMIO copy từng thanh ghi
+- coalesce nhiều beat dữ liệu để tối đa hóa payload mỗi lần service
+- overlap control path và data path để giữ pipeline ASCON đầy dữ liệu
+- duy trì coherency với CPU/cache để tránh rơi về path fallback chậm
+
+Nói ngắn gọn, DMA "thông minh" ở đây nên ưu tiên `burst aggregation + pipeline overlap + coherent delivery`, vì cách này vừa tăng throughput vừa đảm bảo lượng data được đưa vào ASCON là lớn nhất trong mỗi lần phục vụ.
+
+## Firmware/test đã thêm cho H3 reference
 
 - `gnu_toolchain/include/ascon.h`
   - Thêm `ASCON_OFS_CONTEXT_SEL = 0x008`.
@@ -45,7 +58,7 @@ H3 thêm khả năng lưu nhiều ASCON context trong register file của accele
   - CPU1 kiểm tra output context 1 khác context 0.
   - CPU1 switch lại context 0 và kiểm tra output context 0 vẫn giữ nguyên.
 
-## Kết quả hiện tại
+## Kết quả hiện tại của H3 reference
 
 `test_dualcore_h3_context` đã PASS trên SoC dual-core:
 
@@ -66,7 +79,7 @@ Chi tiết command và log nằm trong:
 - `h3_benchmark.md`
 - `h3_closure_checklist.md`
 
-## Benchmark H3 bổ sung
+## Benchmark H3 reference bổ sung
 
 `test_dualcore_h3_benchmark` đo riêng active crypto window và context-switch overhead:
 
@@ -77,7 +90,7 @@ Chi tiết command và log nằm trong:
 - Baseline software reload proxy: `12 MMIO writes x 36 cycles = 432 cycles`
 - Context-switch speedup vs reload proxy: `12.0x`
 
-Bảng fair cho multi-context payload nên dùng `DMA fair cycles + context overhead`, không dùng end-to-end diagnostic 8B:
+Bảng fair cho multi-context payload của H3 reference nên dùng `DMA fair cycles + context overhead`, không dùng end-to-end diagnostic 8B:
 
 | Payload | H3 + context select | No-CRF reload lower-bound | H3 speedup |
 | ---: | ---: | ---: | ---: |
@@ -85,3 +98,11 @@ Bảng fair cho multi-context payload nên dùng `DMA fair cycles + context over
 | 256B | 196 cycles / 1044.90 Mbps | 592 cycles / 345.95 Mbps | 3.02x |
 | 512B | 348 cycles / 1177.01 Mbps | 744 cycles / 550.54 Mbps | 2.14x |
 | 1024B | 620 cycles / 1321.29 Mbps | 1016 cycles / 806.30 Mbps | 1.64x |
+
+## Cách dùng H3 trong paper mới
+
+- Dùng H3 làm reference point để chứng minh lợi ích của DMA-first revision.
+- Giữ các số H3 ở đây như mốc so sánh cho throughput, context-switch overhead, và control-plane cost.
+- Phần headline của paper mới nên chuyển sang bulk DMA transfer, pipeline efficiency, và end-to-end secure communication throughput.
+- Phần mô tả kiến trúc DMA-first nằm ở [h3_dma_first_architecture.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/H3/h3_dma_first_architecture.md>).
+- Plan benchmark DMA-first nằm ở [h3_dma_benchmark_plan.md](</home/chithang/Project/Design_SoC_RISCV_ASCON H3/paper2/paper2_2/H3/h3_dma_benchmark_plan.md>).

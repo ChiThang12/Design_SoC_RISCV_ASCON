@@ -99,9 +99,9 @@ int main(void)
     ASCON_WRITE(ASCON_OFS_IRQ_EN, 0u);
     ASCON_WRITE(ASCON_OFS_ATU_BASE, 0u);
     ASCON_WRITE(ASCON_OFS_ATU_WINDOW, 0u);
-    ASCON_WRITE(ASCON_OFS_DMA_COH_CTRL, DMA_COH_CTRL_VALUE);
     ascon_dma_config(SWEEP_PT_BASE, SWEEP_CT_BASE, PAYLOAD_BYTES);
     ASCON_WRITE(ASCON_OFS_DMA_BURST, 7u);
+    ascon_set_dma_coh_ctrl(DMA_COH_CTRL_VALUE);
 
     dirty_plaintext_without_fence();
 

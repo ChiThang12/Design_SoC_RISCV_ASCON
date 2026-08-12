@@ -28,6 +28,7 @@ module dcache_top #(
     input  wire                  cpu_we,
     output wire [DATA_WIDTH-1:0] cpu_rdata,
     output wire                  cpu_ready,
+    output wire                  fence_busy,
     // fence_type[0]=flush-dirty  fence_type[1]=invalidate-read
     input  wire [1:0]            fence_type,
     input  wire                  miss_snoop_enable,
@@ -290,6 +291,7 @@ module dcache_top #(
         .cpu_we             (cpu_we),
         .cpu_rdata          (cpu_rdata),
         .cpu_ready          (cpu_ready),
+        .fence_busy         (fence_busy),
         .fence_type         (fence_type),
         .miss_snoop_enable  (miss_snoop_enable),
 

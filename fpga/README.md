@@ -1,117 +1,177 @@
-# FPGA Implementation — PYNQ-Z2 (Zynq-7020)
+# FPGA Terminal Simulation Package
 
-## Mục tiêu
-Deploy custom RISC-V SoC (RV32IM + ASCON DMA Engine) lên PYNQ-Z2 PL, chứng minh
-end-to-end secure image/video transmission với hardware ASCON vs software ASCON trên MCU.
+Muc tieu chinh cua thu muc nay la **mo phong tren terminal truoc**, voi RTL + testbench + firmware HEX da chuan bi san. Windows khong can GCC/RISC-V toolchain, chi can Icarus Verilog (`iverilog` + `vvp`) trong `PATH`.
 
----
+Trang thai package:
 
-## Kiến trúc hệ thống
+- RTL da duoc copy phang vao `src/`.
+- Testbench can thiet nam trong `tb/`.
+- Firmware OS da build san nam trong `os/firmware/`.
+- Script Windows `.bat` nam trong `script/`, chay truc tiep tu terminal.
+- RTL compile bang filelist `script/rtl_sources.f`; khong dung include-flow.
+- Top synthesis: `fpga_top`.
+- Profile bring-up: single-core, UART boot, FreeRTOS-Kernel smoke.
 
-```
-┌─────────────────────────────────────────────────┐
-│  PYNQ-Z2                                        │
-│  ┌──────────────────────┐  ┌──────────────────┐ │
-│  │  PL (Programmable    │  │  PS (ARM A9)     │ │
-│  │  Logic)              │  │                  │ │
-│  │  ┌────────────────┐  │  │  Python/Jupyter  │ │
-│  │  │ Custom RISC-V  │◄─┼──┼─ Load bitstream  │ │
-│  │  │ SoC            │  │  │  Send image data │ │
-│  │  │ (RV32IM +      │  │  │  Monitor UART    │ │
-│  │  │  ASCON DMA)    │  │  │                  │ │
-│  │  └───────┬────────┘  │  └──────────────────┘ │
-│  └──────────┼───────────┘                        │
-└─────────────┼───────────────────────────────────┘
-              │ UART / SPI ciphertext output
-              ▼
-     ┌─────────────────┐
-     │  MCU            │
-     │  (STM32/ESP32)  │
-     │  SW ASCON decrypt│
-     │  → verify tag   │
-     │  → output result│
-     └─────────────────┘
+## Thu Muc
+
+- `src/`: RTL Verilog package. Tat ca file `.v` nam cung cap trong thu muc nay.
+- `tb/`: testbench simulation cho FreeRTOS kernel smoke.
+- `os/firmware/`: firmware da build san.
+- `os/source/`: source C cua cac test OS.
+- `os/freertos_port/`: port FreeRTOS machine-mode cua SoC.
+- `os/FreeRTOS-Kernel/`: cac file kernel toi thieu dung cho smoke hien tai.
+- `script/`: script `.bat` de chay tren Windows.
+
+## Firmware Da Chuan Bi
+
+Firmware chinh:
+
+```text
+os/firmware/test_freertos_kernel_smoke.hex
+os/firmware/test_freertos_kernel_smoke.bin
 ```
 
----
+Dung file nao:
 
-## Thư mục con
+- `.hex`: dung cho simulation hoac BRAM/init `$readmemh`.
+- `.bin`: dung de gui qua UART bootloader tren FPGA.
 
-```
-fpga/
-├── constraints/          ← XDC pin assignments + timing constraints (PYNQ-Z2)
-├── scripts/              ← Vivado TCL: create_project, synth, impl, bitstream
-├── wrapper/              ← top_pynq_z2.v: adapt SoC IOs đến PYNQ-Z2 pins
-│   └── top_pynq_z2.v    ← MMCM (125→100MHz), BRAM init, IO buffer
-├── ip/                   ← Vivado IP wrappers (MMCM, BRAM, JTAG BSCANE2)
-├── demo/
-│   ├── host/             ← Python scripts (PYNQ PS side): load hex, send frames
-│   └── mcu/              ← MCU firmware: ASCON SW decrypt + verify
-└── results/              ← Post-impl reports: timing, utilization, power
-    ├── timing_summary.rpt
-    ├── utilization.rpt
-    └── power.rpt
+Boot controller hardware `SIM_MODE=0` nhan raw binary little-endian qua UART, khong nhan text hex.
+
+## Chay Mo Phong Tren Windows Terminal
+
+Day la buoc can lam dau tien.
+
+Mo terminal Windows bat ky da co `iverilog` va `vvp` trong `PATH`, sau do chay:
+
+```bat
+cd fpga\script
+00_run_freertos_kernel_smoke_sim.bat
 ```
 
----
+Script nay se tu dong:
 
-## PYNQ-Z2 Resources (Zynq-7020)
+1. Compile RTL package bang `script/rtl_sources.f`.
+2. Compile testbench `tb/tb_freertos_kernel_smoke.v` bang `iverilog`.
+3. Load firmware HEX co san:
 
-| Resource | Available | Estimated SoC usage |
-|----------|-----------|---------------------|
-| LUT      | 53,200    | ~15,000–20,000      |
-| FF       | 106,400   | ~8,000–12,000       |
-| BRAM     | 140 × 36Kb | 4 (IMEM 8KB + DMEM 8KB + Cache) |
-| DSP48    | 220       | 2–4 (multiplier)    |
-| Clock    | MMCM × 4  | 1 MMCM (125→100MHz) |
-
----
-
-## Roadmap FPGA (đến cuối tháng 9/2026)
-
-### Phase 1 — Synthesis & Timing Closure (Tháng 7)
-- [ ] Tạo `constraints/pynq_z2.xdc`: clock 100MHz, IO standards
-- [ ] Tạo `wrapper/top_pynq_z2.v`: MMCM, BRAM primitive, UART IO
-- [ ] Tạo `scripts/create_project.tcl`: add all RTL sources, IP
-- [ ] Chạy synthesis → check critical path, fix timing violations
-- [ ] Implementation → LUT/FF utilization < 80%
-- [ ] Generate bitstream
-
-### Phase 2 — Firmware + Boot (Tháng 7–8)
-- [ ] Verify boot_ctrl load hex vào IMEM qua UART bootloader
-- [ ] Test test_ascon (T1–T4) chạy đúng trên hardware thực
-- [ ] UART output match simulation log
-
-### Phase 3 — System Demo (Tháng 8)
-- [ ] Python script (PS side): đọc image → chunk thành 8-byte blocks → gửi qua SPI/UART vào SoC
-- [ ] SoC RISC-V firmware: nhận frame → ASCON DMA encrypt → gửi ciphertext + tag ra MCU
-- [ ] MCU firmware: nhận ciphertext → SW ASCON decrypt → verify tag → output
-
-### Phase 4 — Benchmark & Kết quả (Tháng 9)
-- [ ] Đo throughput ASCON HW (Mbps) vs SW baseline trên MCU
-- [ ] Đo latency per frame
-- [ ] Đo power từ Vivado Power Analysis
-- [ ] So sánh với related work trong survey/
-
----
-
-## Lưu ý kỹ thuật — PYNQ-Z2 PL
-
-### Clock
-```tcl
-# PYNQ-Z2 PL clock từ PS: 125MHz trên pin W5
-# Cần MMCM scale xuống 100MHz cho SoC
-create_clock -period 8.000 -name clk_pl [get_ports clk_pl_i]
+```text
+os/firmware/test_freertos_kernel_smoke.hex
 ```
 
-### BRAM thay SRAM
-IMEM (8KB) và DMEM (8KB) cần map vào Xilinx BRAM primitive.
-Trong simulation dùng behavioral SRAM; FPGA cần BRAM wrapper với `INIT` file.
+4. Chay simulation bang `vvp`.
+5. Kiem tra marker:
 
-### UART pins (PYNQ-Z2)
-- UART TX → `PMOD JA[0]` hoặc USB-UART chip (CP2104 trên board)
-- Board đã có USB-UART bridge → dùng để monitor + bootload
+```text
+[PASS] freertos_kernel_smoke
+```
 
-### Reset
-- `rst_n` kéo từ PS GPIO hoặc từ BTN0 (push button trên board)
-- Power-on reset cần debounce 100ms
+Log simulation nam o:
+
+```text
+fpga/sim_log/vvp_freertos_kernel_smoke.log
+```
+
+Neu thay:
+
+```text
+[OK] Simulation PASS: [PASS] freertos_kernel_smoke
+```
+
+thi goi RTL + TB + HEX da san sang de sang buoc build/nạp FPGA.
+
+## Build Vivado Project
+
+Buoc nay lam sau khi simulation PASS.
+
+Trong Vivado, add RTL theo filelist:
+
+```text
+fpga/script/rtl_sources.f
+```
+
+Sau do set top:
+
+```text
+fpga_top
+```
+
+Profile synthesis hien tai:
+
+```text
+top      = fpga_top
+SIM_MODE = 0
+ENABLE_CPU1 = 0
+```
+
+Nghia la FPGA se dung UART bootloader va single-core profile.
+
+## Script Simulation Khac
+
+Notebook-host TB, mo phong host/notebook monitor UART console:
+
+```bat
+cd fpga\script
+05_run_notebook_host_sim.bat
+```
+
+Shortcut debug kernel smoke:
+
+```bat
+cd fpga\script
+02_run_freertos_kernel_smoke_sim.bat
+```
+
+## Nap Firmware Qua UART Bootloader
+
+Sau khi bitstream da duoc nap len FPGA:
+
+1. Mo `fpga/script/03_send_firmware_uart.bat`.
+2. Sua `COM_PORT=COM5` thanh cong COM cua board.
+3. Chay:
+
+```bat
+cd fpga\script
+03_send_firmware_uart.bat
+```
+
+Script gui file:
+
+```text
+os/firmware/test_freertos_kernel_smoke.bin
+```
+
+qua UART 115200 baud.
+
+## UART Log Can Thay
+
+Neu OS boot dung, UART output can co:
+
+```text
+[PASS] freertos_kernel_smoke
+```
+
+Khi thay dong nay tren board, co the chot moc:
+
+```text
+FreeRTOS-Kernel smoke runs on FPGA at 100 MHz.
+```
+
+## Luu Y Quan Trong
+
+- Truoc mat chi bring-up single-core.
+- Chua nen day 150/200 MHz truoc khi board PASS o 100 MHz.
+- `src/` la goi RTL phang. `fpga_top.v` la wrapper FPGA co dinh `SIM_MODE=0`, `ENABLE_CPU1=0`.
+- Khong dung Verilog include-flow trong `src/`; compile RTL bang `script/rtl_sources.f`.
+- Khi tao project Vivado, add cac file trong filelist va set top `fpga_top`.
+
+## Thu Tu De Xuat
+
+1. Chay simulation package bang `05_run_notebook_host_sim.bat` hoac `00_run_freertos_kernel_smoke_sim.bat`.
+2. Tao Vivado project va add RTL theo `script/rtl_sources.f`.
+3. Them constraint `.xdc` cho clock, reset, UART, GPIO/JTAG neu can.
+4. Generate bitstream 100 MHz.
+5. Nap bitstream len FPGA.
+6. Gui `test_freertos_kernel_smoke.bin` bang `03_send_firmware_uart.bat`.
+7. Doc UART log va tim `[PASS] freertos_kernel_smoke`.
+8. Sau khi PASS, moi bat dau timing optimization len 125/150/200 MHz.

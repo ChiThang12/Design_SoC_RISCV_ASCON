@@ -1,4 +1,4 @@
-# H3 Results
+# H3 Results Reference for DMA-First Comparison
 
 Ngày chạy: 2026-06-29
 
@@ -20,13 +20,19 @@ Scenario: `test_dualcore_h3_context`
 tb_soc/tb_soc_dualcore_suite.v:241: $finish called at 1242205000 (1ps)
 ```
 
-## Y nghĩa kết quả
+## Ý nghĩa kết quả
 
 - `heartbeat=4`, `shared_count=2`: CPU0 đã publish context 0, CPU1 đã hoàn tất context 1 và bước verify switch-back về context 0.
 - `cycles=124220`: benchmark SoC-level cho luồng H3 dual-core context proof.
 - `core0_dc_req_count/core1_dc_req_count`: cả hai core đều có hoạt động DCache thực tế, tránh false-pass một core.
-- `peer_snp_hits` và `c2c_fwds` khác 0: test vẫn chạy trên nên dual-core coherent có peer snoop/cache-to-cache forwarding.
+- `peer_snp_hits` và `c2c_fwds` khác 0: test vẫn chạy trên nền dual-core coherent có peer snoop/cache-to-cache forwarding.
 - `aux1=00000000`: không dùng làm điều kiện pass. PASS của H3 dựa trên signature, heartbeat, shared_count, DCache counters và nội dung verify trong firmware.
+
+## Cách dùng trong paper mới
+
+- Giữ đây là reference result để so sánh với DMA-first engine.
+- Dùng nó để chứng minh control-plane context banking đã hoạt động đúng, nhưng không dùng làm headline throughput.
+- Khi viết paper mới, chuyển phần chính sang bulk DMA throughput, burst behavior, và end-to-end secure communication latency.
 
 ## Bảng số liệu
 
@@ -48,7 +54,7 @@ tb_soc/tb_soc_dualcore_suite.v:241: $finish called at 1242205000 (1ps)
 
 ## Kết luận H3
 
-H3 đã đặt mốc functional proof: ASCON register file có thể giữ hai context độc lập, firmware dual-core có thể chọn context bằng `CONTEXT_SEL`, và việc switch giữa context không làm mất output của context cũ.
+H3 đã đặt mốc functional proof: ASCON register file có thể giữ hai context độc lập, firmware dual-core có thể chọn context bằng `CONTEXT_SEL`, và việc switch giữa context không làm mất output của context cũ. Trong đề tài mới, đây là baseline tham chiếu để so với DMA-first revision.
 
 ## Benchmark Throughput / Context Switch
 
@@ -75,6 +81,12 @@ Bảng benchmark H3 diagnostic:
 | RTL context select latency | 1 cycle | register select update + combinational bank mux |
 | End-to-end benchmark cycles | 7129 cycles | diagnostic only: setup, switch loop, 2 core ops, verify |
 | End-to-end payload throughput | 1.80 Mbps | diagnostic only; not fair vs DMA bulk throughput |
+
+## Ghi chú cho DMA-first revision
+
+- Các số này mô tả control-plane reference của H3, không phải headline cuối cùng của paper.
+- DMA-first revision nên dùng các bảng bulk payload và burst service để chứng minh high-throughput.
+- H3 vẫn hữu ích để giữ câu chuyện nhất quán: context switch rẻ hơn reload, nhưng throughput cao thật sự phải đến từ DMA/pipeline.
 
 So sánh fair với baseline/no-CRF:
 

@@ -3,7 +3,7 @@
 Thư mục gốc workspace:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 ```
 
 ## 1. Build một firmware image
@@ -11,21 +11,21 @@ cd /home/chithang/Project/Design_SoC_RISCV_ASCON
 Ví dụ cho `test_dualcore_basic`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3/gnu_toolchain'
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_basic.c -o tests_dualcore/test_dualcore_basic.hex -c
 ```
 
 Ví dụ cho `test_dualcore_cache_sweep`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3/gnu_toolchain'
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_cache_sweep.c -o tests_dualcore/test_dualcore_cache_sweep.hex -c
 ```
 
 Ví dụ cho `test_dualcore_fence_flush`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3/gnu_toolchain'
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_fence_flush.c -o tests_dualcore/test_dualcore_fence_flush.hex -c
 ```
 
@@ -34,7 +34,7 @@ cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
 Ví dụ cho `test_dualcore_basic`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. \
   -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_basic.hex"' \
   -DSCENARIO_NAME='"test_dualcore_basic"' \
@@ -49,7 +49,7 @@ vvp /tmp/test_dualcore_basic.out
 Ví dụ cho `test_dualcore_cache_sweep`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. \
   -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_cache_sweep.hex"' \
   -DSCENARIO_NAME='"test_dualcore_cache_sweep"' \
@@ -64,7 +64,7 @@ vvp /tmp/test_dualcore_cache_sweep.out
 Ví dụ cho `test_dualcore_fence_flush`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. \
   -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_fence_flush.hex"' \
   -DSCENARIO_NAME='"test_dualcore_fence_flush"' \
@@ -79,7 +79,7 @@ vvp /tmp/test_dualcore_fence_flush.out
 Ví dụ cho `test_dualcore_peer_snoop`:
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. \
   -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_peer_snoop.hex"' \
   -DSCENARIO_NAME='"test_dualcore_peer_snoop"' \
@@ -98,19 +98,19 @@ vvp /tmp/test_dualcore_peer_snoop.out
 ## 3. Chạy toàn bộ SoC dual-core suite
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 bash run_dualcore_suite.sh
 ```
 
 ## 3a. Chạy proof ASCON dual-core DMA coherency ổn định
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON/gnu_toolchain
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3/gnu_toolchain'
 ./compile_c_to_hex.sh -i tests_dualcore/test_dualcore_ascon_dma_coherent.c -o tests_dualcore/test_dualcore_ascon_dma_coherent.hex -c
 ```
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. \
   -DTEST_HEX='"gnu_toolchain/tests_dualcore/test_dualcore_ascon_dma_coherent.hex"' \
   -DSCENARIO_NAME='"test_dualcore_ascon_dma_coherent"' \
@@ -151,7 +151,7 @@ Trạng thái kỳ vọng hiện tại:
 - DMA-style coherent invalidate forcing dirty writeback and invalidation
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. \
   -o /tmp/tb_dcache_dualcore_protocol.out \
   cache_interface/dcache/tb/tb_dcache_dualcore_protocol.v
@@ -161,19 +161,19 @@ vvp /tmp/tb_dcache_dualcore_protocol.out
 ## 5. Chạy standalone DCache regressions
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. -o /tmp/tb_dcache.out cache_interface/dcache/tb/tb_dcache.v
 vvp /tmp/tb_dcache.out
 ```
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. -o /tmp/tb_dcache_snoop.out cache_interface/dcache/tb/tb_dcache_snoop.v
 vvp /tmp/tb_dcache_snoop.out
 ```
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. -o /tmp/tb_dcache_mesi.out cache_interface/dcache/tb/tb_dcache_mesi.v
 vvp /tmp/tb_dcache_mesi.out
 ```
@@ -186,7 +186,7 @@ Phần này kiểm tra primitive path coherent của DMA engine, gồm:
 - error handling and AXI backpressure behavior after snoop-arbiter updates
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. -o /tmp/tb_ascon_dma.out ascon/dma/tb/tb_ascon_dma.v
 vvp /tmp/tb_ascon_dma.out
 ```
@@ -194,7 +194,7 @@ vvp /tmp/tb_ascon_dma.out
 ## 7. Thứ tự chạy đề xuất khi xác thực dual-core
 
 ```bash
-cd /home/chithang/Project/Design_SoC_RISCV_ASCON
+cd '/home/chithang/Project/Design_SoC_RISCV_ASCON H3'
 iverilog -g2005 -I. -o /tmp/tb_dcache.out cache_interface/dcache/tb/tb_dcache.v
 vvp /tmp/tb_dcache.out
 iverilog -g2005 -I. -o /tmp/tb_dcache_snoop.out cache_interface/dcache/tb/tb_dcache_snoop.v

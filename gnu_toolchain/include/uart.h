@@ -16,8 +16,13 @@
 
 /* ── Baud divisor constants (clk = 100 MHz) ─────────────────────────────── */
 #define UART_BAUD_DIV(clk_hz, baud)     ((clk_hz) / (baud))
+#ifdef SOC_SIM_FAST_UART
+#define UART_DIV_115200_100MHZ          1u
+#define UART_DIV_9600_100MHZ            1u
+#else
 #define UART_DIV_115200_100MHZ          868u
 #define UART_DIV_9600_100MHZ            10416u
+#endif
 
 /* ── STATUS register bits ────────────────────────────────────────────────── */
 #define UART_ST_TX_EMPTY    (1u << 0)

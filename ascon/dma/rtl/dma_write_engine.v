@@ -15,7 +15,8 @@ module dma_write_engine #(
     parameter AXI_ID_WIDTH     = 4,
     parameter SNOOP_DATA_WIDTH = 128,
     parameter MAX_BURST_LEN    = 8'd15,
-    parameter WR_FIFO_DEPTH  = 32
+    parameter WR_FIFO_DEPTH  = 32,
+    parameter MAX_OUTSTANDING_BRESP = 2
 ) (
     input  wire                        clk,
     input  wire                        rst_n,
@@ -43,6 +44,13 @@ module dma_write_engine #(
     input  wire [31:0]                 fifo_dout,
     output reg                         fifo_pop,
     input  wire [$clog2(WR_FIFO_DEPTH):0] fifo_count,
+    input  wire [$clog2(WR_FIFO_DEPTH):0] fifo_drain_count,
+    input  wire [$clog2(WR_FIFO_DEPTH):0] fifo_fill_count,
+    input  wire                        fifo_active_bank,
+    input  wire                        fifo_fill_bank_sel,
+    input  wire                        fifo_drain_bank_ready,
+    input  wire                        fifo_fill_bank_ready,
+    output reg                         bench_chain_pulse,
     input  wire [31:0]                 fifo_fwft_dout,
     input  wire                        fifo_fwft_valid,
 
@@ -89,31 +97,117 @@ module dma_write_engine #(
         WR_DATA_L   = 4'd6,
         WR_BEAT     = 4'd7,
         WR_RESP     = 4'd8;
+    localparam [1:0] MAX_OUTSTANDING_BRESP_W = MAX_OUTSTANDING_BRESP[1:0];
 
     reg [3:0]            state;
     reg [31:0]           wdata_hi;
+    reg [ADDR_WIDTH-1:0] active_burst_addr;
     reg [ADDR_WIDTH-1:0] cur_dst_addr;
     reg [28:0]           remaining_beats;
     reg [7:0]            beats_in_burst;
     reg [7:0]            burst_beats;
     reg [ADDR_WIDTH-1:0] inv_addr;
     reg [ADDR_WIDTH-1:0] inv_end_addr;
+    reg [1:0]            pending_bresp;
+    reg [ADDR_WIDTH-1:0] resp_addr_q0;
+    reg [ADDR_WIDTH-1:0] resp_addr_q1;
 
     wire [ADDR_WIDTH-1:0] burst_bytes = {21'd0, burst_beats, 3'b000};
-    wire [28:0] max_burst_beats_29 = {21'd0, MAX_BURST_LEN} + 29'd1;
-    wire [7:0] selected_burst_beats =
-        (remaining_beats > max_burst_beats_29) ? (MAX_BURST_LEN + 8'd1) :
-                                                 remaining_beats[7:0];
+    wire [7:0] selected_burst_beats;
     wire [ADDR_WIDTH-1:0] selected_burst_bytes = {21'd0, selected_burst_beats, 3'b000};
-    wire [ADDR_WIDTH-1:0] selected_last_byte_addr =
-        cur_dst_addr + selected_burst_bytes - {{(ADDR_WIDTH-1){1'b0}}, 1'b1};
-    wire [ADDR_WIDTH-1:0] selected_first_line_addr = {cur_dst_addr[ADDR_WIDTH-1:4], 4'b0000};
-    wire [ADDR_WIDTH-1:0] selected_last_line_addr  = {selected_last_byte_addr[ADDR_WIDTH-1:4], 4'b0000};
+    wire [ADDR_WIDTH-1:0] selected_first_line_addr;
+    wire [ADDR_WIDTH-1:0] selected_last_line_addr;
+    wire [7:0]            selected_line_count;
+    wire [ADDR_WIDTH-1:0] chain_first_line_addr;
+    wire [ADDR_WIDTH-1:0] chain_last_line_addr;
+    wire [7:0]            chain_line_count;
 
     wire [31:0] _unused_fifo_dout = fifo_dout;
+    wire [$clog2(WR_FIFO_DEPTH):0] _unused_fifo_count = fifo_count;
     wire [SNOOP_DATA_WIDTH-1:0] _unused_snoop_resp_data = snoop_resp_data;
     wire _unused_snoop_resp_hit = snoop_resp_hit;
     wire [AXI_ID_WIDTH-1:0] _unused_bid = M_AXI_BID;
+    wire issue_write_drain;
+    wire [1:0] write_burst_urgency;
+    wire chain_issue_write_drain;
+    wire [7:0] chain_selected_burst_beats;
+    wire [1:0] chain_write_burst_urgency;
+
+    dma_write_inval_range #(
+        .ADDR_WIDTH (ADDR_WIDTH)
+    ) u_write_inval_range (
+        .burst_addr      (cur_dst_addr),
+        .burst_beats     (selected_burst_beats),
+        .first_line_addr (selected_first_line_addr),
+        .last_line_addr  (selected_last_line_addr),
+        .line_count      (selected_line_count)
+    );
+
+    dma_write_inval_range #(
+        .ADDR_WIDTH (ADDR_WIDTH)
+    ) u_write_inval_range_chain (
+        .burst_addr      (cur_dst_addr),
+        .burst_beats     (chain_selected_burst_beats),
+        .first_line_addr (chain_first_line_addr),
+        .last_line_addr  (chain_last_line_addr),
+        .line_count      (chain_line_count)
+    );
+
+    dma_write_drain_policy #(
+        .WR_FIFO_DEPTH (WR_FIFO_DEPTH)
+    ) u_write_drain_policy (
+        .wr_busy              (wr_busy),
+        .fifo_drain_count     (fifo_drain_count),
+        .fifo_fill_count      (fifo_fill_count),
+        .active_bank          (fifo_active_bank),
+        .fill_bank_sel        (fifo_fill_bank_sel),
+        .drain_bank_ready     (fifo_drain_bank_ready),
+        .fill_bank_ready      (fifo_fill_bank_ready),
+        .remaining_beats      (remaining_beats),
+        .issue_drain          (issue_write_drain)
+    );
+
+    dma_write_bank_credit_planner #(
+        .WR_FIFO_DEPTH (WR_FIFO_DEPTH),
+        .MAX_BURST_LEN (MAX_BURST_LEN)
+    ) u_write_bank_credit_planner (
+        .remaining_beats   (remaining_beats),
+        .fifo_count        (fifo_count),
+        .fifo_drain_count  (fifo_drain_count),
+        .fifo_fill_count   (fifo_fill_count),
+        .fill_bank_ready   (fifo_fill_bank_ready),
+        .drain_bank_ready  (fifo_drain_bank_ready),
+        .target_burst_beats(selected_burst_beats),
+        .urgency_class     (write_burst_urgency)
+    );
+
+    dma_write_drain_policy #(
+        .WR_FIFO_DEPTH (WR_FIFO_DEPTH)
+    ) u_write_drain_policy_chain (
+        .wr_busy              (1'b0),
+        .fifo_drain_count     (fifo_drain_count),
+        .fifo_fill_count      (fifo_fill_count),
+        .active_bank          (fifo_active_bank),
+        .fill_bank_sel        (fifo_fill_bank_sel),
+        .drain_bank_ready     (fifo_drain_bank_ready),
+        .fill_bank_ready      (fifo_fill_bank_ready),
+        .remaining_beats      (remaining_beats),
+        .issue_drain          (chain_issue_write_drain)
+    );
+
+    dma_write_bank_credit_planner #(
+        .WR_FIFO_DEPTH (WR_FIFO_DEPTH),
+        .MAX_BURST_LEN (MAX_BURST_LEN)
+    ) u_write_bank_credit_planner_chain (
+        .remaining_beats   (remaining_beats),
+        .fifo_count        (fifo_count),
+        .fifo_drain_count  (fifo_drain_count),
+        .fifo_fill_count   (fifo_fill_count),
+        .fill_bank_ready   (fifo_fill_bank_ready),
+        .drain_bank_ready  (fifo_drain_bank_ready),
+        .target_burst_beats(chain_selected_burst_beats),
+        .urgency_class     (chain_write_burst_urgency)
+    );
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -134,17 +228,36 @@ module dma_write_engine #(
             M_AXI_WLAST     <= 1'b0;
             M_AXI_BREADY    <= 1'b0;
             fifo_pop        <= 1'b0;
+            bench_chain_pulse <= 1'b0;
             wdata_hi        <= 32'h0;
+            active_burst_addr <= {ADDR_WIDTH{1'b0}};
             cur_dst_addr    <= {ADDR_WIDTH{1'b0}};
             remaining_beats <= 29'd0;
             beats_in_burst  <= 8'd0;
             burst_beats     <= 8'd0;
             inv_addr        <= {ADDR_WIDTH{1'b0}};
             inv_end_addr    <= {ADDR_WIDTH{1'b0}};
+            pending_bresp   <= 2'd0;
+            resp_addr_q0    <= {ADDR_WIDTH{1'b0}};
+            resp_addr_q1    <= {ADDR_WIDTH{1'b0}};
         end else begin
             wr_done         <= 1'b0;
             fifo_pop        <= 1'b0;
             snoop_req_valid <= 1'b0;
+            bench_chain_pulse <= 1'b0;
+            M_AXI_BREADY    <= (pending_bresp != 2'd0);
+            wr_busy         <= (state != WR_IDLE) || (pending_bresp != 2'd0);
+
+            if (M_AXI_BVALID && M_AXI_BREADY) begin
+                if (M_AXI_BRESP != 2'b00) begin
+                    wr_error    <= 1'b1;
+                    wr_err_addr <= resp_addr_q0;
+                end
+                if (pending_bresp > 2'd0)
+                    pending_bresp <= pending_bresp - 1'b1;
+                resp_addr_q0 <= resp_addr_q1;
+                resp_addr_q1 <= {ADDR_WIDTH{1'b0}};
+            end
 
             if (dma_start) begin
                 state           <= WR_IDLE;
@@ -158,6 +271,9 @@ module dma_write_engine #(
                 M_AXI_WVALID    <= 1'b0;
                 M_AXI_BREADY    <= 1'b0;
                 M_AXI_WLAST     <= 1'b0;
+                pending_bresp   <= 2'd0;
+                resp_addr_q0    <= {ADDR_WIDTH{1'b0}};
+                resp_addr_q1    <= {ADDR_WIDTH{1'b0}};
             end else begin
                 case (state)
                     WR_IDLE: begin
@@ -166,12 +282,23 @@ module dma_write_engine #(
                         M_AXI_BREADY  <= 1'b0;
                         M_AXI_WLAST   <= 1'b0;
 
-                        if (remaining_beats > 29'd0 && fifo_count >= 'd2) begin
+                        if (issue_write_drain &&
+                            (write_burst_urgency != 2'd0) &&
+                            (selected_burst_beats != 8'd0) &&
+                            (pending_bresp < MAX_OUTSTANDING_BRESP_W)) begin
                             awlen_reg      <= selected_burst_beats - 8'd1;
                             burst_beats    <= selected_burst_beats;
                             beats_in_burst <= selected_burst_beats;
+                            active_burst_addr <= cur_dst_addr;
                             inv_addr       <= selected_first_line_addr;
                             inv_end_addr   <= selected_last_line_addr;
+                            cur_dst_addr   <= cur_dst_addr + selected_burst_bytes;
+                            remaining_beats <= remaining_beats - {21'd0, selected_burst_beats};
+                            if (pending_bresp == 2'd0)
+                                resp_addr_q0 <= cur_dst_addr;
+                            else
+                                resp_addr_q1 <= cur_dst_addr;
+                            pending_bresp <= pending_bresp + 1'b1;
 
                             wr_busy      <= 1'b1;
                             M_AXI_AWID   <= {AXI_ID_WIDTH{1'b0}};
@@ -260,27 +387,43 @@ module dma_write_engine #(
                                 state          <= WR_LOAD_H;
                             end else begin
                                 beats_in_burst <= 8'd0;
-                                M_AXI_BREADY   <= 1'b1;
-                                state          <= WR_RESP;
+                                if (chain_issue_write_drain &&
+                                    (chain_write_burst_urgency >= 2'd2) &&
+                                    (chain_selected_burst_beats != 8'd0) &&
+                                    (pending_bresp < MAX_OUTSTANDING_BRESP_W)) begin
+                                    bench_chain_pulse <= 1'b1;
+                                    awlen_reg      <= chain_selected_burst_beats - 8'd1;
+                                    burst_beats    <= chain_selected_burst_beats;
+                                    beats_in_burst <= chain_selected_burst_beats;
+                                    active_burst_addr <= cur_dst_addr;
+                                    inv_addr       <= chain_first_line_addr;
+                                    inv_end_addr   <= chain_last_line_addr;
+                                    if (pending_bresp == 2'd0)
+                                        resp_addr_q0 <= cur_dst_addr;
+                                    else
+                                        resp_addr_q1 <= cur_dst_addr;
+                                    pending_bresp   <= pending_bresp + 1'b1;
+                                    cur_dst_addr    <= cur_dst_addr + {21'd0, chain_selected_burst_beats, 3'b000};
+                                    remaining_beats <= remaining_beats - {21'd0, chain_selected_burst_beats};
+                                    M_AXI_AWID      <= {AXI_ID_WIDTH{1'b0}};
+                                    M_AXI_AWADDR    <= cur_dst_addr;
+                                    if (coherent_invalidate_en) begin
+                                        state <= WR_SNP_REQ;
+                                    end else begin
+                                        M_AXI_AWVALID <= 1'b1;
+                                        state         <= WR_ADDR;
+                                    end
+                                end else begin
+                                    state <= WR_RESP;
+                                end
                             end
                         end
                     end
 
                     WR_RESP: begin
                         wr_busy <= 1'b1;
-                        if (M_AXI_BVALID && M_AXI_BREADY) begin
-                            M_AXI_BREADY <= 1'b0;
-                            if (M_AXI_BRESP != 2'b00) begin
-                                wr_error    <= 1'b1;
-                                wr_err_addr <= cur_dst_addr;
-                            end
-                            cur_dst_addr <= cur_dst_addr + burst_bytes;
-                            if (remaining_beats > {21'd0, burst_beats})
-                                remaining_beats <= remaining_beats - {21'd0, burst_beats};
-                            else
-                                remaining_beats <= 29'd0;
+                        if ((pending_bresp == 2'd0) && (remaining_beats == 29'd0))
                             state <= WR_IDLE;
-                        end
                     end
 
                     default: begin

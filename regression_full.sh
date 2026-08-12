@@ -115,7 +115,7 @@ if [[ $DO_BUILD -eq 1 ]]; then
         fi
         extra_flags="${BUILD_EXTRA_FLAGS[$t]:-}"
         printf "  Building %-30s ... " "$t"
-        if ./compile_c_to_hex.sh -i "$src" -o "$hex" -O 0 $extra_flags > /dev/null 2>&1; then
+        if EXTRA_CFLAGS="${EXTRA_CFLAGS:-}" ./compile_c_to_hex.sh -i "$src" -o "$hex" -O 0 $extra_flags > /dev/null 2>&1; then
             echo "OK"
         else
             echo "FAIL"
@@ -157,6 +157,7 @@ if [[ $PARALLEL -eq 1 ]]; then
         VVP_FILES[$t]="$vvp"
         iverilog -g2005 \
             -DIMEM_INIT_FILE="\"${abs_hex}\"" \
+            ${EXTRA_IVERILOG_DEFINES:-} \
             -o "$vvp" run_soc_ascon.v > /dev/null 2>&1 &
         PIDS["compile_$t"]=$!
     done

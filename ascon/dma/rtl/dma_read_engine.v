@@ -15,7 +15,9 @@ module dma_read_engine #(
     parameter ADDR_WIDTH       = 32,
     parameter AXI_DATA_WIDTH   = 64,
     parameter AXI_ID_WIDTH     = 4,
-    parameter SNOOP_DATA_WIDTH = 128
+    parameter SNOOP_DATA_WIDTH = 128,
+    parameter RD_FIFO_DEPTH    = 8,
+    parameter MAX_OUTSTANDING_READS = 2
 ) (
     input  wire                       clk,
     input  wire                       rst_n,
@@ -44,6 +46,7 @@ module dma_read_engine #(
     output reg  [AXI_DATA_WIDTH-1:0]  fifo_din,
     output reg                        fifo_push,
     input  wire                       fifo_full,
+    input  wire [$clog2(RD_FIFO_DEPTH):0] fifo_fill_count,
 
     // AXI4 Read Address Channel
     output reg  [AXI_ID_WIDTH-1:0]    M_AXI_ARID,
@@ -78,6 +81,7 @@ module dma_read_engine #(
         RD_ADDR     = 3'd4,
         RD_DATA     = 3'd5,
         RD_DONE     = 3'd6;
+    localparam [1:0] MAX_OUTSTANDING_READS_W = MAX_OUTSTANDING_READS[1:0];
 
     reg [2:0] state;
 
@@ -85,19 +89,39 @@ module dma_read_engine #(
     reg [ADDR_WIDTH-1:0] last_rd_src_addr;
     reg [ADDR_WIDTH-1:0] tx_start_addr;
     reg [ADDR_WIDTH-1:0] work_addr;
+    reg [ADDR_WIDTH-1:0] pipe_issue_addr;
+    reg [ADDR_WIDTH-1:0] pipe_r_addr;
     reg [28:0]           tx_total_beats;
     reg [28:0]           tx_beat_idx;
+    reg [28:0]           pipe_beats_issued;
+    reg [28:0]           pipe_beats_done;
     reg [7:0]            burst_len_r;
     reg [7:0]            beat_cnt;
+    reg [7:0]            ar_beats_planned;
     reg [AXI_DATA_WIDTH-1:0] snoop_pending_beat;
+    reg [1:0]            rd_outstanding_reads;
 
     wire [ADDR_WIDTH-1:0] legacy_beat_addr =
         M_AXI_ARADDR + {{(ADDR_WIDTH-11){1'b0}}, beat_cnt, 3'b000};
-    wire [ADDR_WIDTH-1:0] current_err_addr = coherent_read_en ? work_addr : legacy_beat_addr;
+    wire [ADDR_WIDTH-1:0] current_err_addr = coherent_read_en ? work_addr : pipe_r_addr;
     wire [ADDR_WIDTH-1:0] snoop_line_addr = {work_addr[ADDR_WIDTH-1:4], 4'b0000};
     wire [ADDR_WIDTH-1:0] next_work_addr = work_addr + 32'd8;
     wire [ADDR_WIDTH-1:0] next_snoop_line_addr = {next_work_addr[ADDR_WIDTH-1:4], 4'b0000};
     wire                  snoop_lower_beat = (work_addr[3] == 1'b0);
+    wire [28:0] pipe_beats_remaining = (pipe_beats_issued < tx_total_beats) ?
+                                       (tx_total_beats - pipe_beats_issued) : 29'd0;
+    wire [28:0] fifo_fill_count_ext = {{(29-($clog2(RD_FIFO_DEPTH)+1)){1'b0}}, fifo_fill_count};
+    wire [28:0] fill_room_beats = (fifo_fill_count_ext < RD_FIFO_DEPTH) ?
+                                  (RD_FIFO_DEPTH - fifo_fill_count_ext) : 29'd0;
+    wire [28:0] read_credit_window = (fill_room_beats > 29'd4) ? 29'd4 : fill_room_beats;
+    wire [28:0] pipe_issue_target_beats =
+        (pipe_beats_remaining > read_credit_window) ? read_credit_window : pipe_beats_remaining;
+    wire pipe_can_issue =
+        !coherent_read_en &&
+        (state == RD_DATA) &&
+        !M_AXI_ARVALID &&
+        (rd_outstanding_reads < MAX_OUTSTANDING_READS_W) &&
+        (pipe_issue_target_beats != 29'd0);
 
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
@@ -122,9 +146,15 @@ module dma_read_engine #(
             last_rd_src_addr <= {ADDR_WIDTH{1'b1}};
             tx_start_addr    <= {ADDR_WIDTH{1'b0}};
             work_addr        <= {ADDR_WIDTH{1'b0}};
+            pipe_issue_addr  <= {ADDR_WIDTH{1'b0}};
+            pipe_r_addr      <= {ADDR_WIDTH{1'b0}};
             tx_total_beats   <= 29'd0;
             tx_beat_idx      <= 29'd0;
+            pipe_beats_issued<= 29'd0;
+            pipe_beats_done  <= 29'd0;
             snoop_pending_beat <= {AXI_DATA_WIDTH{1'b0}};
+            ar_beats_planned <= 8'd0;
+            rd_outstanding_reads <= 2'd0;
         end else begin
             rd_done         <= 1'b0;
             fifo_push       <= 1'b0;
@@ -147,17 +177,25 @@ module dma_read_engine #(
                         burst_len_r    <= burst_len;
                         tx_total_beats <= {21'd0, burst_len} + 29'd1;
                         tx_beat_idx    <= 29'd0;
+                        pipe_beats_issued <= 29'd0;
+                        pipe_beats_done   <= 29'd0;
+                        ar_beats_planned  <= 8'd0;
+                        rd_outstanding_reads <= 2'd0;
                         M_AXI_ARID     <= {AXI_ID_WIDTH{1'b0}};
 
                         if (src_addr != last_rd_src_addr) begin
                             tx_start_addr <= src_addr;
                             work_addr     <= src_addr;
+                            pipe_issue_addr <= src_addr;
+                            pipe_r_addr     <= src_addr;
                             cur_src_addr  <= src_addr;
                             if (!coherent_read_en)
                                 M_AXI_ARADDR <= src_addr;
                         end else begin
                             tx_start_addr <= cur_src_addr;
                             work_addr     <= cur_src_addr;
+                            pipe_issue_addr <= cur_src_addr;
+                            pipe_r_addr     <= cur_src_addr;
                             if (!coherent_read_en)
                                 M_AXI_ARADDR <= cur_src_addr;
                         end
@@ -166,8 +204,9 @@ module dma_read_engine #(
                         if (coherent_read_en) begin
                             state <= RD_SNP_REQ;
                         end else begin
-                            M_AXI_ARLEN   <= burst_len;
+                            M_AXI_ARLEN   <= 8'd0;
                             M_AXI_ARVALID <= 1'b1;
+                            ar_beats_planned <= 8'd1;
                             state         <= RD_ADDR;
                         end
                     end
@@ -243,6 +282,11 @@ module dma_read_engine #(
                         M_AXI_RREADY  <= ~fifo_full;
                         if (coherent_read_en)
                             beat_cnt <= 8'h00;
+                        else begin
+                            pipe_beats_issued <= pipe_beats_issued + {21'd0, ar_beats_planned};
+                            pipe_issue_addr   <= pipe_issue_addr + ({21'd0, ar_beats_planned} << 3);
+                            rd_outstanding_reads <= rd_outstanding_reads + 1'b1;
+                        end
                         state <= RD_DATA;
                     end
                 end
@@ -250,6 +294,13 @@ module dma_read_engine #(
                 RD_DATA: begin
                     rd_busy <= 1'b1;
                     M_AXI_RREADY <= ~fifo_full;
+
+                    if (pipe_can_issue) begin
+                        M_AXI_ARADDR      <= pipe_issue_addr;
+                        M_AXI_ARLEN       <= pipe_issue_target_beats[7:0] - 8'd1;
+                        M_AXI_ARVALID     <= 1'b1;
+                        ar_beats_planned  <= pipe_issue_target_beats[7:0];
+                    end
 
                     if (M_AXI_RVALID && M_AXI_RREADY) begin
                         if (M_AXI_RRESP != 2'b00) begin
@@ -267,11 +318,13 @@ module dma_read_engine #(
                                 rd_err_addr <= current_err_addr;
                         end
 
-                        beat_cnt <= beat_cnt + 8'h01;
+                        beat_cnt    <= beat_cnt + 8'h01;
+                        pipe_r_addr <= pipe_r_addr + 32'd8;
+                        pipe_beats_done <= pipe_beats_done + 29'd1;
 
                         if (M_AXI_RLAST) begin
-                            M_AXI_RREADY <= 1'b0;
                             if (coherent_read_en) begin
+                                M_AXI_RREADY <= 1'b0;
                                 if (tx_beat_idx + 29'd1 >= tx_total_beats) begin
                                     cur_src_addr <= tx_start_addr + (tx_total_beats << 3);
                                     state        <= RD_DONE;
@@ -281,10 +334,22 @@ module dma_read_engine #(
                                     state       <= RD_SNP_REQ;
                                 end
                             end else begin
-                                cur_src_addr <= M_AXI_ARADDR + {22'b0, burst_len_r, 3'b000} + 32'd8;
-                                state        <= RD_DONE;
+                                if (rd_outstanding_reads != 0)
+                                    rd_outstanding_reads <= rd_outstanding_reads - 1'b1;
+                                if (pipe_beats_done + 29'd1 >= tx_total_beats) begin
+                                    cur_src_addr <= tx_start_addr + (tx_total_beats << 3);
+                                    M_AXI_RREADY <= 1'b0;
+                                    state        <= RD_DONE;
+                                end
                             end
                         end
+                    end
+
+                    if (!coherent_read_en && M_AXI_ARREADY && M_AXI_ARVALID) begin
+                        M_AXI_ARVALID <= 1'b0;
+                        pipe_beats_issued <= pipe_beats_issued + {21'd0, ar_beats_planned};
+                        pipe_issue_addr   <= pipe_issue_addr + ({21'd0, ar_beats_planned} << 3);
+                        rd_outstanding_reads <= rd_outstanding_reads + 1'b1;
                     end
                 end
 

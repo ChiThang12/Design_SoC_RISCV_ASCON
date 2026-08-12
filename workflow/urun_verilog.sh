@@ -52,7 +52,7 @@ echo "Output   : $NAME.vvp"
 echo "Log file : $LOG"
 echo "============================================"
 
-iverilog $STD -o "$NAME.vvp" "$SRC" || exit 1
+iverilog $STD ${EXTRA_IVERILOG_DEFINES:-} -o "$NAME.vvp" "$SRC" || exit 1
 
 echo "--------------------------------------------"
 echo "Running simulation..."
