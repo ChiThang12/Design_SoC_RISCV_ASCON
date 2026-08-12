@@ -20,7 +20,8 @@ module fpga_top (
 
     inout  wire [31:0] gpio,
 
-    output wire        wdt_rst_req
+    output wire        wdt_rst_req,
+    output wire        led_heartbeat
 );
 
     soc_hs #(
@@ -41,7 +42,8 @@ module fpga_top (
         .spi_miso   (spi_miso),
         .spi_cs_n   (spi_cs_n),
         .gpio       (gpio),
-        .wdt_rst_req(wdt_rst_req)
+        .wdt_rst_req(wdt_rst_req),
+        .led_heartbeat(led_heartbeat)
     );
 
 endmodule

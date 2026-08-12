@@ -4,9 +4,14 @@
 #include "task.h"
 #include "uart.h"
 #include "irq.h"
+#include "gpio.h"
 
 #define KERNEL_SMOKE_STACK_WORDS 128u
 #define KERNEL_SMOKE_UART_DIV    16u
+#define TELEMETRY_EARLY_LIMIT    4u
+#define TELEMETRY_SPACING_MASK   0x1Fu
+#define HEARTBEAT_GPIO_BIT       0u
+#define HEARTBEAT_GPIO_MASK      (1u << HEARTBEAT_GPIO_BIT)
 
 static StaticTask_t task_a_tcb;
 static StaticTask_t task_b_tcb;
@@ -18,7 +23,72 @@ static StackType_t idle_stack[ configMINIMAL_STACK_SIZE ];
 
 static volatile uint32_t task_a_count;
 static volatile uint32_t task_b_count;
+static volatile uint32_t telemetry_beat;
 static volatile uint32_t pass_reported;
+
+static void uart_putu32( uint32_t value )
+{
+    char buf[ 11 ];
+    uint32_t i = 0u;
+
+    if( value == 0u )
+    {
+        uart_putc( '0' );
+        return;
+    }
+
+    while( ( value != 0u ) && ( i < sizeof( buf ) ) )
+    {
+        buf[ i ] = (char)( '0' + ( value % 10u ) );
+        value /= 10u;
+        i++;
+    }
+
+    while( i > 0u )
+    {
+        i--;
+        uart_putc( buf[ i ] );
+    }
+}
+
+static uint32_t telemetry_should_emit( uint32_t count )
+{
+    return ( count <= TELEMETRY_EARLY_LIMIT ) || ( ( count & TELEMETRY_SPACING_MASK ) == 0u );
+}
+
+static void telemetry_emit( char task_name )
+{
+    telemetry_beat++;
+    uart_puts( "[TEL] task=" );
+    uart_putc( task_name );
+    uart_puts( " tick=" );
+    uart_putu32( (uint32_t)xTaskGetTickCount() );
+    uart_puts( " a=" );
+    uart_putu32( task_a_count );
+    uart_puts( " b=" );
+    uart_putu32( task_b_count );
+    uart_puts( " beat=" );
+    uart_putu32( telemetry_beat );
+    uart_puts( "\r\n" );
+}
+
+static void heartbeat_init( void )
+{
+    gpio_set_dir( HEARTBEAT_GPIO_MASK );
+    gpio_clear( HEARTBEAT_GPIO_MASK );
+}
+
+static void heartbeat_update( void )
+{
+    if( ( xTaskGetTickCount() & 1u ) != 0u )
+    {
+        gpio_set( HEARTBEAT_GPIO_MASK );
+    }
+    else
+    {
+        gpio_clear( HEARTBEAT_GPIO_MASK );
+    }
+}
 
 static void stop_timer_for_pass( void )
 {
@@ -64,6 +134,11 @@ static void task_a( void * arg )
     while( 1 )
     {
         task_a_count++;
+        heartbeat_update();
+        if( telemetry_should_emit( task_a_count ) != 0u )
+        {
+            telemetry_emit( 'A' );
+        }
         maybe_pass();
         taskYIELD();
         __asm__ volatile ( "nop" );
@@ -77,6 +152,10 @@ static void task_b( void * arg )
     while( 1 )
     {
         task_b_count++;
+        if( telemetry_should_emit( task_b_count ) != 0u )
+        {
+            telemetry_emit( 'B' );
+        }
         maybe_pass();
         taskYIELD();
         __asm__ volatile ( "nop" );
@@ -107,7 +186,9 @@ void vApplicationStackOverflowHook( TaskHandle_t task, char * name )
 int main( void )
 {
     uart_init( KERNEL_SMOKE_UART_DIV, 0u, 0u );
+    heartbeat_init();
     uart_puts( "[RTOS] FreeRTOS kernel smoke boot\r\n" );
+    uart_puts( "[TEL] dashboard=armed\r\n" );
 
     if( xTaskCreateStatic( task_a,
                            "A",
@@ -133,6 +214,7 @@ int main( void )
         while( 1 ) {}
     }
 
+    uart_puts( "[TEL] scheduler=starting\r\n" );
     vTaskStartScheduler();
 
     uart_puts( "[FAIL] freertos_kernel_smoke scheduler\r\n" );

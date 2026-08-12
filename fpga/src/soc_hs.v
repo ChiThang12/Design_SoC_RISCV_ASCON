@@ -40,7 +40,10 @@ module soc_hs #(
     inout  wire [31:0] gpio, // Inout pad vật lý (Bi-directional)
 
     // ── WDT reset request ──────────────────────────
-    output wire wdt_rst_req  // Active-high, từ watchdog → external supervisor/PMU
+    output wire wdt_rst_req, // Active-high, từ watchdog → external supervisor/PMU
+
+    // ── Heartbeat LED ───────────────────────────────
+    output wire led_heartbeat
 );
 
     // ========================================================================
@@ -84,6 +87,7 @@ module soc_hs #(
     );
 
     assign wdt_rst_req = core_wdt_rst_req;
+    assign led_heartbeat = core_gpio_oe[0] ? core_gpio_out[0] : 1'b0;
 
     // ========================================================================
     // Khởi tạo IO Pad Cells (Standard Verilog inference)

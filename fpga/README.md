@@ -175,3 +175,14 @@ FreeRTOS-Kernel smoke runs on FPGA at 100 MHz.
 6. Gui `test_freertos_kernel_smoke.bin` bang `03_send_firmware_uart.bat`.
 7. Doc UART log va tim `[PASS] freertos_kernel_smoke`.
 8. Sau khi PASS, moi bat dau timing optimization len 125/150/200 MHz.
+
+Neu ban muon chay 50 MHz, dung constraint trong:
+
+```text
+fpga/constraints/pynqz2_50mhz.sdc
+fpga/constraints/pynqz2_50mhz.xdc
+```
+
+Heartbeat LED cua FreeRTOS duoc dua ra port `led_heartbeat` va firmware
+toggling GPIO bit 0. Neu muon nhin LED tren board, map port nay ra chan LED
+thuc te trong constraint.

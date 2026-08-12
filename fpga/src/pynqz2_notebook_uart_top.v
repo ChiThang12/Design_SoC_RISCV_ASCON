@@ -30,7 +30,8 @@ module pynqz2_notebook_uart_top #(
     output wire       spi_cs_n,
 
     inout  wire [31:0] gpio,
-    output wire       wdt_rst_req
+    output wire       wdt_rst_req,
+    output wire       led_heartbeat
 );
     wire soc_uart_rx;
     wire soc_uart_tx;
@@ -72,6 +73,7 @@ module pynqz2_notebook_uart_top #(
         .spi_miso   (spi_miso),
         .spi_cs_n   (spi_cs_n),
         .gpio       (gpio),
-        .wdt_rst_req(wdt_rst_req)
+        .wdt_rst_req(wdt_rst_req),
+        .led_heartbeat(led_heartbeat)
     );
 endmodule
